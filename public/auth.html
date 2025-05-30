@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Textmob</title>
+  <meta name="google-site-verification" content="XFZ3hMBm2d-LEfUVUISD5Ahvs_YIu1FACZyuENugYGU" />
+  <meta name="description" content="Join Textmob Today, the ultimate social network app for Users Worldwide. Stay connected with friends, family, and like-minded individuals. Share thoughts, photos, and videos seamlessly.">
+  <meta name="keywords" content="Textmob, Textmob Login, Latest Social apps, Facebook, Instagram, Whatsapp, telegram, social media, messaging app, text messaging, social networking, chat app">
+  <!-- Manrope font + Tailwind -->
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --tm-blue: #6366f1;
+      --tm-accent: #1E90FF;
+    }
+
+    body {
+      font-family: 'Manrope', sans-serif;
+      background-image: url('https://ik.imagekit.io/tts8u8h4r/people.jpeg?updatedAt=1747939425777');
+      background-size: cover;
+      background-attachment: fixed;
+    }
+
+    .hero-container {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 0 1rem;
+    }
+
+    .hero-text {
+      position: absolute;
+      top: 4rem;
+      width: 100%;
+      text-align: center;
+      padding: 0 1rem;
+    }
+
+    .hero-text h1 {
+      color: #fff;
+      font-size: 2rem;
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    @media(min-width: 640px) {
+      .hero-text h1 { font-size: 2.5rem; }
+    }
+
+    .auth-box {
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(10px);
+      padding: 2rem;
+      border-radius: 1.5rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 24rem;
+      z-index: 20;
+    }
+
+    /* Notifications */
+    #textmob-notification-container {
+      position: fixed; top: 1rem; right: 1rem; z-index: 50;
+    }
+    .textmob-notification {
+      background: #fff; border-left: 4px solid var(--tm-blue);
+      padding: .75rem 1rem; margin-bottom: .5rem; border-radius: .25rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1); position: relative;
+    }
+    .textmob-notification.error { border-color: #ef4444; }
+    .textmob-close-btn {
+      position: absolute; top: .25rem; right: .5rem;
+      background: none; border: none; font-size: 1rem; cursor: pointer;
+    }
+
+    /* Spinner */
+    .spinner-ring {
+      border: 2px solid black;
+      border-top-color: white;
+      border-radius: 50%;
+      width: 20px; height: 20px;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Progress bar */
+    .progress-fill {
+      background-color: var(--tm-accent);
+      transition: width .3s ease;
+    }
+
+    /* Primary button */
+    .btn-primary {
+      background-color: var(--tm-accent);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero-container">
+    <div class="hero-text">
+      <h1>Connect with your friends on Textmob</h1>
+    </div>
+    <div id="root"></div>
+  </div>
+
+  <div id="textmob-notification-container"></div>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.8/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function showNotification({ title, message, type = "info", duration = 4000 }) {
+      const container = document.getElementById("textmob-notification-container");
+      const notification = document.createElement("div");
+      notification.className = `textmob-notification ${type}`;
+      notification.innerHTML = `
+        <strong>${title}</strong><br>
+        <span>${message}</span>
+        <button class="textmob-close-btn">&times;</button>
+      `;
+      notification.querySelector(".textmob-close-btn")
+        .addEventListener("click", () => notification.remove());
+      container.appendChild(notification);
+      setTimeout(() => notification.remove(), duration);
+    }
+
+    function LoginForm({ switchToSignup }) {
+      const [identifier, setIdentifier] = useState("");
+      const [password, setPassword]     = useState("");
+      const [remember, setRemember]     = useState(false);
+      const [savedUsers, setSavedUsers] = useState([]);
+      const [loading, setLoading]       = useState(false);
+
+      useEffect(() => {
+        setSavedUsers(JSON.parse(localStorage.getItem("savedUsers") || "[]"));
+      }, []);
+
+      async function handleLogin(e) {
+        e.preventDefault();
+        setLoading(true);
+        try {
+          const res = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier, password })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            showNotification({ title: "Error", message: data.error, type: "error" });
+          } else {
+            showNotification({ title: "Success", message: data.message });
+            if (remember) {
+              const users = JSON.parse(localStorage.getItem("savedUsers") || "[]");
+              if (!users.includes(data.user.username)) {
+                users.push(data.user.username);
+                localStorage.setItem("savedUsers", JSON.stringify(users));
+                setSavedUsers(users);
+              }
+            }
+            localStorage.setItem("currentUser", data.user.username);
+            window.location.href = '/';
+          }
+        } catch (err) {
+          showNotification({ title: "Error", message: err.message || err, type: "error" });
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      return (
+        <div className="auth-box">
+          <h2 className="text-center text-2xl font-semibold text-gray-800">
+            Login to Textmob
+          </h2>
+          <form className="space-y-4 mt-6" onSubmit={handleLogin}>
+            <input
+              name="identifier"
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
+              placeholder="Username or Email"
+              className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--tm-accent)]"
+              required
+            />
+            <input
+              type="password"
+              name="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--tm-accent)]"
+              required
+            />
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={() => setRemember(!remember)}
+              />
+              <span className="text-sm">Remember my username</span>
+            </label>
+            <button
+              type="submit"
+              className={`w-full p-3 rounded-xl btn-primary flex justify-center items-center`}
+              disabled={loading}
+            >
+              {loading ? <div className="spinner-ring"></div> : "Login"}
+            </button>
+          </form>
+
+          {savedUsers.length > 0 && (
+            <div className="mt-4 p-2 bg-gray-50 rounded">
+              <p className="text-sm text-gray-600 mb-2">Saved accounts:</p>
+              <div className="flex flex-wrap gap-2">
+                {savedUsers.map(user => (
+                  <button
+                    key={user}
+                    onClick={() => setIdentifier(user)}
+                    className="px-3 py-1 bg-indigo-100 rounded text-indigo-700 text-sm"
+                  >
+                    {user}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="text-center mt-4 text-sm text-gray-700">
+            Don't have an account?{" "}
+            <button onClick={switchToSignup} className="text-[var(--tm-accent)] hover:underline">
+              Create Account
+            </button>
+          </p>
+        </div>
+      );
+    }
+function isValidName(name) {
+  if (!name || typeof name !== "string") return false;
+
+  const trimmed = name.trim();
+  const words = trimmed.split(/\s+/);
+  if (words.length < 2) return false;                   // at least two words
+  if (!/^[A-Za-z\s]+$/.test(trimmed)) return false;     // only letters & spaces
+
+  // Check for gibberish
+  const vowels = /[aeiou]/i;
+  if (!vowels.test(trimmed)) return false;
+  if (/[bcdfghjklmnpqrstvwxyz]{6,}/i.test(trimmed)) return false;
+
+  // Check against basic blacklist
+  const forbidden = [
+    "asdfghjkl", "qwertyuiop", "zxcvbnm",
+    "poiuytrewq", "lkjhgfds", "admin", "user"
+  ];
+
+  const lower = trimmed.toLowerCase();
+  return !forbidden.some(word => lower.includes(word));
+}
+
+    function SignUpWizard({ switchToLogin }) {
+      const steps = [
+        { fields: [ { name: "username", label: "@ Username", type: "text", required: true }, { name: "phone", label: "Phone", type: "tel", required: true } ], mandatory: true },
+        { fields: [ { name: "password", label: "Password", type: "password", required: true }, { name: "confirmPassword", label: "Confirm Password", type: "password", required: true } ], mandatory: true },
+        { fields: [ { name: "fullName", label: "Full Name", type: "text", required: false }, { name: "biography", label: "Bio", type: "text", required: false } ], mandatory: false },
+        { fields: [ { name: "profile_type", label: "Profile Type", type: "select", options: ["Individual","Organisation"], required: true } ], mandatory: true },
+        { fields: [ { name: "email", label: "Email", type: "email", required: false }, { name: "profilePic", label: "Profile Picture", type: "file", required: false } ], mandatory: false }
+      ];
+
+      const [stepIndex, setStepIndex] = useState(0);
+      const [loading, setLoading]     = useState(false);
+      const [data, setData] = useState({
+        profile_type: "", username: "", phone: "",
+        password: "", confirmPassword: "",
+        fullName: "", biography: "",
+        email: "", profilePic: null
+      });
+
+      function updateField(name, value) {
+        setData(d => ({ ...d, [name]: value }));
+      }
+
+      function validateStep() {
+        const { fields } = steps[stepIndex];
+        for (let f of fields) {
+          if (f.required && !data[f.name]) {
+            showNotification({ title: "Error", message: `${f.label} is required.`, type: "error" });
+            return false;
+          }
+          if (f.name === "fullName" && data.fullName && !isValidName(data.fullName)) {
+            showNotification({ title: "Invalid Name", message: "Please enter a real full name (e.g. 'John Doe').", type: "error" });
+            return false;
+          }
+        }
+        if (stepIndex === 1) {
+          if (data.password !== data.confirmPassword) {
+            showNotification({ title: "Error", message: "Passwords do not match", type: "error" });
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function next() { if (validateStep()) setStepIndex(i => i + 1); }
+      function back() { setStepIndex(i => Math.max(0, i - 1)); }
+      function skip() { setStepIndex(i => i + 1); }
+
+      async function submitAll(e) {
+        e.preventDefault();
+        if (!validateStep()) return;
+        setLoading(true);
+        const form = new FormData();
+        Object.entries(data).forEach(([k, v]) => { if (v) form.append(k, v); });
+        try {
+          const res = await fetch("/signup", { method: "POST", body: form });
+          const result = await res.json();
+          if (!res.ok) {
+            showNotification({ title: "Error", message: result.error, type: "error" });
+            setLoading(false);
+          } else {
+            showNotification({ title: "Success", message: result.message });
+            localStorage.setItem("currentUser", data.username);
+            switchToLogin();
+          }
+        } catch (err) {
+          showNotification({ title: "Error", message: err.message || err, type: "error" });
+          setLoading(false);
+        }
+      }
+
+      const { fields, mandatory } = steps[stepIndex];
+
+      return (
+        <div className="auth-box">
+          <h2 className="text-center text-2xl sm:text-3xl font-semibold text-gray-800 mb-4">
+            Create your Textmob account
+          </h2>
+
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              Step {stepIndex + 1} of {steps.length}
+              {!mandatory && <button onClick={skip} className="text-[var(--tm-accent)] hover:underline">Skip</button>}
+            </div>
+            <div className="h-1 bg-gray-200 rounded-full overflow-hidden mt-1">
+              <div
+                className="h-full progress-fill"
+                style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+
+          <form onSubmit={stepIndex === steps.length - 1 ? submitAll : e => e.preventDefault()}>
+            <div className="space-y-4">
+              {fields.map(f => (
+                <div key={f.name}>
+                  {f.type === "select" ? (
+                    <select
+                      value={data[f.name]}
+                      onChange={e => updateField(f.name, e.target.value)}
+                      className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--tm-accent)]"
+                      required={f.required}
+                    >
+                      <option value="">{f.label}</option>
+                      {f.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : f.type === "file" ? (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => updateField(f.name, e.target.files[0])}
+                      className="w-full p-2 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--tm-accent)]"
+                      required={f.required}
+                    />
+                  ) : (
+                    <input
+                      type={f.type}
+                      placeholder={f.label}
+                      value={data[f.name]}
+                      onChange={e => updateField(f.name, e.target.value)}
+                      className="w-full p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--tm-accent)]"
+                      required={f.required}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-between">
+              {stepIndex > 0
+                ? <button type="button" onClick={back} className="px-5 py-2 bg-gray-200 rounded-xl hover:bg-gray-300">Back</button>
+                : <div />
+              }
+              {stepIndex < steps.length - 1
+                ? <button type="button" onClick={next} className="px-5 py-2 btn-primary rounded-xl">Next</button>
+                : <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-5 py-2 btn-primary rounded-xl flex justify-center items-center"
+                  >
+                    {loading ? <div className="spinner-ring"></div> : "Sign Up"}
+                  </button>
+              }
+            </div>
+          </form>
+
+          <p className="text-center mt-4 text-sm text-gray-700">
+            Already have an account?{" "}
+            <button onClick={switchToLogin} className="text-[var(--tm-accent)] hover:underline">
+              Login
+            </button>
+          </p>
+        </div>
+      );
+    }
+
+    function App() {
+      const [isLogin, setIsLogin] = useState(false);
+      return isLogin
+        ? <LoginForm switchToSignup={() => setIsLogin(false)} />
+        : <SignUpWizard switchToLogin={() => setIsLogin(true)} />;
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
