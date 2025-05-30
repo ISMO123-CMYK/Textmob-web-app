@@ -938,7 +938,7 @@ app.post("/like-post", async (req, res) => {
           "🔔 New Like on Your Post!",
           `<p>Hi ${userData.fullName || post.username},</p>
            <p><strong>${username}</strong> just liked your post on Textmob.</p>
-           <p><a href="https://textmob.glitch.me/post/${postId}">View post</a></p>`
+           <p><a href="https://textmob.web.app/post/${postId}">View post</a></p>`
         );
         } else {
           // Send email notification
@@ -947,7 +947,7 @@ app.post("/like-post", async (req, res) => {
           `🔔 Someone is Interested in Your Event (${post.title})! on Textmob`,
           `<p>Hi ${userData.fullName || post.username},</p>
            <p><strong>${username}</strong> just Is Interested in Your Event On Textmob.</p>
-           <p><a href="https://textmob.glitch.me/post/${postId}">View Event</a></p>`
+           <p><a href="https://textmob.web.app/post/${postId}">View Event</a></p>`
         );
         }
       } else {
@@ -1161,7 +1161,7 @@ app.post("/add-comment", async (req, res) => {
           `<p>Hi ${userData.fullName || post.username},</p>
            <p><strong>${username}</strong> just commented on your post:</p>
            <blockquote>${comment}</blockquote>
-           <p><a href="https://textmob.glitch.me/post/${postId}">View post</a></p>`
+           <p><a href="https://textmob.web.app/post/${postId}">View post</a></p>`
         );
       } else {
         console.warn(`Could not send email: User data not found for ${post.username}`);
@@ -1399,7 +1399,7 @@ app.post("/connect", async (req, res) => {
             `
               <h2>New Follower Alert!</h2>
               <p><strong>${currentUsername}</strong> just followed your Company's Page on Textmob.</p>
-              <p><a href="https://textmob.glitch.me/@${currentUsername}">View their profile →</a></p>
+              <p><a href="https://textmob.web.app/@${currentUsername}">View their profile →</a></p>
             `
           );
         }
@@ -1449,7 +1449,7 @@ app.post("/connect", async (req, res) => {
             `
               <h2>New Friend Request</h2>
               <p><strong>${currentUsername}</strong> just added you as a friend.</p>
-              <p><a href="https://textmob.glitch.me/@${currentUsername}">View their profile →</a></p>
+              <p><a href="https://textmob.web.app/@${currentUsername}">View their profile →</a></p>
             `
           );
         }
@@ -1509,7 +1509,7 @@ setInterval(async () => {
       const digestHtml = `
         <h2>Hello ${user.full_name || user.email}, here's your Weekly Digest!</h2>
         <p>${digestMessage}</p>
-        <p><a href="https://textmob.glitch.me">Go to Textmob</a></p>
+        <p><a href="https://textmob.web.app">Go to Textmob</a></p>
       `;
 
       // Send email to the user
@@ -1557,7 +1557,7 @@ app.get('/week', function(req, res) {
     const digestHtml = `
       <h2>Hello! Here's your Weekly Digest from Textmob</h2>
       <p>${digestMessage}</p>
-      <p><a href="https://textmob.glitch.me">Go to Textmob</a></p>
+      <p><a href="https://textmob.web.app">Go to Textmob</a></p>
     `;
 
     // Send the email to all users at once
