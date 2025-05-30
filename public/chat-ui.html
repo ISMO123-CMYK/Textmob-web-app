@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script>
+      // Run this check before any content is shown
+      if (!localStorage.currentUser) {
+        alert('Please Login to Continue');
+        window.location.href = '/auth';
+      } else {
+        console.log('Allowed to view page');
+      }
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Messages | Textmob</title>
+  
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Socket.IO client -->
+    <script src="/socket.io/socket.io.js" crossorigin="anonymous"></script>
+    <!-- Manrope font -->
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+    <style>
+:root {
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --bg-light: #f9fafb;
+  --bg-white: #ffffff;
+  --text-dark: #111827;
+  --text-light: #6b7280;
+  --online-green: #10b981;
+  --shadow: rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  font-family: 'Manrope', sans-serif;
+}
+svg {
+  width: 25px;
+  height: 25px;
+}
+body {
+  margin: 0;
+  background: var(--bg-light);
+}
+
+#root {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 360px;
+  background: var(--bg-white);
+  box-shadow: 2px 0 8px var(--shadow);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+  z-index: 30;
+}
+      #rem {
+        display: none;
+      }
+.sidebar.hidden {
+  transform: translateX(-100%);
+  position: absolute;
+}
+.sidebar.show {
+  transform: translateX(0);
+  position: absolute;
+  height: 100%;
+}
+.sidebar h2 {
+  margin: 0;
+  padding: 1rem;
+  color: var(--primary);
+  font-size: 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.search-input {
+  margin: 0.5rem 1rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  outline: none;
+}
+.contact {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.contact:hover,
+.contact.active {
+  background: #eef2ff;
+}
+.contact img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 0.75rem;
+  object-fit: cover;
+  box-shadow: 0 2px 4px var(--shadow);
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--text-light);
+}
+.status-dot.online {
+  background: var(--online-green);
+}
+
+/* Chat */
+.chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  height: 60px;
+  background: var(--bg-white);
+  box-shadow: 0 2px 4px var(--shadow);
+  z-index: 10;
+}
+.chat-header .left {
+  display: flex;
+  align-items: center;
+}
+.chat-header img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-right: 0.75rem;
+  object-fit: cover;
+  box-shadow: 0 1px 3px var(--shadow);
+}
+.chat-header .status {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-left: 0.5rem;
+}
+.back-button {
+  display: none;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  margin-right: 0.5rem;
+  cursor: pointer;
+}
+.icons {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.icon-btn {
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.menu-dropdown {
+  position: absolute;
+  top: 60px;
+  right: 1rem;
+  background: var(--bg-white);
+  box-shadow: 0 2px 4px var(--shadow);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.menu-dropdown div {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.menu-dropdown div:hover {
+  background: var(--bg-light);
+}
+
+.chat-body {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg-light);
+  scroll-behavior: smooth;
+  max-height: calc(100vh - 120px);
+}
+
+.bubble {
+  position: relative;
+  margin: 0.5rem 0;
+  padding: 0.6rem 1rem;
+  max-width: 85%;
+  border-radius: 18px;
+  box-shadow: 0 1px 3px var(--shadow);
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+  word-wrap: break-word;
+}
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+.sent {
+  background: var(--primary);
+  color: #fff;
+  margin-left: auto;
+  border-radius: 18px 2px 18px 18px;
+}
+.sent::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 8px;
+  border-top: 8px solid transparent;
+  border-left: 8px solid var(--primary);
+  border-bottom: 8px solid transparent;
+}
+.received {
+  background: var(--bg-white);
+  color: var(--text-dark);
+  margin-right: auto;
+  border-radius: 2px 18px 18px 18px;
+}
+.received::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 8px;
+  border-top: 8px solid transparent;
+  border-right: 8px solid var(--bg-white);
+  border-bottom: 8px solid transparent;
+}
+.call {
+  background: #f3f4f6;
+  color: var(--text-dark);
+  text-align: center;
+  margin: 0.75rem auto;
+  max-width: 60%;
+  font-style: italic;
+}
+.bubble img,
+.bubble video {
+  display: block;
+  max-width: 200px;
+  border-radius: 8px;
+  margin-bottom: 0.25rem;
+}
+.meta {
+  font-size: 0.7rem;
+  color: var(--text-light);
+  text-align: right;
+  margin-top: 0.25rem;
+}
+
+.chat-input {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--bg-white);
+  box-shadow: 0 -2px 4px var(--shadow);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+.chat-input input[type='text'] {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  outline: none;
+}
+.chat-input button {
+  background: var(--primary);
+  border: none;
+  color: #fff;
+  padding: 0.75rem;
+  margin-left: 0.5rem;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+.attach-button {
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+  margin-right: 0.5rem;
+  cursor: pointer;
+  border-radius: 9999px;
+}
+.attach-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Call Modal */
+.call-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+  overflow: hidden;
+}
+.call-dialog {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-white);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+.call-dialog img {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+.call-dialog .name {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.call-dialog .status {
+  color: var(--text-light);
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+.call-buttons {
+  display: flex;
+  gap: 1.5rem;
+}
+.call-btn {
+  background: var(--bg-white);
+  border: none;
+  padding: 1rem;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px var(--shadow);
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+.call-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.call-end {
+  background: #ef4444;
+  color: #fff;
+}
+.call-end:hover {
+  background: #dc2626;
+}
+
+/* History Modal */
+.history-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  overflow: hidden;
+}
+.history-content {
+  background: var(--bg-white);
+  width: 90%;
+  max-width: 400px;
+  max-height: 80%;
+  border-radius: 8px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.history-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+}
+.history-body {
+  padding: 1rem;
+}
+.history-item {
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+  .sidebar.show {
+    display: flex !important;
+  }
+  .back-button {
+    display: inline;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-header .status,
+  .call-dialog .status,
+  .meta {
+    font-size: 0.75rem;
+  }
+  .call-dialog .name {
+    font-size: 1.25rem;
+  }
+  .call-buttons {
+    gap: 1rem;
+  }
+}
+    </style>
+  </head>
+  <body>
+  <div id="root"></div>
+    <audio id="outgoingTone" src="https://cdn.glitch.global/4b32bd75-57b5-4e82-8575-0235115f13c6/outgoing.mp3?v=1745223155178" loop hidden></audio>
+    <audio id="incomingTone" src="https://cdn.glitch.global/4b32bd75-57b5-4e82-8575-0235115f13c6/incoming.mp3?v=1745223160691" loop hidden></audio>
+
+    <script type="text/babel" data-presets="react" data-plugins="proposal-optional-chaining">
+      const { useState, useEffect, useRef } = React;
+      const SERVER_URL   = "";
+      const CURRENT_USER = localStorage.currentUser || prompt("Username:") || "guest";
+      const socket       = io(SERVER_URL, { transports:["websocket"] });
+
+      function formatDuration(sec) {
+        const m = Math.floor(sec/60), s = sec%60;
+        return `${m}:${String(s).padStart(2,'0')}`;
+      }
+
+      function ChatApp() {
+        // — State —
+        const [contacts,    setContacts]    = useState([]);
+        const [onlineList,  setOnlineList]  = useState([]);
+
+        const [messages,    setMessages]    = useState([]);
+        const [callHistory, setCallHistory] = useState([]);
+
+        const [selected,    setSelected]    = useState(null);
+        const [searchTerm,  setSearchTerm]  = useState("");
+        const [newMsg,      setNewMsg]      = useState("");
+        const [file,        setFile]        = useState(null);
+
+        const [isMobile,    setIsMobile]    = useState(window.innerWidth<=768);
+        const [showMenu,    setShowMenu]    = useState(false);
+        const [showHistory, setShowHistory] = useState(false);
+
+        const [showCallModal, setShowCallModal] = useState(false);
+        const [incomingOffer,  setIncomingOffer] = useState(null);
+        const [incomingCaller, setIncomingCaller]= useState(null);
+        const [inCall,         setInCall]        = useState(false);
+        const [acceptedCall,   setAcceptedCall]  = useState(false);
+        const [muted,          setMuted]         = useState(false);
+        const [callDuration,   setCallDuration]  = useState(0);
+
+        // — Refs —
+        const bodyRef         = useRef();
+        const peerRef         = useRef(null);
+        const localStreamRef  = useRef(null);
+        const remoteAudioRef  = useRef();
+        const outgoingToneRef = useRef();
+        const incomingToneRef = useRef();
+        const callStartRef    = useRef();
+        const timerRef        = useRef();
+
+        // — Initialization: tones + resize listener —
+        useEffect(() => {
+          outgoingToneRef.current = document.getElementById("outgoingTone");
+          incomingToneRef.current = document.getElementById("incomingTone");
+          const onResize = () => setIsMobile(window.innerWidth<=768);
+          window.addEventListener("resize", onResize);
+          return ()=>window.removeEventListener("resize", onResize);
+        }, []);
+
+        // — Socket: real‑time & register —
+        useEffect(() => {
+          // Real‑time presence
+          socket.on("online-users", list => setOnlineList(list));
+          socket.on("user-status", ({username, status}) => {
+            setOnlineList(prev => {
+              if (status==="online"  && !prev.includes(username)) return [...prev, username];
+              if (status==="offline")                   return prev.filter(u=>u!==username);
+              return prev;
+            });
+          });
+
+          // Incoming call
+          socket.on("incoming-call", ({from, offer}) => {
+            setIncomingCaller(from);
+            setIncomingOffer(offer);
+            setShowCallModal(true);
+            incomingToneRef.current.play();
+            callStartRef.current = Date.now();
+          });
+
+          // Peer answered (received by caller)
+          socket.on("call-answered", async ({answer}) => {
+            outgoingToneRef.current.pause();
+            setAcceptedCall(true);
+            setInCall(true);
+            callStartRef.current = Date.now();
+            if (peerRef.current) await peerRef.current.setRemoteDescription(answer);
+          });
+
+          // Rejection / unavailability
+          socket.on("call-declined",   () => recordAndCleanup("rejected"));
+          socket.on("call-unavailable",() => recordAndCleanup("rejected"));
+
+          // ICE candidates
+          socket.on("ice-candidate", async ({candidate}) => {
+            if (peerRef.current) await peerRef.current.addIceCandidate(candidate);
+          });
+
+          // Call ended
+          socket.on("call-ended", () => recordAndCleanup("ended"));
+
+          // Finally register ourselves
+          socket.emit("register", CURRENT_USER);
+
+          return () => {
+            socket.off("online-users");
+            socket.off("user-status");
+            socket.off("incoming-call");
+            socket.off("call-answered");
+            socket.off("call-declined");
+            socket.off("call-unavailable");
+            socket.off("ice-candidate");
+            socket.off("call-ended");
+          };
+        }, []);
+
+        // — Polling fallback every 5s —
+        useEffect(() => {
+          async function fetchOnline() {
+            try {
+              const res = await fetch(`${SERVER_URL}/online-users`);
+              const { users } = await res.json();
+              setOnlineList(users);
+            } catch {}
+          }
+          fetchOnline();
+          const iv = setInterval(fetchOnline, 5000);
+          return () => clearInterval(iv);
+        }, []);
+
+        // — Whenever onlineList changes, update contacts & selected.online —
+        useEffect(() => {
+          setContacts(cs => cs.map(c => ({
+            ...c,
+            online: onlineList.includes(c.username)
+          })));
+          if (selected) {
+            setSelected(s => ({
+              ...s,
+              online: onlineList.includes(s.username)
+            }));
+          }
+        }, [onlineList]);
+
+        // — Load contacts once —
+        useEffect(() => {
+          fetch(`${SERVER_URL}/feed-contacts?username=${CURRENT_USER}`)
+            .then(r=>r.json())
+            .then(list => setContacts(list.map(c=>({...c, online:false}))));
+        }, []);
+
+        // — Load messages & callHistory on chat change —
+        useEffect(() => {
+          if (!selected) return;
+          fetch(`${SERVER_URL}/get-messages?user1=${CURRENT_USER}&user2=${selected.username}`)
+            .then(r=>r.json()).then(setMessages);
+
+          const key = `callHistory_${CURRENT_USER}_${selected.username}`;
+          setCallHistory(JSON.parse(localStorage.getItem(key))||[]);
+        }, [selected]);
+
+        // — Auto‑scroll on new content —
+        useEffect(() => {
+          if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
+        }, [messages, callHistory]);
+
+        // — Real‑time messages —
+        useEffect(() => {
+          socket.on("new-message", msg => {
+            if (selected && (msg.sender===selected.username || msg.receiver===selected.username)) {
+              setMessages(m=>[...m, msg]);
+            }
+          });
+          return ()=>socket.off("new-message");
+        }, [selected]);
+const constraints = {
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true
+  },
+  video: {
+    width: { ideal: 320 },
+    height: { ideal: 240 },
+    frameRate: { ideal: 15 }
+  }
+};
+
+        // — WebRTC helper —
+        function createPeer(to) {
+          const pc = new RTCPeerConnection({ iceServers:
+          [
+          { urls:"stun:stun.l.google.com:19302" },
+          {
+          urls: "turn:relay.metered.ca:443", // public test TURN server
+          username: "openai",
+          credential: "openai"
+          }
+          ]
+          });
+          localStreamRef.current.getTracks().forEach(t=>pc.addTrack(t, localStreamRef.current));
+          pc.onicecandidate = e => e.candidate && socket.emit("ice-candidate", { to, candidate:e.candidate });
+          pc.ontrack = e => { remoteAudioRef.current.srcObject = e.streams[0]; };
+          return pc;
+        }
+
+        // — Calling logic —
+        async function startCall() {
+          if (!selected) return;
+          setAcceptedCall(false);
+          setShowCallModal(true);
+          outgoingToneRef.current.play();
+          const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+          localStreamRef.current = stream;
+          const pc = createPeer(selected.username);
+          peerRef.current = pc;
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socket.emit("call-user", { to:selected.username, from:CURRENT_USER, offer });
+        }
+
+        async function acceptCall() {
+          incomingToneRef.current.pause();
+          setAcceptedCall(true);
+          setInCall(true);
+          callStartRef.current = Date.now();
+          const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+          localStreamRef.current = stream;
+          const pc = createPeer(incomingCaller);
+          peerRef.current = pc;
+          await pc.setRemoteDescription(incomingOffer);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emit("answer-call", { to:incomingCaller, answer });
+        }
+
+        function rejectCall() {
+          incomingToneRef.current.pause();
+          socket.emit("decline-call", { to:incomingCaller });
+          recordAndCleanup("rejected");
+        }
+
+        function endCall() {
+          socket.emit("end-call", { to: selected? selected.username : incomingCaller });
+          recordAndCleanup("ended");
+        }
+
+        // — Record call outcome & cleanup —
+        function recordAndCleanup(reason) {
+          outgoingToneRef.current.pause();
+          incomingToneRef.current.pause();
+          clearInterval(timerRef.current);
+
+          const start = callStartRef.current, end = Date.now();
+          let dur = 0;
+          if (reason==="ended" && acceptedCall) dur = Math.floor((end-start)/1000);
+
+const rec = {
+  id: `${start}`,
+  type: reason === "rejected" ? "rejected" : "call",
+  direction: incomingOffer ? "incoming" : "outgoing",
+  timestamp: new Date(start || Date.now()).toISOString(),
+  duration: dur
+};
+
+          const key = `callHistory_${CURRENT_USER}_${(selected||{}).username||incomingCaller}`;
+          const arr = JSON.parse(localStorage.getItem(key))||[];
+          arr.push(rec);
+          localStorage.setItem(key, JSON.stringify(arr));
+          setCallHistory(arr);
+
+          setShowCallModal(false);
+          setInCall(false);
+          setAcceptedCall(false);
+          setIncomingOffer(null);
+          setIncomingCaller(null);
+          peerRef.current && peerRef.current.close();
+          localStreamRef.current && localStreamRef.current.getTracks().forEach(t=>t.stop());
+        }
+
+        // — Live timer for in‑call —
+        useEffect(() => {
+          if (inCall && showCallModal) {
+            timerRef.current = setInterval(() => setCallDuration(d=>d+1), 1000);
+          }
+          return ()=>clearInterval(timerRef.current);
+        }, [inCall, showCallModal]);
+
+        // — Sending messages —
+        async function sendMessage() {
+          if (!selected) return;
+          if (file) {
+            const f = new FormData();
+            f.append("file", file);
+            f.append("sender", CURRENT_USER);
+            f.append("receiver", selected.username);
+            f.append("type", file.type.startsWith("video/")? "video":"image");
+            const res = await fetch(`${SERVER_URL}/send-message`, { method:"POST", body:f });
+            const { data:msg } = await res.json();
+            socket.emit("new-message", msg);
+            setFile(null);
+            return;
+          }
+          if (!newMsg.trim()) return;
+          const msg = {
+            id:Date.now(), sender:CURRENT_USER, receiver:selected.username,
+            type:"text", message:newMsg.trim(),
+            timestamp:new Date().toISOString()
+          };
+          socket.emit("new-message", msg);
+          await fetch(`${SERVER_URL}/send-message`, {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify(msg)
+          });
+          setMessages(m=>[...m,msg]);
+          setNewMsg("");
+        }
+        
+const mediaConstraints = {
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true
+  },
+  video: false    // ← explicit “no video”
+};
+
+        // — Merge timeline —
+        const timeline = [
+          ...messages.map(m=>({type:"msg", data:m, ts:m.timestamp})),
+          ...callHistory.map(c=>({type:"call",data:c, ts:c.timestamp}))
+        ].sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+
+        const filtered = contacts.filter(c =>
+          (c.fullname||c.username).toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return (
+          <>
+            {/* Sidebar */}
+            <div className="sidebar" style={{display:isMobile&&selected?"none":"flex"}}>
+              <h2>Chats</h2>
+              <input
+                className="search-input"
+                placeholder="Search…"
+                value={searchTerm}
+                onChange={e=>setSearchTerm(e.target.value)}
+              />
+              {filtered.map(c=>(
+                <div
+                  key={c.username}
+                  className={"contact"+(selected&&selected.username===c.username?" active":"")}
+                  onClick={()=>setSelected(c)}
+                >
+                  <div className={`status-dot ${c.online?"online":""}`} />
+                  <img src={c.profile_pic||"https://via.placeholder.com/40"} alt="" />
+                  <span>{c.fullname||c.username}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Chat Window */}
+            <div className="chat" style={{display:isMobile&&!selected?"none":"flex"}}>
+              {selected ? (
+                <>
+                  <div className="chat-header">
+                    <div className="left">
+                      {isMobile && <button className="back-button" onClick={()=>setSelected(null)}><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+</svg>
+</button>}
+                      <img src={selected.profile_pic||"https://via.placeholder.com/40"} alt="" />
+                      <div>{selected.fullname||selected.username}</div>
+                      <div className="status">{selected.online?"Online":"Offline"}</div>
+                    </div>
+                    <div className="icons">
+                      <button className="icon-btn" title="Call" onClick={startCall} id="callbtn"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+</svg>
+</button>
+                      <button className="icon-btn" title="Menu" onClick={()=>setShowMenu(m=>!m)}><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+</svg>
+</button>
+                      {showMenu && (
+                        <div className="menu-dropdown">
+                          <div onClick={()=>{setShowHistory(true); setShowMenu(false);}}>
+                            Chat History
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="chat-body" ref={bodyRef}>
+                    {timeline.map((item,i) => (
+                      item.type==="msg"
+                        ? (
+                          <div key={i} className={"bubble "+(item.data.sender===CURRENT_USER?"sent":"received")}>
+                            {item.data.type==="text"
+                              ? item.data.message
+                              : item.data.type==="image"
+                                ? <img src={item.data.mediaUrl} alt=""/>
+                                : <video controls><source src={item.data.mediaUrl}/></video>
+                            }
+                            <div className="meta">
+                              {new Date(item.data.timestamp).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}
+                            </div>
+                          </div>
+                        )
+                        : (() => {
+                          const c = item.data;
+                          const txt = c.type==="rejected"
+                            ? "Call rejected"
+                            : `Call ${c.direction==="outgoing"?"to":"from"} ${selected.username}` +
+                              (c.duration?` • ${formatDuration(c.duration)}`:"");
+                          return (
+                            <div key={i} className="bubble call">
+                              {txt}
+                              <div className="meta">
+                                {new Date(c.timestamp).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}
+                              </div>
+                            </div>
+                          );
+                        })()
+                    ))}
+                  </div>
+
+                  <div className="chat-input">
+                    <input
+                      type="file"
+                      id="fileInput"
+                      accept="image/*,video/*"
+                      style={{display:"none"}}
+                      onChange={e=>{setFile(e.target.files[0]); alert("Your Files have been sent, you cant send an image and a Textmessage together, you'll have to send The Text again")}
+}                    />
+                    <button className="attach-button" onClick={()=>document.getElementById("fileInput").click()}>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+</svg>
+
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="Type a message"
+                      value={newMsg}
+                      onChange={e=>setNewMsg(e.target.value)}
+                      onKeyDown={e=>e.key==="Enter"&&sendMessage()}
+                    />
+                    <button onClick={sendMessage}><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+</svg>
+</button>
+                  </div>
+                </>
+              ) : (
+                <div className="chat-body" style={{display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <span>Select a chat to start</span>
+                </div>
+              )}
+            </div>
+
+            {/* Remote audio */}
+            <audio id="remt" ref={remoteAudioRef} autoPlay/>
+
+            {/* Call Modal */}
+            {showCallModal && (
+              <div className="call-modal">
+                <div className="call-dialog">
+                  {inCall ? (
+                    <>
+                      <img src={selected.profile_pic||"https://via.placeholder.com/96"} alt="" />
+                      <div className="name">{selected.fullname||selected.username}</div>
+                      <div className="status">In Call • {formatDuration(callDuration)}</div>
+                      <div className="call-buttons">
+                        <button className="call-btn" onClick={()=>{
+                          if(localStreamRef.current){
+                            const t = localStreamRef.current.getAudioTracks()[0];
+                            t.enabled = !t.enabled;
+                            setMuted(m=>!m);
+                          }
+                        }}>{muted?<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+</svg>
+:<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+</svg>
+}</button>
+                        <button className="call-btn call-end" onClick={endCall}><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 3.75 18 6m0 0 2.25 2.25M18 6l2.25-2.25M18 6l-2.25 2.25m1.5 13.5c-8.284 0-15-6.716-15-15V4.5A2.25 2.25 0 0 1 4.5 2.25h1.372c.516 0 .966.351 1.091.852l1.106 4.423c.11.44-.054.902-.417 1.173l-1.293.97a1.062 1.062 0 0 0-.38 1.21 12.035 12.035 0 0 0 7.143 7.143c.441.162.928-.004 1.21-.38l.97-1.293a1.125 1.125 0 0 1 1.173-.417l4.423 1.106c.5.125.852.575.852 1.091V19.5a2.25 2.25 0 0 1-2.25 2.25h-2.25Z" />
+</svg>
+</button>
+                      </div>
+                    </>
+                  ) : incomingOffer ? (
+                    <>
+                      <img src={selected.profile_pic||"https://via.placeholder.com/96"} alt="" />
+                      <div className="name">{incomingCaller}</div>
+                      <div className="status">Incoming Call…</div>
+                      <div className="call-buttons">
+                        <button className="call-btn" onClick={acceptCall}>✔️</button>
+                        <button className="call-btn call-end" onClick={rejectCall}>❌</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <img src={selected.profile_pic||"https://via.placeholder.com/96"} alt="" />
+                      <div className="name">{selected.fullname||selected.username}</div>
+                      <div className="status">Calling…</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* History Modal */}
+            {showHistory && (
+              <div className="history-modal" onClick={()=>setShowHistory(false)}>
+                <div className="history-content" onClick={e=>e.stopPropagation()}>
+                  <div className="history-header">
+                    <span>Chat & Call History</span>
+                    <button onClick={()=>setShowHistory(false)}>✕</button>
+                  </div>
+                  <div className="history-body">
+                    {[...messages.map(m=>({type:"msg",data:m})),
+                       ...callHistory.map(c=>({type:"call",data:c}))]
+                      .sort((a,b)=>new Date(a.data.timestamp)-new Date(b.data.timestamp))
+                      .map((item,idx) => item.type==="msg" ? (
+                        <div key={idx} className="history-item">
+                          <strong>{item.data.sender===CURRENT_USER?"You:":item.data.sender+": "}</strong>
+                          {item.data.type==="text"?item.data.message:
+                            item.data.type==="image"?"[Image]":"[Video]"}
+                          <div style={{fontSize:'0.7rem',color:'var(--text-light)'}}>
+                            {new Date(item.data.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                      ) : (() => {
+                        const c = item.data;
+                        const lbl = c.type==="rejected"
+                          ? "Missed/rejected call"
+                          : `Call ${c.direction==="outgoing"?"to":"from"} ${selected.username}` +
+                            (c.duration?` (${formatDuration(c.duration)})`:"");
+                        return (
+                          <div key={idx} className="history-item">
+                            <strong>{c.direction==="outgoing"?"You:":selected.username+": "}</strong>
+                            {lbl}
+                            <div style={{fontSize:'0.7rem',color:'var(--text-light)'}}>
+                              {new Date(c.timestamp).toLocaleString()}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<ChatApp/>);
+    </script>
+  </body>
+  </html>
