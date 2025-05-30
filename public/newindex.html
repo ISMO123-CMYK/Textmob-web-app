@@ -1,0 +1,4910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="google-site-verification" content="XFZ3hMBm2d-LEfUVUISD5Ahvs_YIu1FACZyuENugYGU" />
+  <link rel="icon" href="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1745199933/profile-pictures/g7jlemd9n1hcsdqslkjt.png">
+<link rel="favicon" href="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1745199933/profile-pictures/g7jlemd9n1hcsdqslkjt.png">
+<link rel="image/x-favicon"  href="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1745199933/profile-pictures/g7jlemd9n1hcsdqslkjt.png">
+<meta name="title" content="Textmob - Social Network" />
+<meta name="description" content="Join Textmob, Nigeria's fastest-growing social network and chat app in 2025. Connect with friends, share stories, and stay updated in real-time." />
+<meta name="keywords" content="Textmob, TextMob, Text, Mob, Textnow, Now, Text now, Txt, social network, chat app, free social app, Nigeria social network, connect, share stories, messaging, 2025" />
+<meta name="author" content="Textmob Team" />
+
+<!-- Open Graph / Facebook -->
+<meta property="og:title" content="Textmob – Social Network | Connect, Share & Chat Instantly" />
+<meta property="og:description" content="Join Textmob, Nigeria's fastest-growing social network and chat app in 2025. Connect with friends, share stories, and stay updated in real-time." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://textmob.glitch.me" />
+<meta property="og:image" content="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1745199933/profile-pictures/g7jlemd9n1hcsdqslkjt.png" />
+
+<!-- Twitter Card -->
+<meta name="twitter:title" content="Textmob – Social Network | Connect, Share & Chat Instantly" />
+<meta name="twitter:description" content="Join Textmob, Nigeria's fastest-growing social network. and chat app in 2025. Connect with friends, share stories, and stay updated in real-time." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1745199933/profile-pictures/g7jlemd9n1hcsdqslkjt.png" />
+
+  <script>
+async function fetchProfile(username) {
+  try {
+    const res = await fetch(`/profile/${encodeURIComponent(username)}`);
+    const data = await res.json();
+
+    // If a default "fake" profile is returned, user doesn't exist
+    const isFakeUser =
+      data.username === 'textmobuser' &&
+      data.email === 'invalidemail@textmob' &&
+      data.error;
+
+    if (isFakeUser) {
+      // User not found
+      console.warn("User not found.");
+      window.location.href = '/auth';
+    }
+
+    // ✅ Valid user found
+    return data;
+
+  } catch (err) {
+    console.error("Error fetching profile:", err);
+      window.location.href = '/auth';
+  }
+}
+fetchProfile(localStorage.currentUser)
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Textmob</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" defer></script>
+
+  <!-- 1) Manrope Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- 2) Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- 3) React & ReactDOM (production) -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.min.js"></script>
+
+  <!-- 4) Babel standalone (dev) -->
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.5/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+
+
+  <!-- 5) Global Styles -->
+  <style>
+    @keyframes slideIn {
+  from {
+    transform: translateX(30%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spark-progress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+    video {
+      border-radius: 15px;
+      cursor: pointer;
+    }
+    img {
+      cursor: pointer;
+    }
+      /* add custom keyframes for wiggle */
+  @layer utilities {
+    @keyframes wiggle {
+      0%   { transform: rotate(-1deg) scale(0.98); }
+      100% { transform: rotate(1deg)  scale(1.02); }
+    }
+    .animate-wiggle {
+      animation: wiggle 0.8s ease-in-out infinite alternate;
+    }
+  }
+    .emoji {
+      width: 18px;
+      vertical-align: -0.125em; /* adjust if needed */
+      display: inline;
+    }
+
+    body, * { font-family: 'Manrope', sans-serif; }
+    .scrollbar-thin { scrollbar-width: thin; }
+    .scrollbar-thumb-rounded { scrollbar-color: rgba(107,114,128,.5) transparent; }
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background-color: rgba(107,114,128,.5); border-radius: 3px; }
+      /* CSS variables for easy theming */
+  :root {
+    --ctrl-bg: rgba(0,0,0,0.6);
+    --ctrl-hover-bg: rgba(0,0,0,0.8);
+    --icon-size: 24px;
+    --transition-speed: 0.2s;
+    --primary-color: #fff;
+  }
+
+  .video-container {
+    position: relative;
+    background: #000;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .video-container video {
+    display: block;
+    width: 100%;
+    height: auto;
+    transition: filter var(--transition-speed);
+  }
+  .video-container.paused video {
+    filter: brightness(0.7);
+  }
+
+  /* Center play/pause icon */
+  .big-play {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    color: var(--primary-color);
+    width: var(--icon-size); height: var(--icon-size);
+    opacity: 0;
+    transition: transform var(--transition-speed) ease-out,
+                opacity var(--transition-speed);
+    pointer-events: none;
+  }
+  .video-container.paused .big-play {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0.8;
+  }
+  .video-container.paused:hover .big-play {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.8);
+  }
+
+  /* Controls bar */
+  .controls {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: var(--ctrl-bg);
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    transform: translateY(100%);
+    transition: transform var(--transition-speed) ease-out;
+  }
+  .video-container:hover .controls,
+  .video-container.focused .controls {
+    transform: translateY(0);
+  }
+  .controls button {
+    background: none; border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    width: var(--icon-size); height: var(--icon-size);
+    padding: 4px;
+    transition: background var(--transition-speed);
+  }
+  .controls button:hover {
+    background: var(--ctrl-hover-bg);
+    border-radius: 4px;
+  }
+
+  .controls input[type=range] {
+    flex: 1;
+    margin: 0 8px;
+    appearance: none;
+    height: 4px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    transition: background var(--transition-speed);
+  }
+  .controls input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 12px; height: 12px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    transition: transform var(--transition-speed);
+  }
+  .controls input[type=range]:hover::-webkit-slider-thumb {
+    transform: scale(1.3);
+  }
+
+  .time {
+    color: var(--primary-color);
+    font-size: 12px;
+    min-width: 50px;
+    text-align: center;
+  }
+
+  /* Animate play/pause icon on click */
+  @keyframes pulse {
+    0%   { transform: scale(1); opacity: 1; }
+    50%  { transform: scale(1.4); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .big-play.pulsing {
+    animation: pulse 0.4s ease-out;
+  }
+    .story-ring {
+  display: inline-block;
+  padding: 2px;               /* thickness of the ring */
+  border-radius: 50%;
+  background: #ccc;           /* fallback if no data-sparks */
+}
+
+.story-ring img {
+  display: block;
+  border-radius: 50%;
+}
+
+/* 1 spark → single‑color ring */
+.story-ring[data-sparks="1"] {
+  background: #5ac0e7;
+}
+
+/* 2 sparks → half & half */
+.story-ring[data-sparks="2"] {
+  background: conic-gradient(
+    #5ac0e7 0deg 180deg,
+    #e75a9d 180deg 360deg
+  );
+}
+
+/* 3 sparks → thirds */
+.story-ring[data-sparks="3"] {
+  background: conic-gradient(
+    #5ac0e7   0deg   120deg,
+    #e75a9d 120deg   240deg,
+    #a0e75a 240deg   360deg
+  );
+}
+
+/* 4 sparks → quarters */
+.story-ring[data-sparks="4"] {
+  background: conic-gradient(
+    #5ac0e7   0deg    90deg,
+    #e75a9d  90deg   180deg,
+    #a0e75a 180deg   270deg,
+    #f2e75a 270deg   360deg
+  );
+}
+
+  </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800">
+  <div id="app"></div>
+
+  <!-- 6) LexumJS Router -->
+  <script src="../lexum.js"></script>
+
+  <!-- 7) App Code in JSX -->
+  <script type="text/babel" data-presets="react">
+const profil = profile(localStorage.currentUser)
+localStorage.fullname = profil.fullname;
+localStorage.profile_pic = profil.profile_pic;
+
+    const { useState, useEffect } = React;
+// --- SVG ICONS ---
+const Icon = {
+Search: () => (
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M8.25 10.875a2.625 2.625 0 1 1 5.25 0 2.625 2.625 0 0 1-5.25 0Z" />
+  <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.125 4.5a4.125 4.125 0 1 0 2.338 7.524l2.007 2.006a.75.75 0 1 0 1.06-1.06l-2.006-2.007a4.125 4.125 0 0 0-3.399-6.463Z" clipRule="evenodd" />
+</svg>
+),
+  Group: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M1.5 7.125c0-1.036.84-1.875 1.875-1.875h6c1.036 0 1.875.84 1.875 1.875v3.75c0 1.036-.84 1.875-1.875 1.875h-6A1.875 1.875 0 0 1 1.5 10.875v-3.75Zm12 1.5c0-1.036.84-1.875 1.875-1.875h5.25c1.035 0 1.875.84 1.875 1.875v8.25c0 1.035-.84 1.875-1.875 1.875h-5.25a1.875 1.875 0 0 1-1.875-1.875v-8.25ZM3 16.125c0-1.036.84-1.875 1.875-1.875h5.25c1.036 0 1.875.84 1.875 1.875v2.25c0 1.035-.84 1.875-1.875 1.875h-5.25A1.875 1.875 0 0 1 3 18.375v-2.25Z" clipRule="evenodd" />
+</svg>
+  ),
+  Home: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M11.47 3.841a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 1 0 1.06-1.061l-8.689-8.69a2.25 2.25 0 0 0-3.182 0l-8.69 8.69a.75.75 0 1 0 1.061 1.06l8.69-8.689Z" />
+  <path d="m12 5.432 8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198a2.29 2.29 0 0 0 .091-.086L12 5.432Z" />
+</svg>
+  ),
+
+  Friends: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
+</svg>
+  ),
+
+  Event: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M12.75 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM7.5 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM8.25 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM9.75 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM10.5 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM12.75 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM14.25 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM15 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM15 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" />
+  <path fillRule="evenodd" d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z" clipRule="evenodd" />
+</svg>
+  ),
+
+  Watch: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M4.5 4.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h8.25a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3H4.5ZM19.94 18.75l-2.69-2.69V7.94l2.69-2.69c.944-.945 2.56-.276 2.56 1.06v11.38c0 1.336-1.616 2.005-2.56 1.06Z" />
+</svg>
+  ),
+
+  Photos: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 0 1 2.25-2.25h16.5A2.25 2.25 0 0 1 22.5 6v12a2.25 2.25 0 0 1-2.25 2.25H3.75A2.25 2.25 0 0 1 1.5 18V6ZM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0 0 21 18v-1.94l-2.69-2.689a1.5 1.5 0 0 0-2.12 0l-.88.879.97.97a.75.75 0 1 1-1.06 1.06l-5.16-5.159a1.5 1.5 0 0 0-2.12 0L3 16.061Zm10.125-7.81a1.125 1.125 0 1 1 2.25 0 1.125 1.125 0 0 1-2.25 0Z" clipRule="evenodd" />
+</svg>
+),
+
+  Marketplace: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M5.223 2.25c-.497 0-.974.198-1.325.55l-1.3 1.298A3.75 3.75 0 0 0 7.5 9.75c.627.47 1.406.75 2.25.75.844 0 1.624-.28 2.25-.75.626.47 1.406.75 2.25.75.844 0 1.623-.28 2.25-.75a3.75 3.75 0 0 0 4.902-5.652l-1.3-1.299a1.875 1.875 0 0 0-1.325-.549H5.223Z" />
+  <path fillRule="evenodd" d="M3 20.25v-8.755c1.42.674 3.08.673 4.5 0A5.234 5.234 0 0 0 9.75 12c.804 0 1.568-.182 2.25-.506a5.234 5.234 0 0 0 2.25.506c.804 0 1.567-.182 2.25-.506 1.42.674 3.08.675 4.5.001v8.755h.75a.75.75 0 0 1 0 1.5H2.25a.75.75 0 0 1 0-1.5H3Zm3-6a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75v3a.75.75 0 0 1-.75.75h-3a.75.75 0 0 1-.75-.75v-3Zm8.25-.75a.75.75 0 0 0-.75.75v5.25c0 .414.336.75.75.75h3a.75.75 0 0 0 .75-.75v-5.25a.75.75 0 0 0-.75-.75h-3Z" clipRule="evenodd" />
+</svg>
+),
+
+  Files: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM1.5 10.146V6a3 3 0 0 1 3-3h5.379a2.25 2.25 0 0 1 1.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 0 1 3 3v1.146A4.483 4.483 0 0 0 19.5 9h-15a4.483 4.483 0 0 0-3 1.146Z" />
+</svg>
+  ),
+
+  Bell: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M5.25 9a6.75 6.75 0 0 1 13.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 0 1-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 1 1-7.48 0 24.585 24.585 0 0 1-4.831-1.244.75.75 0 0 1-.298-1.205A8.217 8.217 0 0 0 5.25 9.75V9Zm4.502 8.9a2.25 2.25 0 1 0 4.496 0 25.057 25.057 0 0 1-4.496 0Z" clipRule="evenodd" />
+</svg>
+  ),
+
+  Messages: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 0 1-3.476.383.39.39 0 0 0-.297.17l-2.755 4.133a.75.75 0 0 1-1.248 0l-2.755-4.133a.39.39 0 0 0-.297-.17 48.9 48.9 0 0 1-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97ZM6.75 8.25a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1-.75-.75Zm.75 2.25a.75.75 0 0 0 0 1.5H12a.75.75 0 0 0 0-1.5H7.5Z" clipRule="evenodd" />
+</svg>
+  ),
+
+  Dots: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+</svg>
+),
+Updates:() => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M4.5 4.5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h8.25a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3H4.5ZM19.94 18.75l-2.69-2.69V7.94l2.69-2.69c.944-.945 2.56-.276 2.56 1.06v11.38c0 1.336-1.616 2.005-2.56 1.06Z" />
+</svg>
+),
+Leave: () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 1 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6Zm-5.03 4.72a.75.75 0 0 0 0 1.06l1.72 1.72H2.25a.75.75 0 0 0 0 1.5h10.94l-1.72 1.72a.75.75 0 1 0 1.06 1.06l3-3a.75.75 0 0 0 0-1.06l-3-3a.75.75 0 0 0-1.06 0Z" clipRule="evenodd" />
+</svg>
+),
+Settings: () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M11.828 2.25c-.916 0-1.699.663-1.85 1.567l-.091.549a.798.798 0 0 1-.517.608 7.45 7.45 0 0 0-.478.198.798.798 0 0 1-.796-.064l-.453-.324a1.875 1.875 0 0 0-2.416.2l-.243.243a1.875 1.875 0 0 0-.2 2.416l.324.453a.798.798 0 0 1 .064.796 7.448 7.448 0 0 0-.198.478.798.798 0 0 1-.608.517l-.55.092a1.875 1.875 0 0 0-1.566 1.849v.344c0 .916.663 1.699 1.567 1.85l.549.091c.281.047.508.25.608.517.06.162.127.321.198.478a.798.798 0 0 1-.064.796l-.324.453a1.875 1.875 0 0 0 .2 2.416l.243.243c.648.648 1.67.733 2.416.2l.453-.324a.798.798 0 0 1 .796-.064c.157.071.316.137.478.198.267.1.47.327.517.608l.092.55c.15.903.932 1.566 1.849 1.566h.344c.916 0 1.699-.663 1.85-1.567l.091-.549a.798.798 0 0 1 .517-.608 7.52 7.52 0 0 0 .478-.198.798.798 0 0 1 .796.064l.453.324a1.875 1.875 0 0 0 2.416-.2l.243-.243c.648-.648.733-1.67.2-2.416l-.324-.453a.798.798 0 0 1-.064-.796c.071-.157.137-.316.198-.478.1-.267.327-.47.608-.517l.55-.091a1.875 1.875 0 0 0 1.566-1.85v-.344c0-.916-.663-1.699-1.567-1.85l-.549-.091a.798.798 0 0 1-.608-.517 7.507 7.507 0 0 0-.198-.478.798.798 0 0 1 .064-.796l.324-.453a1.875 1.875 0 0 0-.2-2.416l-.243-.243a1.875 1.875 0 0 0-2.416-.2l-.453.324a.798.798 0 0 1-.796.064 7.462 7.462 0 0 0-.478-.198.798.798 0 0 1-.517-.608l-.091-.55a1.875 1.875 0 0 0-1.85-1.566h-.344ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clipRule="evenodd" />
+</svg>
+),
+  Verified: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 20 20">
+  <circle cx="12" cy="12" r="12" fill="white" />
+  <path
+    fill="dodgerblue"
+    d="M17.7 7.3c-0.4-0.4-1-0.4-1.4 0L10 13.6l-2.3-2.3c-0.4-0.4-1-0.4-1.4 0
+       -0.4 0.4-0.4 1 0 1.4l3 3c0.4 0.4 1 0.4 1.4 0l7-7
+       c0.4-0.4 0.4-1 0-1.4z"
+  />
+</svg>
+  )
+};// --- color helper (browser) ---
+
+async function parseColor(imageUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imageUrl;
+    img.onload = () => {
+      try {
+        const colorThief = new ColorThief();
+        const [r, g, b] = colorThief.getColor(img);
+        resolve(rgbToHex(r, g, b));
+      } catch (err) {
+        reject("Error reading image color: " + err);
+      }
+    };
+    img.onerror = () => reject("Image failed to load");
+  });
+}
+
+function rgbToHex(r, g, b) {
+  return "#" + [r, g, b]
+    .map(x => x.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function Sidebar() {
+
+  const [profile, setProfile] = useState(null);
+  const [pages, setPages]     = useState([]);
+
+  // Load your profile
+  useEffect(() => {
+    const username = localStorage.currentUser;
+    if (!username) return;
+    fetch(`/profile/${username}`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(setProfile)
+      .catch(console.error);
+  }, []);
+
+  // Load first 4 followings as "pages"
+  useEffect(() => {
+    if (!profile) return;
+    const toFetch = (profile.following || []).slice(0, 4);
+    Promise.all(
+      toFetch.map(async user => {
+        const res = await fetch(`/profile/${user}`);
+        const pd = await res.json();
+        let color = "#CCCCCC";
+        try {
+          color = await parseColor(pd.profile_pic);
+        } catch {}
+        return {
+          color,
+          label: pd.fullname,
+          username: pd.username,
+          verified: pd.profile_type === "Organisation"
+        };
+      })
+    )
+      .then(setPages)
+      .catch(console.error);
+  }, [profile]);
+
+  if (!profile) {
+    return (
+      <aside className="w-64 bg-white p-6 h-screen overflow-y-auto flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Loading your sidebar…</div>
+      </aside>
+    );
+  }
+
+  const {
+    profile_pic,
+    fullname,
+    username,
+    followers = [],
+    following = [],
+    friends   = [],
+    notifications = []
+  } = profile;
+  const unread = notifications.filter(n => !n.read).length;
+
+  const nav = [
+    { Icon: Icon.Home,        label: "Feed",         badge: null, active: window.location.pathname === "/",               to: "/" },
+    { Icon: Icon.Friends,     label: "Connections",  badge: null, active: window.location.pathname === "/connections",      to: "/connections" },
+    { Icon: Icon.Event,       label: "Events",       badge: null, active: window.location.pathname.startsWith("/events"), to: "/events" },
+    { Icon: Icon.Bell,        label: "Notifications",badge: unread, active: window.location.pathname.startsWith("/activity"), to: "/activity" },
+    { Icon: Icon.Group,      label: "Groups",       badge: null, active: window.location.pathname.startsWith("/communities"), to: "/communities" },
+    { Icon: Icon.Dots, label: "See All",  badge: null, active: window.location.pathname.startsWith("/menu"), to: "/menu" },
+  ];
+
+  return (
+    <aside style={{ borderRight: '1px solid #f1f1f1' }} className="w-64 bg-gradient-to-b from-white to-gray-50 p-2 h-screen overflow-y-auto shadow-xl">
+      {/* Profile */}
+      <div className="mb-8">
+        <div className="flex items-center space-x-4">
+          <img
+            src={profile_pic}
+            alt={`${fullname}`}
+            className="w-14 h-14 rounded-full border-2 border-dodgerblue"
+            style={{ borderColor: "#1E90FF" }}
+          />
+          <div>
+            <div className="font-bold text-gray-900">{fullname}</div>
+            <div className="text-xs text-gray-500">@{username}</div>
+          </div>
+        </div>
+        <div style={{ padding: '10px'}} className="flex justify-between text-center text-sm mt-6 bg-white rounded-lg shadow-inner py-3">
+          <div>
+            <div className="font-semibold text-gray-800">{followers.length}</div>
+            <div className="text-gray-500">Followers</div>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-800">{following.length}</div>
+            <div className="text-gray-500">Following</div>
+          </div>
+          <div>
+            <div className="font-semibold text-gray-800">{friends.length}</div>
+            <div className="text-gray-500">Friends</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="space-y-2 mb-8">
+        {nav.map(({ Icon, label, badge, active, to }) => (
+          <a
+            key={label}
+            href={to}
+            className={`
+              flex items-center space-x-3 px-3 py-2 rounded-lg transition-all
+              ${active
+                ? "bg-[#E8F4FF] text-[#1E90FF] font-medium shadow-sm"
+                : "text-gray-700 hover:text-[#1E90FF] hover:bg-[#F0F9FF]"
+              }
+            `}
+            data-lexum
+          >
+            <Icon className="w-5 h-5" style={{ color: active ? "#1E90FF" : "#6B7280" }} />
+            <span>{label}</span>
+            {badge != null && badge > 0 && (
+              <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-2 py-0.5">
+                {badge}
+              </span>
+            )}
+          </a>
+        ))}
+      </nav>
+
+      {/* Pages You Like */}
+      <div className="text-xs text-gray-400 uppercase mb-2 tracking-wider">
+        Pages You Follow
+      </div>
+      <nav className="space-y-3 mb-6">
+        {pages.map(({ color, label, verified, username }, i) => (
+          <a
+            key={i}
+            data-lexum
+            href={`/@${username}`}
+            className="flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors hover:bg-[#F0F9FF] hover:text-[#1E90FF]"
+          >
+            <span
+              className="inline-block w-5 h-5 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            <span className="flex items-center space-x-1">
+              <span className="font-medium">{label}</span>
+              {verified && <Icon.Verified className="w-4 h-4 text-[#1E90FF]" />}
+            </span>
+          </a>
+        ))}
+        <a
+          href="/connections?tab=following"
+          data-lexum
+          className="block text-sm text-[#1E90FF] hover:underline mt-2"
+        >
+          View All
+        </a>
+      </nav>
+
+      {/* Footer */}
+      <div className="text-xs text-gray-400 space-y-1">
+        <div>Textmob © 2025 - By Ismail Gidado</div>
+      </div>
+    </aside>
+  );
+}
+
+function MobileNav() {
+  const [open, setOpen] = useState(false);
+  const username = localStorage.currentUser;
+  const { profile_pic, notifications = [] } = profile(username);
+  const unread = notifications.filter(n => !n.read).length;
+
+  const nav = [
+    { label: 'Home',        icon: Icon.Home,        to: '/' },
+    { label: 'Connections', icon: Icon.Friends,     to: '/connections' },
+    { label: 'Post Update',    icon: Icon.Updates,        to: '/post-update' },
+    { label: 'Create an Event',    icon: Icon.Event,        to: '/events/new' },
+    { label: 'Events',      icon: Icon.Event,       to: '/events' },
+    { label: 'Messages',      icon: Icon.Messages,       to: '/chats' },
+    { label: 'Groups',     icon: Icon.Group,      to: '/communities' },
+    { label: 'Notifications',icon: Icon.Bell,       to: '/activity' },
+    { label: 'Web Search', icon: Icon.Search,       to: '/astra-search' },
+    { label: 'Gallery',     icon: Icon.Photos,      to: '/gallery' },
+    { label: 'Settings',    icon: Icon.Settings,        to: '/settings' },
+    { label: 'Log Out',     icon: Icon.Leave,        to: '/logout' },
+  ];
+
+  return (
+    <div className="lg:hidden"> {/* Mobile only */}
+      {/* Topbar */}
+      <header className="fixed top-0 left-0 right-0 bg-white z-50 flex items-center justify-between px-4 py-2 border-b shadow-sm">
+        <div className="flex items-center space-x-2">
+          <button onClick={() => setOpen(!open)} className="p-1 rounded-full hover:bg-gray-100">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6 w-6 h-6 text-blue-600">
+  <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+</svg>
+
+          </button>
+          <span className="text-xl font-bold text-blue-600">Textmob</span>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button onClick={() => Lexum.navigate('/activity')} className="relative p-1 rounded-full hover:bg-gray-100">
+            <Icon.Bell className="w-5 h-5 text-gray-600" />
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">
+                {unread}
+              </span>
+            )}
+          </button>
+          <img
+            src={profile_pic}
+            onClick={() => Lexum.navigate('/settings')}
+            className="w-8 h-8 rounded-full border-2 border-blue-400 cursor-pointer"
+          />
+        </div>
+      </header>
+
+      {/* Menu (Slide Down Style) */}
+      {open && (
+        <div className="h-full fixed top-14 left-0 right-0 bg-white shadow-md z-40 border-b px-4 py-3 rounded-b-2xl transition-all duration-300 ease-in-out">
+        <Search currentUsername={localStorage.currentUser} />
+          <div className="grid grid-cols-3 gap-4 text-center">
+            {nav.map(({ icon: IconEl, label, to }, i) => (
+              <a
+                key={i}
+                href={to}
+                data-lexum
+                className="flex flex-col items-center p-2 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-600"
+                onClick={() => setOpen(false)}
+              >
+                <IconEl className="w-5 h-5 mb-1" />
+                <span className="text-xs">{label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Spacer so content doesn't go under the topbar */}
+      <div className="h-14" />
+    </div>
+  );
+}
+
+const { useRef } = React
+
+// --- Search Component ---
+function Search({ currentUsername }) {
+  const [query, setQuery]     = useState("");
+  const [results, setResults] = useState([]);
+  const abortCtrlRef = useRef(null);
+
+  const handleInputChange = e => {
+    const v = e.target.value;
+    setQuery(v);
+    if (!v.trim()) setResults([]);
+  };
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) return;
+    if (abortCtrlRef.current) abortCtrlRef.current.abort();
+    const ac = new AbortController();
+    abortCtrlRef.current = ac;
+
+    fetch(
+      `/search?query=${encodeURIComponent(q)}&currentUsername=${encodeURIComponent(currentUsername)}`,
+      { signal: ac.signal }
+    )
+      .then(res => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.json();
+      })
+      .then(data => setResults(data))
+      .catch(err => {
+        if (err.name !== "AbortError") console.error(err);
+      });
+
+    return () => ac.abort();
+  }, [query, currentUsername]);
+
+  return (
+    <div className="relative flex-1 max-w-md mx-6">
+      <input
+        type="text"
+        value={query}
+        onChange={handleInputChange}
+        placeholder="Search users…"
+        className="
+          w-full px-4 py-2 bg-gray-100 rounded-full
+          focus:outline-none focus:ring-2 focus:ring-blue-400
+          transition-colors hover:bg-white
+        "
+      />
+      {results.length > 0 && (
+        <div
+          className="
+            absolute top-full left-0 mt-2 w-full bg-white
+            shadow-xl rounded-lg z-20
+          "
+          style={{ maxHeight: "50vh", overflow: 'auto' }}
+        >
+          <div className="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300">
+            {results.map(user => (
+              <div
+                key={user.username}
+                className="
+                  flex items-center p-3 hover:bg-gray-50 cursor-pointer
+                  transition-colors
+                "
+                onClick={() => Lexum.navigate(`/@${user.username}`)}
+              >
+                <img
+                  src={user.profile_pic}
+                  alt={user.username}
+                  className="w-8 h-8 rounded-full mr-3 border-2 border-gray-200"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-800">{user.fullname}</div>
+                  <div className="text-xs text-gray-500">@{user.username}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function profile(username) {
+  const request = new XMLHttpRequest();
+  request.open("GET", `/profile/${username}`, false); // synchronous
+  request.send(null);
+
+  if (request.status === 200) {
+    const data = JSON.parse(request.responseText);
+    return { fullname: data.fullname, profile_pic: data.profile_pic, notifications: data.notifications };
+  } else {
+    console.error("Failed to fetch user profile:", request.statusText);
+    return { fullname: username, profile_pic: "https://via.placeholder.com/40" };
+  }
+}
+
+// --- Topbar Component ---
+function Topbar() {
+  const currentUsername = localStorage.currentUser;
+  const { profile_pic } = profile(currentUsername);
+  const unread = profile(currentUsername).notifications.filter(n => !n.read).length;
+  return (
+    <header className="
+        sticky top-0 bg-white flex items-center justify-between
+        px-6 py-4 border-b border-gray-200 shadow-sm z-10
+      ">
+      {/* Logo / Title */}
+      <div className="text-2xl font-bold text-blue-600">Textmob</div>
+
+      {/* Search input with live results */}
+      <Search currentUsername={currentUsername} />
+
+      {/* Icons & profile dropdown */}
+      <div className="flex items-center space-x-4">
+        <a href="/activity" data-lexum>
+        <button className="
+            p-2 hover:bg-gray-100 rounded-full transition-colors
+            relative group
+          ">
+          <Icon.Bell className="w-6 h-6 text-gray-600 group-hover:text-blue-600" />
+          <span className="
+              absolute top-0 right-0 inline-flex items-center
+              justify-center px-1.5 py-0.5 text-xs font-bold
+              text-white bg-red-500 rounded-full
+            ">
+            {unread}
+          </span>
+        </button>
+        </a>
+        <button
+        onClick={() => Lexum.reload()}
+         className="
+            p-2 hover:bg-gray-100 rounded-full transition-colors
+            relative group
+          ">
+          <svg className="w-6 h-6 text-gray-600 group-hover:text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+</svg>
+        </button>
+        <button onClick={() => Lexum.navigate('/chats')} className="
+            p-2 hover:bg-gray-100 rounded-full transition-colors
+          ">
+          <Icon.Messages className="w-6 h-6 text-gray-600 hover:text-blue-600" />
+        </button>
+        <div
+          onClick={() => Lexum.navigate('/settings')}
+          className="
+            flex items-center space-x-2 cursor-pointer p-2
+            hover:bg-gray-100 rounded-full transition-colors
+          "
+        >
+          <img
+            src={profile_pic}
+            className="w-8 h-8 rounded-full border-2 border-blue-400"
+            alt="Your avatar"
+          />
+          <span className="font-medium text-gray-800">{currentUsername}</span>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Stories() {
+  const [stories, setStories] = useState([]);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [activeStory, setActiveStory] = useState(null); // { username, profile_pic, sparks: [...] }
+  const [currentSparkIndex, setCurrentSparkIndex] = useState(0);
+  const [durations, setDurations] = useState({}); // { [storyIdx]: ms }
+  const timerRef = useRef(null);
+  const videoRef = useRef(null);
+  const progressContainerRef = useRef(null);
+
+  // Fetch & group sparks
+  useEffect(() => {
+    const currentUsername = localStorage.currentUser;
+    if (!currentUsername) return;
+
+    Promise.all([
+      fetch(`/feed-sparks?username=${encodeURIComponent(currentUsername)}`)
+        .then(res => res.ok ? res.json() : Promise.reject("feed-sparks failed")),
+      fetch(`/get-sparks?username=${encodeURIComponent(currentUsername)}`)
+        .then(res => res.ok ? res.json() : Promise.reject("get-sparks failed"))
+    ])
+      .then(([feedData, ownData]) => {
+        const all = [...feedData, ...ownData];
+        const seen = new Set();
+        const uniq = all.filter(s => {
+          const key = `${s.username}|${s.media}|${s.created_at}`;
+          return seen.has(key) ? false : seen.add(key);
+        });
+        const grouped = uniq.reduce((acc, spark) => {
+          const { username, profile_pic } = spark;
+          if (!acc[username]) acc[username] = { username, profile_pic, sparks: [] };
+          acc[username].sparks.push(spark);
+          return acc;
+        }, {});
+        setStories(Object.values(grouped));
+      })
+      .catch(console.error);
+  }, []);
+
+  // When index changes, clear previous timer & start new one
+  useEffect(() => {
+    if (!viewerOpen || !activeStory) return;
+    clearTimeout(timerRef.current);
+
+    const key = `${activeStory.username}|${currentSparkIndex}`;
+    const duration = durations[key] || 30000; // fallback 30s
+
+    // restart CSS animation
+    const innerBars = progressContainerRef.current.querySelectorAll('.progress-inner');
+    innerBars.forEach((bar, idx) => {
+      bar.style.transition = 'none';
+      bar.style.width = idx < currentSparkIndex ? '100%' : '0%';
+      if (idx === currentSparkIndex) {
+        // trigger reflow to restart transition
+        void bar.offsetWidth;
+        bar.style.transition = `width ${duration}ms linear`;
+        bar.style.width = '100%';
+      }
+    });
+
+    timerRef.current = setTimeout(() => {
+      if (currentSparkIndex < activeStory.sparks.length - 1)  
+        setCurrentSparkIndex(i => i + 1);
+      else 
+        closeViewer();
+    }, duration);
+
+    return () => clearTimeout(timerRef.current);
+  }, [currentSparkIndex, viewerOpen, activeStory, durations]);
+
+  const openViewer = (story) => {
+    setActiveStory(story);
+    setCurrentSparkIndex(0);
+    setViewerOpen(true);
+  };
+
+  const closeViewer = () => {
+    clearTimeout(timerRef.current);
+    setViewerOpen(false);
+    setActiveStory(null);
+    setCurrentSparkIndex(0);
+  };
+
+  const nextSpark = () => {
+    if (currentSparkIndex < activeStory.sparks.length - 1) {
+      setCurrentSparkIndex(i => i + 1);
+    } else {
+      closeViewer();
+    }
+  };
+
+  const prevSpark = () => {
+    if (currentSparkIndex > 0) {
+      setCurrentSparkIndex(i => i - 1);
+    }
+  };
+
+  // Pause/resume on hold
+  const handleHoldStart = () => {
+    clearTimeout(timerRef.current);
+    if (videoRef.current && !videoRef.current.paused) {
+      videoRef.current.pause();
+    }
+  };
+  const handleHoldEnd = () => {
+    // resume video
+    if (videoRef.current && videoRef.current.paused) {
+      videoRef.current.play();
+    }
+    // restart timer with remaining width
+    const bar = progressContainerRef.current.querySelectorAll('.progress-inner')[currentSparkIndex];
+    const computed = getComputedStyle(bar);
+    const width = parseFloat(computed.width);
+    const total = parseFloat(getComputedStyle(bar.parentNode).width);
+    const elapsed = (width / total) * (durations[`${activeStory.username}|${currentSparkIndex}`] || 30000);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(nextSpark, (durations[`${activeStory.username}|${currentSparkIndex}`] || 30000) - elapsed);
+    bar.style.transition = `width ${((durations[`${activeStory.username}|${currentSparkIndex}`] || 30000) - elapsed)}ms linear`;
+    bar.style.width = '100%';
+  };
+
+  if (stories.length === 0) {
+    return <div className="bg-white px-6 py-4 flex justify-center">No stories yet</div>;
+  }
+
+  return (
+    <>
+      <div className="bg-white px-6 py-4 flex space-x-4 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
+        {stories.map((story, i) => (
+          <div
+            key={i}
+            className="flex-shrink-0 flex flex-col items-center cursor-pointer transform transition hover:scale-105"
+            onClick={() => openViewer(story)}
+          >
+            <div
+              className="relative p-1 rounded-full"
+              style={{ background: "linear-gradient(45deg, #1E90FF, #00D4FF)" }}
+            >
+              <img
+                src={profile(story.username).profile_pic}
+                alt={`${story.username}'s story`}
+                className="w-14 h-14 rounded-full object-cover border-2 border-white"
+              />
+              <span
+                className="absolute bottom-0 right-0 text-[10px] rounded-full flex items-center justify-center"
+                style={{
+                  width: "18px",
+                  background: "#333",
+                  color: "white",
+                  height: "18px",
+                  fontWeight: "bold",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                  transform: "translate(25%, 25%)"
+                }}
+              >
+                {story.sparks.length}
+              </span>
+            </div>
+            <div className="mt-2 text-xs text-gray-600 font-medium text-center">
+              {story.username === localStorage.currentUser ? "Your Story" : story.username}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {viewerOpen && activeStory && (
+        <div
+          className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center text-white"
+          onMouseDown={handleHoldStart}
+          onMouseUp={handleHoldEnd}
+          onTouchStart={handleHoldStart}
+          onTouchEnd={(e) => {
+            handleHoldEnd();
+            // determine tap zone
+            const x = e.changedTouches[0].clientX;
+            const w = window.innerWidth;
+            if (x < w/2) prevSpark();
+            else nextSpark();
+          }}
+        >
+          {/* Close */}
+          <button
+            onClick={closeViewer}
+            className="absolute top-4 right-4 text-white text-2xl z-20"
+          >
+            ✕
+          </button>
+
+          {/* Header */}
+          <div className="absolute top-4 left-4 flex items-center space-x-3 z-20">
+            <img
+              src={profile(activeStory.username).profile_pic}
+              alt={`${activeStory.username} avatar`}
+              className="w-8 h-8 rounded-full object-cover border-2 border-white"
+            />
+            <div className="text-white">
+              <div className="font-medium">{activeStory.username}</div>
+              <div className="text-xs">
+                {new Date(activeStory.sparks[currentSparkIndex].created_at)
+                  .toLocaleString('default', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Bars */}
+          <div
+            ref={progressContainerRef}
+            className="absolute top-0 left-0 right-0 flex space-x-1 px-4 py-2 z-10"
+          >
+            {activeStory.sparks.map((_, idx) => (
+              <div key={idx} className="h-1 flex-1 bg-gray-600 rounded overflow-hidden">
+                <div className="progress-inner h-full bg-blue-400 w-0" />
+              </div>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="relative max-w-md w-full h-[500px] flex items-center justify-center">
+            {/\.(mp4|webm|ogg)$/i.test(activeStory.sparks[currentSparkIndex].media) ? (
+              <video
+                ref={(el) => {
+                  videoRef.current = el;
+                  if (el) {
+                    el.onloadedmetadata = () => {
+                      const key = `${activeStory.username}|${currentSparkIndex}`;
+                      setDurations(d => ({
+                        ...d,
+                        [key]: el.duration * 1000
+                      }));
+                    };
+                  }
+                }}
+                src={activeStory.sparks[currentSparkIndex].media}
+                autoPlay
+                playsInline
+                className="max-h-full object-contain rounded-xl"
+              />
+            ) : (
+              <img
+                src={activeStory.sparks[currentSparkIndex].media}
+                onLoad={() => {
+                  // ensure image uses 30s, nothing else needed
+                }}
+                className="max-h-full object-contain rounded-xl"
+              />
+            )}
+            {/* Optional caption */}
+            {activeStory.sparks[currentSparkIndex].caption && (
+              <div className="absolute bottom-4 left-4 right-4 text-sm text-white">
+                {activeStory.sparks[currentSparkIndex].caption}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SafeHTML({ html }) {
+  const [processedHTML, setProcessedHTML] = React.useState('');
+
+  React.useEffect(() => {
+    async function parseAndValidate(html) {
+      const mentionRegex = /@([\w\s]+)/g;
+      const mentions = [...html.matchAll(mentionRegex)].map((m) => m[1].trim());
+
+      const validMentions = new Set();
+
+      // Verify each mention with your backend
+      await Promise.all(
+        mentions.map(async (username) => {
+          try {
+            const res = await fetch(`/profile/${encodeURIComponent(username)}`);
+            const data = await res.json();
+            if (!data.error) {
+              validMentions.add(username);
+            }
+          } catch (_) {
+            // Ignore fetch errors
+          }
+        })
+      );
+
+      // Replace @mentions with links (only if valid)
+      let parsed = html.replace(
+        /@([\w\s]+)/g,
+        (match, username) => {
+          username = username.trim();
+          if (validMentions.has(username)) {
+            return `<a data-lexum href="/@${encodeURIComponent(username)}" class="text-blue-500 hover:underline">@${username}</a>`;
+          }
+          return match; // keep original if not valid
+        }
+      );
+
+      // Replace plain URLs with anchor tags
+      parsed = parsed.replace(
+        /(https?:\/\/[^\s]+)/g,
+        (url) =>
+          `<a href="/link?url=${url}" class="text-blue-500 underline" target="_blank" rel="noopener noreferrer">${url}</a>`
+      );
+
+      setProcessedHTML(DOMPurify.sanitize(parsed));
+    }
+
+    parseAndValidate(html);
+  }, [html]);
+
+  return (
+    <div
+      className="prose max-w-none"
+      dangerouslySetInnerHTML={{ __html: processedHTML }}
+    />
+  );
+}
+
+function Composer() {
+  const [open, setOpen]         = useState(false);
+  const [html, setHtml]         = useState("");
+  const [files, setFiles]       = useState([]);
+  const [previews, setPreviews] = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
+  const [success, setSuccess]   = useState("");
+  const editorRef               = useRef();
+
+  // auto‑resize editor
+  useEffect(() => {
+    if (!open) return;
+    const el = editorRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+    }
+  }, [html, open]);
+
+  // rich‑text command
+  const exec = (cmd, val = null) => {
+    document.execCommand(cmd, false, val);
+    setHtml(editorRef.current.innerHTML);
+    editorRef.current.focus();
+  };
+
+  // file handling (max 1 file)
+  const handleFiles = selected => {
+    const valid = Array.from(selected)
+      .filter(f => f.size <= 100 * 1024 * 1024 && /(image\/|video\/)/.test(f.type))
+      .slice(0, 1 - files.length);
+    const newPreviews = valid.map(f => ({
+      file: f,
+      url: URL.createObjectURL(f),
+      type: f.type.startsWith("video") ? "video" : "image"
+    }));
+    setFiles(fs => [...fs, ...valid]);
+    setPreviews(pv => [...pv, ...newPreviews]);
+  };
+  const onFileChange = e => handleFiles(e.target.files);
+  const removePreview = i => {
+    URL.revokeObjectURL(previews[i].url);
+    setPreviews(pv => pv.filter((_, idx) => idx !== i));
+    setFiles(fs => fs.filter((_, idx) => idx !== i));
+  };
+
+  // submit post
+  const submit = async () => {
+    if (!html.trim() && files.length === 0) return;
+    setLoading(true);
+    setError(""); setSuccess("");
+    const fd = new FormData();
+    fd.append("username", localStorage.currentUser);
+    fd.append("text", html);
+    fd.append("visib", "public");
+    files.forEach(f => fd.append("media", f));
+    try {
+      const res = await fetch("/create-post", { method: "POST", body: fd });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Upload failed");
+      setSuccess("Your post is live! 🌟");
+      setHtml("");
+      setFiles([]); previews.forEach(p => URL.revokeObjectURL(p.url));
+      setPreviews([]);
+      setTimeout(() => setOpen(false), 800);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccess(""), 3000);
+    }
+  };
+
+  return (
+    <>
+      {/* Trigger Button */}
+      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full text-left px-4 py-3 bg-gray-50 rounded-full hover:bg-gray-100 transition"
+        >
+          What's on your mind, {localStorage.currentUser || "Guest"}?
+        </button>
+      </div>
+
+      {/* Modal */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center p-4 z-50 overflow-auto"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="bg-white w-full max-w-2xl rounded-lg shadow-xl p-6 space-y-6"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Toolbar */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => exec("bold")}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="Bold"
+              >
+                <b>B</b>
+              </button>
+              <button
+                onClick={() => exec("italic")}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="Italic"
+              >
+                <i>I</i>
+              </button>
+              <button
+                onClick={() => exec("underline")}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="Underline"
+              >
+                <u>U</u>
+              </button>
+              <input
+                type="color"
+                className="ml-4 w-6 h-6 p-0 border-0"
+                onChange={e => exec("foreColor", e.target.value)}
+                title="Text Color"
+              />
+              <div className="ml-auto text-sm text-gray-500">
+                {html.replace(/<[^>]+>/g, "").length} chars
+              </div>
+            </div>
+
+            {/* Editor */}
+            <div
+              ref={editorRef}
+              contentEditable={!loading}
+              onInput={e => setHtml(e.currentTarget.innerHTML)}
+              onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+              onDragOver={e => e.preventDefault()}
+              className="min-h-[120px] p-4 bg-gray-50 rounded scrollbar-thin scrollbar-thumb-gray-300 focus:outline-none"
+              data-placeholder="What's on your mind?"
+            />
+
+            {/* Previews */}
+            {previews.length > 0 && (
+              <div className="grid grid-cols-3 gap-3">
+                {previews.map((p, i) => (
+                  <div key={i} className="relative group">
+                    {p.type === "image" ? (
+                      <img src={p.url} className="w-full h-24 object-cover rounded" />
+                    ) : (
+                      <video
+                        src={p.url}
+                        className="w-full h-24 object-cover rounded"
+                        controls
+                      />
+                    )}
+                    <button
+                      onClick={() => removePreview(i)}
+                      className="absolute top-1 right-1 bg-black bg-opacity-60 p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center space-x-1 cursor-pointer text-blue-600 hover:text-blue-800">
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={onFileChange}
+                  disabled={files.length >= 1 || loading}
+                />
+                📎 <span className="text-sm">Add media</span>
+              </label>
+              <button
+                onClick={submit}
+                disabled={loading || (!html.trim() && files.length === 0)}
+                className={`px-6 py-2 font-semibold text-white rounded-full shadow ${
+                  loading
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800"
+                } transition`}
+              >
+                {loading ? "Posting…" : "Post"}
+              </button>
+            </div>
+
+            {error   && <div className="text-sm text-red-500">{error}</div>}
+            {success && <div className="text-sm text-green-600">{success}</div>}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Feed({ propPosts }) {
+  const [user] = React.useState({ username: localStorage.currentUser })
+  const [posts, setPosts] = React.useState([])
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState('')
+
+  React.useEffect(() => {
+  if (propPosts) {
+    setPosts(propPosts)
+    return
+  }
+
+  async function fetchPosts() {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/get-posts?username=${encodeURIComponent(user.username)}`)
+      if (!res.ok) throw new Error('Failed to load posts')
+      const data = await res.json()
+      setPosts(data)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  fetchPosts()
+}, [])
+
+const userProfiles = React.useMemo(() => {
+  const map = {}
+  posts.forEach(p => {
+    if (!map[p.username]) {
+      map[p.username] = profile(p.username)
+    }
+  })
+  return map
+}, [posts])
+
+  async function handleLike(postId) {
+    try {
+      await fetch('/like-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, username: user.username }),
+      })
+      setPosts(prev =>
+        prev.map(p =>
+          p.id === postId
+            ? {
+                ...p,
+                likes: p.likes.includes(user.username)
+                  ? p.likes.filter(u => u !== user.username)
+                  : [...p.likes, user.username]
+              }
+            : p
+        )
+      )
+    } catch {}
+  }
+
+  async function handleComment(postId, commentText) {
+    const text = commentText.trim()
+    if (!text) return
+    setPosts(prev =>
+      prev.map(p =>
+        p.id === postId
+          ? {
+              ...p,
+              comments: [...p.comments, { username: user.username, text }]
+            }
+          : p
+      )
+    )
+    try {
+      await fetch('/add-comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, username: user.username, comment: text }),
+      })
+    } catch {}
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <svg className="animate-spin w-10 h-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+      </div>
+    )
+  }
+
+  if (error) {
+    return <div className="text-red-500 p-6">{error}</div>
+  }
+
+  if (posts.length === 0) {
+    return <div className="text-gray-500 p-6">No posts to show.</div>
+  }
+
+  return (
+    <div className="font-sans antialiased text-gray-800 bg-gray-50 min-h-screen p-0">
+      <div className="space-y-6">
+        {posts.map((post, idx) => {
+          if (post.type === 'event') {
+            const isPast = new Date(post.scheduled_for) <= new Date()
+            const liked = post.likes.includes(user.username)
+            return (
+              <div key={`event-${post.id||idx}`} className="bg-white p-5">
+                <h3 className="text-base font-semibold text-gray-900 mb-1">{post.title} by <span onClick={() => Lexum.navigate(`/@${post.username}`)}>{post.username}</span></h3>
+                <div className="text-sm text-blue-600 mb-2">
+                  📅 {new Date(post.scheduled_for).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                </div>
+                <p className="text-sm leading-relaxed text-gray-700 mb-3">{post.text}</p>
+                {post.location && (
+                  <div className="flex items-center text-sm text-gray-600 mb-3">
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/>
+                    </svg>
+                    {post.location}
+                  </div>
+                )}
+                {post.registration_url && (
+                  <a href={post.registration_url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline mb-3 block">
+                    🔗 More Info
+                  </a>
+                )}
+                <button
+                  onClick={() => !isPast && handleLike(post.id)}
+                  disabled={isPast}
+                  className={`inline-flex items-center text-sm font-medium px-4 py-1 rounded-full transition-colors duration-150 ${liked ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'} ${isPast ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                  {isPast ? `${post.likes.length} went` : `${post.likes.length} interested`}
+                </button>
+              </div>
+            )
+          }
+          return (
+            <div key={`post-${post.id}`} className="bg-white overflow-hidden">
+              <div onClick={() => Lexum.navigate(`/@${post.username}`)} className="flex items-center px-6 py-4 space-x-3">
+                <img src={userProfiles[post.username].profile_pic} alt={post.username} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-900"><a href={'/@' + post.username} data-lexum>{userProfiles[post.username].fullname}</a></p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(post.created_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                  </p>
+                </div>
+              </div>
+              {post.text && (
+                <div className="px-6 pb-4">
+                  <p className="text-sm leading-relaxed text-gray-700">
+                    <SafeHTML html={post.text} />
+                  </p>
+                </div>
+              )}
+              {post.media?.length > 0 && (
+                <div className="flex flex-col gap-4 px-6 pb-4">
+  {post.media.map((url, i) =>
+    /\.(mp4|webm|ogg)$/i.test(url) ? (
+      <VideoPlayer
+        key={i}
+        src={url}
+        poster={userProfiles[post.username].profile_pic}
+        className="rounded-lg w-full max-h-[65vh]"
+      />
+    ) : (
+      <img
+        key={i}
+        src={url}
+        onClick={() => Lexum.navigate(`/view?id=${url}`)}
+        className="w-full max-h-[65vh] object-cover rounded-lg"
+        loading="lazy"
+      />
+    )
+  )}
+</div>
+
+              )}
+              <div className="flex justify-between items-center w-full px-6 pb-4 text-gray-600 text-sm">
+  {/* Like Button */}
+  <button
+    onClick={() => handleLike(post.id)}
+    className={`flex items-center gap-2 transition-colors duration-200 ${
+      post.likes.includes(localStorage.currentUser) ? 'text-blue-600 font-semibold' : 'hover:text-blue-600'
+    }`}
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill={post.likes.includes(localStorage.currentUser) ? 'currentColor' : 'none'}
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className={`w-6 h-6 transition-transform duration-200 ${
+        post.likes.includes(localStorage.currentUser) ? 'scale-110 text-blue-600' : ''
+      }`}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 .75-.75 2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282m0 0h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23H5.904"
+      />
+    </svg>
+    <span>{post.likes.includes(localStorage.currentUser)
+ ? 'Liked' : 'Like'} · {post.likes.length}</span>
+  </button>
+
+  {/* Comment Button */}
+  <button
+    onClick={() => document.getElementById(`comment-input-${post.id}`)?.focus()}
+    className="flex items-center gap-2 hover:text-blue-600 transition-colors duration-200"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className="w-6 h-6"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
+      />
+    </svg>
+    <span>Comment · {post.comments.length}</span>
+  </button>
+</div>
+
+              <div className="flex items-center px-6 pb-6 space-x-3">
+                <input
+                  id={`comment-input-${post.id}`}
+                  type="text"
+                  placeholder="Write a comment…"
+                  className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      handleComment(post.id, e.currentTarget.value)
+                      e.currentTarget.value = ''
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.getElementById(`comment-input-${post.id}`)
+                    const value = input.value.trim()
+                    if (value) {
+                      handleComment(post.id, value)
+                      input.value = ''
+                    }
+                  }}
+                  className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                >
+                  Send
+                </button>
+              </div>
+              <button
+              style={{ width: '100%', display: 'block' }}
+                  onClick={() => Lexum.navigate(`/post/${post.id}`)}
+                  className="px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                >
+                  View Post
+                </button>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function VideoPlayer({ src, poster }) {
+  const videoRef = useRef()
+  const containerRef = useRef()
+  const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(false)
+  const [vol, setVol] = useState(1)
+  const [time, setTime] = useState({ cur: 0, total: 0 })
+  const [fs, setFs] = useState(false)
+
+  const togglePlay = () => {
+    const v = videoRef.current
+    v.paused ? v.play() : v.pause()
+    const btn = containerRef.current.querySelector('.big-play')
+    btn.classList.add('pulse')
+    setTimeout(() => btn.classList.remove('pulse'), 400)
+  }
+
+  const toggleMute = e => {
+    e.stopPropagation()
+    const v = videoRef.current
+    v.muted = !v.muted
+    setMuted(v.muted)
+  }
+
+  const onVol = e => {
+    e.stopPropagation()
+    const v = videoRef.current
+    const val = parseFloat(e.target.value)
+    v.volume = val
+    setVol(val)
+    setMuted(val === 0)
+  }
+
+  const toggleFs = e => {
+    e.stopPropagation()
+    const el = containerRef.current
+    !document.fullscreenElement ? el.requestFullscreen() : document.exitFullscreen()
+  }
+
+  useEffect(() => {
+    const v = videoRef.current
+    const update = () => setTime({ cur: v.currentTime, total: v.duration })
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
+    const onFsChange = () => setFs(!!document.fullscreenElement)
+
+    v.addEventListener('timeupdate', update)
+    v.addEventListener('loadedmetadata', update)
+    v.addEventListener('play', onPlay)
+    v.addEventListener('pause', onPause)
+    document.addEventListener('fullscreenchange', onFsChange)
+
+    return () => {
+      v.removeEventListener('timeupdate', update)
+      v.removeEventListener('loadedmetadata', update)
+      v.removeEventListener('play', onPlay)
+      v.removeEventListener('pause', onPause)
+      document.removeEventListener('fullscreenchange', onFsChange)
+    }
+  }, [])
+
+  const fmt = s => {
+    const m = Math.floor(s / 60).toString().padStart(2, '0')
+    const sec = Math.floor(s % 60).toString().padStart(2, '0')
+    return `${m}:${sec}`
+  }
+
+  const Icon = ({ children }) => (
+    <svg viewBox="0 0 64 64" className="w-6 h-6 text-white">
+      {children}
+    </svg>
+  )
+
+  const PlaySVG = (
+    <Icon>
+      <polygon points="16,8 56,32 16,56" fill="currentColor" />
+    </Icon>
+  )
+  const PauseSVG = (
+    <Icon>
+      <rect x="16" y="8" width="12" height="48" fill="currentColor" />
+      <rect x="36" y="8" width="12" height="48" fill="currentColor" />
+    </Icon>
+  )
+  const VolSVG =
+    muted || vol === 0 ? (
+      <Icon>
+        <polygon points="16,24 28,24 44,8 44,56 28,40 16,40" fill="currentColor" />
+        <line x1="48" y1="16" x2="56" y2="24" stroke="currentColor" strokeWidth="4" />
+        <line x1="48" y1="48" x2="56" y2="40" stroke="currentColor" strokeWidth="4" />
+      </Icon>
+    ) : (
+      <Icon>
+        <polygon points="16,24 28,24 44,8 44,56 28,40 16,40" fill="currentColor" />
+        <path d="M48,16 C54,24 54,40 48,48" fill="none" stroke="currentColor" strokeWidth="4" />
+      </Icon>
+    )
+  const FsSVG = fs ? (
+    <Icon>
+      <path d="M16 32 H8 V8 H32 V16 H16 Z M48 32 H56 V56 H32 V48 H48 Z" fill="currentColor" />
+    </Icon>
+  ) : (
+    <Icon>
+      <path d="M16 16 H32 V8 H8 V32 H16 Z M48 48 H32 V56 H56 V32 H48 Z" fill="currentColor" />
+    </Icon>
+  )
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative group h-[65vh] max-h-screen bg-black overflow-hidden cursor-pointer ${
+        playing ? '' : 'filter brightness-75'
+      }`}
+      onClick={togglePlay}
+      onContextMenu={e => e.preventDefault()}
+      style={{ borderRadius: '20px' }}
+    >
+      <video ref={videoRef} src={src} poster={poster} className="w-full h-full object-cover" />
+
+      <div
+        className={`big-play absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white transition-opacity transition-transform ${
+          playing ? 'opacity-0 scale-0' : 'opacity-80 scale-125'
+        } group-hover:opacity-100 group-hover:scale-150 pulse-target`}
+      >
+        {playing ? PauseSVG : PlaySVG}
+      </div>
+
+      <div
+        onClick={e => e.stopPropagation()}
+        className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 backdrop-blur-sm rounded-lg flex items-center space-x-3 px-4 py-2 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <button onClick={togglePlay} className="p-1 hover:bg-black hover:bg-opacity-75 rounded-full">
+          {playing ? PauseSVG : PlaySVG}
+        </button>
+
+        <input
+          type="range"
+          min="0"
+          max={time.total || 0}
+          step="0.1"
+          value={time.cur}
+          onChange={e => {
+            const t = parseFloat(e.target.value)
+            videoRef.current.currentTime = t
+            setTime(st => ({ ...st, cur: t }))
+          }}
+          className="flex-1 h-1 rounded-lg bg-white/30 appearance-none cursor-pointer"
+        />
+
+        <div className="text-white text-xs whitespace-nowrap">{fmt(time.cur)} / {fmt(time.total)}</div>
+
+        <button onClick={toggleMute} className="p-1 hover:bg-black hover:bg-opacity-75 rounded-full">
+          {VolSVG}
+        </button>
+
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={muted ? 0 : vol}
+          onChange={onVol}
+          className="w-24 h-1 rounded-lg bg-white/30 appearance-none cursor-pointer"
+        />
+
+        <button onClick={toggleFs} className="p-1 hover:bg-black hover:bg-opacity-75 rounded-full">
+          {FsSVG}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const adsData = [
+  {
+    id: 1,
+    tag: "Sponsored",
+    title: "Do you need a Website 🔥",
+    text: "Get exclusive deals on Website Pricing Lists",
+    url: "https://textmob.glitch.me/@ismailg",
+    bgGradient: "from-purple-600 to-indigo-600",
+    accent: "purple-700"
+  }
+];
+
+function AdsCarousel() {
+  const [index, setIndex] = useState(0);
+  const timeoutRef = useRef(null);
+
+  // advance slide every 30s
+  useEffect(() => {
+    timeoutRef.current = setTimeout(() => {
+      setIndex((prev) => (prev + 1) % adsData.length);
+    }, 30000);
+    return () => clearTimeout(timeoutRef.current);
+  }, [index]);
+
+  function prev() {
+    clearTimeout(timeoutRef.current);
+    setIndex((prev) => (prev - 1 + adsData.length) % adsData.length);
+  }
+
+  function next() {
+    clearTimeout(timeoutRef.current);
+    setIndex((prev) => (prev + 1) % adsData.length);
+  }
+
+  const ad = adsData[index];
+
+  return (
+    <div className="relative w-64 bg-white rounded-xl shadow-md overflow-hidden">
+      <div
+        key={ad.id}
+        className={`p-3 bg-gradient-to-r ${ad.bgGradient} text-white rounded-xl transition-all duration-500`}
+      >
+        <span className={`text-xs uppercase tracking-wide bg-white text-${ad.accent} px-1 py-0.5 rounded-full font-semibold`}>
+          {ad.tag}
+        </span>
+        <h3 className="mt-2 text-sm font-bold">{ad.title}</h3>
+        <p className="mt-1 text-xs opacity-90">{ad.text}</p>
+        <a
+          href={ad.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`mt-2 inline-block bg-white text-${ad.accent} text-xs font-semibold px-3 py-1 rounded hover:bg-gray-100 transition`}
+        >
+          Learn More
+        </a>
+      </div>
+
+      {/* navigation buttons */}
+      <button
+        onClick={prev}
+        className="absolute top-1/2 left-1 transform -translate-y-1/2 bg-white bg-opacity-75 hover:bg-opacity-100 rounded-full p-1"
+        aria-label="Previous Ad"
+      >
+        ‹
+      </button>
+      <button
+        onClick={next}
+        className="absolute top-1/2 right-1 transform -translate-y-1/2 bg-white bg-opacity-75 hover:bg-opacity-100 rounded-full p-1"
+        aria-label="Next Ad"
+      >
+        ›
+      </button>
+
+      {/* dots */}
+      <div className="absolute bottom-2 left-0 right-0 flex justify-center space-x-1">
+        {adsData.map((_, i) => (
+          <span
+            key={i}
+            onClick={() => {
+              clearTimeout(timeoutRef.current);
+              setIndex(i);
+            }}
+            className={`w-2 h-2 rounded-full cursor-pointer ${
+              i === index ? "bg-gray-800" : "bg-gray-400"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EventsPanel() {
+  const [events, setEvents] = useState([]);
+  const [openId, setOpenId] = useState(null);
+
+  useEffect(() => {
+    const username = localStorage.currentUser;
+    fetch(`/get-posts?username=${username}`)
+      .then(res => res.json())
+      .then(data => setEvents(data.filter(p => p.type === "event")))
+      .catch(console.error);
+  }, []);
+
+  const toggle = id => setOpenId(openId === id ? null : id);
+
+  async function handleLike(postId) {
+    // Optimistically update UI
+    setEvents(evts =>
+      evts.map(evt => {
+        if (evt.id !== postId) return evt;
+        const isPast = new Date(evt.scheduled_for) <= new Date();
+        if (isPast) return evt;
+        const liked = evt.likes.includes(localStorage.currentUser);
+        return {
+          ...evt,
+          likes: liked
+            ? evt.likes.filter(u => u !== localStorage.currentUser)
+            : [...evt.likes, localStorage.currentUser]
+        };
+      })
+    );
+
+    // Fire-and-forget server update
+    try {
+      await fetch("/like-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, username: localStorage.currentUser }),
+      });
+    } catch (err) {
+      console.error("Like failed:", err);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold text-gray-800 mb-4 pb-1">
+  Upcoming Events ({events.length})
+</h2>
+
+      {events.map(post => {
+        const isPast = new Date(post.scheduled_for) <= new Date();
+        const liked = post.likes.includes(localStorage.currentUser);
+        const formattedDate = new Date(post.scheduled_for).toLocaleDateString(
+          "en-US",
+          { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+        );
+
+        return (
+          <div
+            key={post.id}
+            style={{ borderRadius: '5px' }}
+            className="bg-white overflow-hidden border"
+          >
+            <button
+              onClick={() => toggle(post.id)}
+              className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-gray-50"
+            >
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {post.title} by <span onClick={() => Lexum.navigate(`/@${post.username}`)}>{post.username}</span>
+                </h3>
+                <small className="text-sm text-gray-500 flex items-center">
+                  <span className="mr-1">📅</span> {formattedDate}
+                </small>
+              </div>
+              <svg
+                className={`w-5 h-5 text-gray-500 transform transition-transform ${
+                  openId === post.id ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {openId === post.id && (
+              <div className="px-4 pb-4 space-y-3 text-gray-700">
+                <p className="leading-relaxed">{post.text}</p>
+
+                {post.location && (
+                  <div className="flex items-center text-gray-600">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-5 h-5 mr-1"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+                      />
+                    </svg>
+                    <span>{post.location}</span>
+                  </div>
+                )}
+
+                {post.registration_url && (
+                  <a
+                    href={post.registration_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block text-sm text-dodgerblue hover:underline"
+                  >
+                    🔗 More Info
+                  </a>
+                )}
+
+                <button
+  onClick={() => handleLike(post.id)}
+  disabled={isPast}
+  className={`mt-2 flex items-center text-sm font-medium px-3 py-1 rounded-full border transition ${
+    isPast
+      ? "opacity-50 cursor-not-allowed border-gray-300 text-gray-500"
+      : liked
+      ? "hover:opacity-90"
+      : "hover:opacity-80"
+  }`}
+  style={
+    isPast
+      ? {}
+      : liked
+      ? {
+          backgroundColor: "#1E90FF",
+          color: "#fff",
+          borderColor: "#1E90FF",
+        }
+      : {
+          color: "#1E90FF",
+          borderColor: "#1E90FF",
+        }
+  }
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="w-5 h-5 mr-1"
+    fill={liked ? "white" : "none"}
+    stroke={liked ? "white" : "#1E90FF"}
+    viewBox="0 0 24 24"
+  >
+    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 
+             2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 
+             4.5 2.09C13.09 3.81 14.76 3 
+             16.5 3 19.58 3 22 5.42 22 8.5c0 
+             3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+  </svg>
+  {isPast ? `${post.likes.length} Went` : `${post.likes.length} Interested`}
+</button>
+</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+    function SuggestionsFeed() {
+  const [suggestions, setSuggestions] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+
+  React.useEffect(() => {
+    async function loadSuggestions() {
+      try {
+        const res = await fetch(`/get-suggestions-feed?username=${encodeURIComponent(localStorage.currentUser)}`);
+        if (!res.ok) throw new Error("Failed to load suggestions");
+        const data = await res.json();
+        setSuggestions(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSuggestions();
+  }, []);
+
+  if (loading) return <div className="p-4 text-sm text-gray-500">Loading suggestions…</div>;
+  if (error) return <div className="p-4 text-sm text-red-500">{error}</div>;
+  if (suggestions.length === 0) return <div className="p-4 text-sm text-gray-400">No suggestions at the moment.</div>;
+
+  return (
+  <div className="bg-white p-1 transition-all duration-300" style={{ margin: '20px 0' }}>
+    <h2 className="text-lg font-bold text-gray-900 mb-4">People You May Know</h2>
+    <div className="space-y-4">
+      {suggestions.map((user, i) => (
+        <div
+          key={i}
+          className="flex items-center justify-between p-2 rounded-md transition-all duration-200 hover:bg-gray-50 group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <img
+                src={user.profile_pic || "https://via.placeholder.com/40"}
+                alt={user.username}
+                className="w-11 h-11 rounded-full object-cover ring-2 ring-white group-hover:ring-blue-500 transition duration-200"
+              />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-900 leading-none">{user.fullname}</p>
+              <p className="text-xs text-gray-500">@{user.username}</p>
+              {user.mutuals > 0 && (
+                <p className="text-xs text-gray-400">
+                  {user.mutuals} mutual connection{user.mutuals > 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+          </div>
+          <a 
+          href={`/@${user.username}`}
+          data-lexum
+          >
+          <button
+            className="bg-blue-600 text-white text-xs px-4 py-1.5 rounded-full font-medium hover:bg-blue-700 active:scale-95 transition duration-200"
+          >
+            View
+          </button>
+          </a>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+}
+function Forbid() {
+  return (
+    <h1>This app is not available on mobile browsers Go to a Laptop Browser to access it Thanks Asmau</h1>
+  )
+}
+
+function App() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <Stories />
+        <Composer />
+        <Feed />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <div className="mt-8"><EventsPanel /></div>
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+
+function AppMobile() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <Stories />
+        <Composer />
+        <Feed />
+    </div>
+  );
+}
+function Notifications({ currentUser, hideNotifications }) {
+  const [notifications, setNotifications] = React.useState([])
+  const [error, setError] = React.useState(null)
+
+  // load & poll
+  React.useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/get-notifications?username=${currentUser}`)
+        if (!res.ok) throw new Error('Failed to load notifications')
+        const data = await res.json()
+        setNotifications(data)
+        document.title = `(${data.filter(n => !n.read).length}) Textmob`
+      } catch (err) {
+        setError(err.message)
+      }
+    }
+    load()
+    const iv = setInterval(load, 30000)
+    return () => clearInterval(iv)
+  }, [currentUser])
+
+  const markAsRead = async id => {
+    try {
+      await fetch(`/mark-notification-read`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({username: currentUser, notificationId: id})
+      })
+      setNotifications(ns =>
+        ns.map(n => n.id === id ? {...n, read: true} : n)
+      )
+    } catch {} 
+  }
+
+  const deleteNotification = async id => {
+    try {
+      await fetch(`/delete-notification`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({username: currentUser, notificationId: id})
+      })
+      setNotifications(ns => ns.filter(n => n.id !== id))
+    } catch {}
+  }
+
+  return (
+    <div style={{ width: '100%', height: '100vh' }} className="bg-white shadow-lg overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2 bg-blue-600 text-white">
+        <h3 className="font-semibold text-lg">Notifications</h3>
+        <button
+          onClick={hideNotifications}
+          className="p-1 hover:bg-blue-500 rounded-full transition"
+          aria-label="Close"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg"
+               fill="none" viewBox="0 0 24 24"
+               stroke="currentColor" strokeWidth={2}
+               className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      {error && (
+        <div className="px-4 py-2 text-red-500 text-sm">{error}</div>
+      )}
+
+      {notifications.length === 0 && !error ? (
+        <div className="px-4 py-6 text-center text-gray-500">
+          No new notifications
+        </div>
+      ) : (
+        <ul className="divide-y divide-gray-200">
+          {notifications.map(n => (
+            <li
+              key={n.id}
+              className={`flex items-start px-4 py-3 hover:bg-gray-50 transition 
+                          ${n.read ? '' : 'bg-blue-50'}`}
+              onClick={() => {
+                if (!n.read) markAsRead(n.id)
+                if (n.link) Lexum.navigate(n.link)
+              }}
+            >
+              {/* Optionally add an icon/avatar */}
+              <div className="flex-shrink-0 mr-3">
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M10 2a6 6 0 00-6 6v5a2 2 0 002 2h1v2h6v-2h1a2 2 0 002-2V8a6 6 0 00-6-6z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-800">{n.message}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {new Date(n.timestamp).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex flex-col items-end ml-3 space-y-1">
+                {!n.read && (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation()
+                      markAsRead(n.id)
+                    }}
+                    className="text-xs text-blue-600 hover:underline focus:outline-none"
+                  >
+                    Mark as read
+                  </button>
+                )}
+                <button
+                  onClick={e => {
+                    e.stopPropagation()
+                    deleteNotification(n.id)
+                  }}
+                  className="text-gray-400 hover:text-red-500 focus:outline-none"
+                  aria-label="Delete notification"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                       fill="none" viewBox="0 0 24 24"
+                       stroke="currentColor" strokeWidth={2}
+                       className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4m-4 0a1 1 0 00-1 1v1h6V4a1 1 0 00-1-1m-4 0h4" />
+                  </svg>
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function NotView() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <Notifications currentUser={localStorage.currentUser} hideNotifications={() => Lexum.navigate('/') } />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <div className="mt-8"><EventsPanel /></div>
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+
+function NotViewMobile() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <Notifications currentUser={localStorage.currentUser} hideNotifications={() => Lexum.navigate('/') } />
+    </div>
+  );
+}
+
+function ConnectionsTabs({ username }) {
+  const [profile, setProfile]   = useState(null);
+  const [activeTab, setActiveTab] = useState('friends');
+  const [lists, setLists] = useState({
+    friends:   { data: [], loading: true, error: null },
+    following: { data: [], loading: true, error: null },
+    followers: { data: [], loading: true, error: null },
+    suggestions: { data: [], loading: true, error: null }
+  });
+
+  // 1) Load profile once
+  useEffect(() => {
+    fetch(`/profile/${encodeURIComponent(username)}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+      .then(data => {
+        setProfile(data);
+        Lexum.ready();           // signal loader ready once profile arrives
+      })
+      .catch(err => {
+        console.error('Profile load error:', err);
+        Lexum.ready();           // still signal ready on error
+      });
+  }, [username]);
+
+  // 2) Helper to fetch each list
+  const fetchList = (key, endpoint) => {
+    setLists(prev => ({
+      ...prev,
+      [key]: { data: [], loading: true, error: null }
+    }));
+    fetch(`${endpoint}?username=${encodeURIComponent(username)}`)
+      .then(r => {
+        if (!r.ok) throw new Error(r.statusText);
+        return r.json();
+      })
+      .then(data => {
+        setLists(prev => ({ 
+          ...prev, 
+          [key]: { data, loading: false, error: null } 
+        }));
+      })
+      .catch(err => {
+        setLists(prev => ({
+          ...prev,
+          [key]: { data: [], loading: false, error: err.message }
+        }));
+      });
+  };
+
+  // 3) On mount, load all three
+  useEffect(() => {
+    fetchList('friends',    '/get-user-friends');
+    fetchList('following',  '/get-user-following');
+    fetchList('followers',  '/get-user-followers');
+    fetchList('suggestions',  '/get-suggestions-feed');
+  }, [username]);
+
+  // 4) Until profile is ready, show a loader
+  if (!profile) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Loading profile…
+      </div>
+    );
+  }
+
+  // 5) Build tabs, hiding Followers for organisations
+  const isOrg = profile.profile_type?.toLowerCase() === 'organisation';
+  const tabs = [
+    { key: 'friends',   label: 'Friends' },
+    { key: 'following', label: 'Following' },
+    ...(isOrg ? [{ key: 'followers', label: 'Followers' }] : []),
+    { key: 'suggestions', label: 'Suggested' },
+  ];
+
+  return (
+    <div className="bg-white overflow-hidden">
+      {/* Tab Bar */}
+      <div className="flex border-b border-gray-200">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`
+              flex-1 py-2 text-center font-medium
+              ${activeTab === tab.key
+                ? 'text-blue-500 border-b-2 border-blue-500'
+                : 'text-gray-600 hover:text-blue-200'}
+              transition-colors
+            `}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      <div className="p-4">
+        {lists[activeTab].loading ? (
+          <div className="text-gray-500 text-center">Loading…</div>
+        ) : lists[activeTab].error ? (
+          <div className="text-red-500 text-center">
+            Error: {lists[activeTab].error}
+          </div>
+        ) : lists[activeTab].data.length === 0 ? (
+          <div className="text-gray-400 text-center">
+            No {activeTab} to show.
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {lists[activeTab].data.map(user => (
+              <li
+              style={{ cursor: 'pointer' }}
+                key={user.username}
+                className="flex items-center justify-between hover:bg-gray-50 rounded-md p-2 transition"
+              >
+                <div className="flex items-center space-x-3">
+                  <img
+                    src={user.profile_pic}
+                    alt={user.fullname}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div>
+                    <div className="font-semibold text-gray-800">
+                      {user.fullname}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      @{user.username}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => Lexum.navigate(`/@${user.username}`)}
+                  className="
+                    text-sm font-medium px-3 py-1 rounded-full
+                    bg-blue-100 text-blue-600 hover:bg-blue-200
+                    transition-colors
+                  "
+                >
+                  View
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ConnectView() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <ConnectionsTabs username={localStorage.currentUser} />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <div className="mt-8"><EventsPanel /></div>
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+
+function ConnectViewMobile() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <ConnectionsTabs username={localStorage.currentUser} />
+    </div>
+  );
+}
+
+function EventsView() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <section style={{ padding: '15px' }}>
+        <EventsPanel />
+        </section>
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+
+function EventsViewMobile() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <section style={{ padding: '15px' }}>
+        <EventsPanel />
+        </section>
+    </div>
+  );
+}
+
+// define your tab categories, labels & icons
+const tabs = [
+  { key: 'own',        label: 'My Posts',     Icon: 'H' },
+  { key: 'liked',      label: 'Liked Posts',  Icon: 'H' },
+  { key: 'commented',  label: 'Comments',     Icon: 'H' },
+  { key: 'friends',    label: 'Friends',      Icon: 'H' },
+  { key: 'followers',  label: 'Followers',    Icon: 'H' },
+  { key: 'following',  label: 'Following',    Icon: 'H' },
+]
+
+const isVideo = (url) =>
+  /\.(mp4|webm|ogg)(\?.*)?$/i.test(url)
+
+  function MediaTabsGallery() {
+  const [media, setMedia] = useState({})
+  const [activeTab, setActiveTab] = useState(tabs[0].key)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchMedia() {
+      setLoading(true)
+      try {
+        const res = await fetch(
+          `/get-all-media?username=${encodeURIComponent(localStorage.currentUser)}`
+        )
+        const data = await res.json()
+        setMedia(data)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMedia()
+  }, [localStorage.currentUser])
+
+  return (
+    <div className="flex flex-col md:flex-row h-full bg-blue-50 overflow-hidden">
+      {/* Sidebar / Tabs */}
+      <aside className="md:w-56 bg-blue-50 border-b md:border-b-0 md:border-r border-blue-200 overflow-auto">
+        <ul className="flex md:flex-col overflow-x-auto md:overflow-visible py-2 md:py-6 space-x-4 md:space-x-0 md:space-y-2 px-4 md:px-0">
+          {tabs.map(({ key, label, Icon }) => (
+            <li key={key} className="flex-shrink-0">
+              <button
+                style={{ marginLeft: '15px !important' }}
+                onClick={() => setActiveTab(key)}
+                className={`
+                  flex items-center px-4 py-2 text-sm font-semibold transition
+                  ${activeTab === key
+                    ? 'bg-blue-600 text-white shadow-md rounded-lg'
+                    : 'text-blue-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg'}
+                  focus:outline-none focus:ring-2 focus:ring-blue-300
+                  whitespace-nowrap
+                `}
+              >
+                {label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </aside>
+
+      {/* Content */}
+      <main className="flex-1 p-4 md:p-6 overflow-y-auto backdrop-blur-sm bg-white/60">
+        {loading ? (
+          <div className="text-center text-blue-500">Loading…</div>
+        ) : (
+          <>
+            <h2 className="text-xl md:text-2xl font-bold text-blue-700 mb-4">
+              {tabs.find((t) => t.key === activeTab)?.label}
+            </h2>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4">
+              {(media[activeTab] || []).slice(0, 12).map((url, i) => (
+                <div
+                  key={i}
+                  className="group relative pt-[100%] overflow-hidden rounded-xl shadow-lg transform transition-all hover:scale-105 cursor-pointer"
+                  onClick={() => Lexum.navigate(`/view?id=${url}`)}
+                >
+                  {isVideo(url) ? (
+                    <>
+                      <video
+                        src={url}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        muted
+                        playsInline
+                        preload="metadata"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <svg
+                          className="h-10 w-10 text-white drop-shadow-lg"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={2}
+                          stroke="skyblue"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
+                          />
+                        </svg>
+                      </div>
+                    </>
+                  ) : (
+                    <img
+                      src={url}
+                      alt={`${activeTab} media ${i + 1}`}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  )
+}
+
+function GalleryView() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <MediaTabsGallery />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <div className="mt-8"><EventsPanel /></div>
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+function GalleryViewMobile() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <MediaTabsGallery />
+    </div>
+  );
+}
+
+const videoRegex = /\.(mp4|webm|ogg)(\?.*)?$/i;
+
+function getMediaUrlFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("id");
+}
+
+function MediaViewer() {
+  const url = getMediaUrlFromQuery();
+  const isVideo = /\.(mp4|webm|ogg)$/i.test(url);
+  const [zoom, setZoom] = useState(1);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const mediaRef = useRef();
+
+  // Reset when URL changes
+  useEffect(() => {
+    setZoom(1);
+    setPos({ x: 0, y: 0 });
+  }, [url]);
+
+  // Handlers
+  const zoomIn  = () => setZoom(z => Math.min(z + 0.25, 3));
+  const zoomOut = () => setZoom(z => Math.max(z - 0.25, 0.5));
+  const reset   = () => { setZoom(1); setPos({ x: 0, y: 0 }); };
+
+  const startDrag = e => {
+    e.preventDefault();
+    setDragging(true);
+    dragStart.current = {
+      x: e.clientX - pos.x,
+      y: e.clientY - pos.y
+    };
+  };
+  const onDragging = e => {
+    if (!dragging) return;
+    setPos({
+      x: e.clientX - dragStart.current.x,
+      y: e.clientY - dragStart.current.y
+    });
+  };
+  const endDrag = () => setDragging(false);
+
+  // Touch equivalents
+  const startTouch = e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    setDragging(true);
+    dragStart.current = {
+      x: t.clientX - pos.x,
+      y: t.clientY - pos.y
+    };
+  };
+  const onTouchMove = e => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    setPos({
+      x: t.clientX - dragStart.current.x,
+      y: t.clientY - dragStart.current.y
+    });
+  };
+
+  // Download helper
+  const download = async () => {
+    try {
+      const resp = await fetch(url, { mode: 'cors' });
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = url.split('/').pop();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      alert('Download failed.');
+    }
+  };
+
+  if (!url) return (
+    <div className="flex items-center justify-center h-screen bg-black text-white text-2xl">
+      No media found
+    </div>
+  );
+
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 overflow-hidden"
+      onMouseMove={onDragging}
+      onMouseUp={endDrag}
+      onMouseLeave={endDrag}
+      onTouchMove={onTouchMove}
+      onTouchEnd={endDrag}
+    >
+      {/* Controls always on top */}
+      <div className="absolute top-4 right-4 flex space-x-2 z-30">
+        <button
+          onClick={reset}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded shadow"
+        >
+          Reset
+        </button>
+        <button
+          onClick={zoomOut}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded shadow"
+        >
+          – 
+        </button>
+        <button
+          onClick={zoomIn}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded shadow"
+        >
+          +
+        </button>
+        <button
+          onClick={download}
+          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded shadow"
+        >
+          Download
+        </button>
+        <button
+          onClick={e => { e.stopPropagation(); history.back(); }}
+          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded shadow"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Media wrapper: transforms only the media element */}
+      <div
+        className="relative z-20 cursor-grab"
+        onMouseDown={startDrag}
+        onTouchStart={startTouch}
+        onClick={e => e.stopPropagation()}
+      >
+        {isVideo ? (
+          <video
+            src={url}
+            autoPlay
+            controls
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            style={{
+              transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`,
+              transition: dragging ? 'none' : 'transform 0.2s'
+            }}
+          />
+        ) : (
+          <img
+            src={url}
+            alt="Media"
+            ref={mediaRef}
+            className="max-w-[90vw] max-h-[90vh] object-contain select-none"
+            draggable={false}
+            style={{
+              transform: `translate(${pos.x}px, ${pos.y}px) scale(${zoom})`,
+              transition: dragging ? 'none' : 'transform 0.2s'
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+function PostViewer({ id }) {
+  const [post, setPost]       = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError]     = React.useState("");
+
+  // Fetch single post
+  React.useEffect(() => {
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(`/get-post?id=${encodeURIComponent(id)}`);
+        if (!res.ok) throw new Error("Post not found");
+        const data = await res.json();
+        setPost(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [id]);
+
+  // Like toggler
+  async function handleLike() {
+    if (!post) return;
+    try {
+      await fetch("/like-post", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ postId: post.id, username: localStorage.currentUser })
+      });
+      setPost(p => ({
+        ...p,
+        likes: p.likes.includes(localStorage.currentUser)
+          ? p.likes.filter(u => u !== localStorage.currentUser)
+          : [...p.likes, localStorage.currentUser]
+      }));
+    } catch {}
+  }
+
+  // Comment adder
+  async function handleComment(text) {
+    const t = text.trim();
+    if (!t || !post) return;
+    setPost(p => ({
+      ...p,
+      comments: [...p.comments, { username: localStorage.currentUser, text: t }]
+    }));
+    try {
+      await fetch("/add-comment", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ postId: post.id, username: localStorage.currentUser, comment: t })
+      });
+    } catch {}
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-full p-6">
+        <svg className="animate-spin w-10 h-10 text-blue-600" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="p-6 text-center text-red-500">{error}</div>;
+  }
+
+  if (!post) {
+    return <div className="p-6 text-center text-gray-500">No post to display.</div>;
+  }
+
+  const liked = post.likes.includes(localStorage.currentUser);
+
+  return (
+    <div style={{ width: '100%', maxWidth: '100%' }} className="bg-white overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center px-6 py-4">
+        <img
+          src={profile(post.username).profile_pic}
+          alt={post.username}
+          className="w-12 h-12 rounded-full mr-4"
+        />
+        <div>
+          <p className="font-semibold text-gray-900"><span onClick={() => Lexum.navigate(`/@${post.username}`)}>{profile(post.username).fullname}</span></p>
+          <p className="text-xs text-gray-500">
+            {new Date(post.created_at).toLocaleString(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short"
+            })}
+          </p>
+        </div>
+      </div>
+
+      {/* Text */}
+      {post.text && (
+        <div className="px-6 pb-4">
+          <p className="text-gray-800 leading-relaxed">
+            <SafeHTML html={post.text} />
+          </p>
+        </div>
+      )}
+
+      {/* Media */}
+      {post.media?.length > 0 && (
+        <div className="px-6 pb-4 space-y-4">
+          {post.media.map((url, i) =>
+            /\.(mp4|webm|ogg)$/i.test(url) ? (
+              <VideoPlayer key={i} src={url} poster={profile(post.username).profile_pic} />
+            ) : (
+              <img key={i} src={url} className="w-full object-cover rounded-lg" loading="lazy" />
+            )
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+        <button
+          onClick={handleLike}
+          className={`flex items-center space-x-2 text-sm font-medium ${
+            liked ? "text-blue-600" : "text-gray-600 hover:text-blue-600"
+          }`}
+        ><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M7.493 18.5c-.425 0-.82-.236-.975-.632A7.48 7.48 0 0 1 6 15.125c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75A.75.75 0 0 1 15 2a2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23h-.777ZM2.331 10.727a11.969 11.969 0 0 0-.831 4.398 12 12 0 0 0 .52 3.507C2.28 19.482 3.105 20 3.994 20H4.9c.445 0 .72-.498.523-.898a8.963 8.963 0 0 1-.924-3.977c0-1.708.476-3.305 1.302-4.666.245-.403-.028-.959-.5-.959H4.25c-.832 0-1.612.453-1.918 1.227Z" />
+</svg>
+
+          <span>{liked ? "Liked" : "Like"} · {post.likes.length}</span>
+        </button>
+
+        <button
+          onClick={() => document.getElementById("pv-comment-input").focus()}
+          className="flex items-center space-x-2 text-sm text-gray-600 hover:text-blue-600"
+        >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M5.337 21.718a6.707 6.707 0 0 1-.533-.074.75.75 0 0 1-.44-1.223 3.73 3.73 0 0 0 .814-1.686c.023-.115-.022-.317-.254-.543C3.274 16.587 2.25 14.41 2.25 12c0-5.03 4.428-9 9.75-9s9.75 3.97 9.75 9c0 5.03-4.428 9-9.75 9-.833 0-1.643-.097-2.417-.279a6.721 6.721 0 0 1-4.246.997Z" clipRule="evenodd" />
+</svg>
+          <span>Comment · {post.comments.length}</span>
+        </button>
+      </div>
+
+      {/* Comment Input */}
+      <div className="px-6 pb-6">
+        <div className="flex items-center space-x-2">
+          <input
+            id="pv-comment-input"
+            type="text"
+            placeholder="Write a comment…"
+            className="flex-1 bg-gray-100 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                handleComment(e.currentTarget.value);
+                e.currentTarget.value = "";
+              }
+            }}
+          />
+          <button
+            onClick={() => {
+              const inp = document.getElementById("pv-comment-input");
+              const txt = inp.value.trim();
+              if (txt) {
+                handleComment(txt);
+                inp.value = "";
+              }
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition"
+          >
+            Send
+          </button>
+        </div>
+      </div>
+      {/* Comment List */}
+<div className="px-6 pb-6 space-y-4">
+  <h3>Comments ({post.comments.length})</h3>
+  {post.comments.reverse().map((cmt, i) => {
+    const commenter = profile(cmt.username) || {
+      profile_pic: "https://via.placeholder.com/40",
+      fullname: cmt.username
+    };
+
+    return (
+      <div key={i} className="flex items-start space-x-3">
+        <img
+          src={commenter.profile_pic}
+          alt={commenter.fullname}
+          className="w-10 h-10 rounded-full object-cover"
+        />
+        <div className="bg-gray-100 px-4 py-2 rounded-2xl max-w-full">
+          <div className="text-sm font-semibold text-gray-900">
+            {commenter.fullname}
+          </div>
+          <div className="text-sm text-gray-800 leading-snug mt-0.5">
+            {cmt.text}
+          </div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
+    </div>
+  );
+}
+
+function PostView({ id }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <PostViewer id={id} />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <div className="mt-8"><EventsPanel /></div>
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+ 
+function PostViewMobile({ id }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <PostViewer id={id} />
+    </div>
+  );
+}
+ 
+function Menu() {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef();
+
+  // Close when clicking outside
+  useEffect(() => {
+    function onClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  const links = [
+    { label: 'Home',        icon: Icon.Home,        to: '/' },
+    { label: 'Connections', icon: Icon.Friends,     to: '/connections' },
+    { label: 'Post Update',    icon: Icon.Updates,        to: '/post-update' },
+    { label: 'Astra Search (Web Search)',     icon: Icon.Search,      to: '/astra-search' },
+    { label: 'Create an Event',    icon: Icon.Event,        to: '/events/new' },
+    { label: 'Events',      icon: Icon.Event,       to: '/events' },
+    { label: 'Messages',      icon: Icon.Messages,       to: '/chats' },
+    { label: 'Groups',     icon: Icon.Group,      to: '/communities' },
+    { label: 'Notifications',icon: Icon.Bell,       to: '/activity' },
+    { label: 'Gallery',     icon: Icon.Photos,      to: '/gallery' },
+    { label: 'Settings',    icon: Icon.Settings,        to: '/settings' },
+    { label: 'Log Out',     icon: Icon.Leave,        to: '/logout' },
+  ];
+
+  return (
+    <div className="relative" ref={menuRef}>
+        <div style={{ height: '90vh', maxHeight: '90vh', overflow: 'auto', padding: '20px' }} className="bg-white ring-1 ring-black ring-opacity-5 z-30">
+          <h1>Menu Options</h1>
+          <div style={{ lineHeight: '5px' }} className="py-1">
+            {links.map(({ label, icon: IconComp, to }) => (
+              <a
+                key={label}
+                href={to}
+                data-lexum
+                className="flex items-center px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 transition-colors"
+              >
+                <IconComp className="w-5 h-5 mr-3 text-gray-600" />
+                <span style={{ marginLeft: '15px' }}>{label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+    </div>
+  );
+}
+
+function MenuView({ id }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <Menu />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <div className="mt-8"><EventsPanel /></div>
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+  function Logout() {
+    localStorage.removeItem('currentUser')
+    window.location.href = '/auth'
+  }
+
+function EventForm({ onSubmit }) {
+    const [title, setTitle]         = useState("");
+    const [description, setDescription] = useState("");
+    const [date, setDate]           = useState("");
+    const [time, setTime]           = useState("");
+    const [location, setLocation]   = useState("");
+    const [url, setUrl]             = useState("");
+    const [publicEvent, setPublicEvent] = useState(true);
+    const isValid = title.trim() && date && time && description.trim();
+
+    const handleSubmit = e => {
+      e.preventDefault();
+      if (!isValid) return;
+      onSubmit({
+        username: localStorage.currentUser,
+        title: title.trim(),
+        text: description.trim(),
+        scheduled_for: `${date}T${time}`,
+        location: location.trim() || null,
+        registration_url: url.trim() || null,
+        visib: publicEvent ? "public" : "private"
+      });
+    };
+
+    return (
+      <div className="w-full max-w-md mx-auto box-border p-5 bg-white shadow">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Create New Event</h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Event Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              placeholder="Textmob Meetup"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows="3"
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+              placeholder="Tell everyone what you’ll do…"
+              required
+            />
+          </div>
+
+          {/* Date & Time */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Time <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="time"
+                value={time}
+                onChange={e => setTime(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Location & Registration URL */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Location (Optional)</label>
+              <input
+                type="text"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="Lagos Tech Hub"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Website (Optional)</label>
+              <input
+                type="url"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="https://"
+              />
+            </div>
+          </div>
+
+          {/* Public / Private Switch */}
+          <div className="flex items-center space-x-4">
+            <span className="text-sm font-medium text-gray-700">Private</span>
+            <button
+              type="button"
+              onClick={() => setPublicEvent(!publicEvent)}
+              className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none
+                ${publicEvent ? 'bg-blue-500' : 'bg-gray-300'}`}
+            >
+              <span
+                className={`transform transition-transform
+                  ${publicEvent ? 'translate-x-6' : 'translate-x-1'}`}
+              >
+                <span className="block w-4 h-4 bg-white rounded-full"></span>
+              </span>
+            </button>
+            <span className="text-sm font-medium text-gray-700">Public</span>
+          </div>
+
+          {/* Submit */}
+          <div className="text-right">
+            <button
+              type="submit"
+              disabled={!isValid}
+              className={`px-6 py-3 font-semibold rounded-full shadow-md transition
+                ${isValid
+                  ? 'bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-500 hover:to-blue-700 text-white'
+                  : 'bg-gray-300 cursor-not-allowed text-gray-600'}`}
+            >
+              Create Event
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  function CreateEvent({ id }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+  const handleNewEvent = data => {
+      fetch('/events', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+      })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(() => Lexum.navigate('/events'))
+      .catch(console.error);
+    };
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+        <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <EventForm onSubmit={handleNewEvent} />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+
+function CreateEventMobile({ id }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+  const handleNewEvent = data => {
+      fetch('/events', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+      })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(() => Lexum.navigate('/events'))
+      .catch(console.error);
+    };
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <EventForm onSubmit={handleNewEvent} />
+    </div>
+  );
+}
+function SparkForm({ onSubmit }) {
+  const [file, setFile]         = React.useState(null);
+  const [preview, setPreview]   = React.useState("");
+  const [caption, setCaption]   = React.useState("");
+  const [loading, setLoading]   = React.useState(false);
+  const isValid = file && true;
+
+  // generate preview URL when file changes
+  React.useEffect(() => {
+    if (!file) return setPreview("");
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const handleFileChange = e => {
+    const f = e.target.files[0];
+    if (f && /(image|video)/.test(f.type)) setFile(f);
+  };
+
+  const handleSubmit = async e => {
+    e.preventDefault();
+    if (!isValid) return;
+    setLoading(true);
+    const fd = new FormData();
+    fd.append("username", localStorage.currentUser);
+    fd.append("caption", caption);
+    fd.append("media", file);
+    try {
+      await onSubmit(fd); // your parent passes a fn that posts to /create-spark
+      setCaption(""); setFile(null);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ width: '100%', height: '85vh' }} className="box-border p-6 bg-white shadow-lg">
+      <h2 className="text-2xl font-semibold text-gray-800 mb-4">✨ Create a Spark</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        
+        {/* File Input */}
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700 mb-1 inline-block">
+            Media <span className="text-red-500">*</span>
+          </span>
+          <input
+            type="file"
+            accept="image/*,video/*"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-700
+                       file:mr-4 file:py-2 file:px-4
+                       file:rounded-full file:border-0
+                       file:text-sm file:font-semibold
+                       file:bg-gradient-to-r file:from-pink-500 file:to-purple-500
+                       hover:file:from-pink-600 hover:file:to-purple-600
+                       transition-colors"
+          />
+        </label>
+
+        {/* Preview */}
+        {preview && (
+          <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+            {file && file.type.startsWith("image") ? (
+              <img src={preview} className="object-cover w-full h-full" />
+            ) : (
+              <VideoPlayer src={preview} className="object-cover w-full h-full" controls />
+            )}
+            <button
+              type="button"
+              onClick={() => setFile(null)}
+              className="absolute top-2 right-2 bg-black bg-opacity-50 text-white p-1 rounded-full hover:bg-opacity-75 transition"
+              aria-label="Remove preview"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Caption */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Caption
+          </label>
+          <textarea
+            value={caption}
+            onChange={e => setCaption(e.target.value)}
+            rows="2"
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 resize-none"
+            placeholder="What's on your mind?"
+          />
+        </div>
+
+        {/* Submit */}
+        <div className="text-right">
+          <button
+            type="submit"
+            disabled={!isValid || loading}
+            className={`px-6 py-3 font-semibold rounded-full shadow-md transition
+              ${isValid && !loading
+                ? 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+                : 'bg-gray-300 cursor-not-allowed text-gray-600'}`}
+          >
+            {loading ? "🔥 Sharing to The World…" : "Share"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+function PostUpdate({ id }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+  const createSpark = async formData => {
+    const res = await fetch("/create-spark", {
+      method: "POST",
+      body: formData
+    });
+    if (!res.ok) throw new Error("Spark failed");
+    const body = await res.json();
+    console.log(body.message);
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+        <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <SparkForm onSubmit={createSpark} />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+
+function PostUpdateMobile({ id }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+  const createSpark = async formData => {
+    const res = await fetch("/create-spark", {
+      method: "POST",
+      body: formData
+    });
+    if (!res.ok) throw new Error("Spark failed");
+    const body = await res.json();
+    console.log(body.message);
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <SparkForm onSubmit={createSpark} />
+    </div>
+  );
+}
+
+function ConnectButton({ targetUsername, currentUsername, onUpdate }) {
+  const [loading, setLoading] = React.useState(true);
+  const [state, setState] = React.useState(null); // "friended", "not_friended", "following", "not_following"
+  const [profileType, setProfileType] = React.useState(null);
+
+  React.useEffect(() => {
+    async function fetchProfile() {
+      try {
+        const res = await fetch(`/profile/${encodeURIComponent(targetUsername)}`);
+        if (!res.ok) throw new Error("Failed to load user profile");
+        const data = await res.json();
+
+        // Determine state
+        const isFriend = data.friends?.includes(currentUsername);
+        const isFollowing = data.followers?.includes(currentUsername);
+
+        setProfileType(data.profile_type?.toLowerCase());
+
+        if (data.profile_type?.toLowerCase() === "individual") {
+          setState(isFriend ? "friended" : "not_friended");
+        } else {
+          setState(isFollowing ? "following" : "not_following");
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfile();
+  }, [targetUsername, currentUsername]);
+
+  async function handleClick() {
+    if (loading || !state) return;
+    setLoading(true);
+
+    try {
+      const res = await fetch("/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentUsername, targetUsername })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Connection failed");
+
+      const newState = {
+        friended: "not_friended",
+        not_friended: "friended",
+        following: "not_following",
+        not_following: "following"
+      }[state];
+
+      setState(newState);
+      onUpdate?.(newState);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const labelMap = {
+    friended: "Already Friends",
+    not_friended: "Add Friend",
+    following: "Unfollow",
+    not_following: "Follow"
+  };
+
+  if (loading || !state) {
+    return (
+      <button className="px-4 py-2 rounded-full text-sm bg-gray-300 text-gray-600 cursor-wait" disabled>
+        Loading...
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+        state === "friended" || state === "following"
+          ? "bg-blue-600 text-white hover:bg-blue-700"
+          : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+      }`}
+    >
+      {labelMap[state]}
+    </button>
+  );
+}
+
+function ProfilePage({ username }) {
+  const [profile, setProfile]   = React.useState(null);
+  const [posts, setPosts]       = React.useState([]);
+  const [connections, setConnections] = React.useState([]);
+  const [loading, setLoading]   = React.useState(true);
+  const [error, setError]       = React.useState("");
+
+  React.useEffect(() => {
+    let mounted = true;
+    async function loadAll() {
+      setLoading(true);
+      try {
+        // 1) Fetch profile
+        const pRes = await fetch(`/profile/${encodeURIComponent(username)}`);
+        if (!pRes.ok) throw new Error("Failed to load profile");
+        const pData = await pRes.json();
+
+        // 2) Fetch posts
+        const qRes = await fetch(`/get-user-posts?username=${encodeURIComponent(username)}`);
+        if (!qRes.ok) throw new Error("Failed to load posts");
+        const qData = await qRes.json();
+
+        if (!mounted) return;
+        setProfile(pData);
+        setPosts(qData);
+
+        // 3) Decide which list to fetch
+        const listKeys = pData.profile_type.toLowerCase() === "organisation"
+          ? pData.followers
+          : pData.friends;
+
+        // 4) Fetch each connection’s profile
+        const conns = await Promise.all(
+          listKeys.map(async u => {
+            const res = await fetch(`/profile/${encodeURIComponent(u)}`);
+            if (!res.ok) throw new Error("Failed to load connection");
+            return res.json();
+          })
+        );
+        if (!mounted) return;
+        setConnections(conns);
+      } catch (err) {
+        if (!mounted) return;
+        console.error(err);
+        setError(err.message);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+    loadAll();
+    return () => { mounted = false };
+  }, [username]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse text-2xl text-blue-400">Loading profile…</div>
+      </div>
+    );
+  }
+  if (error) {
+    return <div className="text-red-500 p-6 text-center">{error}</div>;
+  }
+  if (!profile) {
+    return null;
+  }
+
+  const isOrg = profile.profile_type.toLowerCase() === "organisation";
+
+  return (
+    <div>
+{/* Header */}
+<div className="bg-gradient-to-r from-blue-400 to-purple-500 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-4 sm:space-y-0">
+  {/* Profile Image */}
+  <img
+    src={profile.profile_pic}
+    alt={profile.fullname}
+    className="w-24 h-24 rounded-full border-4 border-white object-cover shadow-md self-center sm:self-auto"
+  />
+
+  {/* User Info */}
+  <div className="text-white text-center sm:text-left flex-1">
+    <h1 className="text-2xl sm:text-3xl font-bold">{profile.fullname}</h1>
+    <p className="opacity-90 text-sm sm:text-base">@{profile.username}</p>
+    <span className="inline-block mt-1 bg-white text-blue-600 text-xs px-2 py-0.5 rounded-full">
+      {profile.profile_type}
+    </span>
+  </div>
+
+  {/* Connect Button */}
+  <div className="flex justify-center sm:justify-end">
+    <ConnectButton
+      targetUsername={profile.username}
+      currentUsername={localStorage.currentUser}
+    />
+  </div>
+</div>
+
+      {/* Bio & Details */}
+      <div className="bg-white p-6 space-y-4">
+        <h2 className="text-xl font-semibold text-gray-800">About</h2>
+        {profile.biography && (
+          <p className="text-gray-700 leading-relaxed">{profile.biography}</p>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {profile.email && (
+            <div className="flex items-center space-x-2">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M1.5 8.67v8.58a3 3 0 0 0 3 3h15a3 3 0 0 0 3-3V8.67l-8.928 5.493a3 3 0 0 1-3.144 0L1.5 8.67Z" />
+  <path d="M22.5 6.908V6.75a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3v.158l9.714 5.978a1.5 1.5 0 0 0 1.572 0L22.5 6.908Z" />
+</svg>
+              <span className="text-gray-600 text-sm">{profile.email}</span>
+            </div>
+          )}
+          {profile.phone && (
+            <div className="flex items-center space-x-2">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M1.5 4.5a3 3 0 0 1 3-3h1.372c.86 0 1.61.586 1.819 1.42l1.105 4.423a1.875 1.875 0 0 1-.694 1.955l-1.293.97c-.135.101-.164.249-.126.352a11.285 11.285 0 0 0 6.697 6.697c.103.038.25.009.352-.126l.97-1.293a1.875 1.875 0 0 1 1.955-.694l4.423 1.105c.834.209 1.42.959 1.42 1.82V19.5a3 3 0 0 1-3 3h-2.25C8.552 22.5 1.5 15.448 1.5 6.75V4.5Z" clipRule="evenodd" />
+</svg>
+              <span className="text-gray-600 text-sm">{profile.phone}</span>
+            </div>
+          )}
+          <div className="flex items-center space-x-2">
+            {'individual'.includes(profile.profile_type?.toLowerCase()) ? (
+  <>
+    {/* Profile Icon */}
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
+</svg>
+  </>
+) : (
+  <>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fillRule="evenodd" d="M7.5 5.25a3 3 0 0 1 3-3h3a3 3 0 0 1 3 3v.205c.933.085 1.857.197 2.774.334 1.454.218 2.476 1.483 2.476 2.917v3.033c0 1.211-.734 2.352-1.936 2.752A24.726 24.726 0 0 1 12 15.75c-2.73 0-5.357-.442-7.814-1.259-1.202-.4-1.936-1.541-1.936-2.752V8.706c0-1.434 1.022-2.7 2.476-2.917A48.814 48.814 0 0 1 7.5 5.455V5.25Zm7.5 0v.09a49.488 49.488 0 0 0-6 0v-.09a1.5 1.5 0 0 1 1.5-1.5h3a1.5 1.5 0 0 1 1.5 1.5Zm-3 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
+  <path d="M3 18.4v-2.796a4.3 4.3 0 0 0 .713.31A26.226 26.226 0 0 0 12 17.25c2.892 0 5.68-.468 8.287-1.335.252-.084.49-.189.713-.311V18.4c0 1.452-1.047 2.728-2.523 2.923-2.12.282-4.282.427-6.477.427a49.19 49.19 0 0 1-6.477-.427C4.047 21.128 3 19.852 3 18.4Z" />
+</svg>
+  </>
+)}
+<span className="text-gray-600 text-sm">{profile.profile_type}</span>
+
+          </div>
+        </div>
+      </div>
+
+      {/* Connections */}
+      <div className="bg-white p-6">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">
+          {isOrg ? "Followers" : "Friends"} ({connections.length})
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {connections.map(user => (
+            <a
+              data-lexum
+              key={user.username}
+              href={`/@${user.username}`}
+              className="flex flex-col items-center space-y-2 hover:scale-105 transition-transform"
+            >
+              <img
+                src={user.profile_pic}
+                alt={user.fullname}
+                className="w-14 h-14 rounded-full object-cover"
+              />
+              <span className="text-sm text-gray-700">@{user.username}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* Posts */}
+      <div className="space-y-8">
+        <Feed propPosts={posts} />
+        {posts.length === 0 && (
+          <p className="text-center text-gray-500">No posts yet.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProfileView({ username }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+        <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <ProfilePage username={username} />
+      </div>
+    </div>
+  );
+}
+function ProfileViewMobile({ username }) {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <ProfilePage username={username} />
+    </div>
+  );
+}
+function Groups() {
+  const username = localStorage.getItem('currentUser');
+  const [owned, setOwned]         = useState([]);
+  const [joined, setJoined]       = useState([]);
+  const [allGroups, setAll]       = useState([]);
+  const [selected, setSel]        = useState(null);
+  const [msgs, setMsgs]           = useState([]);
+  const [file, setFile]           = useState(null);
+  const [type, setType]           = useState('message');
+  const [text, setText]           = useState('');
+  const [searchTerm, setSearchTerm]= useState('');
+  const [menuOpen, setMenuOpen]   = useState(false);
+  const socketRef                 = useRef(null);
+  const bodyRef                   = useRef(null);
+
+  // track mobile vs desktop
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // load groups + setup socket
+  useEffect(() => {
+    if (!username) return location.href = '/auth';
+    fetch('/groups')
+      .then(r => r.json())
+      .then(data => {
+        setAll(data);
+        setOwned(data.filter(g => g.created_by === username));
+        setJoined(data.filter(g =>
+          g.payload.users.some(u => u.user_id === username)
+        ));
+      });
+    socketRef.current = io();
+    socketRef.current.on('new_group_message', m =>
+      setMsgs(ms => [...ms, m])
+    );
+  }, [username]);
+
+  // join/leave and load messages when selected changes
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (selected) {
+      socket.emit('join_group', { groupId: selected.id });
+      fetch(`/groups/${selected.id}`)
+        .then(r => r.json())
+        .then(g => setMsgs(g.payload.messages));
+      return () => {
+        socket.emit('leave_group', { groupId: selected.id });
+        setMsgs([]);
+      };
+    }
+  }, [selected]);
+
+  // scroll chat to bottom
+  useEffect(() => {
+    bodyRef.current?.scrollTo(0, bodyRef.current.scrollHeight);
+  }, [msgs]);
+
+  const createGroup = () => {
+    const name = prompt('Enter new group name:');
+    if (!name) return;
+    fetch('/groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, initialAdmins: [], members: [], username })
+    })
+      .then(r => r.json())
+      .then(g => {
+        setOwned(o => [g, ...o]);
+        setAll(a => [g, ...a]);
+      });
+  };
+
+  const joinGroup = async id => {
+    try {
+      const res = await fetch(`/groups/${id}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      const grp = allGroups.find(g => g.id === id);
+      setJoined(j => [grp, ...j]);
+      setAll(a => a.filter(g => g.id !== id));
+    } catch (err) {
+      console.error('Could not join group:', err.message);
+    }
+  };
+
+  const sendMsg = async e => {
+    e.preventDefault();
+    if (!text && !file) return;
+    const fd = new FormData();
+    if (file) fd.append('media', file);
+    fd.append('type', type);
+    fd.append('content', text);
+    fd.append('username', username);
+    await fetch(`/groups/${selected.id}/messages`, { method: 'POST', body: fd });
+    setText('');
+    setFile(null);
+  };
+
+  return (
+    <div className="flex w-full h-[90vh] font-sans">
+      {/* Groups List */}
+      <div
+        className={`
+          bg-white border-r overflow-y-auto p-6
+          ${isMobile
+            ? selected ? 'hidden' : 'block w-full'
+            : 'block md:w-1/3'}
+        `}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold text-gray-800">Groups</h1>
+          <button
+            onClick={createGroup}
+            className="text-sm bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700"
+          >
+            + New
+          </button>
+        </div>
+
+        <input
+          type="text"
+          placeholder="Search groups..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="w-full px-3 py-2 text-sm border rounded mb-4 bg-gray-50 focus:outline-none focus:ring focus:border-blue-300"
+        />
+
+        <div className="space-y-4">
+          {allGroups
+            .filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map(g => (
+              <div
+                key={g.id}
+                onClick={() => setSel(g)}
+                className={`
+                  p-3 rounded-lg border flex items-center justify-between cursor-pointer hover:bg-gray-100
+                  ${selected?.id === g.id ? 'bg-blue-50 border-blue-400' : ''}
+                `}
+              >
+                <div className="flex items-center space-x-3">
+                  <img
+                    src={g.profile_url || 'https://img.freepik.com/free-vector/african-male-female-character-wearing-casual-clothes-different-hairstyles-gathered-black-people-crowd-demanding-equal-rights-every-person-flat-vector-illustration-black-community-concept_74855-22098.jpg?w=740'}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{g.name}</p>
+                    {g.created_by === username && (
+                      <span className="text-xs text-blue-600">Owner</span>
+                    )}
+                  </div>
+                </div>
+                {!g.payload.users.some(u => u.user_id === username) && (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      joinGroup(g.id);
+                    }}
+                    className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                  >
+                    Join
+                  </button>
+                )}
+              </div>
+            ))}
+        </div>
+      </div>
+
+      {/* Chat Area */}
+      {selected && (
+        <div
+          className={`
+            flex flex-col bg-gray-50
+            ${isMobile ? 'block w-full' : 'flex-1'}
+          `}
+        >
+          {/* Header */}
+          <div className="flex items-center px-4 py-3 bg-white shadow-md justify-between">
+            <div className="flex items-center gap-3">
+              {/* Back on mobile */}
+              {isMobile && (
+                <button onClick={() => setSel(null)} className="p-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    className="w-6 h-6 text-gray-600"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M11.03 3.97a.75.75 0 010 1.06L4.81 11.25H21a.75.75 0 010 1.5H4.81l6.22 6.22a.75.75 0 11-1.06 1.06l-7.5-7.5a.75.75 0 010-1.06l7.5-7.5a.75.75 0 011.06 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              )}
+              <img
+                src={selected.profile_url || 'https://img.freepik.com/free-vector/african-male-female-character-wearing-casual-clothes-different-hairstyles-gathered-black-people-crowd-demanding-equal-rights-every-person-flat-vector-illustration-black-community-concept_74855-22098.jpg?w=740'}
+                alt={selected.name}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <h2 className="text-lg font-semibold text-gray-800">{selected.name}</h2>
+            </div>
+
+            {/* Menu Picker */}
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen(o => !o)}
+                className="p-2 rounded-full hover:bg-gray-100"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-6 h-6 text-gray-600"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M6 10a2 2 0 114 0 2 2 0 01-4 0zm-6 0a2 2 0 114 0 2 2 0 01-4 0zm12 0a2 2 0 114 0 2 2 0 01-4 0z" />
+                </svg>
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border rounded-lg shadow-lg z-50">
+                  <div className="p-4 border-b">
+                    <p className="text-sm text-gray-600">Members:</p>
+                    <p className="text-lg font-semibold">
+                      {selected.payload.users.length}
+                    </p>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto p-2 space-y-2">
+                    {selected.payload.users.map(u => (
+                      <div
+                        key={u.user_id}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <a href={`/@${u.user_id}`} className="text-blue-600" data-lexum>
+                          @{u.user_id}
+                        </a>
+                        {u.is_admin && (
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                            Admin
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {selected.created_by === username && (
+                    <form
+                      onSubmit={async e => {
+                        e.preventDefault();
+                        const pic = e.target.elements.pic.files[0];
+                        if (!pic) return alert('Select an image.');
+                        const fd = new FormData();
+                        fd.append('profile', pic);
+                        fd.append('username', username);
+                        const res = await fetch(
+                          `/groups/${selected.id}/profile`,
+                          { method: 'POST', body: fd }
+                        );
+                        const json = await res.json();
+                        if (res.ok) {
+                          setSel(s => ({ ...s, profile_url: json.profile_url }));
+                          alert('Picture updated!');
+                        } else {
+                          alert(json.error || 'Failed to update.');
+                        }
+                      }}
+                      className="px-4 py-3 border-t flex items-center justify-between"
+                    >
+                      <label className="cursor-pointer text-xs text-gray-700 hover:underline">
+                        Change Picture
+                        <input type="file" name="pic" accept="image/*" className="hidden" />
+                      </label>
+                      <button type="submit" className="text-xs text-blue-600 font-medium">
+                        Upload
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div
+            ref={bodyRef}
+            className="flex-1 overflow-y-auto p-4 space-y-4 bg-white"
+          >
+            {msgs.map(m => {
+              const me = m.sender_id === username;
+              return (
+                <div
+                  key={m.id}
+                  className={`flex ${me ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-xs px-4 py-2 rounded-lg shadow
+                      ${me ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-900'}`}
+                  >
+                    <div className="text-xs opacity-80 mb-1">
+                      {me ? 'You' : m.sender_id} • {m.type.toUpperCase()} •{' '}
+                      {new Date(m.created_at).toLocaleTimeString()}
+                    </div>
+                    {m.content && <p>{m.content}</p>}
+                    {m.media_url && (
+                      m.media_url.match(/\.(mp4|webm)$/i) ? (
+                        <video
+                          src={m.media_url}
+                          controls
+                          className="rounded-lg max-w-full mt-2"
+                        />
+                      ) : (
+                        <img
+                          src={m.media_url}
+                          alt=""
+                          className="rounded-lg max-w-full mt-2"
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Input */}
+          <form
+            onSubmit={sendMsg}
+            className="p-4 bg-white border-t flex space-x-2 items-center"
+          >
+            <input
+              type="text"
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-1 px-3 py-2 border rounded focus:outline-none text-sm"
+            />
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+            >
+              Send
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroupsView() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+        <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <Groups />
+      </div>
+    </div>
+  );
+}
+function GroupsViewMobile() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <Groups />
+    </div>
+  );
+}
+
+function ChatsFrame() {
+  return (
+    <div className="flex-1 overflow-hidden">
+  <iframe style={{ height: '90vh' }} className="w-full" src="/messages" />
+</div>
+    )
+}
+
+function AstraSearch() {
+  return (
+    <div className="flex-1 overflow-hidden">
+  <iframe style={{ height: '90vh' }} className="w-full" src="https://astrasearch.glitch.me" />
+</div>
+    )
+}
+function Chats() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <ChatsFrame />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <div className="mt-8"><EventsPanel /></div>
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+
+function ChatsMobile() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <ChatsFrame />
+    </div>
+  );
+}
+function Settings() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <div className="flex-1 overflow-hidden">
+  <iframe style={{ height: '90vh' }} className="w-full" src="/accountscenter" />
+</div>
+      </div>
+    </div>
+  );
+}
+function MobileSettings() {
+  
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <div className="flex-1 overflow-hidden">
+  <iframe style={{ height: '90vh' }} className="w-full" src="/accountscenter" />
+</div>
+    </div>
+  );
+}
+
+function AstraView() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <Topbar />
+        <AstraSearch />
+      </div>
+      <aside className="w-80 bg-white p-6 overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l">
+        <AdsCarousel />
+        <div className="mt-8"><EventsPanel /></div>
+        <SuggestionsFeed />
+      </aside>
+    </div>
+  );
+}
+
+function AstraViewMobile() {
+  // Function to parse emojis using Twemoji
+  const parseTwemoji = () => {
+    if (window.twemoji) {
+      window.twemoji.parse(document.body, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/',
+      });
+    }
+  };
+
+  // UseEffect to parse Twemoji every 5 seconds
+  useEffect(() => {
+    // Parse emojis initially when the app mounts
+    parseTwemoji();
+
+    // Set interval to parse emojis every 5 seconds
+    const intervalId = setInterval(parseTwemoji, 100);
+
+    // Clear interval when the component unmounts to avoid memory leaks
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array to ensure this effect runs once on mount
+
+  return (
+    <div>
+        <MobileNav />
+        <AstraSearch />
+    </div>
+  );
+}
+// --- Initialize LexumJS ---
+    Lexum.init({
+      root: "app",
+      mode: "history",
+      routes: [
+        { path: "/", responsive: { mobile: AppMobile, desktop: App } },
+        { path: "/activity", responsive: { mobile: NotViewMobile, desktop: NotView } },
+        { path: "/connections", responsive: { mobile: ConnectViewMobile, desktop: ConnectView } },
+        { path: "/events", responsive: { mobile: EventsViewMobile, desktop: EventsView } },
+        { path: "/gallery", responsive: { mobile: GalleryViewMobile, desktop: GalleryView } },
+        { path: "/view", responsive: { mobile: MediaViewer, desktop: MediaViewer } },
+        { path: "/post/:id", responsive: { mobile: PostViewMobile, desktop: PostView } },
+        { path: "/menu", component: MenuView },
+        { path: '/logout', component: Logout },
+        { path: '/events/new', responsive: { mobile: CreateEventMobile, desktop: CreateEvent } },
+        { path: '/post-update', responsive: { mobile: PostUpdateMobile, desktop: PostUpdate } },
+        { path: '/@(:username)', responsive: { mobile: ProfileViewMobile, desktop: ProfileView } },
+        { path: '/communities', responsive: { mobile: GroupsViewMobile, desktop: GroupsView } },
+        { path: '/chats', responsive: { mobile: ChatsMobile, desktop: Chats } },
+        { path: '/settings', responsive: { mobile: MobileSettings, desktop: Settings } },
+        { path: '/astra-search', responsive: { mobile: AstraViewMobile, desktop: AstraView } }
+      ]
+    })
+  </script>
+</body>
+</html>
