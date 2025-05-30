@@ -28,7 +28,7 @@ const streamifier = require("streamifier");
 const fetch = require('node-fetch');
 
 const pingInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
-const url = 'https://textmob.glitch.me'; // Replace with your app URL
+const url = 'https://textmob-provider-api.onrender.com'; // Replace with your app URL
 const nodemailer = require("nodemailer")
 // Initialize Nodemailer transporter
 const transporter = nodemailer.createTransport({
