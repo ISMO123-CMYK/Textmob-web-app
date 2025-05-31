@@ -110,7 +110,7 @@ app.post("/login", async (req, res) => {
           return res.status(400).json({ error: "Invalid email/username or password" });
       }
 
-      sendNotificationEmail(
+      await sendNotificationEmail(
       user.email,
       "🔔 Login Detected on Textmob",
       `<p>New Login Detected, Hi ${user.fullname}, We've detected An new Login Activity on Your Textmob Account, If This wasn't You, Report to gidadoismail24@gmail.com</p>`
@@ -197,7 +197,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
           disabled,
         },
       ]);
-sendNotificationEmail(
+await sendNotificationEmail(
         email,
         "🔔 New Notification on Textmob",
         `<p>Hi, ${fullName}, You are Welcome to textmob, A Place to Connect with Friends and Families, Your Email would serve as a central for Your Notifications. If This Wasn't You, Please Report to gidadoismail24@gmail.com</p>`
@@ -1513,7 +1513,7 @@ setInterval(async () => {
       `;
 
       // Send email to the user
-      sendNotificationEmail(
+     await sendNotificationEmail(
         user.email,
         "📬 Your Weekly Textmob Digest",
         digestHtml
