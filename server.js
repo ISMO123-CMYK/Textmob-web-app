@@ -45,7 +45,44 @@ async function sendNotificationEmail(to, subject, message) {
     from: '"Textmob" sharpbrainspublishers@gmail.com',
     to,
     subject,
-    html: message
+    html: `
+  <style>
+    @import url('https://fonts.googleapis.com/css?family=Manrope:400,700&display=swap');
+    body, table, td, a {
+      font-family: 'Manrope', Arial, sans-serif !important;
+    }
+  </style>
+<body style="margin:0; padding:0; background-color:#FFFFFF; font-family:'Manrope', Arial, sans-serif;">
+  <table width="100%" bgcolor="#1E90FF" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#FFFFFF; border-radius:12px; margin:40px 0;">
+          <tr>
+            <td align="center" style="padding:40px 30px 20px 30px; color:#8e44ad; font-size:32px; font-weight:bold;">
+              Textmob Notification
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:10px 30px; color:#1E90FF; font-size:20px;">
+              ${message}
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:20px 30px 40px 30px; color:#444; font-size:16px;">
+              <p style="margin:0;">Thank you for using <span style="color:#8e44ad; font-weight:bold;">Textmob</span>.<br>
+              Stay connected with us for more updates!</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:10px 30px 40px 30px;">
+              <a href="https://textmob.web.app.com" style="background-color:#8e44ad; color:#fff; padding:12px 32px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:16px;">Visit Textmob</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>`;
   });
   console.log("Email sent Successfully to", to)
 }
