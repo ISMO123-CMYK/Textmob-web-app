@@ -11,6 +11,7 @@ const server = http.createServer(app); // attach raw HTTP server
 const io = socketIo(server);           // attach Socket.IO to the HTTP server
 const PORT = process.env.PORT || 5000;
 // Initialize Supabase client
+const onlineUsers = {};
 const supabaseUrl = "https://apnnyqmsyxuyapamnrqg.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwbm55cW1zeXh1eWFwYW1ucnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjA2ODgsImV4cCI6MjA1ODkzNjY4OH0.aVHtygox6NbLAvgGElkBcEFXG1QKIB8JeYNHBwBtU7Y";
 const supabase = createClient(supabaseUrl, supabaseKey);
