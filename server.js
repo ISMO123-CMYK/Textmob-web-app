@@ -47,7 +47,7 @@ async function sendNotificationEmail(to, subject, message) {
     subject,
     html: `
   <style>
-    @import url('https://fonts.googleapis.com/css?family=Manrope:400,700&display=swap');
+    @import url("https://fonts.googleapis.com/css?family=Manrope:400,700&display=swap");
     body, table, td, a {
       font-family: 'Manrope', Arial, sans-serif !important;
     }
@@ -82,7 +82,7 @@ async function sendNotificationEmail(to, subject, message) {
       </td>
     </tr>
   </table>
-</body>`;
+</body>`
   });
   console.log("Email sent Successfully to", to)
 }
