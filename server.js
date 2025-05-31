@@ -1482,99 +1482,50 @@ const randomMessages = [
   "It's been a week! Time to check what's new on Textmob!"
 ];
 
-// Function to generate a random digest message
 const generateRandomDigest = () => {
   const randomIndex = Math.floor(Math.random() * randomMessages.length);
   return randomMessages[randomIndex];
 };
 
-// Function to send weekly digest
-setInterval(async () => {
-  console.log("Sending weekly digest emails...");
-
-  try {
-    const { data: users, error: userError } = await supabase
-      .from("users")
-      .select("id, email, fullname");
-
-    if (userError) {
-      console.error("Error fetching users:", userError);
-      return;
-    }
-
-    for (const user of users) {
-      // Generate a random digest message
-      const digestMessage = generateRandomDigest();
-
-      const digestHtml = `
-        <h2>Hello ${user.full_name || user.email}, here's your Weekly Digest!</h2>
-        <p>${digestMessage}</p>
-        <p><a href="https://textmob.web.app">Go to Textmob</a></p>
-      `;
-
-      // Send email to the user
-     await sendNotificationEmail(
-        user.email,
-        "📬 Your Weekly Textmob Digest",
-        digestHtml
-      );
-
-      console.log(`Weekly digest sent to ${user.email}`);
-    }
-  } catch (err) {
-    console.error("Failed to send weekly digest:", err);
-  }
-
-}, WEEK_IN_MS); // Runs once every 7 days (1 week)
-
-const onlineUsers = {};
-app.get('/week', function(req, res) {
-  sendWeeklyDigest()
-  res.send('Sent')
-})
- const sendWeeklyDigest = async () => {
+async function sendWeeklyDigest() {
   try {
     const { data: users, error: userError } = await supabase
       .from("users")
       .select("email, fullname");
-
     if (userError) {
       console.error("Error fetching users:", userError);
       return;
     }
-
-    // Ensure users is iterable and not empty
     if (!Array.isArray(users) || users.length === 0) {
       console.error("No users found or data is not an array");
       return;
     }
 
-    // Gather all user emails
-    const emails = users.map(user => user.email);
-    const digestMessage = generateRandomDigest();
-
-    // HTML content for the digest
-    const digestHtml = `
-      <h2>Hello! Here's your Weekly Digest from Textmob</h2>
-      <p>${digestMessage}</p>
-      <p><a href="https://textmob.web.app">Go to Textmob</a></p>
-    `;
-
-    // Send the email to all users at once
-    await sendNotificationEmail(
-      emails.join(','), // Join all emails with commas
-      "📬 Your Weekly Textmob Digest",
-      digestHtml
-    );
-
-    console.log("Weekly digest sent to all users!");
+    for (const user of users) {
+      const digestMessage = generateRandomDigest();
+      const digestHtml = `
+        <h2>Hello ${user.fullname || user.email}, here's your Weekly Digest!</h2>
+        <p>${digestMessage}</p>
+        <p><a href="https://textmob.web.app">Go to Textmob</a></p>
+      `;
+      try {
+        await sendNotificationEmail(
+          user.email,
+          "📬 Your Weekly Textmob Digest",
+          digestHtml
+        );
+        console.log(`Weekly digest sent to ${user.email}`);
+      } catch (emailErr) {
+        console.error(`Failed to send digest to ${user.email}:`, emailErr);
+      }
+    }
   } catch (err) {
     console.error("Failed to send weekly digest:", err);
   }
-};
+}
 
-sendWeeklyDigest()
-// —— Polling endpoint for presence —— 
+// Schedule (replace setInterval with a proper scheduler in production)
+setInterval(sendWeeklyDigest, WEEK_IN_MS);
 app.get('/online-users', (req, res) => {
   return res.json({ users: Object.keys(onlineUsers) });
 });
