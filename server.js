@@ -1526,7 +1526,7 @@ async function sendWeeklyDigest() {
 
 // Schedule (replace setInterval with a proper scheduler in production)
 setInterval(sendWeeklyDigest, WEEK_IN_MS);
-app.get('/week', function(req, res) {
+app.get('/week', async function(req, res) {
   await sendWeeklyDigest()
   res.json({ message: 'Weekly Digest sent to all users' })
 })
