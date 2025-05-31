@@ -151,7 +151,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
       disabled,
     } = req.body;
 
-    if (!fullName || !username || !email || !password || !profile_type) {
+    if (!fullName || !username || !email || !password || !profile_type || !req.file) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
