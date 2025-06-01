@@ -1841,123 +1841,35 @@ app.get("/get-posts", async (req, res) => {
       return res.status(400).json({ error: "Username is required" });
     }
 
-    // 1. Fetch the user’s friends & following
-    const { data: you, error: youErr } = await supabase
-      .from("users")
-      .select("friends, following")
-      .eq("username", username)
-      .single();
-    if (youErr || !you) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    const friends = you.friends || [];
-    const following = you.following || [];
-    const baseConnections = new Set([...friends, ...following, username]);
-
-    // 2. Load all posts
+    // Fetch all posts, newest first
     const { data: allPosts, error: postsErr } = await supabase2
       .from("Posts")
-      .select("*");
+      .select("*")
+      .order("created_at", { ascending: false });
     if (postsErr) throw postsErr;
 
-    // 3. Build set of authors the user has engaged with
-    const engagedAuthors = new Set();
-    allPosts.forEach(post => {
-      if (Array.isArray(post.likes) && post.likes.includes(username)) {
-        engagedAuthors.add(post.username);
+    // Split into unliked and liked
+    const unlikedPosts = [];
+    const likedPosts = [];
+    for (const post of allPosts) {
+      const likesArr = Array.isArray(post.likes) ? post.likes : [];
+      if (likesArr.includes(username)) {
+        likedPosts.push(post);
+      } else {
+        unlikedPosts.push(post);
       }
-      if (Array.isArray(post.comments)) {
-        post.comments.forEach(c => {
-          if (c.username === username) {
-            engagedAuthors.add(post.username);
-          }
-        });
-      }
-    });
+    }
 
-    // 4. Second‑degree connections (who your followings follow)
-    const { data: followees, error: fErr } = await supabase
-      .from("users")
-      .select("username, following")
-      .in("username", following);
-    if (fErr) throw fErr;
-    const secondDegree = new Set();
-    followees.forEach(u =>
-      (u.following || []).forEach(f => {
-        if (f !== username && !following.includes(f)) secondDegree.add(f);
-      })
-    );
+    // Both arrays are already sorted by newest first
+    const result = [...unlikedPosts, ...likedPosts];
 
-    // 5. Friends’ followings
-    const { data: friendsData, error: frErr } = await supabase
-      .from("users")
-      .select("following")
-      .in("username", friends);
-    if (frErr) throw frErr;
-    const friendsFollowings = new Set();
-    friendsData.forEach(u =>
-      (u.following || []).forEach(f => {
-        if (f !== username) friendsFollowings.add(f);
-      })
-    );
-
-    // 6. Filter, score, randomize & sort
-    const now = Date.now();
-    const scored = allPosts
-      .filter(post => {
-        // only allow private posts from direct connections
-        if (post.visib === "private") {
-          return baseConnections.has(post.username);
-        }
-        // show all public posts
-        return true;
-      })
-      .map(post => {
-        let score = 0;
-        // strong social signals
-        if (friends.includes(post.username))     score += 5;
-        if (following.includes(post.username))   score += 5;
-        if (engagedAuthors.has(post.username))   score += 3;
-        // weaker network signals
-        if (secondDegree.has(post.username))     score += 2;
-        if (friendsFollowings.has(post.username))score += 2;
-        // small boost for completely new public authors
-        if (
-          post.visib === "public" &&
-          !baseConnections.has(post.username) &&
-          !engagedAuthors.has(post.username)
-        ) {
-          score += 1;
-        }
-        // heavier recency boost
-        const ageMs = now - new Date(post.created_at).getTime();
-        score += 2 * (1 / (ageMs + 1) * 1e7);
-        
-        // add random jitter so each load differs
-        score += Math.random() * new Date().getTime();
-        return { post, score };
-      })
-      // highest score first
-      .sort((a, b) => b.score - a.score)
-      .map(item => item.post);
-// Sort by score descending
-const scoredSorted = scored.sort((a, b) => b.score - a.score);
-
-// Take top 50 (or however many you want)
-const topPosts = scoredSorted.slice(0, 50);
-
-// Shuffle top posts randomly
-const shuffled = topPosts.sort(() => Math.random() - 0.5);
-
-// Send shuffled top posts to client
-res.json(shuffled);
+    res.json(result);
 
   } catch (err) {
     console.error("Unified Feed Error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 app.get("/get-suggestions-feed", async (req, res) => {
   try {
     const { username } = req.query;
