@@ -797,6 +797,67 @@ app.post("/mark-notification-read", async (req, res) => {
 });
 
 // Create Post (multiple media via Cloudinary)
+// Helper: Get all unique friends and followers for a username
+async function getAllUserConnections(username) {
+  const { data: user, error: userErr } = await supabase
+    .from('users')
+    .select('friends, followers')
+    .eq('username', username)
+    .single();
+  if (userErr || !user) return [];
+  const { friends = [], followers = [] } = user;
+  return [...new Set([...friends, ...followers].filter(u => u !== username))];
+}
+
+// Helper: Notify all connections of a new post (in-app and email)
+async function notifyConnectionsOnPost(username, postText, postId) {
+  const connections = await getAllUserConnections(username);
+  // Get poster's profile for better notification text (optional)
+  const { data: user } = await supabase
+    .from('users')
+    .select('fullname')
+    .eq('username', username)
+    .single();
+
+  for (const connection of connections) {
+    // Get email for connection
+    const { data: connUser } = await supabase
+      .from('users')
+      .select('email, fullname')
+      .eq('username', connection)
+      .single();
+
+    // In-app notification
+    await addNotification(connection, {
+      id: Date.now() + Math.random(),
+      message: `${user?.fullname || username} just created a new post: "${postText.slice(0, 80)}..."`,
+      read: false,
+      link: `/post/${postId}`,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Email notification
+    if (connUser && connUser.email) {
+      await sendNotificationEmail(
+        connUser.email,
+        `${user?.fullname || username} just posted on Textmob!`,
+        `<p><strong>${user?.fullname || username}</strong> just made a new post:</p>
+         <blockquote>${postText.slice(0, 180)}</blockquote>
+         <p><a href="https://textmob.web.app/post/${postId}">View post</a></p>`
+      );
+    }
+
+    // Real-time (Socket.io, optional)
+    if (onlineUsers[connection]) {
+      onlineUsers[connection].emit('new-notification', {
+        message: `${user?.fullname || username} just created a new post!`,
+        link: `/post/${postId}`,
+      });
+    }
+  }
+}
+
+// FINAL /create-post ROUTE
 app.post("/create-post", upload.array("media", 6), async (req, res) => {
   try {
     const { username, text, visib } = req.body;
@@ -804,7 +865,10 @@ app.post("/create-post", upload.array("media", 6), async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // Hashtags extraction
     const hashtags = text.match(/#\w+/g) || [];
+
+    // Media upload (Cloudinary)
     const mediaUrls = await Promise.all(
       (req.files || []).map((file) =>
         new Promise((resolve, reject) => {
@@ -817,14 +881,20 @@ app.post("/create-post", upload.array("media", 6), async (req, res) => {
       )
     );
 
-    const { error: insertError } = await supabase2
+    // Insert post and get the new post's ID
+    const { error: insertError, data } = await supabase2
       .from("Posts")
-      .insert([{ username, text, media: mediaUrls, likes: [], comments: [], hashtags, visib }]);
+      .insert([{ username, text, media: mediaUrls, likes: [], comments: [], hashtags, visib }])
+      .select('*')
+      .single();
 
     if (insertError) {
       console.error("Error creating post:", insertError);
       return res.status(500).json({ error: "Failed to create post" });
     }
+
+    // Notify all friends and followers (in-app + email)
+    await notifyConnectionsOnPost(username, text, data.id);
 
     res.json({ message: "Post created successfully!" });
   } catch (error) {
@@ -832,7 +902,6 @@ app.post("/create-post", upload.array("media", 6), async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
 app.get("/posts-by-hashtag", async (req, res) => {
   try {
     const { hashtag } = req.query;
