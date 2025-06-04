@@ -75,7 +75,7 @@ async function sendNotificationEmail(to, subject, message) {
           </tr>
           <tr>
             <td align="center" style="padding:10px 30px 40px 30px;">
-              <a href="https://textmob.web.app.com" style="background-color:#8e44ad; color:#fff; padding:12px 32px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:16px;">Visit Textmob</a>
+              <a href="https://textmob.web.app" style="background-color:#8e44ad; color:#fff; padding:12px 32px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:16px;">Visit Textmob</a>
             </td>
           </tr>
         </table>
@@ -151,7 +151,7 @@ app.post("/login", async (req, res) => {
       await sendNotificationEmail(
       user.email,
       "🔔 Login Detected on Textmob",
-      `<p>New Login Detected, Hi ${user.fullname}, We've detected An new Login Activity on Your Textmob Account, If This wasn't You, Report to gidadoismail24@gmail.com</p>`
+      `<p>New Login Detected, Hi ${user.fullname}, We've detected A new Login Activity on Your Textmob Account, If This wasn't You, Report to gidadoismail24@gmail.com</p>`
       );
 
       res.json({ message: "Login successful", user });
