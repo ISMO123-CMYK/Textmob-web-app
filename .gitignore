@@ -1,0 +1,10 @@
+.env
+node_modules/
+client/
+.gemini/
+thetextmobapp.apk
+galaxybells.mp3
+outgoing.mp3
+tmp-live/
+pnpm-lock.yaml
+package-lock.json

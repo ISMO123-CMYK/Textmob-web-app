@@ -1,0 +1,2570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/darkreader/darkreader.min.js"></script>
+<!-- global-preferences.js -->
+<script>
+  (function () {
+    function safeCallDarkReader(fn) {
+      // If DarkReader exists call immediately; otherwise poll a few times.
+      if (window.DarkReader) {
+        try { fn(); } catch (e) { console.error("DarkReader error", e); }
+        return;
+      }
+      // Poll up to 30 times (3s) for library to become available
+      let tries = 0;
+      const t = setInterval(() => {
+        tries += 1;
+        if (window.DarkReader) {
+          clearInterval(t);
+          try { fn(); } catch (e) { console.error("DarkReader error", e); }
+        } else if (tries > 30) {
+          clearInterval(t);
+          console.warn("DarkReader not found after waiting — preferences requiring DarkReader will be skipped.");
+        }
+      }, 100);
+    }
+  
+    function applyDarkMode(mode) {
+      // mode: 'system' | 'dark' | 'light' | 'custom'
+      if (mode === "light") {
+        // ensure DarkReader is disabled
+        if (window.DarkReader) {
+          try { window.DarkReader.disable(); } catch (e) { console.error(e); }
+        }
+        return;
+      }
+  
+      // For the rest we need DarkReader
+      safeCallDarkReader(() => {
+        try {
+          // give DarkReader access to fetch if available
+          if (window.DarkReader && typeof window.DarkReader.setFetchMethod === "function") {
+            window.DarkReader.setFetchMethod(window.fetch);
+          }
+        } catch (e) { /* ignore */ }
+  
+        if (mode === "dark") {
+          window.DarkReader.enable({ brightness: 100, contrast: 100, sepia: 0 });
+        } else if (mode === "custom") {
+          window.DarkReader.enable({ brightness: 110, contrast: 90, sepia: 8 });
+        } else {
+          // system
+          if (typeof window.DarkReader.auto === "function") {
+            window.DarkReader.auto({ brightness: 100, contrast: 100, sepia: 0 });
+          } else {
+            // fallback: simple enable/disable based on system
+            const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+            prefersDark ? window.DarkReader.enable() : window.DarkReader.disable();
+          }
+        }
+      });
+    }
+  
+    // bootstrap from localStorage (defaults)
+    const savedMode = localStorage.getItem("darkMode") || "system";
+    const savedTheme = localStorage.getItem("theme") || "blue";
+  
+    applyDarkMode(savedMode);
+  
+    // Listen to custom events from Preferences UI
+    window.addEventListener("app:preferences:update", (e) => {
+      try {
+        const detail = e.detail || {};
+        if (typeof detail.darkMode === "string") {
+          localStorage.setItem("darkMode", detail.darkMode);
+          applyDarkMode(detail.darkMode);
+        }
+      } catch (err) {
+        console.error("app:preferences:update handler error", err);
+      }
+    });
+  
+    // Listen to storage events for cross-tab sync
+    window.addEventListener("storage", (e) => {
+      if (e.key === "darkMode" && e.newValue) {
+        applyDarkMode(e.newValue);
+      }
+    });
+  
+    // react to OS theme changes when in 'system' mode
+    if (window.matchMedia) {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      // use addEventListener if available
+      if (mq.addEventListener) {
+        mq.addEventListener("change", () => {
+          const current = localStorage.getItem("darkMode") || "system";
+          if (current === "system") applyDarkMode("system");
+        });
+      } else if (mq.addListener) {
+        mq.addListener(() => {
+          const current = localStorage.getItem("darkMode") || "system";
+          if (current === "system") applyDarkMode("system");
+        });
+      }
+    }
+  })();
+  </script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
+  
+
+  <title>Accounts Center</title>
+  <style>
+        /* Global body font */
+body, * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: #111; /* adjust for your theme */
+  margin: 0;
+  padding: 0;
+}
+
+/* Headings use Montserrat */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Montserrat', 'Inter', sans-serif;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 0;
+}
+    .google-loading-spinner .spinner-ring {
+      border: 4px solid rgba(0,0,0,0.1);
+      border-top: 4px solid #1877F2;
+    }
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: skeleton-loading 1.5s infinite;
+    }
+    @keyframes skeleton-loading {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .tooltip {
+      position: relative;
+    }
+    .tooltip:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <script>
+    if (!localStorage.currentUser) {
+      alert('Please Login to Continue');
+      window.location.href = '/auth';
+    }
+  </script>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, memo } = React;
+
+    async function fetchProfile(username) {
+      try {
+        const res = await fetch(`/profile/${username}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch profile');
+        return data;
+      } catch (e) {
+        console.error("Failed to fetch user profile:", e.message);
+        return {
+          fullname: username,
+          profile_pic: "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg",
+          mobcoins: 0,
+          followers: [],
+          type: 'user'
+        };
+      }
+    }
+
+// Replace your fetchHistoricalData with this
+async function fetchHistoricalData(username) {
+  try {
+    // Fetch user's posts
+    var postsRes = await fetch('/get-user-posts?username=' + encodeURIComponent(username));
+    var posts = await postsRes.json();
+    if (!postsRes.ok) throw new Error(posts.error || 'Failed to load posts');
+
+    // Determine periods:
+    var now = new Date();
+    var MS_DAY = 24 * 60 * 60 * 1000;
+    var currentPeriodStart = new Date(now.getTime() - (30 * MS_DAY)); // last 30 days
+    var prevPeriodStart = new Date(now.getTime() - (60 * MS_DAY));    // 30-60 days ago
+    var prevPeriodEnd = new Date(now.getTime() - (30 * MS_DAY));
+
+    // Posts for previous period (used by OrganisationInsights as historicalData.posts)
+    var prevPosts = posts.filter(function(post) {
+      var d = new Date(post.created_at);
+      return d >= prevPeriodStart && d < prevPeriodEnd;
+    });
+
+    // Helper to sum interactions in an array of posts
+    function sumInteractions(postArray) {
+      return postArray.reduce(function(sum, p) {
+        var likes = (p.likes && p.likes.length) ? p.likes.length : 0;
+        var comments = (p.comments && p.comments.length) ? p.comments.length : 0;
+        var pollVotes = 0;
+        if (p.options && p.options.length) {
+          pollVotes = p.options.reduce(function(s, o) {
+            return s + ((o.votes && o.votes.length) ? o.votes.length : 0);
+          }, 0);
+        }
+        return sum + likes + comments + pollVotes;
+      }, 0);
+    }
+
+    var prevInteractions = sumInteractions(prevPosts);
+
+    // Try to get follower count:
+    // - If you have a global fetchProfile helper, use it; otherwise fall back to looking at profile-like fields in posts or default to 1.
+    var followersCount = 1;
+    try {
+      if (typeof fetchProfile === 'function') {
+        var prof = await fetchProfile(username);
+        if (prof && prof.followers && prof.followers.length) {
+          followersCount = prof.followers.length;
+        } else if (prof && typeof prof.followers_count === 'number') {
+          followersCount = prof.followers_count || 1;
+        }
+      } else {
+        // try an endpoint fallback
+        var profRes = await fetch('/get-user-profile?username=' + encodeURIComponent(username));
+        if (profRes && profRes.ok) {
+          var profData = await profRes.json();
+          if (profData && profData.followers && profData.followers.length) {
+            followersCount = profData.followers.length;
+          } else if (profData && typeof profData.followers_count === 'number') {
+            followersCount = profData.followers_count || 1;
+          }
+        }
+      }
+    } catch (e) {
+      // keep followersCount = 1 as fallback
+      console.warn('Could not fetch profile for followers count', e);
+    }
+
+    // Also build a monthly breakdown array (sorted oldest->newest)
+    var byMonth = {};
+    posts.forEach(function(post) {
+      var date = new Date(post.created_at);
+      var key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+      if (!byMonth[key]) byMonth[key] = { count: 0, mediaCount: 0, pollCount: 0 };
+      byMonth[key].count++;
+      if (post.media && post.media.length > 0) byMonth[key].mediaCount++;
+      if (post.poll_options && post.poll_options.length > 0) byMonth[key].pollCount++;
+    });
+    var breakdownArray = Object.keys(byMonth).sort().map(function(k) {
+      return { month: k, count: byMonth[k].count, mediaCount: byMonth[k].mediaCount, pollCount: byMonth[k].pollCount };
+    });
+
+    return {
+      // Fields OrganisationInsights expects:
+      posts: prevPosts,                     // array (previous period)
+      interactions: prevInteractions,       // number
+      followers: followersCount,            // number
+
+      // Extra fields (useful elsewhere)
+      totalPosts: posts.length,
+      totalMediaPosts: posts.filter(function(p){ return p.media && p.media.length > 0; }).length,
+      totalPolls: posts.filter(function(p){ return p.poll_options && p.poll_options.length > 0; }).length,
+      monthlyBreakdown: breakdownArray
+    };
+  } catch (err) {
+    console.error('Error building historical data:', err);
+    return { posts: [], interactions: 0, followers: 1, monthlyBreakdown: [], totalPosts: 0, totalMediaPosts: 0, totalPolls: 0 };
+  }
+}
+
+function Composer() {
+      const [open, setOpen] = React.useState(false);
+      const [html, setHtml] = React.useState("");
+      const [files, setFiles] = React.useState([]);
+      const [previews, setPreviews] = React.useState([]);
+      const [loading, setLoading] = React.useState(false);
+      const [error, setError] = React.useState("");
+      const [success, setSuccess] = React.useState("");
+      const [aiModalOpen, setAiModalOpen] = React.useState(false);
+      const [summary, setSummary] = React.useState("");
+      const [pollMode, setPollMode] = React.useState(false);
+      const [pollOptions, setPollOptions] = React.useState([
+        { id: 1, text: "", votes: [] },
+        { id: 2, text: "", votes: [] }
+      ]);
+      const [feeling, setFeeling] = React.useState(null);
+      const [feelingModalOpen, setFeelingModalOpen] = React.useState(false);
+      const [background, setBackground] = React.useState("default");
+      const [imageEditorOpen, setImageEditorOpen] = React.useState(false);
+      const [currentImageIndex, setCurrentImageIndex] = React.useState(null);
+      const [imageText, setImageText] = React.useState("");
+      const [imageFilter, setImageFilter] = React.useState("none");
+      const [imageTextColor, setImageTextColor] = React.useState("#ffffff");
+      const [imageTextFont, setImageTextFont] = React.useState("Arial");
+      const [imageTextSize, setImageTextSize] = React.useState(20);
+      const [imageTextRotation, setImageTextRotation] = React.useState(0);
+      const [imageTextShadow, setImageTextShadow] = React.useState(false);
+      const [aiImageLoading, setAiImageLoading] = React.useState(false);
+      const editorRef = React.useRef(null);
+      const canvasRef = React.useRef(null);
+      const fabricCanvasRef = React.useRef(null);
+      // Whenever `open` changes, tell parent
+  React.useEffect(() => {
+    if (typeof onToggle === "function") {
+      onToggle(open);
+    }
+  }, [open]);
+const handleAiImage = async () => {
+  if (!html.trim()) {
+    setError("Write something first so AI can generate an image for it.");
+    return;
+  }
+  setAiImageLoading(true);
+  setError("");
+  try {
+    // Convert to plain text
+    const plainText = html.replace(/<[^>]+>/g, "");
+
+    // Add guiding instruction for better intent alignment
+    const prompt = `Generate a high-quality, meaningful and visually engaging image that represents the intent of this post: "${plainText}"`;
+
+    // Pollinations endpoint
+    const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true`;
+
+    // Fetch image and convert to blob
+    const res = await fetch(imgUrl);
+    const blob = await res.blob();
+
+    // JPG file
+    const jpgFile = new File([blob], `ai-image-${Date.now()}.jpg`, { type: "image/jpeg" });
+
+    // Preview object
+    const newPreview = {
+      file: jpgFile,
+      url: URL.createObjectURL(jpgFile),
+      type: "image",
+      filter: "none",
+      text: "",
+      textColor: "#ffffff",
+      textFont: "Arial",
+      textSize: 20,
+      textRotation: 0,
+      textShadow: false
+    };
+
+    // STRICTLY replace current previews/files
+    setFiles([jpgFile]);
+    setPreviews([newPreview]);
+
+    setSuccess("AI Image generated 🎨");
+  } catch (err) {
+    setError("Failed to generate AI image.");
+  } finally {
+    setAiImageLoading(false);
+    setTimeout(() => setSuccess(""), 3000);
+  }
+};
+
+      const feelings = [
+        { name: "Happy", emoji: "😊" },
+        { name: "Sad", emoji: "😢" },
+        { name: "Excited", emoji: "🎉" },
+        { name: "Angry", emoji: "😣" },
+        { name: "Loved", emoji: "🥰" },
+        { name: "Grateful", emoji: "🙏" },
+        { name: "Tired", emoji: "😴" },
+        { name: "Confused", emoji: "😕" },
+        { name: "Nervous", emoji: "😬" },
+        { name: "Hopeful", emoji: "🌟" },
+        { name: "Proud", emoji: "🏆" },
+        { name: "Inspired", emoji: "✨" },
+        { name: "Lonely", emoji: "😔" },
+        { name: "Stressed", emoji: "😓" },
+        { name: "Relaxed", emoji: "😌" }
+      ];
+
+      const backgrounds = [
+  { id: "default", style: "#ffffff;", color: "#000000" },
+  { id: "gradient1", style: "linear-gradient(to right, #60A5FA, #A78BFA);", color: "#ffffff" },
+  { id: "gradient2", style: "linear-gradient(to right, #4ADE80, #3B82F6);", color: "#ffffff" },
+  { id: "gradient3", style: "linear-gradient(to right, #F472B6, #EF4444);", color: "#ffffff" },
+  { id: "pattern1", style: "url('https://images.unsplash.com/photo-1516541196182-6bdb0516ed5d?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80') center/cover;", color: "#ffffff" },
+  { id: "pattern2", style: "url('https://images.unsplash.com/photo-1522441815192-d9f04eb0615c?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80') center/cover;", color: "#ffffff" }
+]
+
+
+      const fonts = ["Arial", "Helvetica", "Times New Roman", "Courier New", "Verdana", "Georgia"];
+
+      // Calculate dynamic font size based on text length
+      const getFontSize = () => {
+        const textLength = html.replace(/<[^>]+>/g, "").length;
+        if (textLength > 100) return "text-lg";
+        if (textLength > 50) return "text-xl";
+        if (textLength > 20) return "text-2xl";
+        return "text-3xl";
+      };
+
+      // Auto-resize editor
+      React.useEffect(() => {
+        if (!open || !editorRef.current) return;
+        const el = editorRef.current;
+        el.style.height = "auto";
+        el.style.height = el.scrollHeight + "px";
+      }, [html, open]);
+
+      // Initialize and cleanup fabric.js canvas
+      React.useEffect(() => {
+        if (imageEditorOpen && canvasRef.current && currentImageIndex !== null && previews[currentImageIndex]) {
+          const canvas = new fabric.Canvas(canvasRef.current, {
+            width: 400,
+            height: 400,
+            backgroundColor: "#fff"
+          });
+          fabricCanvasRef.current = canvas;
+
+          const img = new Image();
+          img.src = previews[currentImageIndex].url;
+          img.onload = () => {
+            const fabricImg = new fabric.Image(img, {
+              left: 0,
+              top: 0,
+              scaleX: 400 / img.width,
+              scaleY: 400 / img.height
+            });
+            if (imageFilter !== "none") {
+              fabricImg.filters = [new fabric.Image.filters[imageFilter.split("(")[0]]({ [imageFilter.split("(")[0].toLowerCase()]: parseFloat(imageFilter.match(/\d+/)[0]) / 100 })];
+              fabricImg.applyFilters();
+            }
+            canvas.add(fabricImg);
+            if (imageText) {
+              const text = new fabric.Text(imageText, {
+                left: 50,
+                top: 50,
+                fontSize: imageTextSize,
+                fill: imageTextColor,
+                fontFamily: imageTextFont,
+                angle: imageTextRotation,
+                shadow: imageTextShadow ? 'rgba(0,0,0,0.3) 5px 5px 5px' : null,
+                draggable: true
+              });
+              canvas.add(text);
+            }
+            canvas.renderAll();
+          };
+          img.onerror = () => {
+            setError("Failed to load image for editing");
+            setImageEditorOpen(false);
+          };
+        }
+
+        return () => {
+          if (fabricCanvasRef.current) {
+            fabricCanvasRef.current.dispose();
+            fabricCanvasRef.current = null;
+          }
+        };
+      }, [imageEditorOpen, currentImageIndex, imageText, imageTextColor, imageTextFont, imageTextSize, imageTextRotation, imageTextShadow, imageFilter]);
+
+      // Cleanup previews on unmount
+      React.useEffect(() => {
+        return () => {
+          previews.forEach(p => URL.revokeObjectURL(p.url));
+        };
+      }, []);
+
+      // Handle paste event for Markdown parsing
+      const handlePaste = (e) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData("text/plain");
+        const parsed = marked.parse(text, { breaks: true });
+        const sanitized = DOMPurify.sanitize(parsed);
+        if (editorRef.current) {
+          document.execCommand("insertHTML", false, sanitized);
+          setHtml(editorRef.current.innerHTML);
+        }
+      };
+
+      // Strip twemoji back to text
+      const convertTwemojiImgsToText = rawHtml => {
+        const temp = document.createElement("div");
+        temp.innerHTML = rawHtml;
+        temp.querySelectorAll("img.emoji").forEach(img => {
+          const alt = img.alt || "";
+          img.replaceWith(alt);
+        });
+        return DOMPurify.sanitize(temp.innerHTML);
+      };
+
+      // Rich-text commands
+      const exec = (cmd, val = null) => {
+        if (editorRef.current) {
+          document.execCommand(cmd, false, val);
+          setHtml(editorRef.current.innerHTML);
+          editorRef.current.focus();
+        }
+      };
+
+      // File handling
+      const handleFiles = selected => {
+        if (!selected || selected.length === 0) return;
+        const valid = Array.from(selected)
+          .filter(f => f.size <= 100 * 1024 * 1024 && /(image\/|video\/)/.test(f.type))
+          .slice(0, 1 - files.length);
+        if (valid.length === 0) {
+          setError("Invalid file type or size exceeds 100MB");
+          return;
+        }
+        const newPreviews = valid.map(f => ({
+          file: f,
+          url: URL.createObjectURL(f),
+          type: f.type.startsWith("video") ? "video" : "image",
+          filter: "none",
+          text: "",
+          textColor: "#ffffff",
+          textFont: "Arial",
+          textSize: 20,
+          textRotation: 0,
+          textShadow: false
+        }));
+        setFiles(fs => [...fs, ...valid]);
+        setPreviews(pv => [...pv, ...newPreviews]);
+      };
+
+      const onFileChange = e => handleFiles(e.target.files);
+
+      const removePreview = i => {
+        if (previews[i]) {
+          URL.revokeObjectURL(previews[i].url);
+          setPreviews(pv => pv.filter((_, idx) => idx !== i));
+          setFiles(fs => fs.filter((_, idx) => idx !== i));
+        }
+      };
+
+      // Save edited image
+      const saveEditedImage = () => {
+        if (!fabricCanvasRef.current) return;
+        const canvas = fabricCanvasRef.current;
+        const dataUrl = canvas.toDataURL({ format: "png" });
+        fetch(dataUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const newFile = new File([blob], `edited-image-${Date.now()}.png`, { type: "image/png" });
+            setFiles(fs => {
+              const newFiles = [...fs];
+              newFiles[currentImageIndex] = newFile;
+              return newFiles;
+            });
+            setPreviews(pv => {
+              const newPreviews = [...pv];
+              newPreviews[currentImageIndex] = {
+                ...newPreviews[currentImageIndex],
+                url: URL.createObjectURL(newFile),
+                filter: imageFilter,
+                text: imageText,
+                textColor: imageTextColor,
+                textFont: imageTextFont,
+                textSize: imageTextSize,
+                textRotation: imageTextRotation,
+                textShadow: imageTextShadow
+              };
+              return newPreviews;
+            });
+            setImageEditorOpen(false);
+            setImageText("");
+            setImageFilter("none");
+            setImageTextColor("#ffffff");
+            setImageTextFont("Arial");
+            setImageTextSize(20);
+            setImageTextRotation(0);
+            setImageTextShadow(false);
+          })
+          .catch(() => setError("Failed to save edited image"));
+      };
+
+      // AI Enhance submission
+      const handleAiEnhance = async (e) => {
+        e.stopPropagation();
+        if (!summary.trim()) {
+          setError("Please provide a summary for AI enhancement.");
+          return;
+        }
+        setLoading(true);
+        setError("");
+        try {
+          const messages = [
+  {
+    role: "user",
+    content: `Enhance this post summary into an, engaging, and human-like social media post suitable for Textmob. 
+First, identify the tone of the post and maintain it throughout. 
+Geth the length of your response by analyzing the tone of the summary, the summary may be long or short
+Fix grammar, punctuation, and flow, and make it friendly, approachable, and easy to read. 
+Keep the post concise but engaging for users—focus on readability, clarity, and interaction. 
+Return ONLY the fully enhanced post content, without any other things. 
+Summary: "${summary}".`
+  }
+];
+          const res = await fetch("/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages })
+          });
+          const body = await res.json();
+          if (!res.ok) throw new Error(body.error || "AI enhancement failed");
+          const aiResponse = body.reply;
+          if (editorRef.current) {
+            editorRef.current.innerHTML = DOMPurify.sanitize(aiResponse);
+            setHtml(editorRef.current.innerHTML);
+            const inputEvent = new Event('input', { bubbles: true });
+            editorRef.current.dispatchEvent(inputEvent);
+          }
+          setAiModalOpen(false);
+          setSummary("");
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // Submit post
+      const submit = async (e) => {
+        e.stopPropagation();
+        if (!html.trim() && files.length === 0) {
+          setError("Post content or media is required");
+          return;
+        }
+        setLoading(true);
+        setError("");
+        setSuccess("");
+        const rawHTML = editorRef.current ? convertTwemojiImgsToText(editorRef.current.innerHTML) : "";
+        const backgroundStyle = backgrounds.find(bg => bg.id === background).style;
+        const wrappedHTML = rawHTML;
+        const parsedHTML = window.twemoji.parse(wrappedHTML, {
+          folder: "svg",
+          ext: ".svg",
+          base: "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/"
+        });
+        const fd = new FormData();
+        fd.append("username", localStorage.currentUser || "Guest");
+        fd.append("text", wrappedHTML);
+        fd.append("parsed", parsedHTML);
+        fd.append("visib", "public");
+        if (feeling) fd.append("activities", feeling.name + ' ' + feeling.emoji);
+        files.forEach(f => fd.append("media", f));
+        if (pollMode) {
+          const validOptions = pollOptions.filter(opt => opt.text.trim() !== "");
+          if (validOptions.length < 2) {
+            setError("At least 2 poll options are required");
+            setLoading(false);
+            return;
+          }
+          fd.append("options", JSON.stringify(validOptions));
+        }
+        try {
+          const res = await fetch("/create-post", { method: "POST", body: fd });
+          const body = await res.json();
+          if (!res.ok) throw new Error(body.error || "Upload failed");
+          setSuccess("Your post is live! 🌟");
+          setHtml("");
+          setFiles([]);
+          previews.forEach(p => URL.revokeObjectURL(p.url));
+          setPreviews([]);
+          setFeeling(null);
+          setBackground("default");
+          setTimeout(() => setOpen(false), 800);
+          setPollOptions([
+            { id: 1, text: "", votes: [] },
+            { id: 2, text: "", votes: [] }
+          ]);
+          setPollMode(false);
+          if (window.Lexum) Lexum.reload();
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+          setTimeout(() => setSuccess(""), 3000);
+        }
+      };
+
+      return (
+      <React.Fragment>
+  {/* Trigger */}
+  <div class="w-full max-w-full md:max-w-[95%] mx-auto md:mx-4 bg-white rounded-none md:rounded-xl shadow-none md:shadow-sm border border-gray-100 p-4 flex flex-col space-y-3">
+
+{/* What's on your mind */}
+  <div
+    onClick={() => setOpen(true)}
+    className="w-full text-left px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer transition text-gray-800 font-semibold"
+  >
+    What's on your mind, {localStorage.currentUser || "Guest"}?
+  </div>
+</div>
+
+
+  {/* Main Modal */}
+  {open && (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-6 z-50 transition-opacity duration-300"
+      onClick={() => setOpen(false)}
+    >
+      <div
+    style={{ paddingBottom: '150px' }}
+  className="
+    fixed inset-0 bg-white 
+    w-full h-full 
+    overflow-auto 
+    rounded-none 
+    p-4 space-y-6 
+    shadow-2xl 
+    md:relative md:inset-auto 
+    md:max-w-5xl md:max-h-[85%] 
+    md:overflow-y-auto 
+    md:rounded-2xl md:p-10
+  "
+  onClick={e => e.stopPropagation()}
+>
+        {/* Close button for mobile (and small screens) */}
+        <button
+          onClick={() => setOpen(false)}
+          className="absolute top-4 right-4 md:hidden p-2 bg-white border border-gray-200 rounded-full shadow-sm"
+          title="Close"
+        >
+          ✕
+        </button>
+
+        {/* Toolbar */}
+        <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-4 rounded-xl">
+          <button
+            onClick={() => exec("bold")}
+            className="p-3 hover:bg-gray-200 rounded-lg transition-transform hover:scale-105 bg-white border border-gray-300 shadow-sm"
+            title="Bold"
+          >
+            <span className="font-bold">B</span>
+          </button>
+          <button
+            onClick={() => exec("italic")}
+            className="p-3 hover:bg-gray-200 rounded-lg transition-transform hover:scale-105 bg-white border border-gray-300 shadow-sm"
+            title="Italic"
+          >
+            <span className="italic">I</span>
+          </button>
+          <button
+            onClick={() => exec("underline")}
+            className="p-3 hover:bg-gray-200 rounded-lg transition-transform hover:scale-105 bg-white border border-gray-300 shadow-sm"
+            title="Underline"
+          >
+            <span className="underline">U</span>
+          </button>
+          <input
+            type="color"
+            onChange={e => exec("foreColor", e.target.value)}
+            title="Text Color"
+            className="w-12 h-12 border border-gray-300 rounded-lg shadow-sm"
+          />
+          <span className="text-sm text-gray-600 font-medium">
+            {html.replace(/<[^>]+>/g, "").length} chars
+          </span>
+        </div>
+
+        {/* Additional Actions */}
+        <div className="flex flex-wrap gap-4">
+          <button
+            onClick={() => setAiModalOpen(true)}
+            disabled={pollMode || loading}
+            className={`px-4 py-2 border rounded-lg text-sm font-semibold ${pollMode || loading ? 'bg-gray-200 cursor-not-allowed' : 'bg-white hover:bg-gray-100 shadow-sm'}`}
+          >
+            Write with AI
+          </button>
+          <button
+            onClick={() => {
+              setPollMode(p => !p);
+              if (!pollMode) setFiles([]);
+            }}
+            className="px-4 py-2 border rounded-lg text-sm font-semibold bg-white hover:bg-gray-100 shadow-sm"
+          >
+            {pollMode ? "Cancel Poll" : "Add Poll"}
+          </button>
+          <button
+            onClick={() => setFeelingModalOpen(true)}
+            disabled={loading}
+            className={`px-4 py-2 border rounded-lg text-sm font-semibold ${loading ? 'bg-gray-200 cursor-not-allowed' : 'bg-white hover:bg-gray-100 shadow-sm'}`}
+          >
+            Add Feeling
+          </button>
+          <button
+  onClick={handleAiImage}
+  disabled={pollMode || aiImageLoading || loading}
+  className={`px-4 py-2 border rounded-lg text-sm font-semibold ${
+    pollMode || aiImageLoading || loading
+      ? "bg-gray-200 cursor-not-allowed"
+      : "bg-white hover:bg-gray-100 shadow-sm"
+  }`}
+>
+  {aiImageLoading ? "Generating..." : "Photo Maker"}
+</button>
+
+        </div>
+
+        {/* Selected Feeling Display */}
+        {feeling && (
+          <div className="text-sm font-semibold text-gray-800">
+            {localStorage.currentUser || "Guest"} is feeling {feeling.name} {feeling.emoji}
+            <button
+              onClick={() => setFeeling(null)}
+              className="ml-3 text-red-600 hover:underline text-xs"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+
+        {/* Editor */}
+        <div
+          ref={editorRef}
+          contentEditable
+          onInput={e => setHtml(e.currentTarget.innerHTML)}
+          onPaste={handlePaste}
+          onDrop={e => {
+            e.preventDefault();
+            handleFiles(e.dataTransfer.files);
+          }}
+          onDragOver={e => e.preventDefault()}
+          className={`min-h-[250px] md:min-h-[300px] max-h-[70vh] md:max-h-[500px] overflow-y-auto p-6 md:p-10 ${backgrounds.find(bg => bg.id === background).style} border border-blue-600 rounded-2xl shadow-inner ${getFontSize()} leading-relaxed font-sans focus:outline-none transition-all duration-300 ease-in-out scrollbar-thin scrollbar-thumb-gray-400 text-left`}
+          data-placeholder="What's on your mind?"
+          style={{
+            fontFamily: `'Segoe UI', 'Noto Emoji', sans-serif`,
+            maxWidth: '100%',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word',
+            outline: 'none',
+            overflowX: 'hidden',   // fix here
+          }}
+        />
+
+        {/* Poll Options */}
+        {pollMode && (
+          <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
+            {pollOptions.map((opt, i) => (
+              <input
+                key={opt.id}
+                value={opt.text}
+                onChange={e => {
+                  const newOpts = [...pollOptions];
+                  newOpts[i].text = e.target.value;
+                  setPollOptions(newOpts);
+                }}
+                placeholder={`Option ${i + 1}`}
+                className="w-full p-3 border rounded-lg text-sm font-medium shadow-sm"
+              />
+            ))}
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  if (pollOptions.length < 6) {
+                    setPollOptions([...pollOptions, { id: pollOptions.length + 1, text: "", votes: [] }]);
+                  }
+                }}
+                className="text-blue-600 text-sm font-semibold hover:underline"
+              >
+                + Add Option
+              </button>
+              {pollOptions.length > 2 && (
+                <button
+                  onClick={() => setPollOptions(pollOptions.slice(0, -1))}
+                  className="text-red-600 text-sm font-semibold hover:underline"
+                >
+                  Remove Last
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Previews */}
+        {previews.length > 0 && (
+          <div className="flex flex-wrap gap-4">
+            {previews.map((p, i) => (
+              <div key={i} className="relative group w-40 h-40">
+                {p.type === "image" ? (
+                  <div className="relative w-full h-full">
+                    <img
+                      src={p.url}
+                      alt="preview"
+                      className="w-full h-full object-cover rounded-lg shadow-md"
+                      style={{ filter: p.filter }}
+                    />
+                    {p.text && (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center text-sm font-semibold"
+                        style={{ color: p.textColor, fontFamily: p.textFont, fontSize: `${p.textSize}px`, transform: `rotate(${p.textRotation}deg)`, textShadow: p.textShadow ? '2px 2px 4px rgba(0,0,0,0.3)' : 'none' }}
+                      >
+                        {p.text}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <video
+                    src={p.url}
+                    controls
+                    className="w-full h-full object-cover rounded-lg shadow-md"
+                  />
+                )}
+                {p.type === "image" && (
+                  <button
+                    onClick={() => {
+                      if (previews[i]) {
+                        setCurrentImageIndex(i);
+                        setImageText(p.text);
+                        setImageFilter(p.filter);
+                        setImageTextColor(p.textColor);
+                        setImageTextFont(p.textFont);
+                        setImageTextSize(p.textSize);
+                        setImageTextRotation(p.textRotation);
+                        setImageTextShadow(p.textShadow);
+                        setImageEditorOpen(true);
+                      }
+                    }}
+                    className="absolute top-2 left-2 bg-blue-600 bg-opacity-80 p-2 rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-blue-700 shadow-sm"
+                    title="Edit Image"
+                  >
+                    ✎
+                  </button>
+                )}
+                <button
+                  onClick={() => removePreview(i)}
+                  className="absolute top-2 right-2 bg-red-600 bg-opacity-80 p-2 rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-red-700 shadow-sm"
+                  title="Remove"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-between items-center">
+          {!pollMode && (
+            <label className="flex items-center space-x-2">
+              <input
+                type="file"
+                accept="image/*,video/*"
+                onChange={onFileChange}
+                multiple
+                disabled={files.length >= 1 || loading}
+                className="hidden"
+              />
+              <span className="text-blue-600 font-semibold hover:underline cursor-pointer">
+                📎 Add media
+              </span>
+            </label>
+          )}
+          <button
+            onClick={submit}
+            disabled={loading}
+            className={`px-8 py-3 text-white rounded-xl font-semibold ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 shadow-md"}`}
+          >
+            {loading ? "Posting…" : "Post"}
+          </button>
+        </div>
+        {error && <div className="text-sm text-red-600 font-semibold">{error}</div>}
+        {success && <div className="text-sm text-green-600 font-semibold">{success}</div>}
+      </div>
+    </div>
+  )}
+
+  {/* AI Enhance Modal */}
+  {aiModalOpen && (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-6 z-50 transition-opacity duration-300"
+      onClick={() => setAiModalOpen(false)}
+    >
+      <div
+        className="relative bg-white w-full h-full max-w-lg md:max-h-[80%] md:overflow-y-auto rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setAiModalOpen(false)}
+          className="absolute top-4 right-4 md:hidden p-2 bg-white border border-gray-200 rounded-full shadow-sm"
+          title="Close"
+        >
+          ✕
+        </button>
+
+        <h3 className="text-xl font-semibold text-gray-800">Enhance with AI</h3>
+        <textarea
+          value={summary}
+          onChange={e => setSummary(e.target.value)}
+          placeholder="Write a brief summary of your post..."
+          className="w-full p-4 border rounded-lg text-sm font-medium shadow-sm h-32"
+        />
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={() => setAiModalOpen(false)}
+            className="px-6 py-2 text-gray-600 rounded-lg hover:bg-gray-100 shadow-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAiEnhance}
+            disabled={loading || !summary.trim()}
+            className={`px-6 py-2 text-white rounded-lg font-semibold ${loading || !summary.trim() ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 shadow-md"}`}
+          >
+            {loading ? "Enhancing..." : "Enhance"}
+          </button>
+        </div>
+        {error && <div className="text-sm text-red-600 font-semibold">{error}</div>}
+      </div>
+    </div>
+  )}
+
+  {/* Feeling Modal */}
+  {feelingModalOpen && (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-6 z-50 transition-opacity duration-300"
+      onClick={() => setFeelingModalOpen(false)}
+    >
+      <div
+        className="relative bg-white w-full h-full max-w-lg md:max-h-[80%] md:overflow-y-auto rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setFeelingModalOpen(false)}
+          className="absolute top-4 right-4 md:hidden p-2 bg-white border border-gray-200 rounded-full shadow-sm"
+          title="Close"
+        >
+          ✕
+        </button>
+
+        <h3 className="text-xl font-semibold text-gray-800">How are you feeling?</h3>
+        <div className="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto">
+          {feelings.map(f => (
+            <button
+              key={f.name}
+              onClick={() => {
+                setFeeling(null);
+                setTimeout(() => setFeeling(f), 100);
+                setFeelingModalOpen(false);
+              }}
+              className="p-3 text-sm font-medium text-left hover:bg-gray-100 rounded-lg transition-all shadow-sm"
+            >
+              {f.emoji} {f.name}
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={() => setFeelingModalOpen(false)}
+            className="px-6 py-2 text-gray-600 rounded-lg hover:bg-gray-100 shadow-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Image Editor Modal */}
+  {imageEditorOpen && (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-6 z-50 transition-opacity duration-300"
+      onClick={() => setImageEditorOpen(false)}
+    >
+      <div
+        className="relative bg-white w-full h-full max-w-lg md:max-h-[90%] md:overflow-y-auto rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setImageEditorOpen(false)}
+          className="absolute top-4 right-4 md:hidden p-2 bg-white border border-gray-200 rounded-full shadow-sm"
+          title="Close"
+        >
+          ✕
+        </button>
+
+        <h3 className="text-xl font-semibold text-gray-800">Edit Image</h3>
+        <div className="w-full h-[50vh] md:h-[40vh] overflow-hidden border rounded-lg shadow-md">
+          <canvas ref={canvasRef} className="w-full h-full"></canvas>
+        </div>
+        <div className="space-y-4">
+          <input
+            type="text"
+            value={imageText}
+            onChange={e => setImageText(e.target.value)}
+            placeholder="Add text to image"
+            className="w-full p-3 border rounded-lg text-sm font-medium shadow-sm"
+          />
+          <div className="flex gap-3">
+            <input
+              type="color"
+              value={imageTextColor}
+              onChange={e => setImageTextColor(e.target.value)}
+              className="w-12 h-12 border rounded-lg shadow-sm"
+            />
+            <select
+              value={imageTextFont}
+              onChange={e => setImageTextFont(e.target.value)}
+              className="w-full p-3 border rounded-lg text-sm font-medium shadow-sm"
+            >
+              {fonts.map(font => (
+                <option key={font} value={font}>{font}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={() => setImageEditorOpen(false)}
+            className="px-6 py-2 text-gray-600 rounded-lg hover:bg-gray-100 shadow-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={saveEditedImage}
+            className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-md"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+</React.Fragment>
+      );
+    }
+
+    const tabs = [
+  { key: 'profile', label: 'Profile', description: 'Edit your name, photo, and personal details.' },
+  { key: 'posts', label: 'Posts', description: 'See and manage what you have shared.' },
+  { key: 'preferences', label: 'Preferences', description: 'Adjust your theme, dark mode, and other personal settings.' },
+  { key: 'activity', label: 'Activity', description: 'Check your login history and actions.' },
+  { key: 'deactivation', label: 'Deactivation', description: 'Pause or delete your account safely.' },
+  { key: 'tools', label: 'Analytics', description: 'Insights and advanced options for organisations.' },
+];
+
+function SettingsOverview({ onSelect }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {tabs.map((tab) => (
+        <div
+          key={tab.key}
+          onClick={() => onSelect(tab.key)}
+          className="cursor-pointer rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition"
+        >
+          <h3 className="text-lg font-semibold text-gray-800">{tab.label}</h3>
+          <p className="text-sm text-gray-600 mt-1">{tab.description}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AccountsCenter() {
+  const [activeTab, setActiveTab] = useState("home"); // default to overview
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [historicalData, setHistoricalData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const username = localStorage.currentUser || "johndoe";
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [profileData, postsRes, historical] = await Promise.all([
+          fetchProfile(username),
+          fetch(`/get-user-posts?username=${username}`),
+          fetchHistoricalData(username),
+        ]);
+        const postsData = await postsRes.json();
+        if (!postsRes.ok) throw new Error(postsData.error || "Failed to load posts");
+        setProfile(profileData);
+        setPosts(postsData);
+        setHistoricalData(historical);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [username]);
+
+  // close on Escape and disable body scroll when sidebar is open
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "Escape") setSidebarOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    // prevent background scroll while sidebar open
+    if (sidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return function cleanup() {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [sidebarOpen]);
+
+  const handlePostCreated = (newPost) => {
+    setPosts((prev) => [newPost, ...prev]);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="google-loading-spinner">
+          <div className="spinner-ring w-12 h-12 rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return <div className="text-red-500 p-6">{error}</div>;
+  }
+
+  // safe active label resolution (avoid optional chaining)
+  var activeTabObj = null;
+  for (var i = 0; i < tabs.length; i = i + 1) {
+    if (tabs[i].key === activeTab) {
+      activeTabObj = tabs[i];
+      break;
+    }
+  }
+  var activeLabel = activeTab === "home" ? "Settings Overview" : (activeTabObj ? activeTabObj.label : "Settings");
+
+  return (
+    <div className="flex flex-col h-screen overflow-hidden">
+      {/* Overlay (shows when sidebarOpen) */}
+      {sidebarOpen ? (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 z-30"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      ) : null}
+
+      {/* Sidebar (off-canvas) */}
+      <aside
+        className={`fixed inset-y-0 left-0 transform w-72 bg-white border-r border-gray-200 flex-shrink-0 flex flex-col z-40 transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        role="navigation"
+        aria-label="Accounts sidebar"
+      >
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">
+              A
+            </div>
+            <h1 className="text-2xl font-semibold">Accounts</h1>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close sidebar"
+            className="p-2 rounded-md hover:bg-gray-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <nav className="mt-2 flex-1 px-4 space-y-1 overflow-auto">
+          <button
+            onClick={() => {
+              setActiveTab("home");
+              setSidebarOpen(false);
+            }}
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition duration-200 ${
+              activeTab === "home" ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            Settings Overview
+          </button>
+
+          {tabs.map(function (tab) {
+            return (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition duration-200 ${
+                  activeTab === tab.key ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+
+      {/* Main content (push down when sidebar open visually, but we keep it full width behind overlay) */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {/* Hamburger - visible on all sizes per request */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar"
+              aria-expanded={sidebarOpen ? "true" : "false"}
+              className="p-2 rounded-md hover:bg-gray-100"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
+
+            <h2 className="text-xl font-semibold capitalize">{activeLabel}</h2>
+          </div>
+
+          <div
+            className="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition duration-200"
+            onClick={() => (window.location.href = "/@" + username)}
+          >
+            <img
+              src={profile && profile.profile_pic ? profile.profile_pic : "/img/default-avatar.png"}
+              alt="avatar"
+              className="h-8 w-8 rounded-full object-cover"
+            />
+            <span className="text-sm font-medium text-gray-700">{profile && profile.fullname ? profile.fullname : username}</span>
+          </div>
+        </header>
+
+        <main className="flex-1 overflow-auto p-1 bg-gray-50">
+          {activeTab === "home" && <SettingsOverview onSelect={setActiveTab} />}
+          {activeTab === "profile" && <ProfileSection username={username} profile={profile} setProfile={setProfile} />}
+          {activeTab === "posts" && (
+            <ManagePostsSection posts={posts} setPosts={setPosts} profile={profile} onPostCreated={handlePostCreated} />
+          )}
+          {activeTab === "preferences" && <PreferencesSection />}
+          {activeTab === "activity" && <ActivityLogsSection username={username} />}
+          {activeTab === "deactivation" && <AccountDeactivationSection />}
+          {activeTab === "tools" && <OrganisationInsights profile={profile} posts={posts} historicalData={historicalData} />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+    const ProfileSection = memo(function ProfileSection({ username, profile, setProfile }) {
+      const [formData, setFormData] = useState({
+        fullName: '',
+        phone: '',
+        email: '',
+        biography: '',
+        password: '',
+        confirmPassword: ''
+      });
+      const [profilePicture, setProfilePicture] = useState(null);
+      const [preview, setPreview] = useState(null);
+      const [passwordError, setPasswordError] = useState('');
+
+      useEffect(() => {
+        if (profile) {
+          setFormData({
+            fullName: profile.fullname || '',
+            phone: profile.phone || '',
+            email: profile.email || '',
+            biography: profile.biography || '',
+            password: '',
+            confirmPassword: ''
+          });
+          if (profile.profile_pic) setPreview(profile.profile_pic);
+        }
+      }, [profile]);
+
+      const handleProfilePictureChange = e => {
+        const file = e.target.files[0];
+        if (file) {
+          setProfilePicture(file);
+          setPreview(URL.createObjectURL(file));
+        }
+      };
+
+      const validatePassword = () => {
+        const { password, confirmPassword } = formData;
+        if (password && password.length < 8) {
+          setPasswordError('Password must be at least 8 characters long');
+          return false;
+        }
+        if (password !== confirmPassword) {
+          setPasswordError('Passwords do not match');
+          return false;
+        }
+        if (password && !/[A-Z]/.test(password)) {
+          setPasswordError('Password must contain at least one uppercase letter');
+          return false;
+        }
+        if (password && !/[0-9]/.test(password)) {
+          setPasswordError('Password must contain at least one number');
+          return false;
+        }
+        setPasswordError('');
+        return true;
+      };
+
+      const handleUpdate = async e => {
+        e.preventDefault();
+        if (formData.password && !validatePassword()) {
+          return;
+        }
+        const form = new FormData();
+        Object.entries(formData).forEach(([k, v]) => {
+          if (k !== 'confirmPassword' && v) form.append(k, v);
+        });
+        if (profilePicture) form.append('profilePicture', profilePicture);
+
+        try {
+          const res = await fetch(`/profile/${username}/update`, {
+            method: 'POST',
+            body: form
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Update failed');
+          alert('Profile updated successfully');
+          setProfile({ ...profile, ...data.updatedFields });
+          if (data.updatedFields && data.updatedFields.profile_pic) {
+            setPreview(data.updatedFields.profile_pic);
+          }
+          setFormData(prev => ({
+            ...prev,
+            password: '',
+            confirmPassword: ''
+          }));
+        } catch (e) {
+          alert(e.message);
+        }
+      };
+
+      if (!profile) {
+        return (
+          <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 space-y-6">
+            <div className="h-8 w-48 skeleton rounded"></div>
+            <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+              <div className="h-24 w-24 rounded-full skeleton"></div>
+              <div className="h-10 w-32 skeleton rounded-lg"></div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="h-12 skeleton rounded-lg"></div>
+              <div className="h-12 skeleton rounded-lg"></div>
+              <div className="h-12 skeleton rounded-lg"></div>
+              <div className="h-12 skeleton rounded-lg"></div>
+              <div className="h-12 skeleton rounded-lg"></div>
+              <div className="h-12 skeleton rounded-lg col-span-full"></div>
+              <div className="h-12 skeleton rounded-lg col-span-full"></div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 space-y-6 animate-fade-in">
+          <h3 className="text-2xl font-semibold">Profile Details</h3>
+          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+            <img src={preview || '/default-profile.png'} alt="Profile" className="h-24 w-24 rounded-full object-cover border-2 border-gray-200 transition-transform hover:scale-105" />
+            <label className="cursor-pointer bg-white px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200">
+              Change Picture
+              <input type="file" className="hidden" onChange={handleProfilePictureChange} />
+            </label>
+          </div>
+          <form onSubmit={handleUpdate} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <input
+              type="text"
+              placeholder="Full Name"
+              required
+              className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 transition duration-200"
+              value={formData.fullName}
+              onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+            />
+            <input
+              type="text"
+              placeholder="Phone"
+              className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 transition duration-200"
+              value={formData.phone}
+              onChange={e => setFormData({ ...formData, phone: e.target.value })}
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              required
+              className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 transition duration-200"
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+            />
+            <input
+              type="password"
+              placeholder="New Password"
+              className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 transition duration-200"
+              value={formData.password}
+              onChange={e => setFormData({ ...formData, password: e.target.value })}
+            />
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 transition duration-200"
+              value={formData.confirmPassword}
+              onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+            />
+            {passwordError && <div className="text-red-500 col-span-full">{passwordError}</div>}
+            <textarea
+              placeholder="Biography"
+              className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 col-span-full transition duration-200"
+              rows="3"
+              value={formData.biography}
+              onChange={e => setFormData({ ...formData, biography: e.target.value })}
+            />
+            <button
+              type="submit"
+              className="w-full col-span-full px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition duration-200"
+            >
+              Update Profile
+            </button>
+          </form>
+        </div>
+      );
+    });
+
+    function SafeHTML({ html }) {
+      const [processedHTML, setProcessedHTML] = useState('');
+      useEffect(() => {
+        async function parseAndValidate(html) {
+          const mentionRegex = /@([\w\s]+)/g;
+          const mentions = [...html.matchAll(mentionRegex)].map((m) => m[1].trim());
+          const validMentions = new Set();
+          await Promise.all(
+            mentions.map(async (username) => {
+              try {
+                const res = await fetch(`/profile/${encodeURIComponent(username)}`);
+                const data = await res.json();
+                if (!data.error) {
+                  validMentions.add(username);
+                }
+              } catch (_) {}
+            })
+          );
+          let parsed = html.replace(
+            /@([\w\s]+)/g,
+            (match, username) => {
+              username = username.trim();
+              if (validMentions.has(username)) {
+                return `<a data-lexum href="/@${encodeURIComponent(username)}" class="text-blue-500 hover:underline">@${username}</a>`;
+              }
+              return match;
+            }
+          );
+          parsed = parsed.replace(
+            /(https?:\/\/[^\s]+)/g,
+            (url) =>
+              `<a href="/link?url=${url}" class="text-blue-500 underline" target="_blank" rel="noopener noreferrer">${url}</a>`
+          );
+          setProcessedHTML(DOMPurify.sanitize(parsed));
+        }
+        parseAndValidate(html);
+      }, [html]);
+      return (
+        <div
+          className="prose max-w-none"
+          dangerouslySetInnerHTML={{ __html: processedHTML }}
+        />
+      );
+    }
+
+    function VideoPlayer({ src, poster }) {
+      const videoRef = useRef();
+      const containerRef = useRef();
+      const [playing, setPlaying] = useState(false);
+      const [muted, setMuted] = useState(false);
+      const [vol, setVol] = useState(1);
+      const [time, setTime] = useState({ cur: 0, total: 0 });
+      const [fs, setFs] = useState(false);
+
+      const togglePlay = () => {
+        const v = videoRef.current;
+        v.paused ? v.play() : v.pause();
+        const btn = containerRef.current.querySelector('.big-play');
+        btn.classList.add('pulse');
+        setTimeout(() => btn.classList.remove('pulse'), 400);
+      };
+
+      const toggleMute = e => {
+        e.stopPropagation();
+        const v = videoRef.current;
+        v.muted = !v.muted;
+        setMuted(v.muted);
+      };
+
+      const onVol = e => {
+        e.stopPropagation();
+        const v = videoRef.current;
+        const val = parseFloat(e.target.value);
+        v.volume = val;
+        setVol(val);
+        setMuted(val === 0);
+      };
+
+      const toggleFs = e => {
+        e.stopPropagation();
+        const el = containerRef.current;
+        !document.fullscreenElement ? el.requestFullscreen() : document.exitFullscreen();
+      };
+
+      useEffect(() => {
+        const v = videoRef.current;
+        const update = () => setTime({ cur: v.currentTime, total: v.duration });
+        const onPlay = () => setPlaying(true);
+        const onPause = () => setPlaying(false);
+        const onFsChange = () => setFs(!!document.fullscreenElement);
+        v.addEventListener('timeupdate', update);
+        v.addEventListener('loadedmetadata', update);
+        v.addEventListener('play', onPlay);
+        v.addEventListener('pause', onPause);
+        document.addEventListener('fullscreenchange', onFsChange);
+        return () => {
+          v.removeEventListener('timeupdate', update);
+          v.removeEventListener('loadedmetadata', update);
+          v.removeEventListener('play', onPlay);
+          v.removeEventListener('pause', onPause);
+          document.removeEventListener('fullscreenchange', onFsChange);
+        };
+      }, []);
+
+      const fmt = s => {
+        const m = Math.floor(s / 60).toString().padStart(2, '0');
+        const sec = Math.floor(s % 60).toString().padStart(2, '0');
+        return `${m}:${sec}`;
+      };
+
+      const Icon = ({ children }) => (
+        <svg viewBox="0 0 64 64" className="w-6 h-6 text-white">
+          {children}
+        </svg>
+      );
+
+      const PlaySVG = (
+        <Icon>
+          <polygon points="16,8 56,32 16,56" fill="currentColor" />
+        </Icon>
+      );
+
+      const PauseSVG = (
+        <Icon>
+          <rect x="16" y="8" width="12" height="48" fill="currentColor" />
+          <rect x="36" y="8" width="12" height="48" fill="currentColor" />
+        </Icon>
+      );
+
+      const VolSVG = muted || vol === 0 ? (
+        <Icon>
+          <polygon points="16,24 28,24 44,8 44,56 28,40 16,40" fill="currentColor" />
+          <line x1="48" y1="16" x2="56" y2="24" stroke="currentColor" strokeWidth="4" />
+          <line x1="48" y1="48" x2="56" y2="40" stroke="currentColor" strokeWidth="4" />
+        </Icon>
+      ) : (
+        <Icon>
+          <polygon points="16,24 28,24 44,8 44,56 28,40 16,40" fill="currentColor" />
+          <path d="M48,16 C54,24 54,40 48,48" fill="none" stroke="currentColor" strokeWidth="4" />
+        </Icon>
+      );
+
+      const FsSVG = fs ? (
+        <Icon>
+          <path d="M16 32 H8 V8 H32 V16 H16 Z M48 32 H56 V56 H32 V48 H48 Z" fill="currentColor" />
+        </Icon>
+      ) : (
+        <Icon>
+          <path d="M16 16 H32 V8 H8 V32 H16 Z M48 48 H32 V56 H56 V32 H48 Z" fill="currentColor" />
+        </Icon>
+      );
+
+      return (
+        <div
+          ref={containerRef}
+          className={`relative group h-[65vh] max-h-screen bg-black overflow-hidden cursor-pointer ${
+            playing ? '' : 'filter brightness-75'
+          }`}
+          onClick={togglePlay}
+          onContextMenu={e => e.preventDefault()}
+          style={{ borderRadius: '20px' }}
+        >
+          <video ref={videoRef} src={src} poster={poster} className="w-full h-full object-cover" />
+          <div
+            className={`big-play absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white transition-opacity transition-transform ${
+              playing ? 'opacity-0 scale-0' : 'opacity-80 scale-125'
+            } group-hover:opacity-100 group-hover:scale-150 pulse-target`}
+          >
+            {playing ? PauseSVG : PlaySVG}
+          </div>
+          <div
+            onClick={e => e.stopPropagation()}
+            className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 backdrop-blur-sm rounded-lg flex items-center space-x-3 px-4 py-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          >
+            <button onClick={togglePlay} className="p-1 hover:bg-black hover:bg-opacity-75 rounded-full">
+              {playing ? PauseSVG : PlaySVG}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max={time.total || 0}
+              step="0.1"
+              value={time.cur}
+              onChange={e => {
+                const t = parseFloat(e.target.value);
+                videoRef.current.currentTime = t;
+                setTime(st => ({ ...st, cur: t }));
+              }}
+              className="flex-1 h-1 rounded-lg bg-white/30 appearance-none cursor-pointer"
+            />
+            <div className="text-white text-xs whitespace-nowrap">{fmt(time.cur)} / {fmt(time.total)}</div>
+            <button onClick={toggleMute} className="p-1 hover:bg-black hover:bg-opacity-75 rounded-full">
+              {VolSVG}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={muted ? 0 : vol}
+              onChange={onVol}
+              className="w-24 h-1 rounded-lg bg-white/30 appearance-none cursor-pointer"
+            />
+            <button onClick={toggleFs} className="p-1 hover:bg-black hover:bg-opacity-75 rounded-full">
+              {FsSVG}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+ const ManagePostsSection = memo(function ManagePostsSection({ posts, setPosts, profile, onPostCreated }) {
+  // --- Helpers: normalize shapes so UI never sees undefined fields ---
+  function normalizePost(p, idx) {
+    if (!p || typeof p !== 'object') p = {};
+    var id = p.id || p._id || p.post_id || ('temp-' + Date.now() + '-' + (idx || 0));
+    return {
+      id: id,
+      username: p.username || '',
+      text: typeof p.text === 'string' ? p.text : '',
+      created_at: p.created_at || new Date().toISOString(),
+      type: p.type || 'post',
+      title: p.title || '',
+      scheduled_for: p.scheduled_for || null,
+      location: p.location || '',
+      // media may be array of URLs or single url
+      media: Array.isArray(p.media) ? p.media : (p.media ? [p.media] : []),
+      // likes/comments/options always arrays
+      likes: Array.isArray(p.likes) ? p.likes : [],
+      comments: Array.isArray(p.comments) ? p.comments : [],
+      options: Array.isArray(p.options) ? p.options : (Array.isArray(p.poll_options) ? p.poll_options : []),
+      // keep other fields but don't trust them
+      ...p
+    };
+  }
+
+  function normalizePosts(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(Boolean).map(function (x, i) { return normalizePost(x, i); });
+  }
+
+  // --- Component state / refs ---
+  var currentUser = localStorage.currentUser || '';
+  var [editingId, setEditingId] = useState(null);
+  var [editContent, setEditContent] = useState('');
+  var [editComments, setEditComments] = useState([]);
+  var [editLikes, setEditLikes] = useState([]);
+  var contentEditableRef = useRef(null);
+
+  // Always render a safe copy
+  var safePosts = normalizePosts(posts);
+
+  // --- Editing helpers ---
+  function startEdit(post) {
+    var p = normalizePost(post);
+    setEditingId(p.id);
+    setEditContent(p.text);
+    setEditComments((p.comments || []).slice());
+    setEditLikes((p.likes || []).slice());
+  }
+
+  async function saveEdit(id) {
+    try {
+      var res = await fetch('/edit-post', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: id,
+          content: editContent,
+          comments: editComments,
+          likes: editLikes
+        })
+      });
+      if (!res.ok) {
+        var err = await res.json();
+        throw new Error(err.error || 'Update failed');
+      }
+      setPosts(function (ps) {
+        return normalizePosts(ps).map(function (p) {
+          if (p.id === id) {
+            return Object.assign({}, p, { text: editContent, comments: editComments.slice(), likes: editLikes.slice() });
+          }
+          return p;
+        });
+      });
+      setEditingId(null);
+    } catch (e) {
+      alert(e.message || 'Could not save post');
+    }
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function deletePost(id) {
+    if (!confirm('Delete this post?')) return;
+    try {
+      var res = await fetch('/delete-post?postId=' + encodeURIComponent(id), { method: 'DELETE' });
+      if (!res.ok) {
+        var err = await res.json();
+        throw new Error(err.error || 'Delete failed');
+      }
+      setPosts(function (ps) {
+        return normalizePosts(ps).filter(function (p) { return p.id !== id; });
+      });
+    } catch (e) {
+      alert(e.message || 'Could not delete post');
+    }
+  }
+
+  // --- Likes ---
+  function handleLike(postId) {
+    setPosts(function (ps) {
+      return normalizePosts(ps).map(function (p) {
+        if (p.id !== postId) return p;
+        var likesArr = Array.isArray(p.likes) ? p.likes.slice() : [];
+        var idx = likesArr.indexOf(currentUser);
+        if (idx !== -1) likesArr.splice(idx, 1);
+        else likesArr.push(currentUser);
+        return Object.assign({}, p, { likes: likesArr });
+      });
+    });
+    fetch('/like-post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId: postId, username: currentUser })
+    }).catch(function (err) { console.error(err); });
+  }
+
+  // --- Comments ---
+  function handleComment(postId, text) {
+    if (!text || !text.trim()) return;
+    var comment = { username: currentUser, text: text.trim(), timestamp: new Date().toISOString() };
+    setPosts(function (ps) {
+      return normalizePosts(ps).map(function (p) {
+        if (p.id !== postId) return p;
+        var newComments = (p.comments || []).slice();
+        newComments.push(comment);
+        return Object.assign({}, p, { comments: newComments });
+      });
+    });
+    fetch('/add-comment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId: postId, username: currentUser, comment: text.trim() })
+    }).catch(function (err) { console.error(err); });
+  }
+
+  // --- Poll voting ---
+  function handlePollVote(postId, optionId) {
+    setPosts(function (ps) {
+      return normalizePosts(ps).map(function (p) {
+        if (p.id !== postId || p.type !== 'poll') return p;
+        var userVoted = (p.options || []).some(function (o) { return Array.isArray(o.votes) && o.votes.indexOf(currentUser) !== -1; });
+        var newOptions = (p.options || []).map(function (o) {
+          var votes = Array.isArray(o.votes) ? o.votes.filter(function (u) { return u !== currentUser; }) : [];
+          if (o.id === optionId && votes.indexOf(currentUser) === -1 && !userVoted) {
+            votes.push(currentUser);
+          }
+          return Object.assign({}, o, { votes: votes });
+        });
+        return Object.assign({}, p, { options: newOptions });
+      });
+    });
+    fetch('/vote-poll-option', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId: postId, optionId: optionId, username: currentUser })
+    }).catch(function (err) { console.error(err); });
+  }
+
+  // --- Composer onPostCreated handler (normalize new post before inserting) ---
+  function handleComposerCreated(newPost) {
+    var p = normalizePost(newPost, 0);
+    setPosts(function (ps) {
+      return [p].concat(normalizePosts(ps));
+    });
+    if (typeof onPostCreated === 'function') onPostCreated(p);
+  }
+
+  // Render
+  return (
+    <div className="font-sans antialiased text-gray-800 space-y-6">
+      <Composer />
+
+      {safePosts.length === 0 ? (
+        <div className="text-gray-500 p-6">
+          You have no posts yet. Create one above to share with your audience!
+        </div>
+      ) : (
+        safePosts.map(function (post) {
+          var isEditing = editingId === post.id;
+          var isAuthor = (post.username || '') === currentUser;
+          var liked = (post.likes || []).indexOf(currentUser) !== -1;
+
+          return (
+            <div key={post.id} className="bg-white mx-0 md:mx-4 my-3 p-4 md:p-6 rounded-none md:rounded-lg shadow-none md:shadow relative animate-fade-in">
+              <div className="flex justify-between items-center mb-4">
+                <div
+                  className="flex items-center cursor-pointer hover:bg-gray-100 p-2 rounded-lg transition duration-200"
+                  onClick={function () { window.location.href = '/@' + post.username; }}
+                >
+                  <img src={(profile && profile.profile_pic) ? profile.profile_pic : ''} className="w-10 h-10 rounded-full object-cover" alt="" />
+                  <div className="ml-3">
+                    <span className="font-semibold hover:underline">{(profile && profile.fullname) ? profile.fullname : post.username}</span>
+                    <div className="text-xs text-gray-500">{new Date(post.created_at).toLocaleString()}</div>
+                  </div>
+                </div>
+
+                {isAuthor && (
+                  <div className="space-x-2">
+                    <button onClick={function () { startEdit(post); }} className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200">Edit</button>
+                    <button onClick={function () { deletePost(post.id); }} className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200">Delete</button>
+                  </div>
+                )}
+              </div>
+
+              {isEditing ? (
+                <div>
+                  <div
+                    ref={contentEditableRef}
+                    contentEditable
+                    className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 mb-4 min-h-[80px] prose max-w-none"
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(editContent) }}
+                    onInput={function (e) { setEditContent(e.currentTarget.innerHTML); }}
+                  />
+                  <div className="space-y-2 mb-4">
+                    <div className="font-medium text-gray-700">Comments</div>
+                    {(editComments.length === 0)
+                      ? <div className="text-gray-400 text-sm">No comments</div>
+                      : editComments.map(function (c, i) {
+                        return (
+                          <div key={i} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                            <div>
+                              <span className="font-semibold">{c.username}</span>: {c.text}
+                            </div>
+                            <button onClick={function () { setEditComments(function (cs) { return cs.filter(function (_, j) { return j !== i; }); }); }} className="text-red-500 text-sm hover:underline">Delete</button>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="font-medium text-gray-700">Likes</div>
+                    {(editLikes.length === 0)
+                      ? <div className="text-gray-400 text-sm">No likes</div>
+                      : editLikes.map(function (l, i) {
+                        return (
+                          <div key={i} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                            <span>{l}</span>
+                            <button onClick={function () { setEditLikes(function (ls) { return ls.filter(function (_, j) { return j !== i; }); }); }} className="text-red-500 text-sm hover:underline">Delete</button>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+
+                  <div className="flex space-x-3">
+                    <button onClick={function () { saveEdit(post.id); }} className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200">Save</button>
+                    <button onClick={cancelEdit} className="px-5 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {post.text && (
+                    <div className="mb-4 text-sm leading-relaxed text-gray-700">
+                      <SafeHTML html={post.text} />
+                    </div>
+                  )}
+
+                  {post.type === 'poll' && (post.options && post.options.length) && (
+                    <div className="px-6 pb-4 space-y-2">
+                      { (function () {
+                        var total = (post.options || []).reduce(function (sum, o) { return sum + ((o.votes && o.votes.length) ? o.votes.length : 0); }, 0);
+                        return (post.options || []).map(function (opt) {
+                          var voted = Array.isArray(opt.votes) && (opt.votes.indexOf(currentUser) !== -1);
+                          var pct = total ? Math.round(((opt.votes && opt.votes.length) ? opt.votes.length : 0) / total * 100) : 0;
+                          return (
+                            <button
+                              key={opt.id}
+                              onClick={function () { handlePollVote(post.id, opt.id); }}
+                              className={
+                                'relative w-full flex items-center justify-between px-4 py-2 text-sm rounded-full border overflow-hidden transition font-medium duration-200 ' +
+                                (voted ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-800 hover:bg-gray-200')
+                              }
+                            >
+                              <div
+                                className="absolute inset-0 rounded-full"
+                                style={{
+                                  width: String(pct) + '%',
+                                  backgroundColor: voted ? 'rgba(37, 99, 235, 0.3)' : 'rgba(147, 197, 253, 0.4)'
+                                }}
+                              />
+                              <span className="relative z-10">{opt.text}</span>
+                              <span className="relative z-10 ml-2 text-xs">{(opt.votes ? opt.votes.length : 0)} • {pct}%</span>
+                            </button>
+                          );
+                        });
+                      })() }
+                      <div className="text-xs text-gray-500 pt-1">
+                        {(post.options || []).reduce(function (a, b) { return a + ((b.votes && b.votes.length) ? b.votes.length : 0); }, 0)} total votes • tap to switch
+                      </div>
+                    </div>
+                  )}
+
+                  {post.type === 'event' && (
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{post.title} <span className="text-blue-600">by @{post.username}</span></h3>
+
+                      {post.scheduled_for && (
+                        <div className="text-sm text-blue-600 mb-2">
+                          📅 {new Date(post.scheduled_for).toLocaleString(undefined, {
+                            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </div>
+                      )}
+
+                      <p className="text-sm leading-relaxed text-gray-700 mb-2">{post.text}</p>
+
+                      {post.location && (
+                        <div className="flex items-center text-sm text-gray-600 mb-2">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0Z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0Z" />
+                          </svg>
+                          {post.location}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={function () { handleLike(post.id); }}
+                        className={
+                          'inline-flex items-center gap-2 px-4 py-2 rounded-full transition duration-200 ' +
+                          ((post.likes || []).indexOf(currentUser) !== -1 ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200') +
+                          (!(post.scheduled_for) || (new Date(post.scheduled_for) <= new Date()) ? ' opacity-50 cursor-not-allowed' : '')
+                        }
+                        disabled={!(post.scheduled_for) || (new Date(post.scheduled_for) <= new Date())}
+                      >
+                        <svg className="w-5 h-5" fill={(post.likes || []).indexOf(currentUser) !== -1 ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5
+                            2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09
+                            C13.09 3.81 14.76 3 16.5 3
+                            19.58 3 22 5.42 22 8.5
+                            c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                        </svg>
+                        <span className="hidden md:inline ml-2 text-sm">
+                          {(post.scheduled_for && (new Date(post.scheduled_for) > new Date())) ? (String((post.likes || []).length) + ' interested') : (String((post.likes || []).length) + ' went')}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {(post.media && post.media.length > 0) && (
+                    <div className="mb-4 space-y-4">
+                      {post.media.map(function (url, i) {
+                        return (/\.(mp4|webm|ogg)$/i.test(url) ? (
+                          <VideoPlayer key={i} src={url} className="w-full rounded-none md:rounded-lg" />
+                        ) : (
+                          <img key={i} src={url} className="w-full object-cover rounded-none md:rounded-lg transition-transform hover:scale-105" />
+                        ));
+                      })}
+                    </div>
+                  )}
+
+                  <div className="flex space-x-4 text-gray-600 select-none mt-2">
+                    <button onClick={function () { handleLike(post.id); }} className="p-2 rounded-full hover:bg-gray-200 transition duration-200 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                           className={'w-5 h-5 ' + ((liked) ? 'fill-red-500' : 'stroke-current text-gray-600')} stroke="currentColor" strokeWidth="2" fill={(liked ? 'currentColor' : 'none')}>
+                        <path strokeLinecap="round" strokeLinejoin="round"
+                              d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+                      </svg>
+                      <span className="hidden md:inline ml-2 text-sm">Like ({(post.likes || []).length})</span>
+                    </button>
+
+                    <button onClick={function () { window.open('/post/' + post.id, '_blank'); }} className="p-2 rounded-full hover:bg-gray-200 transition duration-200 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-600">
+                        <path strokeLinecap="round" strokeLinejoin="round"
+                              d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/>
+                      </svg>
+                      <span className="hidden md:inline ml-2 text-sm">Comment ({(post.comments || []).length})</span>
+                    </button>
+
+                    <button onClick={function () { window.open('/post/' + post.id, '_blank'); }} className="p-2 rounded-full hover:bg-gray-200 transition duration-200 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-5 h-5 stroke-current text-gray-600" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5 c4.478 0 8.268 2.943 9.542 7 -1.274 4.057-5.064 7-9.542 7 -4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      <span className="hidden md:inline ml-2 text-sm">View Post</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center mt-4">
+                    <input
+                      id={'comment-input-' + post.id}
+                      type="text"
+                      placeholder="Write a comment…"
+                      className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition duration-200"
+                      onKeyDown={function (e) {
+                        if (e.key === 'Enter') {
+                          handleComment(post.id, e.currentTarget.value);
+                          e.currentTarget.value = '';
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={function () {
+                        var inp = document.querySelector('#comment-input-' + post.id);
+                        if (inp && inp.value && inp.value.trim()) {
+                          handleComment(post.id, inp.value);
+                          inp.value = '';
+                        }
+                      }}
+                      className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition duration-200"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+});
+
+function OrganisationInsights({ profile, posts, historicalData }) {
+  var likesCommentsRef = React.useRef(null);
+  var engagementRef = React.useRef(null);
+  var trendRef = React.useRef(null);
+  var monthlyRef = React.useRef(null);
+
+  // Small helper to destroy charts safely
+  function safeDestroyChart(ref) {
+    if (!ref || !ref.current) return;
+    try {
+      if (ref.current._chart) {
+        ref.current._chart.destroy();
+        ref.current._chart = null;
+      }
+    } catch (e) {
+      console.warn('Could not destroy chart', e);
+    }
+  }
+
+  React.useEffect(function () {
+    // Basic totals from current posts
+    var totalPosts = (posts && posts.length) ? posts.length : 0;
+    var totalLikes = posts.reduce(function (sum, p) { return sum + ((p.likes && p.likes.length) ? p.likes.length : 0); }, 0);
+    var totalComments = posts.reduce(function (sum, p) { return sum + ((p.comments && p.comments.length) ? p.comments.length : 0); }, 0);
+    var totalPollVotes = posts.reduce(function (sum, p) {
+      if (!p.options || !p.options.length) return sum;
+      return sum + p.options.reduce(function (s, o) { return s + ((o.votes && o.votes.length) ? o.votes.length : 0); }, 0);
+    }, 0);
+    var totalInteractions = totalLikes + totalComments + totalPollVotes;
+    var followersCount = 1;
+    if (profile && profile.followers && profile.followers.length) {
+      followersCount = profile.followers.length;
+    } else if (profile && typeof profile.followers_count === 'number') {
+      followersCount = profile.followers_count || 1;
+    }
+
+    // Historical values
+    var histPosts = (historicalData && historicalData.posts) ? historicalData.posts : [];
+    var histInteractions = (historicalData && typeof historicalData.interactions === 'number') ? historicalData.interactions : 0;
+    var histFollowers = (historicalData && typeof historicalData.followers === 'number') ? historicalData.followers : followersCount || 1;
+
+    // Engagement rates
+    var engagementRate = Number(((totalInteractions / (followersCount || 1)) * 100).toFixed(1));
+    var historicalEngagementRate = Number(((histInteractions / (histFollowers || 1)) * 100).toFixed(1));
+    var improvementRate = 0;
+    if (historicalEngagementRate && historicalEngagementRate !== 0) {
+      improvementRate = Number((((engagementRate - historicalEngagementRate) / historicalEngagementRate) * 100).toFixed(1));
+    }
+
+    // Weekly data
+    var MS_DAY = 24 * 60 * 60 * 1000;
+    var nowTs = (new Date()).getTime();
+    var weeklyData = [];
+    for (var i = 3; i >= 0; i--) {
+      var weekStartTs = nowTs - ((i + 1) * 7 * MS_DAY);
+      var weekEndTs = nowTs - (i * 7 * MS_DAY);
+      var weekPosts = posts.filter(function (p) {
+        var d = new Date(p.created_at).getTime();
+        return d >= weekStartTs && d < weekEndTs;
+      });
+      var weekInteractions = weekPosts.reduce(function (sum, p) {
+        var likes = (p.likes && p.likes.length) ? p.likes.length : 0;
+        var comments = (p.comments && p.comments.length) ? p.comments.length : 0;
+        var pollVotes = 0;
+        if (p.options && p.options.length) {
+          pollVotes = p.options.reduce(function (s, o) { return s + ((o.votes && o.votes.length) ? o.votes.length : 0); }, 0);
+        }
+        return sum + likes + comments + pollVotes;
+      }, 0);
+      weeklyData.push(Number(((weekInteractions / (followersCount || 1)) * 100).toFixed(1)));
+    }
+
+    var monthlyBreakdown = (historicalData && historicalData.monthlyBreakdown && historicalData.monthlyBreakdown.length)
+      ? historicalData.monthlyBreakdown
+      : [];
+
+    // Create/destroy charts safely
+    safeDestroyChart(likesCommentsRef);
+    safeDestroyChart(engagementRef);
+    safeDestroyChart(trendRef);
+    safeDestroyChart(monthlyRef);
+
+    if (likesCommentsRef.current) {
+      likesCommentsRef.current._chart = new Chart(likesCommentsRef.current, {
+        type: 'bar',
+        data: {
+          labels: ["Likes", "Comments", "Poll Votes"],
+          datasets: [{
+            label: "Total Interactions",
+            data: [totalLikes, totalComments, totalPollVotes].map(Number),
+            backgroundColor: ["#4CAF50", "#2196F3", "#FFC107"]
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } },
+          plugins: { tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + ctx.raw + ' interactions'; } } } }
+        }
+      });
+    }
+
+    if (engagementRef.current) {
+      var inactive = 100 - (isNaN(engagementRate) ? 0 : engagementRate);
+      engagementRef.current._chart = new Chart(engagementRef.current, {
+        type: 'doughnut',
+        data: {
+          labels: ["Engagement %", "Inactive %"],
+          datasets: [{ data: [Number(engagementRate) || 0, Number(inactive) || 0] }]
+        },
+        options: {
+          plugins: { tooltip: { callbacks: { label: function(ctx) { return ctx.label + ': ' + ctx.raw + '%'; } } } }
+        }
+      });
+    }
+
+    if (trendRef.current) {
+      trendRef.current._chart = new Chart(trendRef.current, {
+        type: 'line',
+        data: {
+          labels: ["4 Weeks Ago", "3 Weeks Ago", "2 Weeks Ago", "Last Week"],
+          datasets: [{
+            label: "Engagement Rate (%)",
+            data: weeklyData.map(Number),
+            borderColor: "#2196F3",
+            tension: 0.4,
+            fill: false
+          }]
+        },
+        options: {
+          scales: { y: { beginAtZero: true } },
+          plugins: { tooltip: { callbacks: { label: function(ctx) { return 'Week ' + (4 - ctx.dataIndex) + ': ' + Number(ctx.raw).toFixed(1) + '% engagement'; } } } }
+        }
+      });
+    }
+
+    if (monthlyRef.current) {
+      var labels = monthlyBreakdown.map(function (m) { return m.month; });
+      var counts = monthlyBreakdown.map(function (m) { return Number(m.count || 0); });
+      monthlyRef.current._chart = new Chart(monthlyRef.current, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{ label: 'Posts per Month', data: counts }]
+        },
+        options: { scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    return function cleanup() {
+      safeDestroyChart(likesCommentsRef);
+      safeDestroyChart(engagementRef);
+      safeDestroyChart(trendRef);
+      safeDestroyChart(monthlyRef);
+    };
+  }, [profile, posts, historicalData]);
+
+  // Recompute summary numbers for render
+  var totalPosts = (posts && posts.length) ? posts.length : 0;
+  var totalLikes = posts.reduce(function (sum, p) { return sum + ((p.likes && p.likes.length) ? p.likes.length : 0); }, 0);
+  var totalComments = posts.reduce(function (sum, p) { return sum + ((p.comments && p.comments.length) ? p.comments.length : 0); }, 0);
+  var totalPollVotes = posts.reduce(function (sum, p) {
+    if (!p.options || !p.options.length) return sum;
+    return sum + p.options.reduce(function (s, o) { return s + ((o.votes && o.votes.length) ? o.votes.length : 0); }, 0);
+  }, 0);
+  var totalInteractions = totalLikes + totalComments + totalPollVotes;
+  var followersCount = 1;
+  if (profile && profile.followers && profile.followers.length) followersCount = profile.followers.length;
+  else if (profile && typeof profile.followers_count === 'number') followersCount = profile.followers_count || 1;
+
+  var engagementRate = Number(((totalInteractions / (followersCount || 1)) * 100).toFixed(1));
+  var histInteractions = (historicalData && typeof historicalData.interactions === 'number') ? historicalData.interactions : 0;
+  var histFollowers = (historicalData && typeof historicalData.followers === 'number') ? historicalData.followers : followersCount || 1;
+  var historicalEngagementRate = Number(((histInteractions / (histFollowers || 1)) * 100).toFixed(1));
+  var improvementRate = 0;
+  if (historicalEngagementRate && historicalEngagementRate !== 0) {
+    improvementRate = Number((((engagementRate - historicalEngagementRate) / historicalEngagementRate) * 100).toFixed(1));
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto animate-fade-in p-0 md:p-4">
+      {/* Heading sits on the same continuous sheet on mobile */}
+      <div className="bg-white p-1 md:p-6 md:rounded md:shadow">
+        <h2 className="text-2xl font-bold mb-4 md:mb-6">Your Creator Dashboard</h2>
+
+        {/* Top totals: continuous on mobile (gap-0) and card grid on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 md:gap-4">
+          <div className="bg-white p-0 md:p-4 md:rounded md:shadow">
+            <div className="text-sm text-gray-500">Total posts</div>
+            <div className="text-xl font-semibold">{totalPosts}</div>
+            <div className="text-xs text-gray-400 mt-2">Prev period posts: {(historicalData && typeof historicalData.totalPosts === 'number') ? historicalData.totalPosts : '—'}</div>
+          </div>
+
+          <div className="bg-white p-0 md:p-4 md:rounded md:shadow">
+            <div className="text-sm text-gray-500">Media posts</div>
+            <div className="text-xl font-semibold">{(historicalData && typeof historicalData.totalMediaPosts === 'number') ? historicalData.totalMediaPosts : '—'}</div>
+            <div className="text-xs text-gray-400 mt-2">Media now: {posts.filter(function(p){ return p.media && p.media.length; }).length}</div>
+          </div>
+
+          <div className="bg-white p-0 md:p-4 md:rounded md:shadow">
+            <div className="text-sm text-gray-500">Followers</div>
+            <div className="text-xl font-semibold">{followersCount}</div>
+            <div className="text-xs text-gray-400 mt-2">Prev interactions: {(historicalData && typeof historicalData.interactions === 'number') ? historicalData.interactions : 0}</div>
+          </div>
+        </div>
+
+        {/* Two-column section: continuous on mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-6 mt-0 md:mt-6">
+          <div className="bg-white p-0 md:p-6 md:rounded-lg md:shadow-md">
+            <h3 className="text-lg font-semibold mb-4">Your Total Engagement</h3>
+            <canvas ref={likesCommentsRef}></canvas>
+            <ul className="mt-4 space-y-2 text-sm text-gray-700">
+              <li>Total Likes: <span className="font-semibold">{totalLikes}</span></li>
+              <li>Total Comments: <span className="font-semibold">{totalComments}</span></li>
+              <li>Total Poll Votes: <span className="font-semibold">{totalPollVotes}</span></li>
+            </ul>
+          </div>
+
+          <div className="bg-white p-0 md:p-6 md:rounded-lg md:shadow-md">
+            <h3 className="text-lg font-semibold mb-4">Engagement Rate</h3>
+            <div className="w-64 mx-auto">
+              <canvas ref={engagementRef}></canvas>
+            </div>
+            <p className="mt-4 text-sm">
+              Your posts are getting <span className="font-semibold">{engagementRate}%</span> engagement.
+              {improvementRate > 0 ? (
+                <span className="text-green-600"> That's {improvementRate}% better than the comparison period! 🎉</span>
+              ) : improvementRate < 0 ? (
+                <span className="text-red-600"> That's {Math.abs(improvementRate)}% lower than the comparison period.</span>
+              ) : (
+                <span className="text-gray-600"> No change from the comparison period.</span>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-0 md:p-6 md:rounded-lg md:shadow-md mt-0 md:mt-6">
+          <h3 className="text-lg font-semibold mb-4">Engagement Trend (last 4 weeks)</h3>
+          <canvas ref={trendRef}></canvas>
+        </div>
+
+        <div className="bg-white p-0 md:p-6 md:rounded-lg md:shadow-md mt-0 md:mt-6">
+          <h3 className="text-lg font-semibold mb-4">Monthly Breakdown</h3>
+          <canvas ref={monthlyRef}></canvas>
+        </div>
+
+        <div className="bg-white p-0 md:p-6 md:rounded-lg md:shadow-md mt-0 md:mt-6">
+          <h3 className="text-lg font-semibold mb-4">Tips to Boost Your Engagement</h3>
+          <ul className="list-disc list-inside text-sm text-gray-600 space-y-2">
+            <li>Post regularly to keep your audience interested!</li>
+            <li>Add images or videos to make your posts more exciting.</li>
+            <li>Try polls to get your followers to interact with you.</li>
+            <li>Use the AI writer in the Composer above to create engaging posts!</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreferencesSection() {
+  const [darkMode, setDarkMode] = React.useState(
+    localStorage.getItem("darkMode") || "system"
+  );
+
+  // When user changes darkMode, persist + broadcast
+  React.useEffect(() => {
+    localStorage.setItem("darkMode", darkMode);
+    window.dispatchEvent(
+      new CustomEvent("app:preferences:update", { detail: { darkMode } })
+    );
+  }, [darkMode]);
+
+  function handleReset() {
+    const defaults = { darkMode: "system" };
+    setDarkMode(defaults.darkMode);
+    // localStorage and event will be handled by effects
+  }
+
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: 18 }}>
+      <h3 style={{ margin: "0 0 12px 0" }}>Preferences</h3>
+
+      <section style={{ marginBottom: 18 }}>
+        <label htmlFor="mode-select" style={{ display: "block", marginBottom: 8 }}>
+          Theme mode
+        </label>
+        <select
+          id="mode-select"
+          value={darkMode}
+          onChange={(e) => setDarkMode(e.target.value)}
+          style={{ padding: "8px 10px", borderRadius: 6 }}
+        >
+          <option value="system">Follow system</option>
+          <option value="light">Light only</option>
+          <option value="dark">Dark only</option>
+          <option value="custom">Custom (softer dark)</option>
+        </select>
+        <p style={{ marginTop: 8, color: "#6b7280" }}>
+          Choose whether the app follows your device theme, or force light/dark.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+    function ActivityLogsSection({ username }) {
+      const [logs, setLogs] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        async function fetchLogs() {
+          try {
+            const res = await fetch(`/activity-logs?username=${username}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to load activity logs');
+            setLogs(data);
+          } catch (e) {
+            console.error(e.message);
+          } finally {
+            setLoading(false);
+          }
+        }
+        fetchLogs();
+      }, [username]);
+
+      if (loading) {
+        return (
+          <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 space-y-6">
+            <div className="h-8 w-48 skeleton rounded"></div>
+            <div className="h-12 skeleton rounded-lg"></div>
+            <div className="h-12 skeleton rounded-lg"></div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 space-y-6 animate-fade-in">
+          <h3 className="text-2xl font-semibold">Activity Logs</h3>
+          {logs.length === 0 ? (
+            <p className="text-gray-600">No recent activity.</p>
+          ) : (
+            <ul className="space-y-4">
+              {logs.map((log, i) => (
+                <li key={i} className="text-sm text-gray-600">
+                  {log.action} at {new Date(log.timestamp).toLocaleString()}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      );
+    }
+
+    function AccountDeactivationSection() {
+      const handleDeactivate = async () => {
+        if (!confirm('Are you sure you want to deactivate your account? This action cannot be undone.')) return;
+        try {
+          const res = await fetch('/deactivate-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: localStorage.currentUser })
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Deactivation failed');
+          }
+          localStorage.removeItem('currentUser');
+          window.location.href = '/auth';
+        } catch (e) {
+          alert(e.message);
+        }
+      };
+
+      return (
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-8 space-y-6 animate-fade-in">
+          <h3 className="text-2xl font-semibold text-red-600">Deactivate Account</h3>
+          <p className="text-gray-600">Deactivating your account will permanently delete your profile, posts, and all associated data.</p>
+          <button
+            onClick={handleDeactivate}
+            className="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition duration-200"
+          >
+            Deactivate Account
+          </button>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<AccountsCenter />, document.getElementById('root'));
+  </script>
+</body>
+</html>
+ 

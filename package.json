@@ -1,0 +1,43 @@
+{
+  "name": "TheWeb",
+  "version": "1.0.0",
+  "description": "TextMob - Your offline-first messaging app",
+  "main": "app.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node server.js",
+    "client": "npm run dev --prefix client",
+    "build:client": "npm run build --prefix client",
+    "web": "npm run web --prefix client",
+    "android": "npm run android --prefix client",
+    "ios": "npm run ios --prefix client"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.4.0",
+    "axios": "^1.4.0",
+    "body-parser": "^1.20.2",
+    "cloudinary": "^1.31.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.3.1",
+    "express": "^4.21.2",
+    "express-session": "^1.17.3",
+    "form-data": "^4.0.0",
+    "fuse.js": "^6.6.2",
+    "multer": "^1.4.5-lts.2",
+    "natural": "^0.6.3",
+    "node-fetch": "^2.6.12",
+    "node-summarizer": "^1.0.7",
+    "nodemailer": "^6.9.4",
+    "pocketbase": "^0.25.0",
+    "pushy": "^4.0.2",
+    "socket.io": "^4.5.1",
+    "streamifier": "^0.1.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

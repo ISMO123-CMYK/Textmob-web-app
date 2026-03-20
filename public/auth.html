@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Textmob - Connect Seamlessly</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --tm-primary: #2563eb;
+      --tm-primary-hover: #1d4ed8;
+      --tm-secondary: #FFFFFF;
+      --tm-accent: #3b82f6;
+      --tm-text: #1f2937;
+      --tm-text-secondary: #6b7280;
+      --tm-gray-light: #f8fafc;
+      --tm-gray-medium: #e2e8f0;
+      --tm-gray-dark: #f1f5f9;
+      --tm-error: #ef4444;
+      --tm-success: #3b82f6;
+      --tm-background: #FFFFFF;
+      --tm-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --tm-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --tm-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+    [data-theme="dark"] {
+      --tm-secondary: #0f172a;
+      --tm-background: #0f172a;
+      --tm-gray-light: #1e293b;
+      --tm-gray-medium: #334155;
+      --tm-gray-dark: #475569;
+      --tm-text: #f1f5f9;
+      --tm-text-secondary: #94a3b8;
+    }
+    body {
+      background: var(--tm-background);
+      font-family: 'Inter', sans-serif;
+      color: var(--tm-text);
+      line-height: 1.6;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 700;
+    }
+    .btn-primary {
+      background-color: var(--tm-primary);
+      color: var(--tm-secondary);
+      transition: all 0.2s ease;
+      border-radius: 12px;
+      font-weight: 600;
+      box-shadow: var(--tm-shadow-sm);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--tm-primary-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--tm-shadow-md);
+    }
+    .btn-secondary {
+      background-color: var(--tm-accent);
+      color: var(--tm-secondary);
+      transition: all 0.2s ease;
+      border-radius: 12px;
+      font-weight: 600;
+      box-shadow: var(--tm-shadow-sm);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background-color: #1e40af;
+      transform: translateY(-1px);
+      box-shadow: var(--tm-shadow-md);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--tm-primary);
+      border: 1px solid var(--tm-gray-medium);
+      transition: all 0.2s ease;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+    .btn-ghost:hover {
+      background-color: var(--tm-primary);
+      color: var(--tm-secondary);
+      border-color: var(--tm-primary);
+    }
+    .btn-floating {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--tm-primary);
+      color: var(--tm-secondary);
+      border: none;
+      box-shadow: var(--tm-shadow-lg);
+      transition: all 0.2s ease;
+      z-index: 50;
+    }
+    .btn-floating:hover {
+      transform: scale(1.05);
+      box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    }
+    .auth-container {
+      display: flex;
+      max-width: 1200px;
+      margin: 0px !important;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+    .auth-box {
+      background-color: var(--tm-secondary);
+      padding: 3rem;
+      flex: 1;
+      max-width: 480px;
+      width: 100%;
+    }
+    .saved-logins-panel {
+      background-color: var(--tm-gray-light);
+      border-radius: 20px;
+      padding: 20px;
+      flex: 1;
+      max-width: 400px;
+      width: 100%;
+    }
+    .saved-account-card {
+      background-color: var(--tm-secondary);
+      border: 1px solid var(--tm-gray-medium);
+      padding: 1rem;
+      margin: 0.75rem 0;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      box-shadow: var(--tm-shadow-sm);
+    }
+    .saved-account-card:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--tm-shadow-md);
+    }
+    .saved-account-pic {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--tm-gray-medium);
+    }
+    .login-btn-small {
+      background-color: var(--tm-primary);
+      color: var(--tm-secondary);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .login-btn-small:hover {
+      background-color: var(--tm-primary-hover);
+    }
+    .logo {
+      max-width: 140px;
+      margin: 0 auto 2rem;
+      display: block;
+      filter: drop-shadow(var(--tm-shadow-sm));
+    }
+    .custom-file-upload button {
+      background-color: var(--tm-primary);
+      color: var(--tm-secondary);
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .custom-file-upload button:hover {
+      background-color: var(--tm-primary-hover);
+      transform: translateY(-1px);
+    }
+    .preview-image {
+      max-width: 140px;
+      margin-top: 1rem;
+      border-radius: 12px;
+      border: 2px solid var(--tm-gray-medium);
+      box-shadow: var(--tm-shadow-md);
+    }
+    .step-description {
+      margin-bottom: 2rem;
+      color: var(--tm-text-secondary);
+      font-size: 1rem;
+      line-height: 1.6;
+      text-align: center;
+    }
+    .spinner-ring {
+      width: 20px;
+      height: 20px;
+      border: 2px solid currentColor;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .progress-container {
+      margin-bottom: 1.5rem;
+    }
+    .progress-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .progress-step {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--tm-gray-medium);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .progress-step.active {
+      background: var(--tm-primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .progress-step.completed {
+      background: var(--tm-success);
+    }
+    .progress-line {
+      height: 2px;
+      background: var(--tm-gray-medium);
+      flex: 1;
+      margin: 0 0.5rem;
+      position: relative;
+      top: 5px;
+    }
+    .progress-line.completed {
+      background: var(--tm-success);
+    }
+    .professional-toast {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      min-width: 320px;
+      background: var(--tm-secondary);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: var(--tm-shadow-lg);
+      border-left: 4px solid;
+      transform: translateX(100%);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      max-width: 90vw;
+    }
+    .professional-toast.show {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    .professional-toast.success { border-left-color: var(--tm-success); }
+    .professional-toast.error { border-left-color: var(--tm-error); }
+    .professional-toast.info { border-left-color: var(--tm-primary); }
+    .toast-icon {
+      display: inline-block;
+      margin-right: 0.75rem;
+      font-size: 1.25rem;
+    }
+    .saved-logins-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 999;
+      padding: 1rem;
+    }
+    .saved-logins-modal-content {
+      background: var(--tm-secondary);
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      width: 100%;
+      max-width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: var(--tm-shadow-lg);
+    }
+    .success-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+    .success-modal-content {
+      background: var(--tm-secondary);
+      border-radius: 20px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 450px;
+      box-shadow: var(--tm-shadow-lg);
+      text-align: center;
+    }
+    .success-modal-profile-pic {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid var(--tm-primary);
+      margin: 0 auto 1.5rem;
+    }
+    .password-criteria p {
+      margin: 0 0 0.5rem 0;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem;
+      border-radius: 6px;
+      transition: background-color 0.2s ease;
+    }
+    .password-criteria p.valid {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--tm-success);
+    }
+    .password-criteria p.invalid {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--tm-error);
+    }
+    input, select, textarea {
+      transition: all 0.2s ease;
+      border: 1px solid var(--tm-gray-medium);
+      padding: 1rem !important;
+      border-radius: 12px;
+      background: var(--tm-gray-light);
+      color: var(--tm-text);
+      font-size: 1rem;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--tm-primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      background: var(--tm-secondary);
+    }
+    input::placeholder, textarea::placeholder { 
+      color: var(--tm-text-secondary); 
+      opacity: 0.8;
+    }
+    .username-input {
+      text-transform: lowercase;
+    }
+    .username-input::placeholder {
+      text-transform: lowercase;
+    }
+    .social-hint {
+      text-align: center;
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: var(--tm-gray-light);
+      border-radius: 12px;
+      font-size: 0.875rem;
+      color: var(--tm-text-secondary);
+    }
+    .social-hint a {
+      color: var(--tm-primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    @media (max-width: 1023px) {
+      .auth-container {
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+      }
+      .auth-box {
+        padding: 2rem;
+        max-width: none;
+      }
+      .btn-floating {
+        display: block;
+      }
+    }
+    @media (max-width: 640px) {
+      .auth-box {
+        padding: 1rem;
+        margin: 0;
+      }
+      .logo {
+        max-width: 120px;
+      }
+      .professional-toast {
+        top: 1rem;
+        right: 1rem;
+        left: 1rem;
+        min-width: auto;
+      }
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: var(--tm-background); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root" className="min-h-screen flex items-center justify-center"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function isValidName(name) {
+      if (!name || typeof name !== "string") return false;
+      const trimmed = name.trim();
+      if (trimmed.length === 0) return false;
+      if (!/^[A-Za-z\s]+$/.test(trimmed)) return false;
+      const vowels = /[aeiou]/i;
+      if (!vowels.test(trimmed)) return false;
+      return true;
+    }
+
+    function isValidEmail(email) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    function isValidPhone(phone) {
+      return /^\+?[\d\s-]{10,}$/.test(phone);
+    }
+
+    function isPasswordValid(pw) {
+      return (
+        pw.length >= 8 &&
+        /[A-Z]/.test(pw) &&
+        /[a-z]/.test(pw) &&
+        /\d/.test(pw) &&
+        /[!@#$%^&*]/.test(pw)
+      );
+    }
+
+    function isValidUsername(username) {
+      const lower = username.toLowerCase();
+      return /^[a-z0-9]+$/.test(lower) && lower.length > 0;
+    }
+
+    function PasswordFeedback({ password }) {
+      const criteria = [
+        { label: "At least 8 characters", test: pw => pw.length >= 8 },
+        { label: "One uppercase letter", test: pw => /[A-Z]/.test(pw) },
+        { label: "One lowercase letter", test: pw => /[a-z]/.test(pw) },
+        { label: "One number", test: pw => /\d/.test(pw) },
+        { label: "One special character (!@#$%^&*)", test: pw => /[!@#$%^&*]/.test(pw) }
+      ];
+      return (
+        <div className="password-criteria mt-3">
+          <p className="text-sm font-semibold text-gray-700 mb-2">Password requirements:</p>
+          {criteria.map((c, i) => (
+            <p key={i} className={c.test(password) ? 'valid' : 'invalid'}>
+              {c.test(password) ? '✓' : '○'} {c.label}
+            </p>
+          ))}
+        </div>
+      );
+    }
+
+    function Toast({ title, message, type, onClose, id }) {
+      useEffect(() => {
+        const timer = setTimeout(onClose, 5000);
+        return () => clearTimeout(timer);
+      }, [onClose]);
+
+      return (
+        <div className={`professional-toast show ${type}`} key={id}>
+          <div className="flex items-start">
+            <span className="toast-icon">
+              {type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️'}
+            </span>
+            <div>
+              <strong className="block text-sm font-semibold">{title}</strong>
+              <span className="block text-sm mt-1">{message}</span>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+            style={{ fontSize: '1.25rem' }}
+          >
+            ×
+          </button>
+        </div>
+      );
+    }
+
+    function AccountCreatedModal({ show, userData, onContinue }) {
+      if (!show) return null;
+
+      return (
+        <div className="success-modal">
+          <div className="success-modal-content">
+            <div className="mb-4">
+              <svg className="w-16 h-16 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Account Created Successfully</h2>
+            <p className="text-gray-600 mb-6">Welcome to Textmob</p>
+            
+            {userData.profile_pic && (
+              <img src={userData.profile_pic} alt="Profile" className="success-modal-profile-pic" />
+            )}
+            
+            <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+              <div className="mb-3">
+                <p className="text-sm text-gray-500">Full Name</p>
+                <p className="font-semibold">{userData.fullName}</p>
+              </div>
+              <div className="mb-3">
+                <p className="text-sm text-gray-500">Username</p>
+                <p className="font-semibold">@{userData.username}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Password</p>
+                <p className="font-mono">{'•'.repeat(userData.password.length)}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={onContinue}
+              className="w-full btn-primary py-3 text-lg"
+            >
+              Continue to Textmob
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    function ForgotPasswordForm({ switchToLogin }) {
+      const [identifier, setIdentifier] = useState("");
+      const [step, setStep] = useState("request");
+      const [code, setCode] = useState("");
+      const [newPassword, setNewPassword] = useState("");
+      const [confirmPassword, setConfirmPassword] = useState("");
+      const [loading, setLoading] = useState(false);
+
+      async function handleRequestReset() {
+        if (!identifier) {
+          window.showNotification({ title: "Missing Field", message: "Please enter your identifier", type: "error" });
+          return;
+        }
+        setLoading(true);
+        try {
+          const res = await fetch("/forgot-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          window.showNotification({ title: "Code Sent", message: data.message, type: "success" });
+          setStep("verify");
+        } catch (err) {
+          window.showNotification({ title: "Request Failed", message: err.message || "Something went wrong", type: "error" });
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function handleVerifyCode() {
+        if (!code) {
+          window.showNotification({ title: "Missing Code", message: "Please enter the verification code", type: "error" });
+          return;
+        }
+        setLoading(true);
+        try {
+          const res = await fetch("/verify-reset-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier, code })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          window.showNotification({ title: "Verified", message: data.message, type: "success" });
+          setStep("reset");
+        } catch (err) {
+          window.showNotification({ title: "Verification Failed", message: err.message || "Invalid code", type: "error" });
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function handleResetPassword() {
+        if (!newPassword || !confirmPassword) {
+          window.showNotification({ title: "Missing Fields", message: "Please fill in both password fields", type: "error" });
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          window.showNotification({ title: "Mismatch", message: "Passwords do not match", type: "error" });
+          return;
+        }
+        if (!isPasswordValid(newPassword)) {
+          window.showNotification({ title: "Weak Password", message: "Password does not meet requirements", type: "error" });
+          return;
+        }
+        setLoading(true);
+        try {
+          const res = await fetch("/reset-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier, code, newPassword })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          window.showNotification({ title: "Password Reset", message: data.message, type: "success", afterClose: switchToLogin });
+        } catch (err) {
+          window.showNotification({ title: "Reset Failed", message: err.message || "Please try again", type: "error" });
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      const renderStep = () => {
+        if (step === "request") {
+          return (
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={identifier}
+                onChange={e => setIdentifier(e.target.value)}
+                placeholder="Email, Username, Phone, or Full Name"
+                className="w-full"
+                required
+              />
+              <button
+                onClick={handleRequestReset}
+                className="w-full btn-primary py-3"
+                disabled={loading}
+              >
+                {loading ? <span className="spinner-ring mr-2"></span> : null}
+                {loading ? "Sending..." : "Send Verification Code"}
+              </button>
+            </div>
+          );
+        }
+        if (step === "verify") {
+          return (
+            <div className="space-y-4">
+              <p className="text-center text-sm text-gray-600">We have sent a 4-digit code to your identifier.</p>
+              <input
+                type="text"
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                placeholder="Enter 4-digit code"
+                className="w-full text-center text-2xl tracking-widest"
+                maxLength={4}
+                required
+              />
+              <button
+                onClick={handleVerifyCode}
+                className="w-full btn-primary py-3"
+                disabled={loading}
+              >
+                {loading ? <span className="spinner-ring mr-2"></span> : null}
+                {loading ? "Verifying..." : "Verify Code"}
+              </button>
+            </div>
+          );
+        }
+        if (step === "reset") {
+          return (
+            <div className="space-y-4">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="New Password"
+                className="w-full"
+                required
+              />
+              <PasswordFeedback password={newPassword} />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Confirm New Password"
+                className="w-full"
+                required
+              />
+              <button
+                onClick={handleResetPassword}
+                className="w-full btn-primary py-3"
+                disabled={loading}
+              >
+                {loading ? <span className="spinner-ring mr-2"></span> : null}
+                {loading ? "Resetting..." : "Reset Password"}
+              </button>
+            </div>
+          );
+        }
+      };
+
+      return (
+        <div className="auth-box">
+          <img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/profile-pictures/g7jlemd9n1hcsdqslkjt.png" alt="Textmob Logo" className="logo" />
+          <h2 className="text-center text-2xl mb-6">Reset Your Password</h2>
+          {renderStep()}
+          <p className="text-center mt-6 text-sm">
+            Back to{" "}
+            <button onClick={switchToLogin} className="btn-ghost inline-block px-4 py-2 ml-1">
+              Sign In
+            </button>
+          </p>
+        </div>
+      );
+    }
+
+    function LoginForm({ switchToSignup, switchToForgotPassword, savedAccounts, onAutoLogin, showSavedPanel }) {
+      const [identifier, setIdentifier] = useState("");
+      const [password, setPassword] = useState("");
+      const [remember, setRemember] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [loginAttempts, setLoginAttempts] = useState(0);
+
+      async function performLogin(loginIdentifier, loginPassword) {
+        setLoading(true);
+        try {
+          const res = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: loginIdentifier, password: loginPassword })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setLoginAttempts(prev => prev + 1);
+            const attempts = loginAttempts + 1;
+            if (attempts >= 5) {
+              window.showNotification({ title: "Account Locked", message: "Too many attempts. Please reset your password.", type: "error" });
+            } else {
+              window.showNotification({ title: "Login Failed", message: data.error, type: "error" });
+            }
+            throw new Error(data.error);
+          }
+          if (remember) {
+            let accounts = JSON.parse(localStorage.getItem("textmobSavedAccounts") || "[]");
+            if (!accounts.some(acc => acc.username === data.user.username)) {
+              accounts.push({ username: data.user.username.toLowerCase(), password: loginPassword, profile_pic: data.user.profile_pic || '' });
+              localStorage.setItem("textmobSavedAccounts", JSON.stringify(accounts));
+            }
+          }
+          localStorage.setItem("currentUser", data.user.username);
+          window.location.href = '/';
+        } catch (err) {
+          // Error already handled
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function handleLogin() {
+        if (!identifier || !password) {
+          window.showNotification({ title: "Incomplete", message: "Please fill in all fields", type: "error" });
+          return;
+        }
+        performLogin(identifier, password);
+      }
+
+      return (
+        <div className="auth-box">
+          <img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/profile-pictures/g7jlemd9n1hcsdqslkjt.png" alt="Textmob Logo" className="logo" />
+          <h2 className="text-center text-2xl mb-4">Welcome Back</h2>
+          <div className="space-y-4">
+            <input
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
+              placeholder="Email, Username, Phone, or Full Name"
+              className="w-full"
+              required
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Password"
+              className="w-full"
+              required
+            />
+            <label className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={() => setRemember(!remember)}
+                className="h-4 w-4 text-[var(--tm-primary)] rounded"
+              />
+              <span className="text-sm text-gray-600">Remember me</span>
+            </label>
+            <button
+              onClick={handleLogin}
+              className="w-full btn-primary py-3"
+              disabled={loading}
+            >
+              {loading ? <span className="spinner-ring mr-2"></span> : null}
+              {loading ? "Signing In..." : "Sign In"}
+            </button>
+            <button
+              onClick={switchToForgotPassword}
+              className="w-full text-left text-sm text-gray-600 hover:text-[var(--tm-primary)]"
+            >
+              Forgot Password?
+            </button>
+          </div>
+          <div className="social-hint">
+            New to Textmob? Join the conversation with friends and communities.
+            <br />
+            <button onClick={switchToSignup} className="btn-ghost inline-block px-4 py-2 mt-2">Create Account</button>
+          </div>
+          {savedAccounts.length > 0 && (
+            <button
+              onClick={showSavedPanel}
+              className="md:hidden flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg fixed bottom-6 right-6"
+              title="Saved Logins"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    function SavedLoginsPanel({ savedAccounts, onAutoLogin }) {
+      if (savedAccounts.length === 0) return null;
+
+      return (
+        <div className="saved-logins-panel">
+          <h3 className="text-lg font-semibold flex items-center">
+            Recent Logins
+            <span className="ml-auto text-sm text-gray-500">({savedAccounts.length})</span>
+          </h3>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {savedAccounts.map(acc => (
+              <div key={acc.username} className="saved-account-card">
+                {acc.profile_pic && <img src={acc.profile_pic} alt="" className="saved-account-pic" />}
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">{acc.username}</p>
+                </div>
+                <button
+                  onClick={() => onAutoLogin(acc.username, acc.password)}
+                  className="login-btn-small"
+                >
+                  Sign In
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function SavedLoginsModal({ savedAccounts, onAutoLogin, onClose, show }) {
+      if (!show || savedAccounts.length === 0) return null;
+
+      return (
+        <div className="saved-logins-modal" onClick={onClose}>
+          <div className="saved-logins-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">💾 Saved Logins</h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            <div className="space-y-3">
+              {savedAccounts.map(acc => (
+                <div key={acc.username} className="saved-account-card">
+                  {acc.profile_pic && <img src={acc.profile_pic} alt="" className="saved-account-pic" />}
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">{acc.username}</p>
+                  </div>
+                  <button
+                    onClick={() => { onAutoLogin(acc.username, acc.password); onClose(); }}
+                    className="login-btn-small"
+                  >
+                    Sign In
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function SignUpWizard({ switchToLogin }) {
+      const steps = [
+        {
+          title: "Personal Information",
+          fields: [
+            { name: "fullName", label: "Full Name", type: "text", required: true, validate: isValidName },
+            { name: "username", label: "Username", type: "text", required: true, validate: isValidUsername }
+          ],
+          description: "Start by sharing your name. We will auto-generate a username for you."
+        },
+        {
+          title: "Contact Details",
+          fields: [
+            { name: "phone", label: "Phone Number", type: "tel", required: false, validate: isValidPhone },
+            { name: "email", label: "Email Address", type: "email", required: true, validate: isValidEmail },
+            { name: "profile_type", label: "Profile Type", type: "select", options: ["Individual", "Organisation"], required: true }
+          ],
+          description: "Add your contact details to stay connected and verified."
+        },
+        {
+          title: "Secure Your Account",
+          fields: [
+            { name: "password", label: "Password", type: "password", required: true, validate: isPasswordValid },
+            { name: "confirmPassword", label: "Confirm Password", type: "password", required: true }
+          ],
+          description: "Choose a strong password to protect your account."
+        }
+      ];
+
+      const [stepIndex, setStepIndex] = useState(0);
+      const [loading, setLoading] = useState(false);
+      const [showSuccessModal, setShowSuccessModal] = useState(false);
+      const [data, setData] = useState({
+        fullName: "", username: "", phone: "", email: "",
+        password: "", confirmPassword: "",
+        profile_type: ""
+      });
+      const [usernameEdited, setUsernameEdited] = useState(false);
+
+      useEffect(() => {
+        if (data.fullName && !usernameEdited && stepIndex === 0) {
+          const generated = data.fullName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '').substring(0, 20);
+          setData(prev => ({ ...prev, username: generated }));
+        }
+      }, [data.fullName, usernameEdited, stepIndex]);
+
+      function updateField(name, value) {
+        if (name === 'username') {
+          value = value.toLowerCase();
+          value = value.replace(/[^a-z0-9]/g, '');
+          setUsernameEdited(true);
+        }
+        setData(prev => ({ ...prev, [name]: value }));
+      }
+
+      function validateStep() {
+        const { fields } = steps[stepIndex];
+        for (let f of fields) {
+          if (f.required && !data[f.name]) {
+            window.showNotification({ title: "Required Field", message: `${f.label} is required`, type: "error" });
+            return false;
+          }
+          if (f.validate && !f.validate(data[f.name])) {
+            window.showNotification({ title: "Invalid Input", message: `Please check your ${f.label.toLowerCase()}`, type: "error" });
+            return false;
+          }
+        }
+        if (stepIndex === 2 && data.password !== data.confirmPassword) {
+          window.showNotification({ title: "Mismatch", message: "Passwords do not match", type: "error" });
+          return false;
+        }
+        return true;
+      }
+
+      function next() {
+        if (validateStep()) setStepIndex(i => i + 1);
+      }
+
+      function back() {
+        setStepIndex(i => Math.max(0, i - 1));
+      }
+
+      async function submitAll() {
+        if (!validateStep()) return;
+        setLoading(true);
+        const formData = new FormData();
+        Object.entries(data).forEach(([k, v]) => { if (v !== null && v !== '') formData.append(k, v); });
+        try {
+          const res = await fetch("/signup", { method: "POST", body: formData });
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.error);
+          localStorage.setItem("currentUser", data.username);
+          setShowSuccessModal(true);
+        } catch (err) {
+          window.showNotification({ title: "Signup Failed", message: err.message || "Please try again", type: "error" });
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function handleContinue() {
+        try {
+          const res = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: data.username, password: data.password })
+          });
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.error);
+          window.location.href = '/';
+        } catch (err) {
+          window.showNotification({ title: "Login Failed", message: err.message, type: "error" });
+        }
+      }
+
+      const { title, fields, description } = steps[stepIndex];
+
+      return (
+        <>
+          <div className="auth-box">
+            <img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/profile-pictures/g7jlemd9n1hcsdqslkjt.png" alt="Textmob Logo" className="logo" />
+            <h2 className="text-center text-2xl mb-2">{title}</h2>
+            <div className="progress-container">
+              <div className="progress-steps">
+                {steps.map((_, i) => (
+                  <React.Fragment key={i}>
+                    <div
+                      className={`progress-step ${i < stepIndex ? 'completed' : i === stepIndex ? 'active' : ''}`}
+                    ></div>
+                    {i < steps.length - 1 && <div className={`progress-line ${i < stepIndex ? 'completed' : ''}`}></div>}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+            <p className="step-description">{description}</p>
+            <div className="space-y-4">
+              {fields.map(f => (
+                <div key={f.name}>
+                  {f.type === "select" ? (
+                    <select
+                      value={data[f.name]}
+                      onChange={e => updateField(f.name, e.target.value)}
+                      className="w-full"
+                      required={f.required}
+                    >
+                      <option value="">{`Select ${f.label}`}</option>
+                      {f.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      type={f.type}
+                      placeholder={f.label}
+                      value={data[f.name]}
+                      onChange={e => updateField(f.name, e.target.value)}
+                      className={`w-full ${f.name === 'username' ? 'username-input' : ''}`}
+                      required={f.required}
+                    />
+                  )}
+                  {f.name === "password" && <PasswordFeedback password={data.password} />}
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 flex justify-between">
+              {stepIndex > 0 ? (
+                <button
+                  type="button"
+                  onClick={back}
+                  className="px-6 py-3 btn-ghost"
+                >
+                  Back
+                </button>
+              ) : <div />}
+              {stepIndex < steps.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={next}
+                  className="px-6 py-3 btn-primary ml-auto"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  onClick={submitAll}
+                  disabled={loading}
+                  className="px-6 py-3 btn-primary ml-auto disabled:opacity-50"
+                >
+                  {loading ? <span className="spinner-ring mr-2"></span> : null}
+                  {loading ? "Creating..." : "Join Textmob"}
+                </button>
+              )}
+            </div>
+            <p className="text-center mt-6 text-sm">
+              Already have an account?{" "}
+              <button onClick={switchToLogin} className="btn-ghost inline-block px-4 py-2 ml-1">Sign In</button>
+            </p>
+            <div className="social-hint mt-4">
+              Textmob is all about real connections. Share stories, join groups, and build your network.
+            </div>
+          </div>
+          <AccountCreatedModal 
+            show={showSuccessModal}
+            userData={data}
+            onContinue={handleContinue}
+          />
+        </>
+      );
+    }
+
+    function App() {
+      const [mode, setMode] = useState("login");
+      const [notifications, setNotifications] = useState([]);
+      const [savedAccounts, setSavedAccounts] = useState([]);
+      const [showSavedModal, setShowSavedModal] = useState(false);
+
+      useEffect(() => {
+        const accounts = JSON.parse(localStorage.getItem("textmobSavedAccounts") || "[]");
+        setSavedAccounts(accounts.map(acc => ({ ...acc, username: acc.username.toLowerCase() })));
+        window.showNotification = ({ title, message, type = "info", duration = 5000, afterClose }) => {
+          const id = Date.now() + Math.random();
+          setNotifications(prev => [...prev, { id, title, message, type, duration, afterClose }]);
+          setTimeout(() => {
+            setNotifications(prev => prev.filter(n => n.id !== id));
+            if (afterClose) afterClose();
+          }, duration);
+        };
+      }, []);
+
+      const removeNotification = (id) => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      };
+
+      const showSavedPanel = () => setShowSavedModal(true);
+
+      async function handleAutoLogin(username, password) {
+        try {
+          const res = await fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: username, password })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          localStorage.setItem("currentUser", data.user.username);
+          window.location.href = '/';
+        } catch (err) {
+          window.showNotification({ title: "Login Failed", message: err.message, type: "error" });
+        }
+      }
+
+      const renderForm = () => {
+        if (mode === "login") {
+          return (
+            <>
+              <LoginForm
+                switchToSignup={() => setMode("signup")}
+                switchToForgotPassword={() => setMode("forgot")}
+                savedAccounts={savedAccounts}
+                onAutoLogin={handleAutoLogin}
+                showSavedPanel={showSavedPanel}
+              />
+              {savedAccounts.length > 0 && (
+                <SavedLoginsPanel
+                  savedAccounts={savedAccounts}
+                  onAutoLogin={handleAutoLogin}
+                />
+              )}
+            </>
+          );
+        }
+        if (mode === "signup") {
+          return <SignUpWizard switchToLogin={() => setMode("login")} />;
+        }
+        if (mode === "forgot") {
+          return <ForgotPasswordForm switchToLogin={() => setMode("login")} />;
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="auth-container">
+            {renderForm()}
+          </div>
+          {notifications.map(n => (
+            <Toast
+              key={n.id}
+              {...n}
+              onClose={() => removeNotification(n.id)}
+            />
+          ))}
+          <SavedLoginsModal
+            savedAccounts={savedAccounts}
+            onAutoLogin={handleAutoLogin}
+            onClose={() => setShowSavedModal(false)}
+            show={showSavedModal}
+          />
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>

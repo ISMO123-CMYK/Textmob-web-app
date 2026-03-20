@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Textmob Admin Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #111827; /* dark console bg */
+      font-family: 'Fira Code', monospace;
+      color: #10b981; /* green like a hacker */
+    }
+    ::selection {
+      background: #10b981;
+      color: #000;
+    }
+    input:focus {
+      outline: none;
+    }
+    .console-line {
+      margin-bottom: 0.5rem;
+      line-height: 1.5;
+    }
+    .console-timestamp {
+      color: #6b7280; /* gray for timestamps */
+    }
+    .console-user {
+      color: #60a5fa; /* blue for user queries */
+    }
+    .console-ai {
+      color: #10b981; /* green for AI responses */
+    }
+    .console-error {
+      color: #ef4444; /* red for errors */
+    }
+    .animate-pulse {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-2xl bg-[#1f2937] rounded-lg shadow-xl p-6">
+    <h1 class="text-2xl font-bold mb-4 text-[#10b981]">💻 Textmob Admin Console</h1>
+    
+    <div class="space-y-4">
+      <input
+        type="text"
+        id="adminQ"
+        class="w-full p-3 bg-[#111827] text-[#10b981] border border-[#10b981] rounded"
+        placeholder="Ask a question like 'who has the most posts'..."
+        onkeypress="if(event.key === 'Enter') askBot()"
+      />
+      <div class="flex space-x-2">
+        <button
+          onclick="askBot()"
+          class="bg-[#10b981] hover:bg-[#059669] text-black px-4 py-2 rounded font-semibold"
+        >
+          Ask AI Agent
+        </button>
+        <button
+          onclick="clearHistory()"
+          class="bg-[#374151] hover:bg-[#4b5563] text-[#10b981] px-4 py-2 rounded font-semibold"
+        >
+          Clear History
+        </button>
+        <button
+          onclick="copyHistory()"
+          class="bg-[#374151] hover:bg-[#4b5563] text-[#10b981] px-4 py-2 rounded font-semibold"
+        >
+          Copy History
+        </button>
+      </div>
+
+      <div id="aiAnswer" class="bg-black text-[#10b981] p-4 rounded h-80 overflow-y-auto whitespace-pre-wrap font-mono text-sm border border-[#10b981]">
+        <p class="opacity-60 console-line">// AI responses will show here...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Load chat history from localStorage
+    let chatHistory = JSON.parse(localStorage.getItem('textmobAdminChatHistory')) || [];
+
+    // Function to format timestamp
+    function getTimestamp() {
+      const now = new Date();
+      return now.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+    }
+
+    // Function to render chat history
+    function renderChatHistory() {
+      const aiAnswerDiv = document.getElementById('aiAnswer');
+      if (chatHistory.length === 0) {
+        aiAnswerDiv.innerHTML = '<p class="opacity-60 console-line">// AI responses will show here...</p>';
+        return;
+      }
+
+      aiAnswerDiv.innerHTML = chatHistory.map(entry => {
+        if (entry.role === 'user') {
+          return `<div class="console-line"><span class="console-timestamp">[${entry.timestamp}]</span><br><span class="console-user">ADMIN:</span><br> ${entry.content}</div>`;
+        } else if (entry.role === 'ai') {
+          return `<div class="console-line"><span class="console-timestamp">[${entry.timestamp}]</span><br><span class="console-ai">AI:</span><br> ${entry.content}</div>`;
+        } else if (entry.role === 'error') {
+          return `<div class="console-line"><span class="console-timestamp">[${entry.timestamp}]</span><br><span class="console-error">ERROR:</span><br> ${entry.content}</div>`;
+        }
+      }).join('');
+      // Scroll to bottom
+      aiAnswerDiv.scrollTop = aiAnswerDiv.scrollHeight;
+    }
+
+    // Initial render of chat history
+    renderChatHistory();
+
+    // Loading animation
+    const loadingStates = ['⏳ Thinking...', '⏳ Processing...', '⏳ Analyzing...', '⏳ Resolving Admin Panel...'];
+    let loadingIndex = 0;
+    let loadingInterval = null;
+
+    async function askBot() {
+      const q = document.getElementById('adminQ').value.trim();
+      if (!q) return;
+
+      // Add user query to history
+      const userEntry = { role: 'user', content: q, timestamp: getTimestamp() };
+      chatHistory.push(userEntry);
+      localStorage.setItem('textmobAdminChatHistory', JSON.stringify(chatHistory));
+      renderChatHistory();
+      document.getElementById('adminQ').value = ''; // Clear input
+
+      // Start loading animation
+      const aiAnswerDiv = document.getElementById('aiAnswer');
+      loadingInterval = setInterval(() => {
+        aiAnswerDiv.innerHTML = `<div class="console-line animate-pulse"><span class="console-timestamp">[${getTimestamp()}]</span> <span class="console-ai">AI:</span> ${loadingStates[loadingIndex]}</div>`;
+        loadingIndex = (loadingIndex + 1) % loadingStates.length;
+      }, 500);
+
+      try {
+        const res = await fetch('/asilfcismail?q=' + encodeURIComponent(q));
+        clearInterval(loadingInterval);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const html = await res.text();
+        // Strip HTML tags for clean console display
+        const cleanText = html.replace(/<[^>]+>/g, '').trim();
+        const aiEntry = { role: 'ai', content: cleanText, timestamp: getTimestamp() };
+        chatHistory.push(aiEntry);
+        localStorage.setItem('textmobAdminChatHistory', JSON.stringify(chatHistory));
+        renderChatHistory();
+      } catch (err) {
+        clearInterval(loadingInterval);
+        const errorEntry = { role: 'error', content: `Error: ${err.message}`, timestamp: getTimestamp() };
+        chatHistory.push(errorEntry);
+        localStorage.setItem('textmobAdminChatHistory', JSON.stringify(chatHistory));
+        renderChatHistory();
+      }
+    }
+
+    function clearHistory() {
+      chatHistory = [];
+      localStorage.removeItem('textmobAdminChatHistory');
+      renderChatHistory();
+    }
+
+    function copyHistory() {
+      const text = chatHistory.map(entry => {
+        return `[${entry.timestamp}] ${entry.role.toUpperCase()}: ${entry.content}`;
+      }).join('\n');
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Chat history copied to clipboard!');
+      }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy chat history.');
+      });
+    }
+
+    // Clear loading interval on page unload
+    window.addEventListener('unload', () => {
+      if (loadingInterval) clearInterval(loadingInterval);
+    });
+  </script>
+</body>
+</html>
