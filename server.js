@@ -8567,14 +8567,14 @@ app.post('/groups/:groupId/join', async (req, res) => {
 app.get("/account-stats", async (req, res) => {
   try {
     const { username } = req.query;
-    if (!username) return res.status(400).json({ error: "Username required" });
+    if (!username) return res.status(400).json({ error: "Username is actually required" });
 
     // ── Mobcoins — reuse your existing /t/wallet logic ──────────
     let mobcoins = 0;
     try {
       const { data: walletUser } = await supabase
         .from("users")
-        .select("mobcoins")
+        .select("mobcoins, username")
         .eq("username", username)
         .single();
       mobcoins = walletUser?.mobcoins || 0;
