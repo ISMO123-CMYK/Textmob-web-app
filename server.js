@@ -5208,8 +5208,14 @@ app.post("/add-comment", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    const commenterUsername = String(username).trim();
+
+    // Helper: normalize usernames for Mobcoins logic
+    const normalizeMobcoinUser = (name) =>
+      String(name || "").trim().replace(/^@/, "");
+
     // Fetch current comments + post owner's username
-    var { data: post, error: fetchError } = await supabase2
+    const { data: post, error: fetchError } = await supabase2
       .from("Posts")
       .select("comments, username")
       .eq("id", postId)
@@ -5220,17 +5226,21 @@ app.post("/add-comment", async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    var updatedComments = [
-      ...(post.comments || []),
+    const ownerUsername = String(post.username || "").trim();
+
+    const currentComments = Array.isArray(post.comments) ? post.comments : [];
+
+    const updatedComments = [
+      ...currentComments,
       {
-        username: username,
+        username: commenterUsername,
         text: comment,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     ];
 
     // Update post with new comment
-    var { error: updateError } = await supabase2
+    const { error: updateError } = await supabase2
       .from("Posts")
       .update({ comments: updatedComments })
       .eq("id", postId);
@@ -5240,80 +5250,90 @@ app.post("/add-comment", async (req, res) => {
       return res.status(500).json({ error: "Failed to add comment" });
     }
 
-    // Award Mobcoins (best-effort)
-    try {
-      await updateMobcoins(post.username.split("@").pop().trimEnd(), +10, true, "You just received 10 Mobcoins from a comment on your post");
-    } catch (mb1Err) {
-      console.error("[add-comment] updateMobcoins (post owner) failed:", mb1Err);
-    }
-    try {
-      await updateMobcoins(username.split("@").pop().trimEnd(), +5, true, "You just received 5 Mobcoins for commenting on a post");
-    } catch (mb2Err) {
-      console.error("[add-comment] updateMobcoins (commenter) failed:", mb2Err);
+    const postLink = `/post/${postId}`;
+    const isSelfComment = commenterUsername === ownerUsername;
+
+    // Reward ONLY the post owner when someone else comments
+    if (!isSelfComment) {
+      try {
+        await updateMobcoins(
+          normalizeMobcoinUser(ownerUsername),
+          +10,
+          true,
+          "You just received 10 Mobcoins because someone commented on your post"
+        );
+      } catch (mbErr) {
+        console.error("[add-comment] updateMobcoins (post owner) failed:", mbErr);
+      }
     }
 
-    var postLink = "/post/" + postId;
-
-    // Notify post owner (skip if commenting on your own post)
-    if (username !== post.username) {
-      triggerNotification(post.username, 'comments', {
-        msg: `${username} commented on your post: "${comment}"`,
+    // Notify post owner only if it's not their own comment
+    if (!isSelfComment) {
+      triggerNotification(ownerUsername, "comments", {
+        msg: `${commenterUsername} commented on your post: "${comment}"`,
         link: postLink,
         subject: "💬 New Comment on Your Post | Textmob",
         html: `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${post.username},
-            </p>
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>${username}</strong> just commented on your post:
-            </p>
-            <div style="background:#f3f4f6; padding:12px 16px; border-radius:16px; font-size:14px; color:#111;">
-              <div style="font-weight:600;">${username}</div>
-              <div style="margin-top:4px;">${comment}</div>
-            </div>
-            <p style="font-size:15px; margin:20px 0; text-align:center;">
-              <a href="https://textmob.web.app${postLink}" 
-                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                💬 View Post
-              </a>
-            </p>
-          `
+          <p style="font-size:16px; line-height:1.6; color:#333;">
+            Hi ${ownerUsername},
+          </p>
+          <p style="font-size:15px; color:#333; margin-bottom:12px;">
+            <strong>${commenterUsername}</strong> just commented on your post:
+          </p>
+          <div style="background:#f3f4f6; padding:12px 16px; border-radius:16px; font-size:14px; color:#111;">
+            <div style="font-weight:600;">${commenterUsername}</div>
+            <div style="margin-top:4px;">${comment}</div>
+          </div>
+          <p style="font-size:15px; margin:20px 0; text-align:center;">
+            <a href="https://textmob.web.app${postLink}"
+               style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px;
+                      text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
+              💬 View Post
+            </a>
+          </p>
+        `,
       });
     }
 
     // Parse mentions in comment (@username)
-    var rawMentions = comment.match(/@\w+/g) || [];
-    var mentions = rawMentions.map(function (m) {
-      return m.slice(1).replace(/[^a-zA-Z0-9_]/g, "");
-    });
+    const rawMentions = comment.match(/@\w+/g) || [];
+    const mentions = [...new Set(
+      rawMentions.map((m) => m.slice(1).replace(/[^a-zA-Z0-9_]/g, ""))
+    )];
 
-    // Loop mentions and notify; if textmobai or askify mentioned -> trigger AI reply
-    for (var i = 0; i < mentions.length; i++) {
-      var mentionedUser = mentions[i];
-      if (mentionedUser && mentionedUser !== post.username && mentionedUser !== username) {
-        triggerNotification(mentionedUser, 'mentions', {
-          msg: `${username} mentioned you in a comment`,
+    for (let i = 0; i < mentions.length; i++) {
+      const mentionedUser = mentions[i];
+      const lowerMentionedUser = mentionedUser.toLowerCase();
+
+      if (
+        mentionedUser &&
+        mentionedUser !== ownerUsername &&
+        mentionedUser !== commenterUsername
+      ) {
+        triggerNotification(mentionedUser, "mentions", {
+          msg: `${commenterUsername} mentioned you in a comment`,
           link: postLink,
-          subject: `🏷️ @${username} mentioned you in a comment!`,
-          html: `<p><strong>@${username}</strong> mentioned you in a comment on <strong>Textmob</strong>.</p><p><a href="https://textmob.web.app${postLink}">View Comment</a></p>`
+          subject: `🏷️ @${commenterUsername} mentioned you in a comment!`,
+          html: `
+            <p><strong>@${commenterUsername}</strong> mentioned you in a comment on <strong>Textmob</strong>.</p>
+            <p><a href="https://textmob.web.app${postLink}">View Comment</a></p>
+          `,
         });
       }
 
-      // If textmobai or askify mentioned, trigger AI reply
-      const lowerMentionedUser = mentionedUser?.toLowerCase();
       if (lowerMentionedUser === "textmobai") {
-        triggerAIReply(comment, null, null, postId, "comment", username).catch(ce => console.error(ce));
+        triggerAIReply(comment, null, null, postId, "comment", commenterUsername)
+          .catch((ce) => console.error(ce));
       } else if (lowerMentionedUser === "askify") {
-        triggerAskifyReply(comment, postId, "comment", username).catch(ae => console.error(ae));
+        triggerAskifyReply(comment, postId, "comment", commenterUsername)
+          .catch((ae) => console.error(ae));
       }
     }
 
-    // Final success response
-    res.json({ message: "Comment added successfully!" });
+    return res.json({ message: "Comment added successfully!" });
   } catch (error) {
     console.error("[add-comment] Add Comment Error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

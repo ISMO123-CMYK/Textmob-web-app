@@ -1,0 +1,20 @@
+[debug] [2026-03-28T13:37:39.944Z] ----------------------------------------------------------------------
+[debug] [2026-03-28T13:37:39.954Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Ismail\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2026-03-28T13:37:39.956Z] CLI Version:   15.11.0
+[debug] [2026-03-28T13:37:39.957Z] Platform:      win32
+[debug] [2026-03-28T13:37:39.958Z] Node Version:  v24.14.0
+[debug] [2026-03-28T13:37:39.958Z] Time:          Sat Mar 28 2026 14:37:39 GMT+0100 (West Africa Time)
+[debug] [2026-03-28T13:37:39.959Z] ----------------------------------------------------------------------
+[debug] 
+[error] 
+[error] Error: Not in a Firebase app directory (could not locate firebase.json)
+[debug] [2026-03-28T13:37:51.869Z] Error: EBUSY: resource busy or locked, unlink 'C:\Users\Ismail\Desktop\Textmob\firebase-debug.log'
+    at Object.unlinkSync (node:fs:1931:11)
+    at process.<anonymous> (C:\Users\Ismail\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\cli.js:44:16)
+    at process.emit (node:events:520:35)
+    at process.exit (node:internal/process/per_thread:236:15)
+    at Timeout._onTimeout (C:\Users\Ismail\AppData\Roaming\npm\node_modules\firebase-tools\lib\errorOut.js:20:17)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+[error] 
+[error] Error: An unexpected error has occurred.
