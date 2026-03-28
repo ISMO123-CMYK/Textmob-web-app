@@ -1,4 +1,5 @@
 const express = require("express");
+const { GoogleGenAI } = require("@google/genai");
 const http = require("http");
 const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
@@ -91,6 +92,57 @@ transporter.verify().then(() => {
  * @param {string} subject - email subject
  * @param {string} message - main message HTML/text (we inject into template)
  */
+// ── NOTIFICATION PREFERENCES ────────────────────────────────────────────────
+const DEFAULT_NOTIFICATION_PREFS = {
+  likes: { inApp: true, email: true },
+  comments: { inApp: true, email: true },
+  mentions: { inApp: true, email: true },
+  followers: { inApp: true, email: true },
+  newPost: { inApp: true, email: false }, // default email off to avoid spam
+  messages: { inApp: true, email: true },
+  mobcoins: { inApp: true, email: true },
+  events: { inApp: true, email: true }
+};
+
+/**
+ * Universal notification trigger that respects user preferences.
+ * @param {string} recipient - target username
+ * @param {string} type - 'likes', 'comments', 'newPost', etc.
+ * @param {object} options - { msg, link, subject, html }
+ */
+async function triggerNotification(recipient, type, options = {}) {
+  try {
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("email, notification_prefs, fullname")
+      .eq("username", recipient)
+      .single();
+
+    if (error || !user) return;
+
+    const prefs = user.notification_prefs || DEFAULT_NOTIFICATION_PREFS;
+    const typePrefs = prefs[type] || DEFAULT_NOTIFICATION_PREFS[type] || { inApp: true, email: true };
+
+    // 1. In-App Notification
+    if (typePrefs.inApp && options.msg) {
+      await addNotification(recipient, {
+        id: Date.now() + Math.random(),
+        message: options.msg,
+        read: false,
+        link: options.link || "/",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 2. Email Notification
+    if (typePrefs.email && user.email && options.subject && options.html) {
+      sendNotificationEmail(user.email, options.subject, options.html);
+    }
+  } catch (err) {
+    console.error(`[triggerNotification] failed for ${recipient}/${type}:`, err);
+  }
+}
+
 function sendNotificationEmail(to, subject, message) {
   const html = `
   <body style="margin:0; padding:0; background:#f4f7fb; font-family:'Inter', Arial, sans-serif; color:#333;">
@@ -205,46 +257,24 @@ async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin u
         ? `You received ${amount} Mobcoins.`
         : `You spent ${Math.abs(amount)} Mobcoins.`;
 
-    await sendNotificationEmail(
-      user.email,
-      "💰 Mobcoin Activity on Textmob",
-      `
+    triggerNotification(userId, 'mobcoins', {
+      msg: `${message} (${reason})`,
+      link: `/wallet`,
+      subject: "💰 Mobcoin Activity",
+      html: `
           <p style="font-size:16px; line-height:1.6; color:#333;">
             Hi <strong>${user.fullname || user.username}</strong>,
           </p>
-        
           <p style="font-size:16px; line-height:1.6; color:#333;">
             There has been an update to your <strong style="color:#1E90FF;">Mobcoin</strong> balance:
           </p>
-        
           <p style="font-size:16px; line-height:1.6; color:#333; background:#f4f7fb; padding:12px 16px; border-radius:8px;">
             ${message}
           </p>
-        
           <p style="font-size:15px; line-height:1.6; color:#555;">
             <em>Reason:</em> ${reason}
           </p>
-        
-          <p style="font-size:16px; line-height:1.6; color:#333; margin-top:20px;">
-            Keep using <strong style="color:#1E90FF;">Textmob</strong> to earn, send, and enjoy more Mobcoin rewards. 🚀  
-          </p>
-        
-          <p style="font-size:14px; line-height:1.6; color:#999;">
-            If you did not authorize this activity, please contact us immediately at 
-            <a href="mailto:gidadoismail24@gmail.com" style="color:#1E90FF; text-decoration:none;">
-              gidadoismail24@gmail.com
-            </a>.
-          </p>
           `
-    );
-
-
-    await addNotification(userId, {
-      id: Date.now() + Math.random(),
-      message: `${message} (${reason})`,
-      read: false,
-      link: `/wallet`,
-      timestamp: new Date().toISOString(),
     });
   }
 
@@ -276,6 +306,28 @@ const cleanExpiredCodes = () => {
   const now = Date.now();
   resetCodes.length = resetCodes.filter(code => code.expiresAt > now).length;
 };
+
+// --- TURN Server Credentials (Metered.live) ---
+app.get("/api/turn-credentials", async (req, res) => {
+  try {
+    const METERED_SECRET = process.env.METERED_SECRET || "48g6aAx6fyU5JdRdhqkQgiBJ7zc"; // Using a placeholder or existing secret if found
+    const METERED_ID = process.env.METERED_ID || "textmob"; // Default ID
+
+    // We use a simple fetch to Metered.live API.
+    // If you haven't set these env vars, it will return a fallback or error.
+    const url = `https://${METERED_ID}.metered.live/api/v1/turn/credentials?secret=${METERED_SECRET}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      // Fallback to static STUN if Metered fails or isn't configured
+      return res.json({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("TURN credentials error:", error.message);
+    res.json({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+  }
+});
 
 // Login Endpoint (Modified to include phone)
 app.post("/login", async (req, res) => {
@@ -1025,6 +1077,23 @@ app.post("/follow", async (req, res) => {
       return res.status(500).json({ error: "Failed to update follow state" });
     }
 
+    if (action === "follow") {
+      triggerNotification(username, 'followers', {
+        msg: `${currentUsername} started following you`,
+        link: `/@${currentUsername}`,
+        subject: "👤 New Follower on Textmob!",
+        html: `
+            <p style="font-size:16px; line-height:1.6; color:#333;">
+              Hi ${username},
+            </p>
+            <p style="font-size:15px; color:#333; margin-bottom:12px;">
+              <strong>@${currentUsername}</strong> is now following you on 
+              <strong style="color:#1E90FF;">Textmob</strong>.
+            </p>
+          `
+      });
+    }
+
     const status = action === "follow" ? "following" : "not_following";
     const label = action === "follow" ? "Following" : "Follow";
 
@@ -1087,6 +1156,23 @@ app.post("/friend", async (req, res) => {
     if (e1 || e2) {
       console.error("/friend DB error:", e1 || e2);
       return res.status(500).json({ error: "Failed to update friend state" });
+    }
+
+    if (action === "friend") {
+      triggerNotification(username, 'followers', {
+        msg: `${currentUsername} added you as a friend`,
+        link: `/@${currentUsername}`,
+        subject: "🤝 New Friend on Textmob!",
+        html: `
+            <p style="font-size:16px; line-height:1.6; color:#333;">
+              Hi ${username},
+            </p>
+            <p style="font-size:15px; color:#333; margin-bottom:12px;">
+              <strong>@${currentUsername}</strong> added you as a friend on 
+              <strong style="color:#1E90FF;">Textmob</strong>.
+            </p>
+          `
+      });
     }
 
     const status = action === "friend" ? "friended" : "not_friended";
@@ -1159,6 +1245,14 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
           biography: biography || "Biography not set",
           profile_type: profile_type || "Individual",
           disabled: false,
+          notification_prefs: {
+            likes: { inApp: true, email: true },
+            comments: { inApp: true, email: true },
+            mentions: { inApp: true, email: true },
+            followers: { inApp: true, email: true },
+            messages: { inApp: true, email: true },
+            mobcoins: { inApp: true, email: true }
+          },
         },
       ]);
     await sendNotificationEmail(
@@ -1822,7 +1916,7 @@ app.get("/profile/:username", async (req, res) => {
     const { username } = req.params;
     const { data: user, error } = await supabase
       .from("users")
-      .select("fullname, username,following, followers, friends, email, userType, profile_pic, biography, notifications, profile_type") // REMOVED friends/followers/following lists to save RAM
+      .select("fullname, username,following, followers, friends, email, userType, profile_pic, biography, notifications, profile_type, notification_prefs") // REMOVED friends/followers/following lists to save RAM
       .eq("username", username)
       .single();
 
@@ -2181,15 +2275,22 @@ async function addNotification(recipientUsername, notification) {
     try {
       if (user && user.userType) {
         if (typeof user.userType === "string") {
-          devices = JSON.parse(user.userType || "[]");
+          // Only parse if it looks like JSON array/object
+          if (user.userType.trim().startsWith("[") || user.userType.trim().startsWith("{")) {
+            devices = JSON.parse(user.userType || "[]");
+          } else {
+            // It's likely a label like "Muslim" or "Individual" - skip parsing
+            devices = [];
+          }
         } else {
           devices = user.userType || [];
         }
       }
     } catch (e) {
-      console.warn("Failed parse userType in addNotification", e);
+      // Catch error silently if it still fails
       devices = [];
     }
+
 
     if (devices.length === 0) {
       // nothing to push to
@@ -2887,59 +2988,81 @@ refreshSnapFeedCache();
 app.get("/snaps-feed", async (req, res) => {
   try {
     const { username } = req.query;
+    const limit = req.query.limit || 12; // 👈 We only send 12 high-quality snaps at a time
+
     if (!username) return res.status(400).json({ error: "Username is required" });
 
+    // Ensure cache is fresh
     if (!snapFeedCache.snaps.length || Date.now() - snapFeedCache.lastUpdated > 60000) {
       await refreshSnapFeedCache();
     }
 
+    // Get the seen set for this user
     if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
     const seen = userSnapSeenMap.get(username);
 
-    const now = Date.now();
-    const DAY = 86400000;
+    // Fetch social graph for affinity (Snaps from friends are 10x more addictive)
+    let userFollowing = new Set();
+    try {
+      const { data: me } = await supabase.from("users").select("following").eq("username", username).single();
+      userFollowing = new Set(me?.following || []);
+    } catch { /* ignore */ }
 
+    const now = Date.now();
+    const HOUR = 3600000;
+
+    // ── TIKTOK SNAP SCORER ──
     const scored = snapFeedCache.snaps.map(snap => {
-      const ageMs = now - new Date(snap.created_at).getTime();
-      const ageDays = ageMs / DAY;
+      const ageHours = (now - new Date(snap.created_at).getTime()) / HOUR;
       const likes = (snap.likes || []).length;
       const comments = (snap.comments || []).length;
 
-      // engagement score — likes weighted 2x, comments 3x
-      const engagement = (likes * 2) + (comments * 3);
+      // 1. Social Affinity (Friends get a huge boost)
+      const isFollowing = userFollowing.has(snap.username);
+      const affinityMul = isFollowing ? 4.0 : 1.0;
 
-      // freshness decay — halves every 12 hours
-      const freshness = Math.pow(0.5, ageDays * 2);
+      // 2. Engagement Velocity (How fast is this snap blowing up?)
+      const engagement = (likes * 2) + (comments * 5); // Comments on snaps = high intent
+      const velocity = engagement / Math.pow(ageHours + 1, 1.5);
 
-      // unseen bonus — strongly prefer content user hasn't watched
-      const unseenBonus = seen.has(snap.id) ? 0 : 8;
+      // 3. Freshness (Snaps should die after 48 hours unless viral)
+      const freshness = Math.pow(0.5, ageHours / 24);
 
-      // own content penalty — don't surface your own snaps at the top
-      const selfPenalty = snap.username === username ? -5 : 0;
+      // 4. THE SEEN PENALTY (Critical Fix)
+      // Instead of an "Unseen Bonus", we use a "Seen Multiplier". 
+      // If seen, the score becomes 0.001. This pushes it to the bottom of the pile.
+      const seenPenalty = seen.has(String(snap.id)) ? 0.001 : 1.0;
 
-      const score = (engagement * freshness) + unseenBonus + selfPenalty
-        // add small random noise so feed feels different each open
-        + (Math.random() * 1.5);
+      // 5. Self Penalty
+      const selfPenalty = snap.username === username ? 0.2 : 1.0;
 
-      return { ...snap, _score: score };
+      const score = (
+        (freshness * 10) +
+        (velocity * 5)
+      ) * affinityMul * seenPenalty * selfPenalty;
+
+      return { ...snap, _score: score + (Math.random() * 0.5) };
     });
 
-    // sort by score descending
+    // Sort by best score
     scored.sort((a, b) => b._score - a._score);
 
-    // mark all returned snaps as seen
-    scored.forEach(s => {
-      seen.add(s.id);
-      if (seen.size > 500) {
-        const arr = Array.from(seen);
-        userSnapSeenMap.set(username, new Set(arr.slice(-400)));
-      }
+    // Take the top 12 (The "Batch")
+    const batch = scored.slice(0, limit).map(({ _score, ...snap }) => snap);
+
+    // ONLY mark the 12 we actually sent as "Seen"
+    batch.forEach(s => {
+      seen.add(String(s.id));
     });
 
-    // strip internal score before sending
-    const result = scored.map(({ _score, ...snap }) => snap);
+    // Memory Cleanup: Keep seen history to 1000 items
+    if (seen.size > 1000) {
+      const iter = seen.keys();
+      for (let i = 0; i < 200; i++) seen.delete(iter.next().value);
+    }
 
-    res.json({ snaps: result });
+    res.json({ snaps: batch });
+
   } catch (err) {
     console.error("Snap Feed Error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -3043,26 +3166,39 @@ async function refreshSuggestCache() {
     const { data: users, error: uErr } = await supabase
       .from('users')
       .select('username, fullname, profile_pic, profile_type')
-      .limit(2000);
+      .limit(10000);
 
     if (!uErr && users) _userCache = users;
 
     // ── Posts ────────────────────────────────────────────────
+    // Major scale up for better predictions
     const { data: posts, error: pErr } = await supabase2
       .from('Posts')
-      .select('text')
+      .select('text, hashtags')
       .not('text', 'is', null)
       .neq('text', '')
       .order('created_at', { ascending: false })
-      .limit(800);
+      .limit(10000);
+
 
     if (pErr || !posts) return;
 
     const termCounts = {};  // single-token counts
     const termTypes = {};
-    const phraseCounts = {};  // bigram/trigram counts
-
+    const phraseCounts = {};
     posts.forEach(p => {
+
+      // ── Process explicit hashtags column first ───────────
+      if (Array.isArray(p.hashtags)) {
+        p.hashtags.forEach(tag => {
+          if (!tag) return;
+          const t = tag.startsWith('#') ? tag.toLowerCase() : '#' + tag.toLowerCase();
+          termCounts[t] = (termCounts[t] || 0) + 1;
+          termTypes[t] = 'hashtag';
+        });
+      }
+
+
       const tokens = tokenize(p.text || '');
       const seen = new Set(); // dedupe within one post
 
@@ -3075,8 +3211,9 @@ async function refreshSuggestCache() {
         if (type !== 'keyword' && bare.length < 2) return;
         if (type === 'keyword' && !isGoodWord(w)) return;
         termCounts[w] = (termCounts[w] || 0) + 1;
-        termTypes[w] = type;
+        if (!termTypes[w]) termTypes[w] = type;
       });
+
 
       // ── Bigrams (2-word phrases) ──────────────────────
       const plainTokens = tokens.filter(w =>
@@ -3116,19 +3253,24 @@ async function refreshSuggestCache() {
       }
     });
 
-    // Build term cache — only terms appearing in 2+ posts
+    // Build term cache — hashtags allowed with count >= 1
     _termCache = Object.entries(termCounts)
-      .filter(([, c]) => c >= 2)
+      .filter(([word, c]) => {
+        if (word.startsWith('#')) return true;
+        return c >= 2;
+      })
       .map(([word, count]) => ({ query: word, count, type: termTypes[word] || 'keyword' }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 400);
+      .slice(0, 5000);
+
 
     // Build phrase cache — only phrases appearing in 2+ posts
     _phraseCache = Object.entries(phraseCounts)
       .filter(([, c]) => c >= 2)
       .map(([phrase, count]) => ({ query: phrase, count, type: 'phrase' }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 300);
+      .slice(0, 2000);
+
 
     _lastUpdate = Date.now();
 
@@ -3149,7 +3291,8 @@ app.get('/search-suggest', async (req, res) => {
   try {
     const { query, currentUsername } = req.query;
     const q = (query || '').trim().toLowerCase();
-    if (!q || q.length < 1) return res.json([]);
+    if (!q) return res.json([]);
+
 
     // If cache is stale or empty, await a fresh build
     if (_lastUpdate === 0 || Date.now() - _lastUpdate > TTL) {
@@ -3157,43 +3300,48 @@ app.get('/search-suggest', async (req, res) => {
     }
 
     const results = [];
+    const isMention = (query || '').startsWith('@');
+    const isHashtag = (query || '').startsWith('#');
     const qClean = q.replace(/^[@#]/, '');
-    const qNorm = qClean.replace(/\s+/g, ''); // "lex ai" → "lexai"
+    const qNorm = qClean.replace(/\s+/g, '');
 
-    // ── Users (max 4) ──────────────────────────────────────
-    const users = _userCache
-      .filter(u => {
-        if (u.username === currentUsername) return false;
-        const uname = (u.username || '').toLowerCase();
-        const fname = (u.fullname || '').toLowerCase();
-        const unameNorm = uname.replace(/\s+/g, '');
-        const fnameNorm = fname.replace(/[\s_-]+/g, '');
-        return (
-          uname.includes(qClean) || fname.includes(qClean) ||
-          unameNorm.includes(qNorm) || fnameNorm.includes(qNorm)
-        );
-      })
-      .sort((a, b) => {
-        const score = u => {
-          const un = (u.username || '').toLowerCase();
-          const fn = (u.fullname || '').toLowerCase();
-          if (un.startsWith(qClean) || fn.startsWith(qClean)) return 0;
-          if (un.replace(/\s+/g, '').startsWith(qNorm)) return 1;
-          return 2;
-        };
-        return score(a) - score(b);
-      })
-      .slice(0, 4)
-      .map(u => ({ type: 'user', ...u }));
-
-    results.push(...users);
+    // ── Users (only if not a hashtag query) ────────────────
+    if (!isHashtag) {
+      const users = _userCache
+        .filter(u => {
+          if (u.username === currentUsername) return false;
+          const uname = (u.username || '').toLowerCase();
+          const fname = (u.fullname || '').toLowerCase();
+          const unameNorm = uname.replace(/\s+/g, '');
+          const fnameNorm = fname.replace(/[\s_-]+/g, '');
+          return (
+            uname.includes(qClean) || fname.includes(qClean) ||
+            unameNorm.includes(qNorm) || fnameNorm.includes(qNorm)
+          );
+        })
+        .sort((a, b) => {
+          const score = u => {
+            const un = (u.username || '').toLowerCase();
+            const fn = (u.fullname || '').toLowerCase();
+            if (un.startsWith(qClean) || fn.startsWith(qClean)) return 0;
+            if (un.replace(/\s+/g, '').startsWith(qNorm)) return 1;
+            return 2;
+          };
+          return score(a) - score(b);
+        })
+        .slice(0, isMention ? 9 : 4)
+        .map(u => ({ type: 'user', ...u }));
+      results.push(...users);
+    }
 
     // ── Single terms: hashtags, mentions, keywords (max 3) ──
-    const remaining1 = 7 - results.length;
+    const remaining1 = 9 - results.length;
     if (remaining1 > 0) {
       const terms = _termCache
         .filter(k => {
           const kq = k.query.replace(/^[#@]/, '');
+          if (isMention && k.query.startsWith('#')) return false;
+          if (isHashtag && !k.query.startsWith('#')) return false;
           return kq.startsWith(qClean) || kq.includes(qClean);
         })
         .sort((a, b) => {
@@ -3205,9 +3353,11 @@ app.get('/search-suggest', async (req, res) => {
       results.push(...terms);
     }
 
-    // ── Phrases: bigrams / trigrams / 4-grams (max 2) ────────
+    // ── Phrases: skip if specifically searching for user or hashtag ─
     const remaining2 = 9 - results.length;
-    if (remaining2 > 0 && qClean.length >= 2) {
+    if (!isMention && !isHashtag && remaining2 > 0 && qClean.length >= 2) {
+
+
       const phrases = _phraseCache
         .filter(p => p.query.includes(qClean))
         .sort((a, b) => {
@@ -3225,6 +3375,69 @@ app.get('/search-suggest', async (req, res) => {
     res.json([]); // never 500
   }
 });
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /generate-image
+// Generates an image using Gemini's imagen model and returns it as a PNG blob.
+//
+// Request body:  { prompt: string }
+// Response:      image/png binary  (or JSON { error } on failure)
+app.post("/generate-image", async (req, res) => {
+  const prompt = req.body?.prompt?.trim();
+
+  if (!prompt) {
+    console.error("[generate-image] Missing prompt");
+    return res.status(400).json({ error: "prompt is required" });
+  }
+
+  const apiKey = 'AIzaSyAiGxu2rodailKd-6BgaK7qTUsqMfu2kkg';
+  if (!apiKey) {
+    console.error("[generate-image] API key is missing");
+    return res.status(500).json({ error: "Server misconfigured" });
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-image-preview",
+      contents: prompt,
+    });
+
+    if (!response || !response.candidates || response.candidates.length === 0) {
+      console.error("[generate-image] No candidates returned from Gemini API");
+      return res.status(502).json({ error: "No image data returned" });
+    }
+
+    let imgBuffer = null;
+    let mimeType = "image/png";
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        imgBuffer = Buffer.from(part.inlineData.data, "base64");
+        mimeType = part.inlineData.mimeType || "image/png";
+        break;
+      }
+    }
+
+    if (!imgBuffer) {
+      console.error("[generate-image] No image data found in response parts:", JSON.stringify(response, null, 2));
+      return res.status(502).json({ error: "No image data returned from model" });
+    }
+
+    res.set({
+      "Content-Type": mimeType,
+      "Content-Length": String(imgBuffer.length),
+    });
+
+    return res.send(imgBuffer);
+  } catch (err) {
+    console.error("[generate-image] Gemini API error:", err);
+    return res.status(500).json({
+      error: 'Image Generation is in progress, and were yet to launch it, Stay tuned',
+    });
+  }
+});
+
 // --- AI Reply Helper ---
 /**
  * triggerAIReply
@@ -3874,39 +4087,21 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
         // Loop mentions and notify each
         for (var i = 0; i < mentions.length; i++) {
           var mentionedUser = mentions[i];
-          try {
-            var notification = {
-              id: Date.now(),
-              message: username + " mentioned you in a post",
-              read: false,
+          if (mentionedUser && mentionedUser !== username) {
+            triggerNotification(mentionedUser, 'mentions', {
+              msg: `@${username} mentioned you in a post`,
               link: "/post/" + data.id,
-              timestamp: new Date().toISOString()
-            };
-            await addNotification(mentionedUser, notification);
-          } catch (addNotifErr) {
-            console.error("[create-post] addNotification failed for", mentionedUser, addNotifErr);
+              subject: `🏷️ @${username} mentioned you on Textmob!`,
+              html: `<p><strong>@${username}</strong> just mentioned you in a post on <strong>Textmob</strong>.</p><p><a href="https://textmob.web.app/post/${data.id}">View Post</a></p>`
+            });
           }
 
           // If textmobai or askify is mentioned, safely trigger AI reply
-          try {
-            if (mentionedUser && typeof mentionedUser === "string") {
-              const lowerMentionedUser = mentionedUser.toLowerCase();
-              if (lowerMentionedUser === "textmobai") {
-                try {
-                  await triggerAIReply(text, mediaUrls, safeMediaTypes, data.id, "post");
-                } catch (aiErr) {
-                  console.error("[create-post] triggerAIReply failed for textmobai:", aiErr);
-                }
-              } else if (lowerMentionedUser === "askify") {
-                try {
-                  await triggerAskifyReply(text, data.id, "post", username);
-                } catch (aiErr) {
-                  console.error("[create-post] triggerAskifyReply failed for askify:", aiErr);
-                }
-              }
-            }
-          } catch (detErr) {
-            console.error("[create-post] error checking mentionedUser:", detErr);
+          const lowerMentionedUser = mentionedUser?.toLowerCase();
+          if (lowerMentionedUser === "textmobai") {
+            triggerAIReply(text, mediaUrls, safeMediaTypes, data.id, "post").catch(e => console.error(e));
+          } else if (lowerMentionedUser === "askify") {
+            triggerAskifyReply(text, data.id, "post", username).catch(e => console.error(e));
           }
         }
 
@@ -4697,39 +4892,8 @@ app.get("/posts-by-hashtag", async (req, res) => {
   }
 });
 
-app.get("/trending-hashtags", async (req, res) => {
-  try {
-    // Aggregate hashtags from recent posts (e.g., last 24 hours)
-    const { data: posts, error } = await supabase2
-      .from("Posts")
-      .select("hashtags")
+// Old Trending Removed
 
-    if (error) {
-      console.error("Error fetching trending hashtags:", error);
-      return res.status(500).json({ error: "Failed to fetch trending hashtags" });
-    }
-
-    // Flatten all hashtags into a single array
-    const allHashtags = posts.flatMap(post => post.hashtags || []);
-
-    // Count occurrences of each hashtag
-    const hashtagCounts = {};
-    allHashtags.forEach(tag => {
-      hashtagCounts[tag] = (hashtagCounts[tag] || 0) + 1;
-    });
-
-    // Sort hashtags by frequency
-    const trendingHashtags = Object.entries(hashtagCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10) // Top 10 trending hashtags
-      .map(([tag]) => tag);
-
-    res.json(trendingHashtags);
-  } catch (error) {
-    console.error("Error fetching trending hashtags:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 
 app.use(express.static("public"));
 
@@ -4774,92 +4938,34 @@ app.post("/like-post", async (req, res) => {
 
     // Send notification only if it's a like and not the post owner's own like
     if (username !== post.username && action === "liked") {
-      // ✅ Fetch the post owner's user data
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("email, fullname")
-        .eq("username", post.username)
-        .single();
+      const type = (post.type === 'event') ? 'events' : 'likes';
+      const msg = (post.type === 'event')
+        ? `${username} is interested in your event: ${post.title}`
+        : `${username} liked your post`;
 
-      if (!userError && userData && userData.email) {
-        if (post.type === 'event') { // Add in-app notification
-          await addNotification(post.username, {
-            id: Date.now(),
-            message: `${username} Is interested in Your Event : ${post.title}.`,
-            read: false,
-            link: `/post/${postId}`,
-            timestamp: new Date().toISOString(),
-          });
-        } else {
-          await addNotification(post.username, {
-            id: Date.now(),
-            message: `${username} Liked Your Post`,
-            read: false,
-            link: `/post/${postId}`,
-            timestamp: new Date().toISOString(),
-          });
-        }
-
-        if (post.type === 'event') {
-          await sendNotificationEmail(
-            userData.email,
-            `🔔 Someone is Interested in Your Event: ${post.title} | Textmob`,
-            `
+      triggerNotification(post.username, type, {
+        msg,
+        link: `/post/${postId}`,
+        subject: (post.type === 'event')
+          ? `🔔 Someone is Interested in Your Event: ${post.title} | Textmob`
+          : "🔔 New Like on Your Post | Textmob",
+        html: `
             <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${userData.fullName || post.username},
+              Hi ${post.username},
             </p>
-        
             <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>${username}</strong> has just shown interest in your event on 
+              <strong>${username}</strong> just ${action} your ${post.type === 'event' ? 'event' : 'post'} on 
               <strong style="color:#1E90FF;">Textmob</strong>.
             </p>
-        
             <p style="font-size:15px; margin:20px 0; text-align:center;">
               <a href="https://textmob.web.app/post/${postId}" 
                  style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
                         text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                🎉 View Event
+                View ${post.type === 'event' ? 'Event' : 'Post'}
               </a>
             </p>
-        
-            <p style="font-size:13px; color:#777; text-align:center; margin-top:20px;">
-              Keep building connections on <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
-            `
-          );
-        } else {
-          // Send email notification for likes
-          await sendNotificationEmail(
-            userData.email,
-            "🔔 New Like on Your Post | Textmob",
-            `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${userData.fullName || post.username},
-            </p>
-        
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>${username}</strong> just liked your post on 
-              <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
-        
-            <p style="font-size:15px; margin:20px 0; text-align:center;">
-              <a href="https://textmob.web.app/post/${postId}" 
-                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                ❤️ View Post
-              </a>
-            </p>
-        
-            <p style="font-size:13px; color:#777; text-align:center; margin-top:20px;">
-              Stay active and keep engaging on <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
-            `
-          );
-        }
-
-      } else {
-        console.warn(`Could not send email: User data not found for ${post.username}`, userError);
-      }
+          `
+      });
     }
     res.json({ message: "Post likes updated successfully!", likes: updatedLikes });
   } catch (error) {
@@ -4922,43 +5028,28 @@ app.post("/react-post", async (req, res) => {
 
     // Notifications (if not reacting to own post)
     if (username !== post.username && action === "added") {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("email, fullname")
-        .eq("username", post.username)
-        .single();
-
-      if (!userError && userData && userData.email) {
-        const message = `${username} reacted ${reaction} to your post`;
-        await addNotification(post.username, {
-          id: Date.now(),
-          message: message,
-          read: false,
-          link: `/post/${postId}`,
-          timestamp: new Date().toISOString()
-        });
-
-        await sendNotificationEmail(
-          userData.email,
-          "💬 New Reaction on Your Post | Textmob",
-          `
+      triggerNotification(post.username, 'likes', {
+        msg: `${username} reacted ${reaction} to your post`,
+        link: `/post/${postId}`,
+        subject: "💬 New Reaction on Your Post | Textmob",
+        html: `
             <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${userData.fullname || post.username},
+              Hi ${post.username},
             </p>
-            <p style="font-size:15px; color:#333;">
-              <strong>${username}</strong> reacted <span style="font-size:20px;">${reaction}</span> to your post.
+            <p style="font-size:15px; color:#333; margin-bottom:12px;">
+              <strong>${username}</strong> reacted <span style="font-size:20px;">${reaction}</span> to your post on 
+              <strong style="color:#1E90FF;">Textmob</strong>.
             </p>
-            <p style="text-align:center; margin:20px 0;">
-              <a href="https://textmob.web.app/post/${postId}"
-                 style="background:#1E90FF; color:#fff; padding:10px 24px; border-radius:6px; text-decoration:none;">
+            <p style="font-size:15px; margin:20px 0; text-align:center;">
+              <a href="https://textmob.web.app/post/${postId}" 
+                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
+                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
                 View Post
               </a>
             </p>
           `
-        );
-      }
+      });
     }
-
     res.json({
       message: "Reaction updated successfully",
       reactions: updatedReactions,
@@ -5165,69 +5256,30 @@ app.post("/add-comment", async (req, res) => {
 
     // Notify post owner (skip if commenting on your own post)
     if (username !== post.username) {
-      try {
-        var { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("email, fullname")
-          .eq("username", post.username)
-          .single();
-
-        if (!userError && userData && userData.email) {
-          try {
-            await addNotification(post.username, {
-              id: Date.now(),
-              message: username + " commented on your post: \"" + comment + "\"",
-              read: false,
-              link: postLink,
-              timestamp: new Date().toISOString()
-            });
-          } catch (notifErr) {
-            console.error("[add-comment] addNotification for post owner failed:", notifErr);
-          }
-
-          try {
-            await sendNotificationEmail(
-              userData.email,
-              "💬 New Comment on Your Post | Textmob",
-              `
-              <p style="font-size:16px; line-height:1.6; color:#333;">
-                Hi ${userData.fullname || post.username},
-              </p>
-            
-              <p style="font-size:15px; color:#333; margin-bottom:12px;">
-                <strong>${username}</strong> just commented on your post:
-              </p>
-            
-              <div style="margin:12px 0; max-width:520px; display:flex; align-items:flex-start; gap:12px;">
-                <div style="background:#f3f4f6; padding:12px 16px; border-radius:16px; 
-                            font-size:14px; color:#111; line-height:1.5; flex:1;">
-                  <div style="font-weight:600; font-size:14px; color:#111;">${username}</div>
-                  <div style="font-size:14px; color:#333; margin-top:4px;">${comment}</div>
-                </div>
-              </div>
-            
-              <p style="font-size:15px; margin:20px 0; text-align:center;">
-                <a href="https://textmob.web.app${postLink}" 
-                   style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                          text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                  💬 View Post
-                </a>
-              </p>
-            
-              <p style="font-size:13px; color:#777; text-align:center; margin-top:20px;">
-                Join the conversation on <strong style="color:#1E90FF;">Textmob</strong>.
-              </p>
-              `
-            );
-          } catch (emailErr) {
-            console.error("[add-comment] sendNotificationEmail failed:", emailErr);
-          }
-        } else {
-          console.warn("[add-comment] Could not send email: User data not found for", post.username, userError);
-        }
-      } catch (ownerFetchErr) {
-        console.error("[add-comment] error fetching post owner userData:", ownerFetchErr);
-      }
+      triggerNotification(post.username, 'comments', {
+        msg: `${username} commented on your post: "${comment}"`,
+        link: postLink,
+        subject: "💬 New Comment on Your Post | Textmob",
+        html: `
+            <p style="font-size:16px; line-height:1.6; color:#333;">
+              Hi ${post.username},
+            </p>
+            <p style="font-size:15px; color:#333; margin-bottom:12px;">
+              <strong>${username}</strong> just commented on your post:
+            </p>
+            <div style="background:#f3f4f6; padding:12px 16px; border-radius:16px; font-size:14px; color:#111;">
+              <div style="font-weight:600;">${username}</div>
+              <div style="margin-top:4px;">${comment}</div>
+            </div>
+            <p style="font-size:15px; margin:20px 0; text-align:center;">
+              <a href="https://textmob.web.app${postLink}" 
+                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
+                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
+                💬 View Post
+              </a>
+            </p>
+          `
+      });
     }
 
     // Parse mentions in comment (@username)
@@ -5239,37 +5291,21 @@ app.post("/add-comment", async (req, res) => {
     // Loop mentions and notify; if textmobai or askify mentioned -> trigger AI reply
     for (var i = 0; i < mentions.length; i++) {
       var mentionedUser = mentions[i];
-      try {
-        // Skip notifying the post owner or commenter here if it's their own mention
-        if (mentionedUser !== post.username && mentionedUser !== username) {
-          try {
-            await addNotification(mentionedUser, {
-              id: Date.now(),
-              message: username + " mentioned you in a comment",
-              read: false,
-              link: postLink,
-              timestamp: new Date().toISOString()
-            });
-          } catch (notifErr2) {
-            console.error("[add-comment] addNotification failed for mentioned user", mentionedUser, notifErr2);
-          }
-        }
+      if (mentionedUser && mentionedUser !== post.username && mentionedUser !== username) {
+        triggerNotification(mentionedUser, 'mentions', {
+          msg: `${username} mentioned you in a comment`,
+          link: postLink,
+          subject: `🏷️ @${username} mentioned you in a comment!`,
+          html: `<p><strong>@${username}</strong> mentioned you in a comment on <strong>Textmob</strong>.</p><p><a href="https://textmob.web.app${postLink}">View Comment</a></p>`
+        });
+      }
 
-        // If textmobai or askify mentioned, trigger AI reply (do not let this crash)
-        try {
-          if (mentionedUser && typeof mentionedUser === "string") {
-            const lowerMentionedUser = mentionedUser.toLowerCase();
-            if (lowerMentionedUser === "textmobai") {
-              await triggerAIReply(comment, null, null, postId, "comment", username);
-            } else if (lowerMentionedUser === "askify") {
-              await triggerAskifyReply(comment, postId, "comment", username);
-            }
-          }
-        } catch (aiErr2) {
-          console.error("[add-comment] triggerAI/AskifyReply failed for", mentionedUser, aiErr2);
-        }
-      } catch (loopErr) {
-        console.error("[add-comment] error processing mention", mentionedUser, loopErr);
+      // If textmobai or askify mentioned, trigger AI reply
+      const lowerMentionedUser = mentionedUser?.toLowerCase();
+      if (lowerMentionedUser === "textmobai") {
+        triggerAIReply(comment, null, null, postId, "comment", username).catch(ce => console.error(ce));
+      } else if (lowerMentionedUser === "askify") {
+        triggerAskifyReply(comment, postId, "comment", username).catch(ae => console.error(ae));
       }
     }
 
@@ -5290,7 +5326,32 @@ app.get("/ai/daily-post", async (req, res) => {
 });
 
 
+// Helper function to bypass the 1000 row limit
+async function fetchAll(client, table, selectQuery, orderByColumn = 'created_at') {
+  let allData = [];
+  let from = 0;
+  const limit = 1000;
+  let fetchMore = true;
 
+  while (fetchMore) {
+    const { data, error } = await client
+      .from(table)
+      .select(selectQuery)
+      .order(orderByColumn, { ascending: false })
+      .range(from, from + limit - 1);
+
+    if (error) throw new Error(`Error fetching ${table}: ${error.message}`);
+
+    if (data && data.length > 0) {
+      allData.push(...data);
+      from += limit; // Move to the next 1000 rows
+      if (data.length < limit) fetchMore = false; // We reached the end
+    } else {
+      fetchMore = false;
+    }
+  }
+  return allData;
+}
 // In-memory cache
 let cache = {
   users: [],
@@ -5344,18 +5405,19 @@ async function updateCache() {
   try {
     const now = new Date();
 
-    // 1️⃣ Fetch USERS
-    const { data: users, error: userErr } = await supabase
-      .from("users")
-      .select("id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled")
-      .order('created_at', { ascending: false });
-    if (userErr) throw new Error(`User fetch error: ${userErr.message}`);
-
+    const users = await fetchAll(
+      supabase,
+      "users",
+      "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled"
+    );
     // 2️⃣ Fetch POSTS
-    const { data: posts, error: postErr } = await supabase2
-      .from("Posts")
-      .select("id, username, type, likes, comments, created_at");
-    if (postErr) throw new Error(`Post fetch error: ${postErr.message}`);
+    // NOTE: Change 'content' and 'media' below to match your actual database column names 
+    // for the post text and the post images/videos! (e.g., 'text', 'image_url', etc.)
+    const posts = await fetchAll(
+      supabase2,
+      "Posts",
+      "id, username, type, likes, comments, created_at, text, media"
+    );
 
     // Filter posts from last 7 days
     const sevenDaysAgo = new Date(now);
@@ -5432,18 +5494,46 @@ async function updateCache() {
       if (p.username) postMap[p.username] = (postMap[p.username] || 0) + 1;
     });
 
-    // 🧠 7-day activity maps
+    // 🧠 7-day activity maps (WITH QUALITY FILTER)
     const posts7dMap = {};
     const likes7dMap = {};
     const comments7dMap = {};
+
+    // Regex to detect and remove emojis so we can count actual words
+    const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
+
     recentPosts.forEach(p => {
       if (p.username) {
-        posts7dMap[p.username] = (posts7dMap[p.username] || 0) + 1;
+        let postScore = 0;
+
+        // 1. Check for media (adjust 'p.media' if your column is named 'image' or 'attachments')
+        const hasMedia = p.media && (Array.isArray(p.media) ? p.media.length > 0 : p.media.length > 0);
+
+        // 2. Check for meaningful text (adjust 'p.content' if your column is named 'text' or 'body')
+        const rawText = p.content || p.text || '';
+        const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
+        const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
+
+        // 3. Assign Points based on your rules
+        if (hasMedia) {
+          postScore += 2; // +2 points for having media
+        }
+
+        if (wordCount > 3) {
+          postScore += 1; // +1 point for having a meaningful sentence
+        } else if (!hasMedia) {
+          // If it has NO media AND is 3 words or less (or just emojis)
+          postScore += 0.1; // Penalized: Almost zero credit for spamming
+        }
+
+        // Add the quality score instead of just "1"
+        posts7dMap[p.username] = (posts7dMap[p.username] || 0) + postScore;
+
+        // Count likes and comments normally
         likes7dMap[p.username] = (likes7dMap[p.username] || 0) + (Array.isArray(p.likes) ? p.likes.length : 0);
         comments7dMap[p.username] = (comments7dMap[p.username] || 0) + (Array.isArray(p.comments) ? p.comments.length : 0);
       }
     });
-
     // 🏆 Top users by rank (overall)
     const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai"];
     const rankedUsers = users
@@ -5628,12 +5718,46 @@ async function updateCache() {
     // Keep previous cache state to avoid serving empty data
   }
 }
+// Function to update ONLY the feed in real-time (Saves memory)
+async function updateQuickFeed() {
+  if (!isCacheInitialized) return;
+
+  try {
+    // Fetch ONLY the 100 most recent posts
+    const { data: recentPosts, error } = await supabase2
+      .from("Posts")
+      .select("id, username, type, likes, comments, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (error) throw new Error(`Quick fetch error: ${error.message}`);
+
+    // Update our existing cache with new likes/comments or brand new posts
+    recentPosts.forEach(newPost => {
+      const index = cache.posts.findIndex(p => p.id === newPost.id);
+      if (index !== -1) {
+        // Post exists: update its likes and comments
+        cache.posts[index] = newPost;
+      } else {
+        // Brand new post: add it to the top of the feed
+        cache.posts.unshift(newPost);
+      }
+    });
+
+  } catch (err) {
+    console.error('Quick feed update error:', err.message);
+  }
+}
+
 // Initialize cache before starting server
 (async () => {
   console.log('Initializing cache...');
-  await updateCache(); // Wait for initial cache population
+  await updateCache(); // Initial heavy load
   console.log('Initial cache populated.');
-  setInterval(updateCache, 5000); // Update every 5 seconds
+
+  // The Two-Tier System Timers:
+  setInterval(updateQuickFeed, 5000);   // Fast: Updates only the feed every 5 seconds
+  setInterval(updateCache, 300000);     // Heavy: Updates all analytics & totals every 5 minutes
 })();
 
 // Endpoint using cached data
@@ -6312,61 +6436,6 @@ app.post("/connect", async (req, res) => {
   }
 });
 
-// Allowed games and max coins per play
-const GAME_CONFIG = {
-  snake: { maxCoins: 50 },
-  breakout: { maxCoins: 50 },
-  smartlink: { maxCoins: 20 }
-};
-app.post("/t/claim-game-reward", async (req, res) => {
-  try {
-    const { userId, gameId, coins } = req.body;
-    if (!userId || !gameId || typeof coins !== 'number') {
-      return res.status(400).json({ error: "Missing or invalid fields" });
-    }
-    if (!GAME_CONFIG[gameId]) {
-      return res.status(400).json({ error: "Unknown gameId" });
-    }
-    // Basic validation and cap
-    const max = GAME_CONFIG[gameId].maxCoins;
-    const award = Math.max(0, Math.min(Math.floor(coins), max)); // integer 0..max
-    if (award <= 0) {
-      return res.status(200).json({ message: "No reward to claim" });
-    }
-    // Fetch user
-    const { data: user, error: fetchErr } = await supabase
-      .from("users")
-      .select("id, mobcoins, username, email")
-      .eq("username", userId)
-      .single();
-    if (fetchErr || !user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    const newBalance = (user.mobcoins || 0) + award;
-    // Update user's mobcoins
-    const { error: updateErr } = await supabase
-      .from("users")
-      .update({ mobcoins: newBalance })
-      .eq("username", userId);
-    if (updateErr) {
-      console.error("Failed to update balance:", updateErr);
-      return res.status(500).json({ error: "Failed to update balance" });
-    }
-    // Add in-app notification
-    await addNotification(user.username, {
-      id: Date.now(),
-      message: `You earned ${award} Mobcoins from ${gameId} Service [Source: Monetag]`,
-      read: false
-    });
-    // Optional: send email (commented out as original)
-    // await sendNotificationEmail(user.email, "Mobcoins earned", `You earned ${award} Mobcoins playing ${gameId} game`);
-    return res.json({ message: `Awarded ${award} Mobcoins`, award, balance: newBalance });
-  } catch (err) {
-    console.error("Claim game reward error:", err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 const randomMessages = [
@@ -6394,7 +6463,6 @@ const randomMessages = [
   // 8 — Weekly recap
   "⏳ A week flies by fast, but Textmob keeps the memories alive. From funny memes to inspiring stories, the feed has been full of gems. One highlight? A random photo post turned into a global thread with people sharing pictures of their morning skies. 🌅\n\nDon’t miss out—catch up on what’s been happening and drop your voice into the mix. 📲"
 ];
-
 
 const generateRandomDigest = () => {
   const randomIndex = Math.floor(Math.random() * randomMessages.length);
@@ -7498,6 +7566,116 @@ async function refreshPostCache() {
   }
 }
 setInterval(refreshPostCache, 10000);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /trending-hashtags — Extracts dynamic hashtags from recent posts
+// ─────────────────────────────────────────────────────────────────────────────
+const TREND_LIMIT = 4;
+const WINDOW_DAYS = 7;
+const WINDOW_MS = WINDOW_DAYS * 24 * 60 * 60 * 1000;
+const hashtagRegex = /#([a-zA-Z0-9_]+)/g;
+
+function getPostTime(post) {
+  const raw =
+    post?.createdAt ??
+    post?.created_at ??
+    post?.timestamp ??
+    post?.date ??
+    post?.time;
+
+  const ts = raw ? new Date(raw).getTime() : NaN;
+  return Number.isFinite(ts) ? ts : null;
+}
+
+function extractUniqueHashtags(text) {
+  const tags = [];
+  const seen = new Set();
+
+  hashtagRegex.lastIndex = 0; // important because the regex is global
+  let match;
+  while ((match = hashtagRegex.exec(text)) !== null) {
+    const tag = match[1].toLowerCase();
+    if (!seen.has(tag)) {
+      seen.add(tag);
+      tags.push(tag);
+    }
+  }
+
+  return tags;
+}
+
+function collectTrendingFromPosts(posts, startTime, endTime = Infinity, excludedTags = new Set()) {
+  const tagCounts = new Map();
+  const lastSeen = new Map();
+
+  for (const post of posts) {
+    if (!post || !post.text) continue;
+
+    const ts = getPostTime(post);
+    if (ts == null) continue;
+    if (ts < startTime || ts > endTime) continue;
+
+    const tags = extractUniqueHashtags(post.text);
+
+    for (const tag of tags) {
+      if (excludedTags.has(tag)) continue;
+
+      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+
+      const prev = lastSeen.get(tag);
+      if (prev == null || ts > prev) {
+        lastSeen.set(tag, ts);
+      }
+    }
+  }
+
+  return [...tagCounts.entries()]
+    .map(([tag, count]) => ({
+      tag,
+      count,
+      lastSeen: lastSeen.get(tag) || 0,
+    }))
+    .sort((a, b) => b.count - a.count || b.lastSeen - a.lastSeen || a.tag.localeCompare(b.tag));
+}
+
+app.get("/trending-hashtags", (req, res) => {
+  try {
+    const now = Date.now();
+    const windowStart = now - WINDOW_MS;
+
+    const allPosts = Array.isArray(postCache?.allPosts) ? postCache.allPosts : [];
+
+    // 1) Main ranking: last 7 days only
+    const recentTags = collectTrendingFromPosts(allPosts, windowStart, now);
+
+    // 2) If not enough tags, fill the remaining slots from older posts
+    //    without changing the 7-day logic for the main results.
+    let finalTags = recentTags.slice(0, TREND_LIMIT);
+
+    if (finalTags.length < TREND_LIMIT) {
+      const excluded = new Set(finalTags.map(t => t.tag));
+      const olderTags = collectTrendingFromPosts(allPosts, -Infinity, windowStart - 1, excluded);
+
+      finalTags = finalTags.concat(olderTags.slice(0, TREND_LIMIT - finalTags.length));
+    }
+
+    // If still empty, keep your fallback
+    if (finalTags.length === 0) {
+      finalTags = [
+        { tag: "textmob", count: 15 },
+        { tag: "africanvoice", count: 12 },
+        { tag: "hidden_gem", count: 8 },
+        { tag: "tech", count: 5 },
+      ].slice(0, TREND_LIMIT);
+    }
+
+    // remove internal field before sending
+    res.json(finalTags.map(({ tag, count }) => ({ tag, count })));
+  } catch (err) {
+    console.error("Error generating trending tags", err);
+    res.status(500).json({ error: "Failed" });
+  }
+});
 refreshPostCache();
 
 // Generate a session ID for this request
@@ -7582,14 +7760,8 @@ app.get("/get-posts", async (req, res) => {
   try {
     const username = req.query.username;
     const tab = req.query.tab || "foryou";
-    const page = Math.max(1, parseInt(req.query.page || "1", 10));
+    // REMOVED page. We no longer care about pagination from the frontend.
     const limit = Math.min(20, Math.max(5, parseInt(req.query.limit || "10", 10)));
-
-    // seenIds — used as a SOFT penalty only, not hard exclusion
-    // Hard exclusion was the root cause of "only 1–3 posts on first load"
-    const clientSeenIds = new Set(
-      (req.query.seenIds || "").split(",").filter(Boolean)
-    );
 
     if (!username) return res.status(400).json({ error: "Username is required" });
 
@@ -7598,18 +7770,21 @@ app.get("/get-posts", async (req, res) => {
       await refreshPostCache();
     }
 
-    // ── Server-side per-user seen set ────────────────────────────────────────
+    // ── Session-Based Seen Tracking ──────────────────────────────────────────
     if (!userFeedState.has(username)) userFeedState.set(username, new Set());
     const serverSeen = userFeedState.get(username);
 
-    // ── Helper: is this a group post? ────────────────────────────────────────
+    // Merge client-sent seen IDs with our server session
+    const clientSeen = (req.query.seenIds || "").split(",").filter(Boolean);
+    clientSeen.forEach(id => serverSeen.add(String(id)));
+
+    // Helper: is this a group post?
     function isGroupPost(p) {
       if (!p || !p.type) return false;
-      const t = p.type.toLowerCase();
-      return t.startsWith("group");
+      return p.type.toLowerCase().startsWith("group");
     }
 
-    // ── FOLLOWING TAB ────────────────────────────────────────────────────────
+    // ── FOLLOWING TAB (Now supports Session-Based Scrolling) ─────────────────
     if (tab === "following") {
       try {
         const { data: userData } = await supabase
@@ -7623,24 +7798,32 @@ app.get("/get-posts", async (req, res) => {
 
         const followingPosts = postCache.allPosts
           .filter(p => p && allowedUsernames.has(p.username) && !isGroupPost(p))
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          // Push unseen posts to the top, seen posts to the bottom
+          .sort((a, b) => {
+            const aSeen = serverSeen.has(String(a.id)) ? 1 : 0;
+            const bSeen = serverSeen.has(String(b.id)) ? 1 : 0;
+            if (aSeen !== bSeen) return aSeen - bSeen; // Unseen first
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          });
 
-        const start = (page - 1) * limit;
-        return res.json(followingPosts.slice(start, start + limit));
+        const finalFollowing = followingPosts.slice(0, limit);
+
+        // Mark as seen for next scroll
+        finalFollowing.forEach(p => serverSeen.add(String(p.id)));
+        return res.json(finalFollowing);
       } catch (fErr) {
         console.error("Following feed error:", fErr);
         // fall through to For You
       }
     }
 
-    // ── FOR YOU TAB ──────────────────────────────────────────────────────────
+    // ── FOR YOU TAB (TikTok Algorithm) ───────────────────────────────────────
 
-    // Step 1: Remove group posts — the only HARD filter
+    // Step 1: Base eligibility
     const eligible = postCache.allPosts.filter(p => p && p.id && p.username && !isGroupPost(p));
-
     if (eligible.length === 0) return res.json([]);
 
-    // Step 2: Fetch user's social graph for affinity scoring
+    // Step 2: Fetch user's social graph
     let userFollowing = new Set();
     let userFriends = new Set();
     try {
@@ -7656,8 +7839,7 @@ app.get("/get-posts", async (req, res) => {
     const now = Date.now();
     const HOUR = 3600000;
 
-    // Step 3: Score every eligible post
-    // Higher score = shown earlier. No post is excluded by score alone.
+    // Step 3: TikTok-Style Scoring
     function scorePost(p) {
       const ageMs = now - new Date(p.created_at).getTime();
       const ageHours = Math.max(0.1, ageMs / HOUR);
@@ -7666,121 +7848,109 @@ app.get("/get-posts", async (req, res) => {
       const comments = (p.comments || []).length;
       const reactions = (p.reactions || []).length;
 
-      // ── Social affinity (most important signal) ───────────────────────────
-      // Friends and people you follow get a BIG multiplier so their content
-      // always surfaces near the top — this is the "unified social experience"
+      // 1. AFFINITY (Who are they to you?)
       const isFriend = userFriends.has(p.username);
       const isFollowing = userFollowing.has(p.username);
-      // Friends: 4× | Following: 2.5× | Strangers: 1×
-      const affinityMul = isFriend ? 4.0 : isFollowing ? 2.5 : 1.0;
+      // Massive boost for friends/following so they don't get lost among viral stranger posts
+      const affinityMul = isFriend ? 5.0 : isFollowing ? 3.0 : 1.0;
 
-      // ── Social proof (X "liked by people you follow") ─────────────────────
-      const friendLiked = (p.likes || []).some(l => userFriends.has(l) || userFollowing.has(l));
-      const friendCommented = (p.comments || []).some(c => userFriends.has(c.username) || userFollowing.has(c.username));
-      const socialProof = (friendLiked ? 1.5 : 0) + (friendCommented ? 2.0 : 0);
+      // 2. SOCIAL PROOF (Did your friends interact with this?)
+      const friendLiked = (p.likes || []).some(l => userFollowing.has(l));
+      const friendCommented = (p.comments || []).some(c => userFollowing.has(c?.username || c));
+      const socialProof = (friendLiked ? 2.0 : 0) + (friendCommented ? 3.0 : 0);
 
-      // ── Freshness decay (TikTok style) ────────────────────────────────────
-      // Halves every 8h for friends/following, every 4h for strangers
-      // This means a friend's 2-day-old post still outranks a stranger's 1h post
-      const halfLifeHours = (isFriend || isFollowing) ? 8 : 4;
+      // 3. FRESHNESS DECAY
+      // Friends' posts stay relevant for 12 hours, strangers for 3 hours
+      const halfLifeHours = (isFriend || isFollowing) ? 12 : 3;
       const freshness = Math.pow(0.5, ageHours / halfLifeHours);
 
-      // ── Engagement velocity ───────────────────────────────────────────────
-      const totalEngagement = likes + (comments * 2) + (reactions * 1.2);
-      const velocity = totalEngagement / Math.pow(ageHours + 1, 1.2);
+      // 4. VIRALITY / VELOCITY
+      // Comments are weighted higher because they require more effort (higher stickiness)
+      const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
+      // How fast did they get this engagement?
+      const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
 
-      // ── Content type bonuses ──────────────────────────────────────────────
-      let typeBonus = 0;
-      if (p.type === "live" || p.type === "event") typeBonus = 5.0;
-      if (p.type === "poll") typeBonus = 0.5;
-      if (p.type === "snap") typeBonus = 0.3;
+      // 5. CONTENT TYPE BONUSES (Visuals/Events drive retention)
+      let typeBonus = 1.0;
+      if (p.type === "live" || p.type === "event") typeBonus = 3.0;
+      if (p.media && p.media.length > 0) typeBonus = 1.5; // Visuals keep people scrolling
+      if (p.type === "poll") typeBonus = 1.2;
 
-      // ── Seen penalty (soft — never excludes, just ranks lower) ───────────
-      // Client-seen: 0.3× | Server-seen: 0.5× | Unseen: 1×
-      const seenByClient = clientSeenIds.has(String(p.id));
-      const seenByServer = serverSeen.has(p.id);
-      const seenPenalty = seenByClient ? 0.3 : seenByServer ? 0.5 : 1.0;
+      // 6. THE "INFINITE SCROLL" SEEN PENALTY
+      // Instead of removing seen posts entirely (which causes the 1-3 post bug),
+      // we multiply their score by 0.00001. They sink to the absolute bottom, 
+      // making the next highest *unseen* posts naturally float to the top!
+      const isSeen = serverSeen.has(String(p.id));
+      const seenPenalty = isSeen ? 0.00001 : 1.0;
 
-      // ── Own post slight penalty (don't flood feed with self) ──────────────
-      const selfPenalty = p.username === username ? 0.7 : 1.0;
+      // 7. SELF PENALTY
+      const selfPenalty = p.username === username ? 0.1 : 1.0;
 
-      // ── textmobai: handled separately, exclude from main scoring ──────────
+      // AI handled separately
       if (p.username === "textmobai") return -1;
 
-      // ── Final score ───────────────────────────────────────────────────────
+      // ── FINAL TIKTOK SCORE ──
       const base = (
-        (freshness * 4.0) +   // recency is the foundation
-        (velocity * 1.5) +   // engagement velocity adds to it
-        (socialProof) +   // friend activity boosts it
-        (typeBonus)     // content type modifier
-      ) * affinityMul * seenPenalty * selfPenalty;
+        (freshness * 5.0) +     // People want NEW stuff
+        (velocity * 3.0) +      // People want VIRAL stuff
+        (socialProof * 2.0)     // People want RELEVANT stuff
+      ) * affinityMul * typeBonus * seenPenalty * selfPenalty;
 
-      // Tiny noise prevents identical feed every session
-      return base + Math.random() * 0.15;
+      // Random noise prevents the exact same feed calculation if scores tie
+      return base + (Math.random() * 0.2);
     }
 
-    // Step 4: Sort by score (descending)
-    const aiPosts = eligible.filter(p => p.username === "textmobai");
+    // Step 4: Sort by our new algorithm
+    const aiPosts = eligible.filter(p => p.username === "textmobai" && !serverSeen.has(String(p.id)));
     const humanPosts = eligible
       .filter(p => p.username !== "textmobai")
       .map(p => ({ p, s: scorePost(p) }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.p);
 
-    // Step 5: Diversity pass — no same user in back-to-back 3 slots
-    // IMPORTANT: if we can't fill `limit` with diversity, we relax the gap
-    // This is what prevents the "only 3 posts" bug
-    function diversifyWithFallback(posts, targetCount) {
-      // First pass: strict gap of 3
+    // Step 5: Diversity Pass (Prevents 4 posts from the same user in a row)
+    function diversify(posts, targetCount) {
       const result = [];
       const skipped = [];
-      const lastPos = new Map();
+      const userCount = new Map();
 
       for (const post of posts) {
         if (result.length >= targetCount) break;
-        const last = lastPos.get(post.username) ?? -999;
-        if (result.length - last >= 3) {
+        const count = userCount.get(post.username) || 0;
+
+        // Max 2 posts from the same user per feed batch
+        if (count < 2) {
           result.push(post);
-          lastPos.set(post.username, result.length - 1);
+          userCount.set(post.username, count + 1);
         } else {
           skipped.push(post);
         }
       }
 
-      // Second pass: if still under target, add skipped posts ignoring gap
-      // (diversity is nice-to-have; hitting the count is required)
+      // If we don't have enough posts (e.g. small DB), fill with skipped ones
       if (result.length < targetCount) {
         for (const post of skipped) {
           if (result.length >= targetCount) break;
           result.push(post);
         }
       }
-
-      // Third pass: if STILL under (very sparse DB), add remaining from all posts
-      if (result.length < targetCount) {
-        for (const post of posts) {
-          if (result.length >= targetCount) break;
-          if (!result.some(r => r.id === post.id)) result.push(post);
-        }
-      }
-
       return result;
     }
 
-    // Step 6: Paginate BEFORE diversity so each page gets its own diversity pass
-    // This ensures page 2 doesn't just get the posts page 1 dropped
-    const start = (page - 1) * limit;
-    const pageSlice = humanPosts.slice(start, start + limit * 3); // grab 3× to give diversity room
-    const diversified = diversifyWithFallback(pageSlice, limit);
+    // Because seen posts sink to the bottom, slicing 0 -> limit naturally 
+    // grabs the next page of unseen posts automatically!
+    const bestNextPosts = humanPosts.slice(0, limit * 2);
+    const diversified = diversify(bestNextPosts, limit);
 
-    // Step 7: Interleave textmobai every 6 human posts
+    // Step 6: Interleave AI (Every 5th post)
     function interleaveAI(humanArr, aiArr) {
       if (!aiArr.length) return humanArr;
       const result = [];
       let aiIdx = 0;
       for (let i = 0; i < humanArr.length; i++) {
         result.push(humanArr[i]);
-        if ((i + 1) % 6 === 0 && aiIdx < aiArr.length) {
+        // Insert AI post every 5 human posts
+        if ((i + 1) % 5 === 0 && aiIdx < aiArr.length) {
           result.push(aiArr[aiIdx++]);
         }
       }
@@ -7789,12 +7959,14 @@ app.get("/get-posts", async (req, res) => {
 
     const finalFeed = interleaveAI(diversified, aiPosts);
 
-    // Step 8: Mark as server-seen (after building the response)
+    // Step 7: Mark these posts as SEEN in the server session
     finalFeed.forEach(p => {
-      serverSeen.add(p.id);
-      if (serverSeen.size > 1000) {
+      serverSeen.add(String(p.id));
+
+      // Memory management: Prevent serverSeen from growing infinitely
+      if (serverSeen.size > 2000) {
         const iter = serverSeen.keys();
-        for (let i = 0; i < 300; i++) serverSeen.delete(iter.next().value);
+        for (let i = 0; i < 500; i++) serverSeen.delete(iter.next().value);
       }
     });
 
@@ -8669,6 +8841,35 @@ app.post("/profile/:username/update-type", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// ── POST /profile/:username/notification-prefs ───────────────────────────────
+// Updates the detailed notification preferences (likes, comments, etc.)
+app.post("/profile/:username/notification-prefs", async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { notification_prefs } = req.body;
+
+    if (!username || !notification_prefs) {
+      return res.status(400).json({ error: "Username and preferences required" });
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update({ notification_prefs })
+      .eq("username", username);
+
+    if (error) {
+      console.error("/notification-prefs DB error:", error);
+      return res.status(500).json({ error: "Failed to update notification preferences" });
+    }
+
+    res.json({ success: true, notification_prefs });
+  } catch (err) {
+    console.error("/notification-prefs error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 
 // — ADD member
 app.post('/groups/:groupId/members', async (req, res) => {
