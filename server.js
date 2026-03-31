@@ -2432,7 +2432,7 @@ setInterval(async () => {
   } catch (err) {
     console.error("Spark cleanup error:", err);
   }
-}, 5000);
+}, 86400000);
 
 app.get("/feed-sparks", async (req, res) => {
   try {
@@ -2941,10 +2941,6 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
   }
 });
 
-const snapFeedCache = {
-  snaps: [],
-  lastUpdated: 0,
-};
 const userSnapSeenMap = new Map();
 const snapFeedSessionMap = new Map();
 
@@ -2966,25 +2962,7 @@ function shuffleSnapsArray(array) {
   return array;
 }
 
-// Refresh only snaps into the snap cache
-async function refreshSnapFeedCache() {
-  const { data: snapPosts, error } = await supabase2
-    .from("Posts")
-    .select("*")
-    .eq("type", "snap")
-    .order("created_at", { ascending: false });
-
-  if (!error) {
-    snapFeedCache.snaps = snapPosts;
-    snapFeedCache.lastUpdated = Date.now();
-  } else {
-    console.error("Snap Feed Cache Error:", error);
-  }
-}
-
-// Refresh every 1 minute
-setInterval(refreshSnapFeedCache, 60000);
-refreshSnapFeedCache();
+// Snap caching and intervals removed to fetch directly from DB
 app.get("/snaps-feed", async (req, res) => {
   try {
     const { username } = req.query;
@@ -2992,10 +2970,20 @@ app.get("/snaps-feed", async (req, res) => {
 
     if (!username) return res.status(400).json({ error: "Username is required" });
 
-    // Ensure cache is fresh
-    if (!snapFeedCache.snaps.length || Date.now() - snapFeedCache.lastUpdated > 60000) {
-      await refreshSnapFeedCache();
+    // Directly fetch recent snaps from DB up to 200 (since we removed cache)
+    const { data: snapFeedPosts, error } = await supabase2
+      .from("Posts")
+      .select("*")
+      .eq("type", "snap")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+
+    if (error) {
+      console.error("Snap feed fetching error:", error);
+      return res.status(500).json({ error: "Internal server error" });
     }
+
+    const snaps = snapFeedPosts || [];
 
     // Get the seen set for this user
     if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
@@ -3012,7 +3000,7 @@ app.get("/snaps-feed", async (req, res) => {
     const HOUR = 3600000;
 
     // ── TIKTOK SNAP SCORER ──
-    const scored = snapFeedCache.snaps.map(snap => {
+    const scored = snaps.map(snap => {
       const ageHours = (now - new Date(snap.created_at).getTime()) / HOUR;
       const likes = (snap.likes || []).length;
       const comments = (snap.comments || []).length;
@@ -3069,9 +3057,6 @@ app.get("/snaps-feed", async (req, res) => {
   }
 });
 
-async function cleanupExpiredSnaps() {
-  // No more snap clean ups
-}
 function extractPublicIdFromUrl(url) {
   try {
     const parts = url.split("/");
@@ -3083,296 +3068,69 @@ function extractPublicIdFromUrl(url) {
   }
 }
 
-setInterval(cleanupExpiredSnaps, 10 * 60 * 1000); // every 10 mins
-
 // ============================================================
 //  GET /search-suggest
-//  Install: npm install natural
-//
-//  Returns: users + keywords (single words) + hashtags +
-//           mentions + bigrams/trigrams (2-4 word phrases)
-//  All from in-memory cache, refreshed every 3 minutes.
-// ============================================================
-
-const natural = require('natural');
-const NGrams = natural.NGrams;
-
-// ── stop words ────────────────────────────────────────────────
-const STOP_WORDS = new Set([
-  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
-  'is', 'was', 'are', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do',
-  'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'shall',
-  'it', 'its', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'we',
-  'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'our', 'their',
-  'what', 'which', 'who', 'when', 'where', 'how', 'why', 'not', 'no', 'so', 'if',
-  'just', 'like', 'get', 'got', 'can', 'am', 'up', 'out', 'go', 'im', 'rt', 'via',
-  'from', 'by', 'as', 'into', 'about', 'also', 'than', 'then', 'some', 'all',
-  'more', 'very', 'too', 'now', 'here', 'there', 'been', 'new', 'one', 'two',
-  'lol', 'haha', 'ok', 'okay', 'yes', 'yeah', 'yep', 'nope', 'omg', 'wow',
-  'said', 'says', 'going', 'come', 'came', 'let', 'put', 'see', 'know', 'think',
-  'want', 'need', 'good', 'great', 'really', 'time', 'day', 'people', 'make',
-  'made', 'still', 'even', 'back', 'way', 'since', 'well', 'also', 'just',
-]);
-
-// ── clean text into an array of tokens ────────────────────────
-function tokenize(text) {
-  if (!text) return [];
-  return text
-    .toLowerCase()
-    .replace(/<[^>]+>/g, ' ')            // strip HTML
-    .replace(/https?:\/\/\S+/g, ' ')     // strip URLs
-    .replace(/[^a-z0-9#@'\s-]/g, ' ')
-    .split(/\s+/)
-    .map(w => w.replace(/^[^a-z0-9#@]+|[^a-z0-9]+$/g, ''))
-    .filter(w => w.length >= 2);
-}
-
-// ── determine token type ──────────────────────────────────────
-function tokenType(w) {
-  if (w.startsWith('#')) return 'hashtag';
-  if (w.startsWith('@')) return 'mention';
-  return 'keyword';
-}
-
-// ── is a plain word worth keeping ────────────────────────────
-function isGoodWord(w) {
-  if (w.length < 3) return false;
-  if (/^\d+$/.test(w)) return false;
-  if (STOP_WORDS.has(w)) return false;
-  return true;
-}
-
-// ── is an ngram phrase worth keeping ─────────────────────────
-function isGoodPhrase(tokens) {
-  // must have at least one non-stop content word
-  const hasContent = tokens.some(t => !STOP_WORDS.has(t) && t.length >= 3 && !/^\d+$/.test(t));
-  // must not start or end with a stop word
-  const badEdge = STOP_WORDS.has(tokens[0]) || STOP_WORDS.has(tokens[tokens.length - 1]);
-  return hasContent && !badEdge;
-}
-
-// ─────────────────────────────────────────────────────────────
-//  Cache state
-// ─────────────────────────────────────────────────────────────
-let _userCache = [];   // [{ username, fullname, profile_pic, profile_type }]
-let _termCache = [];   // [{ query, count, type }]  — single words + special tokens
-let _phraseCache = [];   // [{ query, count, type: 'phrase' }]  — bigrams + trigrams
-let _lastUpdate = 0;
-const TTL = 3 * 60 * 1000;
-
-async function refreshSuggestCache() {
-  try {
-    // ── Users ────────────────────────────────────────────────
-    const { data: users, error: uErr } = await supabase
-      .from('users')
-      .select('username, fullname, profile_pic, profile_type')
-      .limit(10000);
-
-    if (!uErr && users) _userCache = users;
-
-    // ── Posts ────────────────────────────────────────────────
-    // Major scale up for better predictions
-    const { data: posts, error: pErr } = await supabase2
-      .from('Posts')
-      .select('text, hashtags')
-      .not('text', 'is', null)
-      .neq('text', '')
-      .order('created_at', { ascending: false })
-      .limit(10000);
-
-
-    if (pErr || !posts) return;
-
-    const termCounts = {};  // single-token counts
-    const termTypes = {};
-    const phraseCounts = {};
-    posts.forEach(p => {
-
-      // ── Process explicit hashtags column first ───────────
-      if (Array.isArray(p.hashtags)) {
-        p.hashtags.forEach(tag => {
-          if (!tag) return;
-          const t = tag.startsWith('#') ? tag.toLowerCase() : '#' + tag.toLowerCase();
-          termCounts[t] = (termCounts[t] || 0) + 1;
-          termTypes[t] = 'hashtag';
-        });
-      }
-
-
-      const tokens = tokenize(p.text || '');
-      const seen = new Set(); // dedupe within one post
-
-      // ── Single tokens ───────────────────────────────────
-      tokens.forEach(w => {
-        if (seen.has(w)) return;
-        seen.add(w);
-        const type = tokenType(w);
-        const bare = w.replace(/^[#@]/, '');
-        if (type !== 'keyword' && bare.length < 2) return;
-        if (type === 'keyword' && !isGoodWord(w)) return;
-        termCounts[w] = (termCounts[w] || 0) + 1;
-        if (!termTypes[w]) termTypes[w] = type;
-      });
-
-
-      // ── Bigrams (2-word phrases) ──────────────────────
-      const plainTokens = tokens.filter(w =>
-        tokenType(w) === 'keyword' && isGoodWord(w)
-      );
-
-      if (plainTokens.length >= 2) {
-        NGrams.bigrams(plainTokens).forEach(gram => {
-          if (!isGoodPhrase(gram)) return;
-          const phrase = gram.join(' ');
-          if (seen.has('bi:' + phrase)) return;
-          seen.add('bi:' + phrase);
-          phraseCounts[phrase] = (phraseCounts[phrase] || 0) + 1;
-        });
-      }
-
-      // ── Trigrams (3-word phrases) ─────────────────────
-      if (plainTokens.length >= 3) {
-        NGrams.trigrams(plainTokens).forEach(gram => {
-          if (!isGoodPhrase(gram)) return;
-          const phrase = gram.join(' ');
-          if (seen.has('tri:' + phrase)) return;
-          seen.add('tri:' + phrase);
-          phraseCounts[phrase] = (phraseCounts[phrase] || 0) + 1;
-        });
-      }
-
-      // ── 4-grams (4-word phrases) ──────────────────────
-      if (plainTokens.length >= 4) {
-        NGrams.ngrams(plainTokens, 4).forEach(gram => {
-          if (!isGoodPhrase(gram)) return;
-          const phrase = gram.join(' ');
-          if (seen.has('4g:' + phrase)) return;
-          seen.add('4g:' + phrase);
-          phraseCounts[phrase] = (phraseCounts[phrase] || 0) + 1;
-        });
-      }
-    });
-
-    // Build term cache — hashtags allowed with count >= 1
-    _termCache = Object.entries(termCounts)
-      .filter(([word, c]) => {
-        if (word.startsWith('#')) return true;
-        return c >= 2;
-      })
-      .map(([word, count]) => ({ query: word, count, type: termTypes[word] || 'keyword' }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5000);
-
-
-    // Build phrase cache — only phrases appearing in 2+ posts
-    _phraseCache = Object.entries(phraseCounts)
-      .filter(([, c]) => c >= 2)
-      .map(([phrase, count]) => ({ query: phrase, count, type: 'phrase' }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 2000);
-
-
-    _lastUpdate = Date.now();
-
-    console.log(`[suggest] cache: ${_userCache.length} users, ${_termCache.length} terms, ${_phraseCache.length} phrases`);
-  } catch (err) {
-    console.error('refreshSuggestCache error:', err);
-  }
-}
-
-// Warm on startup, refresh every 3 minutes
-refreshSuggestCache();
-setInterval(refreshSuggestCache, TTL);
-
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 //  Route
-// ─────────────────────────────────────────────────────────────
+// -------------------------------------------------------------
 app.get('/search-suggest', async (req, res) => {
   try {
     const { query, currentUsername } = req.query;
     const q = (query || '').trim().toLowerCase();
     if (!q) return res.json([]);
 
-
-    // If cache is stale or empty, await a fresh build
-    if (_lastUpdate === 0 || Date.now() - _lastUpdate > TTL) {
-      await refreshSuggestCache();
-    }
-
     const results = [];
-    const isMention = (query || '').startsWith('@');
-    const isHashtag = (query || '').startsWith('#');
+    const isMention = q.startsWith('@');
+    const isHashtag = q.startsWith('#');
     const qClean = q.replace(/^[@#]/, '');
-    const qNorm = qClean.replace(/\s+/g, '');
 
-    // ── Users (only if not a hashtag query) ────────────────
-    if (!isHashtag) {
-      const users = _userCache
-        .filter(u => {
-          if (u.username === currentUsername) return false;
-          const uname = (u.username || '').toLowerCase();
-          const fname = (u.fullname || '').toLowerCase();
-          const unameNorm = uname.replace(/\s+/g, '');
-          const fnameNorm = fname.replace(/[\s_-]+/g, '');
-          return (
-            uname.includes(qClean) || fname.includes(qClean) ||
-            unameNorm.includes(qNorm) || fnameNorm.includes(qNorm)
-          );
-        })
-        .sort((a, b) => {
-          const score = u => {
-            const un = (u.username || '').toLowerCase();
-            const fn = (u.fullname || '').toLowerCase();
-            if (un.startsWith(qClean) || fn.startsWith(qClean)) return 0;
-            if (un.replace(/\s+/g, '').startsWith(qNorm)) return 1;
-            return 2;
-          };
-          return score(a) - score(b);
-        })
-        .slice(0, isMention ? 9 : 4)
-        .map(u => ({ type: 'user', ...u }));
-      results.push(...users);
-    }
+    if (isHashtag) {
+      // Very basic hashtag extraction from recent posts
+      const { data: recentPosts } = await supabase2
+        .from('Posts')
+        .select('hashtags')
+        .not('hashtags', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(500);
 
-    // ── Single terms: hashtags, mentions, keywords (max 3) ──
-    const remaining1 = 9 - results.length;
-    if (remaining1 > 0) {
-      const terms = _termCache
-        .filter(k => {
-          const kq = k.query.replace(/^[#@]/, '');
-          if (isMention && k.query.startsWith('#')) return false;
-          if (isHashtag && !k.query.startsWith('#')) return false;
-          return kq.startsWith(qClean) || kq.includes(qClean);
-        })
-        .sort((a, b) => {
-          const aS = a.query.replace(/^[#@]/, '').startsWith(qClean) ? 0 : 1;
-          const bS = b.query.replace(/^[#@]/, '').startsWith(qClean) ? 0 : 1;
-          return aS - bS || b.count - a.count;
-        })
-        .slice(0, remaining1);
-      results.push(...terms);
-    }
+      const counts = {};
+      (recentPosts || []).forEach(p => {
+        if (Array.isArray(p.hashtags)) {
+          p.hashtags.forEach(tag => {
+            const t = tag.toLowerCase();
+            if (t.includes(qClean)) {
+              counts[t] = (counts[t] || 0) + 1;
+            }
+          });
+        }
+      });
 
-    // ── Phrases: skip if specifically searching for user or hashtag ─
-    const remaining2 = 9 - results.length;
-    if (!isMention && !isHashtag && remaining2 > 0 && qClean.length >= 2) {
+      const tags = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 9)
+        .map(([tQuery, count]) => ({ query: '#' + tQuery, count, type: 'hashtag' }));
 
+      results.push(...tags);
+    } else {
+      // Find matching users dynamically
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('username, fullname, profile_pic, profile_type')
+        .or(`username.ilike.%${qClean}%,fullname.ilike.%${qClean}%`)
+        .limit(isMention ? 9 : 4);
 
-      const phrases = _phraseCache
-        .filter(p => p.query.includes(qClean))
-        .sort((a, b) => {
-          const aS = a.query.startsWith(qClean) ? 0 : 1;
-          const bS = b.query.startsWith(qClean) ? 0 : 1;
-          return aS - bS || b.count - a.count;
-        })
-        .slice(0, remaining2);
-      results.push(...phrases);
+      if (!error && users) {
+        const sortedUsers = users
+          .filter(u => u.username !== currentUsername)
+          .map(u => ({ type: 'user', ...u }));
+        results.push(...sortedUsers);
+      }
     }
 
     res.json(results.slice(0, 9));
   } catch (err) {
     console.error('/search-suggest error:', err);
-    res.json([]); // never 500
+    res.json([]);
   }
 });
 // ─────────────────────────────────────────────────────────────────────────────
@@ -5373,55 +5131,11 @@ async function fetchAll(client, table, selectQuery, orderByColumn = 'created_at'
   return allData;
 }
 // In-memory cache
-let cache = {
-  users: [],
-  posts: [],
-  analytics: {
-    signups: {
-      hourLabels: [],
-      hourCounts: [],
-      dayLabels: [],
-      dayCounts: [],
-      weekLabels: [],
-      weekCounts: [],
-      monthLabels: [],
-      monthCounts: []
-    },
-    postCreations: {
-      hourLabels: [],
-      hourCounts: [],
-      dayLabels: [],
-      dayCounts: [],
-      weekLabels: [],
-      weekCounts: [],
-      monthLabels: [],
-      monthCounts: []
-    },
-    posts: {
-      totalPosts: 0,
-      pollPosts: 0,
-      normalPosts: 0,
-      anonPosts: 0,
-      eventPosts: 0,
-      avgLikes: 0,
-      avgComments: 0,
-      totalLikes: 0,
-      totalComments: 0,
-      engagementRate: 0
-    },
-    topUsers: [],
-    topUsers7d: [],
-    topCoinHolders: [],
-    postCountsPerUser: {},
-    totalMobcoins: 0,
-    userWeeklyGrowth: 'N/A',
-    postWeeklyGrowth: 'N/A'
-  }
-};
-let adminChatHistory = [];
-let isCacheInitialized = false; // Track initial cache population
-// Function to update cache
-async function updateCache() {
+// -------------------------------------------------------------
+// GET /asilfcismail
+// (On-demand analytics fetching replacing previous massive global cache)
+// -------------------------------------------------------------
+app.get("/asilfcismail", async (req, res) => {
   try {
     const now = new Date();
 
@@ -5430,21 +5144,16 @@ async function updateCache() {
       "users",
       "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled"
     );
-    // 2️⃣ Fetch POSTS
-    // NOTE: Change 'content' and 'media' below to match your actual database column names 
-    // for the post text and the post images/videos! (e.g., 'text', 'image_url', etc.)
     const posts = await fetchAll(
       supabase2,
       "Posts",
-      "id, username, type, likes, comments, created_at, text, media"
+      "id, username, type, likes, comments, created_at, text, media, reactions, content"
     );
 
-    // Filter posts from last 7 days
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
 
-    // 📅 Signup analytics
     const hourLabels = Array.from({ length: 24 }, (_, i) => `${23 - i} hours ago`);
     const hourCounts = Array(24).fill(0);
     const dayLabels = Array.from({ length: 7 }, (_, i) => {
@@ -5476,7 +5185,6 @@ async function updateCache() {
       if (diffM < 12) monthCounts[11 - diffM]++;
     });
 
-    // 📅 Post creation analytics
     const postHourLabels = Array.from({ length: 24 }, (_, i) => `${23 - i} hours ago`);
     const postHourCounts = Array(24).fill(0);
     const postDayLabels = Array.from({ length: 7 }, (_, i) => {
@@ -5508,53 +5216,34 @@ async function updateCache() {
       if (diffM < 12) postMonthCounts[11 - diffM]++;
     });
 
-    // 🧠 User post count (overall)
     const postMap = {};
     posts.forEach(p => {
       if (p.username) postMap[p.username] = (postMap[p.username] || 0) + 1;
     });
 
-    // 🧠 7-day activity maps (WITH QUALITY FILTER)
     const posts7dMap = {};
     const likes7dMap = {};
     const comments7dMap = {};
-
-    // Regex to detect and remove emojis so we can count actual words
     const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
 
     recentPosts.forEach(p => {
       if (p.username) {
         let postScore = 0;
-
-        // 1. Check for media (adjust 'p.media' if your column is named 'image' or 'attachments')
-        const hasMedia = p.media && (Array.isArray(p.media) ? p.media.length > 0 : p.media.length > 0);
-
-        // 2. Check for meaningful text (adjust 'p.content' if your column is named 'text' or 'body')
+        const hasMedia = p.media && p.media.length > 0;
         const rawText = p.content || p.text || '';
         const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
         const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
 
-        // 3. Assign Points based on your rules
-        if (hasMedia) {
-          postScore += 2; // +2 points for having media
-        }
+        if (hasMedia) postScore += 2;
+        if (wordCount > 3) postScore += 1;
+        else if (!hasMedia) postScore += 0.1;
 
-        if (wordCount > 3) {
-          postScore += 1; // +1 point for having a meaningful sentence
-        } else if (!hasMedia) {
-          // If it has NO media AND is 3 words or less (or just emojis)
-          postScore += 0.1; // Penalized: Almost zero credit for spamming
-        }
-
-        // Add the quality score instead of just "1"
         posts7dMap[p.username] = (posts7dMap[p.username] || 0) + postScore;
-
-        // Count likes and comments normally
         likes7dMap[p.username] = (likes7dMap[p.username] || 0) + (Array.isArray(p.likes) ? p.likes.length : 0);
         comments7dMap[p.username] = (comments7dMap[p.username] || 0) + (Array.isArray(p.comments) ? p.comments.length : 0);
       }
     });
-    // 🏆 Top users by rank (overall)
+
     const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai"];
     const rankedUsers = users
       .filter(u => !excluded.includes(u.username))
@@ -5575,8 +5264,6 @@ async function updateCache() {
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
 
-    // --- UPDATED: Top users by 7-day activity using weighted normalized score ---
-    // Build reactions map (if posts include a `reactions` array)
     const reactions7dMap = {};
     recentPosts.forEach(function (p) {
       if (!p || !p.created_at) return;
@@ -5586,7 +5273,6 @@ async function updateCache() {
       }
     });
 
-    // prepare raw 7-day metrics per user (exclude special accounts)
     var users7dMetrics = users
       .filter(function (u) { return !excluded.includes(u.username); })
       .map(function (u) {
@@ -5596,7 +5282,6 @@ async function updateCache() {
         var reactions7d = reactions7dMap[u.username] || 0;
         var totalEngagement7d = posts7d + likes7d + comments7d;
         var mobcoins = u.mobcoins || 0;
-        // fallback: if no separate reactions, use likes as proxy
         var totalReactions = reactions7d > 0 ? reactions7d : likes7d;
         return {
           username: u.username,
@@ -5611,43 +5296,15 @@ async function updateCache() {
         };
       });
 
-    // helper to find max value for a key
-    function maxOf(arr, key) {
-      if (!arr || arr.length === 0) return 0;
-      var m = 0;
-      for (var i = 0; i < arr.length; i++) {
-        var v = arr[i][key] || 0;
-        if (v > m) m = v;
-      }
-      return m;
-    }
-    var maxEng = maxOf(users7dMetrics, 'totalEngagement7d');
-    var maxPosts7d = maxOf(users7dMetrics, 'posts7d');
-    var maxMob = maxOf(users7dMetrics, 'mobcoins');
-    var maxReac = maxOf(users7dMetrics, 'totalReactions');
-
-    // normalizer
-    function norm(val, max) {
-      return (max > 0) ? (val / max) : 0;
-    }
-
-    // compute weighted score (20% engagement, 20% posts, 50% mobcoins, 10% reactions)
     var weighted7d = users7dMetrics.map(function (u) {
-      var s = 0.6 * u.totalEngagement7d
-        + 0.2 * u.posts7d
-        + 0.2 * u.totalReactions;
-      // convert to percent with one decimal (0.0 - 100.0)
-      var scorePct = Math.round(s * 10) / 10;
-      u.score7d = scorePct;
+      var s = 0.6 * u.totalEngagement7d + 0.2 * u.posts7d + 0.2 * u.totalReactions;
+      u.score7d = Math.round(s * 10) / 10;
       return u;
     });
 
-
-    // sort and take top 10 (preserve original slice default)
     weighted7d.sort(function (a, b) { return b.score7d - a.score7d; });
     const topUsers7d = weighted7d.filter(function (u) { return u.score7d > 0; }).slice(0, 10);
 
-    // 🏆 Top coin holders
     const topCoinHolders = users
       .map(u => ({
         username: u.username,
@@ -5657,7 +5314,6 @@ async function updateCache() {
       .sort((a, b) => b.mobcoins - a.mobcoins)
       .slice(0, 5);
 
-    // 🧮 Post stats
     const totalPosts = posts.length;
     const pollPosts = posts.filter(p => p.type === "poll").length;
     const normalPosts = posts.filter(p => p.type === "post").length;
@@ -5668,11 +5324,8 @@ async function updateCache() {
     const avgLikes = totalPosts > 0 ? Math.round(totalLikes / totalPosts) : 0;
     const avgComments = totalPosts > 0 ? Math.round(totalComments / totalPosts) : 0;
     const engagementRate = totalPosts > 0 ? ((totalLikes + totalComments) / totalPosts).toFixed(2) : 0;
-
-    // 💰 Mobcoins
     const totalMobcoins = users.reduce((s, u) => s + (u.mobcoins || 0), 0);
 
-    // 📈 Growth percentages
     const prevWeekUsers = weekCounts[2] || 0;
     const currWeekUsers = weekCounts[3] || 0;
     const userWeeklyGrowth = prevWeekUsers > 0 ? ((currWeekUsers - prevWeekUsers) / prevWeekUsers * 100).toFixed(1) : 'N/A';
@@ -5681,43 +5334,13 @@ async function updateCache() {
     const currWeekPosts = postWeekCounts[3] || 0;
     const postWeeklyGrowth = prevWeekPosts > 0 ? ((currWeekPosts - prevWeekPosts) / prevWeekPosts * 100).toFixed(1) : 'N/A';
 
-    // Build new cache state
     const newCache = {
       users: users || [],
       posts: posts || [],
       analytics: {
-        signups: {
-          hourLabels,
-          hourCounts,
-          dayLabels,
-          dayCounts,
-          weekLabels,
-          weekCounts,
-          monthLabels,
-          monthCounts
-        },
-        postCreations: {
-          hourLabels: postHourLabels,
-          hourCounts: postHourCounts,
-          dayLabels: postDayLabels,
-          dayCounts: postDayCounts,
-          weekLabels: postWeekLabels,
-          weekCounts: postWeekCounts,
-          monthLabels: postMonthLabels,
-          monthCounts: postMonthCounts
-        },
-        posts: {
-          totalPosts,
-          pollPosts,
-          normalPosts,
-          anonPosts,
-          eventPosts,
-          avgLikes,
-          avgComments,
-          totalLikes,
-          totalComments,
-          engagementRate
-        },
+        signups: { hourLabels, hourCounts, dayLabels, dayCounts, weekLabels, weekCounts, monthLabels, monthCounts },
+        postCreations: { hourLabels: postHourLabels, hourCounts: postHourCounts, dayLabels: postDayLabels, dayCounts: postDayCounts, weekLabels: postWeekLabels, weekCounts: postWeekCounts, monthLabels: postMonthLabels, monthCounts: postMonthCounts },
+        posts: { totalPosts, pollPosts, normalPosts, anonPosts, eventPosts, avgLikes, avgComments, totalLikes, totalComments, engagementRate },
         topUsers: rankedUsers,
         topUsers7d,
         topCoinHolders,
@@ -5728,514 +5351,19 @@ async function updateCache() {
       }
     };
 
-    // Update global cache atomically
-    cache = newCache;
-    isCacheInitialized = true;
-
-    console.log('Cache updated at', now.toISOString());
-  } catch (err) {
-    console.error('Cache update error:', err.message);
-    // Keep previous cache state to avoid serving empty data
-  }
-}
-// Function to update ONLY the feed in real-time (Saves memory)
-async function updateQuickFeed() {
-  if (!isCacheInitialized) return;
-
-  try {
-    // Fetch ONLY the 100 most recent posts
-    const { data: recentPosts, error } = await supabase2
-      .from("Posts")
-      .select("id, username, type, likes, comments, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (error) throw new Error(`Quick fetch error: ${error.message}`);
-
-    // Update our existing cache with new likes/comments or brand new posts
-    recentPosts.forEach(newPost => {
-      const index = cache.posts.findIndex(p => p.id === newPost.id);
-      if (index !== -1) {
-        // Post exists: update its likes and comments
-        cache.posts[index] = newPost;
-      } else {
-        // Brand new post: add it to the top of the feed
-        cache.posts.unshift(newPost);
-      }
-    });
-
-  } catch (err) {
-    console.error('Quick feed update error:', err.message);
-  }
-}
-
-// Initialize cache before starting server
-(async () => {
-  console.log('Initializing cache...');
-  await updateCache(); // Initial heavy load
-  console.log('Initial cache populated.');
-
-  // The Two-Tier System Timers:
-  setInterval(updateQuickFeed, 5000);   // Fast: Updates only the feed every 5 seconds
-  setInterval(updateCache, 300000);     // Heavy: Updates all analytics & totals every 5 minutes
-})();
-
-// Endpoint using cached data
-app.get("/asilfcismail", async (req, res) => {
-  try {
     if (req.query.json === 'true') {
-      return res.json(cache.analytics);
+      return res.json(newCache.analytics);
     }
 
-    // Ensure cache is initialized before proceeding
-    if (!isCacheInitialized) {
-      console.log('Cache not initialized, forcing update...');
-      await updateCache();
-    }
+    // Instead of rendering a huge EJS page with users and posts, we return analytics for the dashboard
+    res.json(newCache.analytics);
 
-    const now = new Date();
-
-    // Use cached data with fallbacks
-    const { users = [], posts = [], analytics = {} } = cache;
-    const {
-      signups: {
-        hourLabels = [],
-        hourCounts = [],
-        dayLabels = [],
-        dayCounts = [],
-        weekLabels = [],
-        weekCounts = [],
-        monthLabels = [],
-        monthCounts = []
-      } = {},
-      postCreations: {
-        hourLabels: postHourLabels = [],
-        hourCounts: postHourCounts = [],
-        dayLabels: postDayLabels = [],
-        dayCounts: postDayCounts = [],
-        weekLabels: postWeekLabels = [],
-        weekCounts: postWeekCounts = [],
-        monthLabels: postMonthLabels = [],
-        monthCounts: postMonthCounts = []
-      } = {},
-      posts: {
-        totalPosts = 0,
-        pollPosts = 0,
-        normalPosts = 0,
-        anonPosts = 0,
-        eventPosts = 0,
-        avgLikes = 0,
-        avgComments = 0,
-        totalLikes = 0,
-        totalComments = 0,
-        engagementRate = 0
-      } = {},
-      topUsers = [],
-      topUsers7d = [],
-      topCoinHolders = [],
-      postCountsPerUser = {},
-      totalMobcoins = 0,
-      userWeeklyGrowth = 'N/A',
-      postWeeklyGrowth = 'N/A'
-    } = analytics;
-
-    // Log cache state for debugging
-    console.log('Cache state:', {
-      usersCount: users.length,
-      postsCount: posts.length,
-      topUsersCount: topUsers.length
-    });
-
-    res.send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Textmob Admin Dashboard</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-      <style>
-        body {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          background: #f9fafb;
-          min-height: 100vh;
-          margin: 0;
-        }
-        .container {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 1.5rem;
-        }
-        .tab-btn {
-          padding: 0.75rem 1.5rem;
-          font-size: 1rem;
-          font-weight: 500;
-          color: #4b5563;
-          border-radius: 0.375rem 0.375rem 0 0;
-          transition: all 0.3s ease;
-          touch-action: manipulation;
-          min-width: 120px;
-          text-align: center;
-          background-color: #f3f4f6;
-        }
-        .tab-btn:hover {
-          color: #1f2937;
-        }
-        .active-tab {
-          background-color: white;
-          color: #1e40af;
-          border-bottom: 2px solid #1e40af;
-        }
-        .tab-content {
-          display: none;
-        }
-        .tab-content.active {
-          display: block;
-        }
-        .card {
-          background: white;
-          border-radius: 0.5rem;
-          border: 1px solid #e5e7eb;
-          padding: 1.5rem;
-        }
-        .stat-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          touch-action: manipulation;
-        }
-        table {
-          width: 100%;
-          border-collapse: separate;
-          border-spacing: 0;
-        }
-        th, td {
-          padding: 1rem;
-          text-align: left;
-          border-bottom: 1px solid #e5e7eb;
-        }
-        th {
-          background: #f9fafb;
-          font-weight: 600;
-          color: #374151;
-        }
-        tr:last-child th, tr:last-child td {
-          border-bottom: none;
-        }
-        @media (max-width: 768px) {
-          .tab-btn {
-            font-size: 0.875rem;
-            padding: 0.5rem 1rem;
-            min-width: auto;
-          }
-          .container {
-            padding: 1rem;
-          }
-          th, td {
-            padding: 0.75rem;
-          }
-        }
-        .chart-container {
-          height: 250px;
-          position: relative;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-8">Textmob Admin Dashboard</h1>
-    
-        <!-- Tabs -->
-        <div class="flex flex-wrap gap-3 mb-8 bg-white rounded-t-lg p-0 border-b border-gray-200">
-          <button class="tab-btn active-tab" data-tab="overview">Overview</button>
-          <button class="tab-btn" data-tab="user-analytics">User Analytics</button>
-          <button class="tab-btn" data-tab="posts">Post Analytics</button>
-          <button class="tab-btn" data-tab="top-users">Top Users</button>
-          <button class="tab-btn" data-tab="leaderboard2">Leaderboard (7 Days)</button>
-          <button class="tab-btn" data-tab="mobcoins">Mobcoins</button>
-          <button class="tab-btn" data-tab="users">User Explorer</button>
-        </div>
-    
-        <!-- Overview -->
-        <div id="overview" class="tab-content active">
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <div class="card stat-card"><p class="text-sm text-gray-500">Total Users</p><p class="text-2xl font-semibold text-gray-900">${users.length}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Total Posts</p><p class="text-2xl font-semibold text-gray-900">${totalPosts}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Engagement Rate</p><p class="text-2xl font-semibold text-gray-900">${engagementRate}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Total Mobcoins</p><p class="text-2xl font-semibold text-gray-900">${totalMobcoins}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">User Weekly Growth</p><p class="text-2xl font-semibold text-gray-900">${userWeeklyGrowth}%</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Posts Weekly Growth</p><p class="text-2xl font-semibold text-gray-900">${postWeeklyGrowth}%</p></div>
-          </div>
-        </div>
-    
-        <!-- User Analytics (Signups) -->
-        <div id="user-analytics" class="tab-content">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="card">
-              <h2 class="text-sm font-medium text-gray-500 mb-3">Signups by Hour</h2>
-              <div class="chart-container"><canvas id="hourChart"></canvas></div>
-            </div>
-            <div class="card">
-              <h2 class="text-sm font-medium text-gray-500 mb-3">Signups by Day</h2>
-              <div class="chart-container"><canvas id="dayChart"></canvas></div>
-            </div>
-            <div class="card">
-              <h2 class="text-sm font-medium text-gray-500 mb-3">Signups by Week</h2>
-              <div class="chart-container"><canvas id="weekChart"></canvas></div>
-            </div>
-            <div class="card">
-              <h2 class="text-sm font-medium text-gray-500 mb-3">Signups by Month</h2>
-              <div class="chart-container"><canvas id="monthChart"></canvas></div>
-            </div>
-          </div>
-        </div>
-    
-        <!-- Post Analytics -->
-        <div id="posts" class="tab-content">
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            <div class="card stat-card"><p class="text-sm text-gray-500">Total Posts</p><p class="text-2xl font-semibold text-gray-900">${totalPosts}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Polls</p><p class="text-2xl font-semibold text-gray-900">${pollPosts}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Events</p><p class="text-2xl font-semibold text-gray-900">${eventPosts}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Normal Posts</p><p class="text-2xl font-semibold text-gray-900">${normalPosts}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Total Likes</p><p class="text-2xl font-semibold text-gray-900">${totalLikes}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Total Comments</p><p class="text-2xl font-semibold text-gray-900">${totalComments}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Average Likes/Post</p><p class="text-2xl font-semibold text-gray-900">${avgLikes}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Average Comments/Post</p><p class="text-2xl font-semibold text-gray-900">${avgComments}</p></div>
-            <div class="card stat-card"><p class="text-sm text-gray-500">Engagement Rate</p><p class="text-2xl font-semibold text-gray-900">${engagementRate}</p></div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            <div class="card">
-              <h2 class="text-sm font-medium text-gray-500 mb-3">Posts by Hour</h2>
-              <div class="chart-container"><canvas id="postHourChart"></canvas></div>
-            </div>
-            <div class="card">
-              <h2 class="text-sm font-medium text-gray-500 mb-3">Posts by Day</h2>
-              <div class="chart-container"><canvas id="postDayChart"></canvas></div>
-            </div>
-            <div class="card">
-              <h2 class="text-sm font-medium text-gray-500 mb-3">Posts by Week</h2>
-              <div class="chart-container"><canvas id="postWeekChart"></canvas></div>
-            </div>
-            <div class="card">
-              <h2 class="text-sm font-medium text-gray-500 mb-3">Posts by Month</h2>
-              <div class="chart-container"><canvas id="postMonthChart"></canvas></div>
-            </div>
-          </div>
-        </div>
-    
-        <!-- Top Users -->
-        <div id="top-users" class="tab-content">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Top Users by Rank</h2>
-          <div class="card overflow-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Full Name</th>
-                  <th>Rank Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(topUsers || []).map(u => `
-                  <tr>
-                    <td>@${u.username}</td>
-                    <td>${u.fullname || 'N/A'}</td>
-                    <td class="font-semibold">${u.score}</td>
-                  </tr>
-                `).join("") || "<tr><td colspan='3' class='text-center text-gray-500'>No top users available</td></tr>"}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Leaderboard 2 (7 Days) -->
-        <div id="leaderboard2" class="tab-content">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Top Users by Activity (Last 7 Days)</h2>
-          <div class="card overflow-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Full Name</th>
-                  <th>Posts</th>
-                  <th>Likes Received</th>
-                  <th>Comments Received</th>
-                  <th>Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(topUsers7d || []).map(u => `
-                  <tr>
-                    <td>@${u.username}</td>
-                    <td>${u.fullname || 'N/A'}</td>
-                    <td>${u.posts7d}</td>
-                    <td>${u.likes7d}</td>
-                    <td>${u.comments7d}</td>
-                    <td class="font-semibold">${u.score7d}</td>
-                  </tr>
-                `).join("") || "<tr><td colspan='6' class='text-center text-gray-500'>No active users in last 7 days</td></tr>"}
-              </tbody>
-            </table>
-          </div>
-        </div>
-    
-        <!-- Mobcoins -->
-        <div id="mobcoins" class="tab-content">
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            <div class="card stat-card"><p class="text-sm text-gray-500">Total Mobcoins</p><p class="text-2xl font-semibold text-gray-900">${totalMobcoins}</p></div>
-          </div>
-          <h2 class="text-xl font-semibold text-gray-900 mt-8 mb-4">Top Coin Holders</h2>
-          <div class="card overflow-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Full Name</th>
-                  <th>Mobcoins</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(topCoinHolders || []).map(h => `
-                  <tr>
-                    <td>@${h.username}</td>
-                    <td>${h.fullname || 'N/A'}</td>
-                    <td class="font-semibold">${h.mobcoins}</td>
-                  </tr>
-                `).join("") || "<tr><td colspan='3' class='text-center text-gray-500'>No top holders available</td></tr>"}
-              </tbody>
-            </table>
-          </div>
-        </div>
-    
-        <!-- User Explorer -->
-        <div id="users" class="tab-content">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Explore Users List</h2>
-          <div class="card overflow-auto">
-            <h3 class="text-sm text-gray-500 mb-3">${(users || []).length} Users</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Full Name</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Followers</th>
-                  <th>Mobcoins</th>
-                  <th>Profile Type</th>
-                  <th>Disabled</th>
-                  <th>Signup Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(users || []).map(u => `
-                  <tr>
-                    <td>@${u.username}</td>
-                    <td>${u.fullname || 'N/A'}</td>
-                    <td>${u.email || 'N/A'}</td>
-                    <td>${u.phone || 'N/A'}</td>
-                    <td>${Array.isArray(u.followers) ? u.followers.length : 0}</td>
-                    <td>${u.mobcoins || 0}</td>
-                    <td>${u.profile_type || 'N/A'}</td>
-                    <td>${u.disabled ? 'Yes' : 'No'}</td>
-                    <td>${u.created_at ? new Date(u.created_at).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    }) : 'N/A'}</td>
-                  </tr>
-                `).join("") || "<tr><td colspan='9' class='text-center text-gray-500'>No users available</td></tr>"}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    
-      <script>
-        const makeChart = (ctxId, labels, data, label) => {
-          const ctx = document.getElementById(ctxId).getContext('2d');
-          new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels,
-              datasets: [{
-                label,
-                data,
-                fill: true,
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                borderColor: '#1e40af',
-                pointBackgroundColor: '#1e40af',
-                pointRadius: 4,
-                tension: 0.4
-              }]
-            },
-            options: {
-              plugins: {
-                legend: { display: false },
-                tooltip: {
-                  backgroundColor: '#1f2937',
-                  titleFont: { size: 14 },
-                  bodyFont: { size: 12 },
-                  padding: 10
-                }
-              },
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  title: { display: true, text: 'Count', font: { size: 14 } },
-                  grid: { color: '#e5e7eb' }
-                },
-                x: {
-                  title: { display: true, text: 'Time', font: { size: 14 } },
-                  grid: { display: false }
-                }
-              }
-            }
-          });
-        };
-    
-        makeChart('hourChart', ${JSON.stringify(hourLabels)}, ${JSON.stringify(hourCounts)}, 'Hourly Signups');
-        makeChart('dayChart', ${JSON.stringify(dayLabels)}, ${JSON.stringify(dayCounts)}, 'Daily Signups');
-        makeChart('weekChart', ${JSON.stringify(weekLabels)}, ${JSON.stringify(weekCounts)}, 'Weekly Signups');
-        makeChart('monthChart', ${JSON.stringify(monthLabels)}, ${JSON.stringify(monthCounts)}, 'Monthly Signups');
-    
-        makeChart('postHourChart', ${JSON.stringify(postHourLabels)}, ${JSON.stringify(postHourCounts)}, 'Hourly Posts');
-        makeChart('postDayChart', ${JSON.stringify(postDayLabels)}, ${JSON.stringify(postDayCounts)}, 'Daily Posts');
-        makeChart('postWeekChart', ${JSON.stringify(postWeekLabels)}, ${JSON.stringify(postWeekCounts)}, 'Weekly Posts');
-        makeChart('postMonthChart', ${JSON.stringify(postMonthLabels)}, ${JSON.stringify(postMonthCounts)}, 'Monthly Posts');
-    
-        // Tab logic
-        document.querySelectorAll(".tab-btn").forEach(btn => {
-          btn.addEventListener("click", () => {
-            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active-tab"));
-            document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
-            btn.classList.add("active-tab");
-            document.getElementById(btn.dataset.tab).classList.add("active");
-          });
-        });
-    
-        // Prevent double-tap zoom
-        document.addEventListener('touchstart', (e) => {
-          if (e.touches.length > 1) e.preventDefault();
-        }, { passive: false });
-      </script>
-    </body>
-    </html>
-    `)
   } catch (err) {
-    console.error("Admin dashboard error:", err.message);
-    res.status(500).send("Internal server error.");
+    console.error('Analytics fetching error:', err.message);
+    res.status(500).json({ error: "Server error generating analytics" });
   }
 });
 
-// 🚀 Leaderboard Endpoint (7-day ranking)
 app.get("/leaderboard", async (req, res) => {
   try {
     // Ensure cache is ready
@@ -7534,411 +6662,200 @@ function checkUserOnlineStatus(username) {
   return !!onlineUsers[username];
 }
 
-setInterval(async () => {
-  Object.keys(onlineUsers).forEach(username => {
-    checkAndDeliverPendingMessages(username);
-  });
-}, 5000);
-
-setInterval(async () => {
-  const TEN_DAYS_AGO = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
-  await supabase
-    .from("Messages")
-    .delete()
-    .lt("timestamp", TEN_DAYS_AGO);
-}, 10000);
-
 const SummarizerManager = require("node-summarizer").SummarizerManager;
 // In-memory post cache
-const postCache = {
-  allPosts: [],
-  lastUpdated: 0,
-};
-const userFeedState = new Map();
-const userSessionCache = new Map();
-// Utility to generate a simple UUID-like session ID
-function generateSessionId() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-// Utility to shuffle an array (Fisher-Yates algorithm)
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-async function refreshPostCache() {
-  const { data: posts, error } = await supabase2
-    .from("Posts")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (!error) {
-    postCache.allPosts = posts;
-    postCache.lastUpdated = Date.now();
-  } else {
-    console.error("Error refreshing post cache:", error);
-  }
-}
-setInterval(refreshPostCache, 10000);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /trending-hashtags — Extracts dynamic hashtags from recent posts
-// ─────────────────────────────────────────────────────────────────────────────
-const TREND_LIMIT = 4;
-const WINDOW_DAYS = 7;
-const WINDOW_MS = WINDOW_DAYS * 24 * 60 * 60 * 1000;
-const hashtagRegex = /#([a-zA-Z0-9_]+)/g;
-
-function getPostTime(post) {
-  const raw =
-    post?.createdAt ??
-    post?.created_at ??
-    post?.timestamp ??
-    post?.date ??
-    post?.time;
-
-  const ts = raw ? new Date(raw).getTime() : NaN;
-  return Number.isFinite(ts) ? ts : null;
-}
-
-function extractUniqueHashtags(text) {
-  const tags = [];
-  const seen = new Set();
-
-  hashtagRegex.lastIndex = 0; // important because the regex is global
-  let match;
-  while ((match = hashtagRegex.exec(text)) !== null) {
-    const tag = match[1].toLowerCase();
-    if (!seen.has(tag)) {
-      seen.add(tag);
-      tags.push(tag);
-    }
-  }
-
-  return tags;
-}
-
-function collectTrendingFromPosts(posts, startTime, endTime = Infinity, excludedTags = new Set()) {
-  const tagCounts = new Map();
-  const lastSeen = new Map();
-
-  for (const post of posts) {
-    if (!post || !post.text) continue;
-
-    const ts = getPostTime(post);
-    if (ts == null) continue;
-    if (ts < startTime || ts > endTime) continue;
-
-    const tags = extractUniqueHashtags(post.text);
-
-    for (const tag of tags) {
-      if (excludedTags.has(tag)) continue;
-
-      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-
-      const prev = lastSeen.get(tag);
-      if (prev == null || ts > prev) {
-        lastSeen.set(tag, ts);
-      }
-    }
-  }
-
-  return [...tagCounts.entries()]
-    .map(([tag, count]) => ({
-      tag,
-      count,
-      lastSeen: lastSeen.get(tag) || 0,
-    }))
-    .sort((a, b) => b.count - a.count || b.lastSeen - a.lastSeen || a.tag.localeCompare(b.tag));
-}
-
-app.get("/trending-hashtags", (req, res) => {
+// -------------------------------------------------------------
+// GET /trending-hashtags
+// Extracted dynamically from recent 200 posts to avoid caching all posts
+// -------------------------------------------------------------
+app.get("/trending-hashtags", async (req, res) => {
   try {
-    const now = Date.now();
-    const windowStart = now - WINDOW_MS;
+    const TREND_LIMIT = 4;
+    const { data: posts, error } = await supabase2
+      .from("Posts")
+      .select("hashtags, created_at, text")
+      .order("created_at", { ascending: false })
+      .limit(300);
 
-    const allPosts = Array.isArray(postCache?.allPosts) ? postCache.allPosts : [];
-
-    // 1) Main ranking: last 7 days only
-    const recentTags = collectTrendingFromPosts(allPosts, windowStart, now);
-
-    // 2) If not enough tags, fill the remaining slots from older posts
-    //    without changing the 7-day logic for the main results.
-    let finalTags = recentTags.slice(0, TREND_LIMIT);
-
-    if (finalTags.length < TREND_LIMIT) {
-      const excluded = new Set(finalTags.map(t => t.tag));
-      const olderTags = collectTrendingFromPosts(allPosts, -Infinity, windowStart - 1, excluded);
-
-      finalTags = finalTags.concat(olderTags.slice(0, TREND_LIMIT - finalTags.length));
-    }
-
-    // If still empty, keep your fallback
-    if (finalTags.length === 0) {
-      finalTags = [
+    if (error || !posts || posts.length === 0) {
+      return res.json([
         { tag: "textmob", count: 15 },
         { tag: "africanvoice", count: 12 },
         { tag: "hidden_gem", count: 8 },
-        { tag: "tech", count: 5 },
-      ].slice(0, TREND_LIMIT);
+        { tag: "tech", count: 5 }
+      ].slice(0, TREND_LIMIT));
     }
 
-    // remove internal field before sending
-    res.json(finalTags.map(({ tag, count }) => ({ tag, count })));
+    const counts = {};
+    const hashtagRegex = /#([a-zA-Z0-9_]+)/g;
+
+    posts.forEach(p => {
+      let tags = [];
+      if (Array.isArray(p.hashtags)) {
+        tags = p.hashtags.map(t => t.replace(/^#/, ''));
+      } else if (p.text) {
+        let match;
+        while ((match = hashtagRegex.exec(p.text)) !== null) {
+          if (match[1]) tags.push(match[1]);
+        }
+      }
+      tags.forEach(t => {
+        const lower = t.toLowerCase();
+        counts[lower] = (counts[lower] || 0) + 1;
+      });
+    });
+
+    const sortedTags = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag, count]) => ({ tag, count }))
+      .slice(0, TREND_LIMIT);
+
+    if (sortedTags.length === 0) {
+      return res.json([{ tag: "textmob", count: 1 }]);
+    }
+
+    res.json(sortedTags);
   } catch (err) {
     console.error("Error generating trending tags", err);
     res.status(500).json({ error: "Failed" });
   }
 });
-refreshPostCache();
 
-// Generate a session ID for this request
-const sessionId = generateSessionId();
-// Randomize posts for this session
-const sessionKey = `sess-${sessionId}`;
-// Helper: normalize mobcoins to 0–200
-function mobcoinRank(mobcoins) {
-  // Example: assume max reasonable = 2000 mobcoins
-  // Adjust divisor as needed for your ecosystem
-  const divisor = 10;
-  let score = Math.floor(mobcoins / divisor);
-  if (score > 200) score = 200;
-  return score;
-}
-// --- Mobcoins cache ---
-const userMobcoinsCache = {}; // { username: scaledMobcoins }
-let lastMobcoinsUpdate = 0;
-
-async function refreshMobcoinsCache() {
-  try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("username, mobcoins");
-
-    if (error) {
-      console.error("Mobcoins cache error:", error);
-      return;
-    }
-
-    for (const u of data) {
-      userMobcoinsCache[u.username] = Math.min(200, Math.floor(u.mobcoins / 5));
-    }
-
-    lastMobcoinsUpdate = Date.now();
-  } catch (err) {
-    console.error("Mobcoins cache refresh failed:", err);
-  }
-}
-
-// Initial cache load
-refreshMobcoinsCache();
-setInterval(refreshMobcoinsCache, 60000); // refresh every 60s
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /get-posts  — X + TikTok hybrid feed algorithm
-//
-// Query params:
-//   username   — required
-//   tab        — "foryou" | "following"  (default: foryou)
-//   page       — integer (default: 1)
-//   limit      — integer (default: 10)
-//   seenIds    — comma-separated post IDs the client has already rendered this
-//                session (sent by Feed.jsx from sessionStorage)
-//
-// Algorithm summary (For You tab):
-//   1. Filter out group posts and disabled/hidden content
-//   2. Split posts into FRESH (< 6h), RECENT (6–48h), OLD (> 48h)
-//   3. Score each tier separately — fresh always wins unless truly terrible
-//   4. Remove seenIds (already rendered by this client this session)
-//   5. Enforce diversity: no same user within 4 posts
-//   6. Page 1 → serve FRESH first, then RECENT as fill
-//      Page 2+ → serve RECENT, then OLD as last resort
-//   7. Interleave textmobai every 5 posts
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /get-posts  —  Textmob unified feed algorithm
-//
-// Guarantees:
-//   - Always returns exactly `limit` posts (default 10) unless the entire
-//     DB has fewer — never returns 1–3 just because filters were too aggressive
-//   - seenIds only used as a soft ranking penalty, NOT a hard exclusion
-//     (hard exclusion caused the "1 post on first load" bug)
-//   - Group posts fully excluded
-//   - Friends/following content surfaces strongly (unified social experience)
-//   - New content (< 6h) always leads; old content only fills when needed
-//   - Diversity: no same user in consecutive 3 slots, but never drops below limit
-// ─────────────────────────────────────────────────────────────────────────────
-
+// -------------------------------------------------------------
+// GET /get-posts
+// -------------------------------------------------------------
 app.get("/get-posts", async (req, res) => {
   try {
-    const username = req.query.username;
-    const tab = req.query.tab || "foryou";
-    // REMOVED page. We no longer care about pagination from the frontend.
-    const limit = Math.min(20, Math.max(5, parseInt(req.query.limit || "10", 10)));
+    const { username, tab = "foryou", page = 1, seenIds = "" } = req.query;
+    if (!username) return res.status(400).json({ error: "Missing username parameter" });
+    const limit = parseInt(req.query.limit, 10) || 10;
 
-    if (!username) return res.status(400).json({ error: "Username is required" });
+    // Instead of hitting serverSeen memory (which leaks over time and causes sync issues),
+    // let's rely just on the dynamically requested feed without caching all posts.
+    // We'll directly construct the algorithm around latest N posts.
 
-    // ── Refresh post cache (60s TTL) ─────────────────────────────────────────
-    if (!postCache.allPosts.length || Date.now() - postCache.lastUpdated > 60000) {
-      await refreshPostCache();
-    }
-
-    // ── Session-Based Seen Tracking ──────────────────────────────────────────
-    if (!userFeedState.has(username)) userFeedState.set(username, new Set());
-    const serverSeen = userFeedState.get(username);
-
-    // Merge client-sent seen IDs with our server session
-    const clientSeen = (req.query.seenIds || "").split(",").filter(Boolean);
-    clientSeen.forEach(id => serverSeen.add(String(id)));
-
-    // Helper: is this a group post?
-    function isGroupPost(p) {
-      if (!p || !p.type) return false;
-      return p.type.toLowerCase().startsWith("group");
-    }
-
-    // ── FOLLOWING TAB (Now supports Session-Based Scrolling) ─────────────────
-    if (tab === "following") {
-      try {
-        const { data: userData } = await supabase
-          .from("users")
-          .select("following")
-          .eq("username", username)
-          .single();
-
-        const followingArray = userData?.following || [];
-        const allowedUsernames = new Set([...followingArray, username]);
-
-        const followingPosts = postCache.allPosts
-          .filter(p => p && allowedUsernames.has(p.username) && !isGroupPost(p))
-          // Push unseen posts to the top, seen posts to the bottom
-          .sort((a, b) => {
-            const aSeen = serverSeen.has(String(a.id)) ? 1 : 0;
-            const bSeen = serverSeen.has(String(b.id)) ? 1 : 0;
-            if (aSeen !== bSeen) return aSeen - bSeen; // Unseen first
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-          });
-
-        const finalFollowing = followingPosts.slice(0, limit);
-
-        // Mark as seen for next scroll
-        finalFollowing.forEach(p => serverSeen.add(String(p.id)));
-        return res.json(finalFollowing);
-      } catch (fErr) {
-        console.error("Following feed error:", fErr);
-        // fall through to For You
-      }
-    }
-
-    // ── FOR YOU TAB (TikTok Algorithm) ───────────────────────────────────────
-
-    // Step 1: Base eligibility
-    const eligible = postCache.allPosts.filter(p => p && p.id && p.username && !isGroupPost(p));
-    if (eligible.length === 0) return res.json([]);
-
-    // Step 2: Fetch user's social graph
+    // Determine the user's social graph to customize the feed
     let userFollowing = new Set();
     let userFriends = new Set();
+    let blockedUsers = new Set();
     try {
       const { data: me } = await supabase
         .from("users")
-        .select("following, friends")
+        .select("following, friends, blocked_users")
         .eq("username", username)
         .single();
       userFollowing = new Set(me?.following || []);
       userFriends = new Set(me?.friends || []);
+      blockedUsers = new Set(me?.blocked_users || []);
     } catch { /* non-fatal */ }
 
+    // First fetch a batch of posts dynamically from Supabase
+    const { data: fetchedPosts, error } = await supabase2
+      .from("Posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(300); // 300 recent points to algorithmically rank
+
+    if (error || !fetchedPosts) return res.json([]);
+
+    // Filter out group posts, blocked users, and self if blocked
+    const eligible = fetchedPosts.filter(p =>
+      p && p.id && p.username &&
+      !p.group_id && !p.isGroupPost &&
+      !blockedUsers.has(p.username) &&
+      !(p.disabled === true)
+    );
+
+    if (eligible.length === 0) return res.json([]);
+
+    const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
     const now = Date.now();
     const HOUR = 3600000;
 
-    // Step 3: TikTok-Style Scoring
+    // Fetch dynamic mobcoins of ONLY these users to avoid caching global state
+    const authorUsernames = [...new Set(eligible.map(p => p.username))];
+    const { data: authorsInfo } = await supabase
+      .from("users")
+      .select("username, mobcoins")
+      .in("username", authorUsernames);
+
+    const userMobcoins = {};
+    if (authorsInfo) {
+      authorsInfo.forEach(u => {
+        userMobcoins[u.username] = Math.min(200, Math.floor((u.mobcoins || 0) / 5));
+      });
+    }
+
+    if (tab === "following") {
+      const followingPosts = eligible
+        .filter(p => userFollowing.has(p.username) || userFriends.has(p.username))
+        .sort((a, b) => {
+          const aSeen = clientSeenIds.has(String(a.id)) ? 1 : 0;
+          const bSeen = clientSeenIds.has(String(b.id)) ? 1 : 0;
+          if (aSeen !== bSeen) return aSeen - bSeen;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+      return res.json(followingPosts.slice(0, limit));
+    }
+
+    // TIKTOK Algorithm Scorers
     function scorePost(p) {
       const ageMs = now - new Date(p.created_at).getTime();
       const ageHours = Math.max(0.1, ageMs / HOUR);
-
       const likes = (p.likes || []).length;
       const comments = (p.comments || []).length;
       const reactions = (p.reactions || []).length;
 
-      // 1. AFFINITY (Who are they to you?)
       const isFriend = userFriends.has(p.username);
       const isFollowing = userFollowing.has(p.username);
-      // Massive boost for friends/following so they don't get lost among viral stranger posts
       const affinityMul = isFriend ? 5.0 : isFollowing ? 3.0 : 1.0;
 
-      // 2. SOCIAL PROOF (Did your friends interact with this?)
       const friendLiked = (p.likes || []).some(l => userFollowing.has(l));
       const friendCommented = (p.comments || []).some(c => userFollowing.has(c?.username || c));
       const socialProof = (friendLiked ? 2.0 : 0) + (friendCommented ? 3.0 : 0);
 
-      // 3. FRESHNESS DECAY
-      // Friends' posts stay relevant for 12 hours, strangers for 3 hours
       const halfLifeHours = (isFriend || isFollowing) ? 12 : 3;
       const freshness = Math.pow(0.5, ageHours / halfLifeHours);
 
-      // 4. VIRALITY / VELOCITY
-      // Comments are weighted higher because they require more effort (higher stickiness)
       const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
-      // How fast did they get this engagement?
       const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
 
-      // 5. CONTENT TYPE BONUSES (Visuals/Events drive retention)
       let typeBonus = 1.0;
       if (p.type === "live" || p.type === "event") typeBonus = 3.0;
-      if (p.media && p.media.length > 0) typeBonus = 1.5; // Visuals keep people scrolling
+      if (p.media && p.media.length > 0) typeBonus = 1.5;
       if (p.type === "poll") typeBonus = 1.2;
 
-      // 6. THE "INFINITE SCROLL" SEEN PENALTY
-      // Instead of removing seen posts entirely (which causes the 1-3 post bug),
-      // we multiply their score by 0.00001. They sink to the absolute bottom, 
-      // making the next highest *unseen* posts naturally float to the top!
-      const isSeen = serverSeen.has(String(p.id));
+      // Penalize seen content to bottom
+      const isSeen = clientSeenIds.has(String(p.id));
       const seenPenalty = isSeen ? 0.00001 : 1.0;
-
-      // 7. SELF PENALTY
       const selfPenalty = p.username === username ? 0.1 : 1.0;
 
-      // AI handled separately
-      if (p.username === "textmobai") return -1;
+      // Add their mobcoin investment influence
+      const userInfluence = (userMobcoins[p.username] || 0) * 0.05;
 
-      // ── FINAL TIKTOK SCORE ──
       const base = (
-        (freshness * 5.0) +     // People want NEW stuff
-        (velocity * 3.0) +      // People want VIRAL stuff
-        (socialProof * 2.0)     // People want RELEVANT stuff
+        (freshness * 5.0) +
+        (velocity * 3.0) +
+        (socialProof * 2.0)
       ) * affinityMul * typeBonus * seenPenalty * selfPenalty;
 
-      // Random noise prevents the exact same feed calculation if scores tie
-      return base + (Math.random() * 0.2);
+      return base + userInfluence + (Math.random() * 0.2);
     }
 
-    // Step 4: Sort by our new algorithm
-    const aiPosts = eligible.filter(p => p.username === "textmobai" && !serverSeen.has(String(p.id)));
+    const aiPosts = eligible.filter(p => p.username === "textmobai" && !clientSeenIds.has(String(p.id)));
     const humanPosts = eligible
       .filter(p => p.username !== "textmobai")
       .map(p => ({ p, s: scorePost(p) }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.p);
 
-    // Step 5: Diversity Pass (Prevents 4 posts from the same user in a row)
     function diversify(posts, targetCount) {
       const result = [];
       const skipped = [];
       const userCount = new Map();
-
       for (const post of posts) {
         if (result.length >= targetCount) break;
         const count = userCount.get(post.username) || 0;
-
-        // Max 2 posts from the same user per feed batch
         if (count < 2) {
           result.push(post);
           userCount.set(post.username, count + 1);
@@ -7946,8 +6863,6 @@ app.get("/get-posts", async (req, res) => {
           skipped.push(post);
         }
       }
-
-      // If we don't have enough posts (e.g. small DB), fill with skipped ones
       if (result.length < targetCount) {
         for (const post of skipped) {
           if (result.length >= targetCount) break;
@@ -7957,19 +6872,15 @@ app.get("/get-posts", async (req, res) => {
       return result;
     }
 
-    // Because seen posts sink to the bottom, slicing 0 -> limit naturally 
-    // grabs the next page of unseen posts automatically!
     const bestNextPosts = humanPosts.slice(0, limit * 2);
     const diversified = diversify(bestNextPosts, limit);
 
-    // Step 6: Interleave AI (Every 5th post)
     function interleaveAI(humanArr, aiArr) {
       if (!aiArr.length) return humanArr;
       const result = [];
       let aiIdx = 0;
       for (let i = 0; i < humanArr.length; i++) {
         result.push(humanArr[i]);
-        // Insert AI post every 5 human posts
         if ((i + 1) % 5 === 0 && aiIdx < aiArr.length) {
           result.push(aiArr[aiIdx++]);
         }
@@ -7978,18 +6889,6 @@ app.get("/get-posts", async (req, res) => {
     }
 
     const finalFeed = interleaveAI(diversified, aiPosts);
-
-    // Step 7: Mark these posts as SEEN in the server session
-    finalFeed.forEach(p => {
-      serverSeen.add(String(p.id));
-
-      // Memory management: Prevent serverSeen from growing infinitely
-      if (serverSeen.size > 2000) {
-        const iter = serverSeen.keys();
-        for (let i = 0; i < 500; i++) serverSeen.delete(iter.next().value);
-      }
-    });
-
     res.json(finalFeed);
 
   } catch (err) {
@@ -7997,8 +6896,6 @@ app.get("/get-posts", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
 app.get("/get-live-posts", async (req, res) => {
   try {
     const { username } = req.query;
