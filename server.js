@@ -5355,8 +5355,234 @@ app.get("/asilfcismail", async (req, res) => {
       return res.json(newCache.analytics);
     }
 
-    // Instead of rendering a huge EJS page with users and posts, we return analytics for the dashboard
-    res.json(newCache.analytics);
+    const a = newCache.analytics;
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textmob Analytics Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #111111;
+            --card-bg: #1a1a1a;
+            --accent: #ff4d4d;
+            --text-main: #ffffff;
+            --text-dim: #999999;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            padding: 40px;
+            overflow-x: hidden;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+        .header h1 { font-weight: 800; font-size: 2.5rem; letter-spacing: -1px; }
+        .header .badge {
+            background: var(--accent);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass);
+            border-radius: 20px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(45deg, transparent, var(--glass));
+            pointer-events: none;
+        }
+        .card-title {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .stat { font-size: 2.2rem; font-weight: 700; margin-bottom: 4px; }
+        .growth { font-size: 0.9rem; font-weight: 600; }
+        .positive { color: #00ff88; }
+        .negative { color: #ff3366; }
+
+        .chart-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid var(--glass);
+        }
+        .chart-card h3 { margin-bottom: 24px; font-weight: 600; color: var(--text-dim); }
+
+        .top-users-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        .user-row {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: var(--glass);
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+        .user-avatar {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            margin-right: 16px;
+            background: #333;
+            object-fit: cover;
+        }
+        .user-info .name { font-weight: 600; font-size: 1rem; }
+        .user-info .meta { font-size: 0.8rem; color: var(--text-dim); }
+        .user-score { margin-left: auto; font-weight: 700; color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Textmob <span style="color:var(--accent)">Vault</span></h1>
+        <div class="badge">Live Analytics</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">Total Users</div>
+            <div class="stat">${newCache.users.length}</div>
+            <div class="growth ${a.userWeeklyGrowth.startsWith('-') ? 'negative' : 'positive'}">
+                 ${a.userWeeklyGrowth}% growth this week
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Total Posts</div>
+            <div class="stat">${a.posts.totalPosts}</div>
+            <div class="growth ${a.postWeeklyGrowth.startsWith('-') ? 'negative' : 'positive'}">
+                ${a.postWeeklyGrowth}% growth this week
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Engagement Rate</div>
+            <div class="stat">${a.posts.engagementRate}</div>
+            <div class="growth positive">High Activity</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Liquidity (Mobcoins)</div>
+            <div class="stat">${a.totalMobcoins.toLocaleString()}</div>
+            <div class="growth" style="color: gold">Premium Economy</div>
+        </div>
+    </div>
+
+    <div class="chart-section">
+        <div class="chart-card">
+            <h3>Signup Velocity (Daily)</h3>
+            <canvas id="signupChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Content Creation (Daily)</h3>
+            <canvas id="contentChart"></canvas>
+        </div>
+    </div>
+
+    <div class="top-users-grid">
+        <div class="chart-card">
+            <h3>Top Engagers (Last 7 Days)</h3>
+            ${a.topUsers7d.map(u => `
+                <div class="user-row">
+                    <img class="user-avatar" src="${u.avatar || 'https://via.placeholder.com/40'}" onerror="this.src='https://ui-avatars.com/api/?name=${u.username}&background=random'">
+                    <div class="user-info">
+                        <div class="name">@${u.username}</div>
+                        <div class="meta">${u.totalEngagement7d} engagements</div>
+                    </div>
+                    <div class="user-score">${u.score7d}</div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="chart-card">
+            <h3>Richest Users</h3>
+            ${a.topCoinHolders.map(u => `
+                <div class="user-row">
+                    <div class="user-info">
+                        <div class="name">@${u.username}</div>
+                        <div class="meta">${u.fullname}</div>
+                    </div>
+                    <div class="user-score" style="color:gold">${u.mobcoins.toLocaleString()} ??</div>
+                </div>
+            `).join('')}
+        </div>
+    </div>
+
+    <script>
+        const signupCtx = document.getElementById('signupChart').getContext('2d');
+        new Chart(signupCtx, {
+            type: 'line',
+            data: {
+                labels: ${JSON.stringify(a.signups.dayLabels)},
+                datasets: [{
+                    label: 'New Signups',
+                    data: ${JSON.stringify(a.signups.dayCounts)},
+                    borderColor: '#ff4d4d',
+                    backgroundColor: 'rgba(255, 77, 77, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
+            }
+        });
+
+        const contentCtx = document.getElementById('contentChart').getContext('2d');
+        new Chart(contentCtx, {
+            type: 'bar',
+            data: {
+                labels: ${JSON.stringify(a.postCreations.dayLabels)},
+                datasets: [{
+                    label: 'Posts Created',
+                    data: ${JSON.stringify(a.postCreations.dayCounts)},
+                    backgroundColor: '#00ff88',
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
+            }
+        });
+    </script>
+</body>
+</html>
+`;
+    res.send(html);
 
   } catch (err) {
     console.error('Analytics fetching error:', err.message);
