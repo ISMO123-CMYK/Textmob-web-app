@@ -1,32 +1,32 @@
-const express = require("express");
-const { GoogleGenAI } = require("@google/genai");
-const http = require("http");
-const multer = require("multer");
-const { createClient } = require("@supabase/supabase-js");
-const socketIo = require("socket.io");
-const Fuse = require("fuse.js");
-const path = require("path");
-const fs = require("fs").promises;
-const axios = require("axios")
-const cors = require("cors");
-const app = express();
-app.use(cors()); // Allow all origins
-const server = http.createServer(app); // attach raw HTTP server
-const io = socketIo(server);           // attach Socket.IO to the HTTP server
-const PORT = process.env.PORT || 5000;
-// Initialize Supabase client
-const onlineUsers = {};
-const supabaseUrl = "https://apnnyqmsyxuyapamnrqg.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwbm55cW1zeXh1eWFwYW1ucnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjA2ODgsImV4cCI6MjA1ODkzNjY4OH0.aVHtygox6NbLAvgGElkBcEFXG1QKIB8JeYNHBwBtU7Y";
-const supabase = createClient(supabaseUrl, supabaseKey);
+// const express = require("express");
+// const { GoogleGenAI } = require("@google/genai");
+// const http = require("http");
+// const multer = require("multer");
+// const { createClient } = require("@supabase/supabase-js");
+// const socketIo = require("socket.io");
+// const Fuse = require("fuse.js");
+// const path = require("path");
+// const fs = require("fs").promises;
+// const axios = require("axios")
+// const cors = require("cors");
+// const app = express();
+// app.use(cors()); // Allow all origins
+// const server = http.createServer(app); // attach raw HTTP server
+// const io = socketIo(server);           // attach Socket.IO to the HTTP server
+// const PORT = process.env.PORT || 5000;
+// // Initialize Supabase client
+// const onlineUsers = {};
+// const supabaseUrl = "https://apnnyqmsyxuyapamnrqg.supabase.co";
+// const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwbm55cW1zeXh1eWFwYW1ucnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjA2ODgsImV4cCI6MjA1ODkzNjY4OH0.aVHtygox6NbLAvgGElkBcEFXG1QKIB8JeYNHBwBtU7Y";
+// const supabase = createClient(supabaseUrl, supabaseKey);
 
-const supabaseUr = "https://ycgczjvuygmunmksarzg.supabase.co";
-const supabaseKe = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljZ2N6anZ1eWdtdW5ta3NhcnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjg1NjIsImV4cCI6MjA1ODk0NDU2Mn0.yH-mlb2PGj4FoXjUxCp3JUm9CYutuGRR7bRAV-Tf9fA";
-const supabase2 = createClient(supabaseUr, supabaseKe);
+// const supabaseUr = "https://ycgczjvuygmunmksarzg.supabase.co";
+// const supabaseKe = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljZ2N6anZ1eWdtdW5ta3NhcnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjg1NjIsImV4cCI6MjA1ODk0NDU2Mn0.yH-mlb2PGj4FoXjUxCp3JUm9CYutuGRR7bRAV-Tf9fA";
+// const supabase2 = createClient(supabaseUr, supabaseKe);
 
-const cloudinary = require("cloudinary").v2;
-const streamifier = require("streamifier");
-const fetch = require("node-fetch")
+// const cloudinary = require("cloudinary").v2;
+// const streamifier = require("streamifier");
+// const fetch = require("node-fetch")
 // Array of domains to ping
 const domains = [
   'https://textmob-web-app.onrender.com',
@@ -9978,7 +9978,7 @@ function getLocalIP() {
   }
   return 'localhost';
 }
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+// server.listen(PORT, () => {
+//   console.log(`Server running on http://localhost:${PORT}`);
+// });
 
