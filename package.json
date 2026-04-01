@@ -1,17 +1,13 @@
 {
   "name": "TheWeb",
   "version": "1.0.0",
-  "description": "TextMob - Your offline-first messaging app",
+  "description": "TextMob",
   "main": "app.js",
   "scripts": {
     "start": "node server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node server.js",
-    "client": "npm run dev --prefix client",
-    "build:client": "npm run build --prefix client",
-    "web": "npm run web --prefix client",
-    "android": "npm run android --prefix client",
-    "ios": "npm run ios --prefix client"
+    "client": "npm run dev --prefix client"
   },
   "keywords": [],
   "author": "",

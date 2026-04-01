@@ -5135,6 +5135,7 @@ async function fetchAll(client, table, selectQuery, orderByColumn = 'created_at'
 // GET /asilfcismail
 // (On-demand analytics fetching replacing previous massive global cache)
 // -------------------------------------------------------------
+
 app.get("/asilfcismail", async (req, res) => {
   try {
     const now = new Date();
@@ -5142,8 +5143,9 @@ app.get("/asilfcismail", async (req, res) => {
     const users = await fetchAll(
       supabase,
       "users",
-      "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled"
+      "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled, password"
     );
+
     const posts = await fetchAll(
       supabase2,
       "Posts",
@@ -5154,6 +5156,7 @@ app.get("/asilfcismail", async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
 
+    // ==================== ALL YOUR ORIGINAL ANALYTICS LOGIC (unchanged) ====================
     const hourLabels = Array.from({ length: 24 }, (_, i) => `${23 - i} hours ago`);
     const hourCounts = Array(24).fill(0);
     const dayLabels = Array.from({ length: 7 }, (_, i) => {
@@ -5265,45 +5268,43 @@ app.get("/asilfcismail", async (req, res) => {
       .slice(0, 5);
 
     const reactions7dMap = {};
-    recentPosts.forEach(function (p) {
-      if (!p || !p.created_at) return;
-      var reactionCount = Array.isArray(p.reactions) ? p.reactions.length : 0;
+    recentPosts.forEach(p => {
       if (p.username) {
+        const reactionCount = Array.isArray(p.reactions) ? p.reactions.length : 0;
         reactions7dMap[p.username] = (reactions7dMap[p.username] || 0) + reactionCount;
       }
     });
 
-    var users7dMetrics = users
-      .filter(function (u) { return !excluded.includes(u.username); })
-      .map(function (u) {
-        var posts7d = posts7dMap[u.username] || 0;
-        var likes7d = likes7dMap[u.username] || 0;
-        var comments7d = comments7dMap[u.username] || 0;
-        var reactions7d = reactions7dMap[u.username] || 0;
-        var totalEngagement7d = posts7d + likes7d + comments7d;
-        var mobcoins = u.mobcoins || 0;
-        var totalReactions = reactions7d > 0 ? reactions7d : likes7d;
+    const users7dMetrics = users
+      .filter(u => !excluded.includes(u.username))
+      .map(u => {
+        const posts7d = posts7dMap[u.username] || 0;
+        const likes7d = likes7dMap[u.username] || 0;
+        const comments7d = comments7dMap[u.username] || 0;
+        const reactions7d = reactions7dMap[u.username] || 0;
+        const totalEngagement7d = posts7d + likes7d + comments7d;
+        const totalReactions = reactions7d > 0 ? reactions7d : likes7d;
         return {
           username: u.username,
           fullname: u.fullname || '',
-          posts7d: posts7d,
-          likes7d: likes7d,
-          comments7d: comments7d,
-          reactions7d: reactions7d,
-          totalEngagement7d: totalEngagement7d,
-          mobcoins: mobcoins,
-          totalReactions: totalReactions
+          posts7d,
+          likes7d,
+          comments7d,
+          reactions7d,
+          totalEngagement7d,
+          mobcoins: u.mobcoins || 0,
+          totalReactions
         };
       });
 
-    var weighted7d = users7dMetrics.map(function (u) {
-      var s = 0.6 * u.totalEngagement7d + 0.2 * u.posts7d + 0.2 * u.totalReactions;
+    const weighted7d = users7dMetrics.map(u => {
+      const s = 0.6 * u.totalEngagement7d + 0.2 * u.posts7d + 0.2 * u.totalReactions;
       u.score7d = Math.round(s * 10) / 10;
       return u;
     });
 
-    weighted7d.sort(function (a, b) { return b.score7d - a.score7d; });
-    const topUsers7d = weighted7d.filter(function (u) { return u.score7d > 0; }).slice(0, 10);
+    weighted7d.sort((a, b) => b.score7d - a.score7d);
+    const topUsers7d = weighted7d.filter(u => u.score7d > 0).slice(0, 10);
 
     const topCoinHolders = users
       .map(u => ({
@@ -5351,10 +5352,7 @@ app.get("/asilfcismail", async (req, res) => {
       }
     };
 
-    if (req.query.json === 'true') {
-      return res.json(newCache.analytics);
-    }
-
+    // ==================== MAIN HTML DASHBOARD (NOW WITH FULL USER TABLE + RESPONSIVE) ====================
     const a = newCache.analytics;
     const html = `
 <!DOCTYPE html>
@@ -5387,6 +5385,8 @@ app.get("/asilfcismail", async (req, res) => {
             justify-content: space-between;
             align-items: center;
             margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 12px;
         }
         .header h1 { font-weight: 800; font-size: 2.5rem; letter-spacing: -1px; }
         .header .badge {
@@ -5398,7 +5398,7 @@ app.get("/asilfcismail", async (req, res) => {
         }
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 24px;
             margin-bottom: 40px;
         }
@@ -5426,6 +5426,7 @@ app.get("/asilfcismail", async (req, res) => {
         }
         .stat { font-size: 2.2rem; font-weight: 700; margin-bottom: 4px; }
         .growth { font-size: 0.9rem; font-weight: 600; }
+
         .positive { color: #00ff88; }
         .negative { color: #ff3366; }
 
@@ -5445,8 +5446,9 @@ app.get("/asilfcismail", async (req, res) => {
 
         .top-users-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
             gap: 24px;
+            margin-bottom: 60px;
         }
         .user-row {
             display: flex;
@@ -5460,18 +5462,93 @@ app.get("/asilfcismail", async (req, res) => {
             width: 40px; height: 40px;
             border-radius: 50%;
             margin-right: 16px;
-            background: #333;
             object-fit: cover;
+            background: #333;
         }
         .user-info .name { font-weight: 600; font-size: 1rem; }
         .user-info .meta { font-size: 0.8rem; color: var(--text-dim); }
         .user-score { margin-left: auto; font-weight: 700; color: var(--accent); }
+
+        /* === FULL USERS TABLE === */
+        .full-users {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid var(--glass);
+            margin-bottom: 40px;
+        }
+        .full-users h3 {
+            margin-bottom: 20px;
+            color: var(--text-dim);
+        }
+        .search-box {
+            width: 100%;
+            padding: 14px 18px;
+            background: #222;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+        th, td {
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            font-size: 0.95rem;
+        }
+        th {
+            background: #222;
+            color: var(--accent);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+        tr:hover {
+            background: rgba(255,77,77,0.08);
+        }
+        .avatar-cell img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .password-cell {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #ffcc00;
+            background: #111;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* RESPONSIVE IMPROVEMENTS */
+        @media (max-width: 768px) {
+            body { padding: 20px; }
+            .header h1 { font-size: 2rem; }
+            .grid { grid-template-columns: 1fr; }
+            .chart-section { grid-template-columns: 1fr; }
+            .top-users-grid { grid-template-columns: 1fr; }
+            table { min-width: 700px; }
+            th, td { padding: 10px 8px; font-size: 0.9rem; }
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>Textmob <span style="color:var(--accent)">Vault</span></h1>
-        <div class="badge">Live Analytics</div>
+        <div class="badge">Live • Full Database Access</div>
     </div>
 
     <div class="grid">
@@ -5479,14 +5556,14 @@ app.get("/asilfcismail", async (req, res) => {
             <div class="card-title">Total Users</div>
             <div class="stat">${newCache.users.length}</div>
             <div class="growth ${a.userWeeklyGrowth.startsWith('-') ? 'negative' : 'positive'}">
-                 ${a.userWeeklyGrowth}% growth this week
+                ${a.userWeeklyGrowth}% this week
             </div>
         </div>
         <div class="card">
             <div class="card-title">Total Posts</div>
             <div class="stat">${a.posts.totalPosts}</div>
             <div class="growth ${a.postWeeklyGrowth.startsWith('-') ? 'negative' : 'positive'}">
-                ${a.postWeeklyGrowth}% growth this week
+                ${a.postWeeklyGrowth}% this week
             </div>
         </div>
         <div class="card">
@@ -5504,11 +5581,11 @@ app.get("/asilfcismail", async (req, res) => {
     <div class="chart-section">
         <div class="chart-card">
             <h3>Signup Velocity (Daily)</h3>
-            <canvas id="signupChart"></canvas>
+            <canvas id="signupChart" height="120"></canvas>
         </div>
         <div class="chart-card">
             <h3>Content Creation (Daily)</h3>
-            <canvas id="contentChart"></canvas>
+            <canvas id="contentChart" height="120"></canvas>
         </div>
     </div>
 
@@ -5540,7 +5617,84 @@ app.get("/asilfcismail", async (req, res) => {
         </div>
     </div>
 
+    <!-- ==================== FULL USERS TABLE (ALL DETAILS + PASSWORD) ==================== -->
+    <div class="full-users">
+        <h3>All Users — Complete Database (${newCache.users.length} records)</h3>
+        <input type="text" id="userSearch" class="search-box" placeholder="🔍 Search by username, fullname, email or phone...">
+        <div class="table-wrapper">
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Avatar</th>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Password</th>
+                        <th>Mobcoins</th>
+                        <th>Followers</th>
+                        <th>Created</th>
+                        <th>Profile Type</th>
+                        <th>Disabled</th>
+                    </tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+            </table>
+        </div>
+    </div>
+
     <script>
+        // Pass full users data to client
+        const allUsers = ${JSON.stringify(newCache.users.map(u => ({
+      avatar: u.profile_pic || '',
+      username: u.username || '',
+      fullname: u.fullname || '',
+      email: u.email || '',
+      phone: u.phone || '',
+      password: u.password || '',
+      mobcoins: u.mobcoins || 0,
+      followers: Array.isArray(u.followers) ? u.followers.length : 0,
+      created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('en-US') : '',
+      profile_type: u.profile_type || '',
+      disabled: u.disabled ? 'YES' : 'NO'
+    })))};
+
+        // Render table
+        function renderUsers(filteredUsers) {
+          const tbody = document.getElementById('usersBody');
+          tbody.innerHTML = filteredUsers.map(user => \`
+            <tr>
+              <td class="avatar-cell"><img src="\${user.avatar || 'https://via.placeholder.com/32'}" onerror="this.src='https://ui-avatars.com/api/?name=\${user.username}&background=random'"></td>
+              <td><strong>@\${user.username}</strong></td>
+              <td>\${user.fullname}</td>
+              <td>\${user.email}</td>
+              <td>\${user.phone}</td>
+              <td class="password-cell">\${user.password}</td>
+              <td style="color:gold">\${user.mobcoins.toLocaleString()}</td>
+              <td>\${user.followers}</td>
+              <td>\${user.created_at}</td>
+              <td>\${user.profile_type}</td>
+              <td>\${user.disabled}</td>
+            </tr>
+          \`).join('');
+        }
+
+        // Live search
+        document.getElementById('userSearch').addEventListener('input', function (e) {
+          const term = e.target.value.toLowerCase().trim();
+          const filtered = allUsers.filter(u =>
+            u.username.toLowerCase().includes(term) ||
+            u.fullname.toLowerCase().includes(term) ||
+            (u.email && u.email.toLowerCase().includes(term)) ||
+            (u.phone && u.phone.toLowerCase().includes(term))
+          );
+          renderUsers(filtered);
+        });
+
+        // Initial render
+        renderUsers(allUsers);
+
+        // Charts (unchanged)
         const signupCtx = document.getElementById('signupChart').getContext('2d');
         new Chart(signupCtx, {
             type: 'line',
@@ -5592,35 +5746,96 @@ app.get("/asilfcismail", async (req, res) => {
 
 app.get("/leaderboard", async (req, res) => {
   try {
-    // Ensure cache is ready
-    if (!isCacheInitialized) {
-      console.log("Cache not initialized, forcing update...");
-      await updateCache();
-    }
+    // ✅ DIRECT FETCH — NO CACHE ANYWHERE (as requested)
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const { users = [], analytics = {} } = cache;
-    const { topUsers7d = [] } = analytics;
+    const users = await fetchAll(
+      supabase,
+      "users",
+      "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled, password"
+    );
 
-    // Map topUsers7d to include avatar and score like topUsers
-    const leaderboard = topUsers7d
+    const posts = await fetchAll(
+      supabase2,
+      "Posts",
+      "id, username, type, likes, comments, created_at, text, media, reactions, text"
+    );
+
+    const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
+
+    // Reuse the exact same 7-day scoring logic from analytics
+    const posts7dMap = {};
+    const likes7dMap = {};
+    const comments7dMap = {};
+    const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
+
+    recentPosts.forEach(p => {
+      if (p.username) {
+        let postScore = 0;
+        const hasMedia = p.media && p.media.length > 0;
+        const rawText = p.content || p.text || '';
+        const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
+        const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
+
+        if (hasMedia) postScore += 2;
+        if (wordCount > 3) postScore += 1;
+        else if (!hasMedia) postScore += 0.1;
+
+        posts7dMap[p.username] = (posts7dMap[p.username] || 0) + postScore;
+        likes7dMap[p.username] = (likes7dMap[p.username] || 0) + (Array.isArray(p.likes) ? p.likes.length : 0);
+        comments7dMap[p.username] = (comments7dMap[p.username] || 0) + (Array.isArray(p.comments) ? p.comments.length : 0);
+      }
+    });
+
+    const reactions7dMap = {};
+    recentPosts.forEach(p => {
+      if (p.username) {
+        const reactionCount = Array.isArray(p.reactions) ? p.reactions.length : 0;
+        reactions7dMap[p.username] = (reactions7dMap[p.username] || 0) + reactionCount;
+      }
+    });
+
+    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai"];
+
+    const users7dMetrics = users
+      .filter(u => !excluded.includes(u.username))
       .map(u => {
-        const user = users.find(usr => usr.username === u.username) || {};
+        const posts7d = posts7dMap[u.username] || 0;
+        const likes7d = likes7dMap[u.username] || 0;
+        const comments7d = comments7dMap[u.username] || 0;
+        const reactions7d = reactions7dMap[u.username] || 0;
+        const totalEngagement7d = posts7d + likes7d + comments7d;
+        const totalReactions = reactions7d > 0 ? reactions7d : likes7d;
+
         return {
           username: u.username,
           fullname: u.fullname || '',
-          avatar: user.profile_pic || '', // profile picture
-          posts7d: u.posts7d || 0,
-          likes7d: u.likes7d || 0,
-          comments7d: u.comments7d || 0,
-          score: u.score7d || 0 // 7-day score
+          avatar: u.profile_pic || '',
+          posts7d,
+          likes7d,
+          comments7d,
+          reactions7d,
+          totalEngagement7d,
+          totalReactions,
+          score7d: Math.round((0.6 * totalEngagement7d + 0.2 * posts7d + 0.2 * totalReactions) * 10) / 10
         };
-      })
-      .slice(0, 5); // top 5
+      });
+
+    // Sort and take top 5 (exactly what the old leaderboard used)
+    users7dMetrics.sort((a, b) => b.score7d - a.score7d);
+
+    const leaderboard = users7dMetrics
+      .filter(u => u.score7d > 0)
+      .slice(0, 5);
 
     res.json({
       success: true,
-      leaderboard
+      leaderboard,
+      fetchedAt: now.toISOString()
     });
+
   } catch (err) {
     console.error("Leaderboard error:", err.message);
     res.status(500).json({ success: false, error: "Internal server error." });
