@@ -6496,7 +6496,7 @@ async function generateAIResponse(messages) {
       };
 
       var headers = {
-        Authorization: "Bearer " + process.env.GROQ_API_KEY,
+        Authorization: "Bearer " + "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",
         "Content-Type": "application/json"
       };
 
