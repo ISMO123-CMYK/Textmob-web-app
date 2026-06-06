@@ -492,13 +492,10 @@ export default function LiveContent() {
 
       if (!effectivePaused) {
         const lag = bEnd - vid.currentTime;
-        // Only jump if lag is extreme (e.g. > 30s), otherwise catch up with playbackRate
-        // When jumping, we jump to 15s behind the edge to maintain our stability cushion
-        if (lag > 30) {
-          vid.currentTime = Math.max(0, bEnd - 15.0);
-          vid.playbackRate = 1.0;
-        } else if (lag > 2.0) {
-          vid.playbackRate = 1.1; // Smooth catchup
+        // Removed auto-seek jump to prevent skipping moments.
+        // We only use subtle playbackRate increases to catch up if lag is significant.
+        if (lag > 3.0) {
+          vid.playbackRate = 1.08; // Subtly faster to catch up
         } else if (vid.playbackRate !== 1.0) {
           vid.playbackRate = 1.0;
         }
@@ -760,42 +757,10 @@ export default function LiveContent() {
       vid.src = src;
       vid.load();
 
-      const snapToLive = () => {
-        try {
-          let targetTime = 0;
-          let bEnd = 0;
-
-          if (vid.buffered && vid.buffered.length > 0) {
-            bEnd = vid.buffered.end(vid.buffered.length - 1);
-          } else if (vid.duration && isFinite(vid.duration)) {
-            bEnd = vid.duration;
-          }
-
-          if (bEnd > 0) {
-            // Target is 15s behind the edge, but at least 0.
-            targetTime = Math.max(0, bEnd - 15.0);
-            
-            // If we are too close to the edge (within 2s), force a seek to the target
-            if (Math.abs(vid.currentTime - targetTime) > 0.5 || (bEnd - vid.currentTime < 2.0)) {
-              console.log(`Snapping to live: current=${vid.currentTime.toFixed(2)}, target=${targetTime.toFixed(2)}, edge=${bEnd.toFixed(2)}`);
-              vid.currentTime = targetTime;
-            }
-          }
-        } catch { }
-
-        if (!streamPaused && !userPaused) {
-          vid.play().catch(() => { });
-        }
-      };
-
-      vid.addEventListener('loadedmetadata', snapToLive, { once: true });
-      vid.addEventListener('canplay', snapToLive, { once: true });
-
-      setTimeout(() => {
-        if (!streamPaused && !userPaused) {
-          vid.play().catch(() => { });
-        }
-      }, 50);
+      // Server now sends 30s tail, so we just play from 0:00 (beginning of the received stream)
+      if (!streamPaused && !userPaused) {
+        vid.play().catch(() => { });
+      }
 
       setJoined(true);
     });

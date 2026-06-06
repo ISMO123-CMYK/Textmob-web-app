@@ -465,15 +465,14 @@ app.get("/api/live-stream/:postId", (req, res) => {
     // Send init/header first
     res.write(state.initChunk);
 
-    // Keep only the near-latest tail
-    trimLiveMedia(state);
+    // Only send the last ~30 seconds of chunks to provide a stable starting point
+    const startTailFrom = Date.now() - 30000;
+    const tailChunks = state.mediaChunks.filter(c => c.ts >= startTailFrom);
 
-    for (const item of state.mediaChunks) {
+    for (const item of tailChunks) {
       try {
         res.write(item.data);
-      } catch (e) {
-        // ignore write failure on initial burst; cleanup happens below
-      }
+      } catch (e) { }
     }
 
     state.activeStreams.add(res);
