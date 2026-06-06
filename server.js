@@ -911,17 +911,14 @@ app.post("/profile/:username/change-password", async (req, res) => {
     }
 
     // 2. Verify current password
-    // Replace bcrypt.compare with whatever hashing library you use
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
+    if (currentPassword !== user.password) {
       return res.status(401).json({ error: "Current password is incorrect" });
     }
 
-    // 3. Hash new password and update
-    const hashed = await bcrypt.hash(newPassword, 10);
+    // 3. Update to new password
     const { error: updateErr } = await supabase
       .from("users")
-      .update({ password: hashed })
+      .update({ password: newPassword })
       .eq("username", username);
 
     if (updateErr) {
