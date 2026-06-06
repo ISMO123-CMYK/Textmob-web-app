@@ -381,7 +381,7 @@ app.get("/api/live-stream/:postId", (req, res) => {
     if (chunks.length > 0) {
       // Always write the first chunk containing the WebM/VP8 metadata & container headers
       res.write(chunks[0]);
-      
+
       // Write only the last 2 chunks to catch the viewer up to the live edge immediately
       const startIdx = Math.max(1, chunks.length - 2);
       for (let i = startIdx; i < chunks.length; i++) {
@@ -6491,12 +6491,12 @@ async function generateAIResponse(messages) {
       var payload = {
         model: selectedModel,
         messages: finalMessages,
-        temperature: 0.6,
+        temperature: 0.8,
         max_tokens: 10000
       };
 
       var headers = {
-        Authorization: "Bearer " + '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',
+        Authorization: "Bearer " + process.env.GROQ_API_KEY,
         "Content-Type": "application/json"
       };
 
