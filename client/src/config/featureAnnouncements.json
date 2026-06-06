@@ -1,0 +1,32 @@
+[
+  {
+    "key": "install-textmob",
+    "type": "install",
+    "eyebrow": "Home screen access",
+    "title": "Install Textmob",
+    "body": "Keep Textmob one tap away with a faster, app-like experience from your home screen.",
+    "primaryAction": "Install App",
+    "secondaryAction": "Maybe later",
+    "accent": "blue"
+  },
+  {
+    "key": "live-video-streaming",
+    "type": "feature",
+    "eyebrow": "Go live",
+    "title": "Live video streaming is here",
+    "body": "Start a live moment, bring your people in, and let conversations happen while the energy is still fresh.",
+    "primaryAction": "Explore Live",
+    "href": "/live",
+    "accent": "red"
+  },
+  {
+    "key": "louda-messaging",
+    "type": "feature",
+    "eyebrow": "Brand new messaging",
+    "title": "Messaging powered by Louda",
+    "body": "Textmob chats are getting a serious upgrade: richer conversations, smoother messaging, and a more connected way to stay close.",
+    "primaryAction": "Open Messages",
+    "href": "/chats",
+    "accent": "violet"
+  }
+]

@@ -1,0 +1,565 @@
+import { useState, useEffect } from 'react';
+import { apiFetch } from '../../config/api';
+
+export default function WalletContent() {
+  const [balance, setBalance] = useState(0);
+  const [user, setUser] = useState({});
+  const [showBalance, setShowBalance] = useState(true);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const [showEarnModal, setShowEarnModal] = useState(false);
+  const [showLearnModal, setShowLearnModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Modal specific fields
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [amount, setAmount] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [modalMode, setModalMode] = useState('send'); // 'send' or 'gift'
+
+  const currentUser = localStorage.getItem('currentUser') || '';
+
+  useEffect(() => {
+    if (currentUser) {
+      apiFetch(`/t/wallet?userId=${encodeURIComponent(currentUser)}`)
+        .then(res => res.ok ? res.json() : Promise.reject())
+        .then(data => {
+          setUser({
+            fullname: data.fullname,
+            username: data.username
+          });
+          setBalance(data.mobcoins || 0);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    function handleGlobalKeyDown(e) {
+      if (e.key === 'Escape') {
+        setShowSendModal(false);
+        setShowGiftModal(false);
+        setShowEarnModal(false);
+        setShowLearnModal(false);
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
+  async function handleSearch(q) {
+    if (!q?.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const res = await apiFetch(`/search?query=${encodeURIComponent(q)}&currentUsername=${encodeURIComponent(currentUser)}`);
+      const data = await res.json();
+      setSearchResults(res.ok ? data : []);
+    } catch {
+      setSearchResults([]);
+    }
+  }
+
+  function openModal(mode = 'send') {
+    setModalMode(mode);
+    setMessage('');
+    setSelectedUsers([]);
+    setSearchResults([]);
+    setSearchQuery('');
+    setAmount('');
+    if (mode === 'gift') {
+      setShowGiftModal(true);
+    } else {
+      setShowSendModal(true);
+    }
+  }
+
+  function closeModal() {
+    setShowSendModal(false);
+    setShowGiftModal(false);
+    setMessage('');
+    setSelectedUsers([]);
+    setSearchResults([]);
+    setSearchQuery('');
+    setAmount('');
+  }
+
+  async function handleSend() {
+    if (!selectedUsers.length || !amount) {
+      setMessage('Please select a recipient and enter an amount');
+      return;
+    }
+    if (Number(amount) <= 0) {
+      setMessage('Amount must be greater than 0');
+      return;
+    }
+    if (Number(amount) > balance) {
+      setMessage('Insufficient Mobcoins');
+      return;
+    }
+    setSending(true);
+    setMessage('Processing…');
+    try {
+      const res = await apiFetch('/t/send-mobcoins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromId: currentUser,
+          toIds: selectedUsers.map(e => e.username),
+          amount: Number(amount)
+        })
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      setMessage((await res.json()).message || 'Sent successfully!');
+      
+      // Update balance
+      const balanceRes = await apiFetch(`/t/wallet?userId=${encodeURIComponent(currentUser)}`);
+      if (balanceRes.ok) {
+        const balanceData = await balanceRes.json();
+        setBalance(balanceData.mobcoins || 0);
+      }
+      setTimeout(() => closeModal(), 1200);
+    } catch (e) {
+      setMessage(`Error: ${e.message}`);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-4">
+        <div className="h-32 bg-gray-100 rounded-3xl animate-pulse" />
+      </div>
+    );
+  }
+
+  const spendItems = [
+    {
+      label: 'Boost Post',
+      sub: 'Amplify your reach',
+      soon: true,
+      color: 'text-amber-600 bg-amber-50',
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+        </svg>
+      )
+    },
+    {
+      label: 'Redeem Airtime',
+      sub: 'Convert to airtime',
+      soon: true,
+      color: 'text-green-600 bg-green-50',
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 15.75h3" />
+        </svg>
+      )
+    },
+    {
+      label: 'Gift a Friend',
+      sub: 'Send as a surprise',
+      soon: false,
+      color: 'text-pink-600 bg-pink-50',
+      onClick: () => openModal('gift'),
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+        </svg>
+      )
+    },
+    {
+      label: 'Unlock Badge',
+      sub: 'Show off on profile',
+      soon: true,
+      color: 'text-blue-600 bg-blue-50',
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-.902 3.437 3.745 3.745 0 01-3.437.902A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.437-.902 3.745 3.745 0 01-.902-3.437A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 01.902-3.437 3.746 3.746 0 013.437-.902A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.437.902 3.746 3.746 0 01.902 3.437A3.745 3.745 0 0121 12z" />
+        </svg>
+      )
+    }
+  ];
+
+  const modalOpen = showSendModal || showGiftModal;
+  const modalTitle = modalMode === 'gift' ? 'Gift Mobcoins' : 'Send Mobcoins';
+  const buttonLabel = modalMode === 'gift' ? 'Send gift' : 'Send';
+
+  return (
+    <div className="min-h-screen bg-white pb-28 md:pb-12">
+      <div className="max-w-2xl mx-auto px-4 pt-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900 leading-tight">Wallet</h1>
+            <p className="text-xs text-gray-400">{user.username ? `@${user.username}` : ''}</p>
+          </div>
+          <button className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors" aria-label="History">
+            <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-none stroke-current" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="relative rounded-2xl bg-blue-600 overflow-hidden">
+          <div className="absolute inset-0 opacity-[0.06]" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px)',
+            backgroundSize: '28px 28px'
+          }} />
+          <div className="relative p-6">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-blue-300 mb-2">Mobcoins Balance</p>
+                <div className="flex items-center gap-2.5">
+                  <svg viewBox="0 0 24 24" className="w-8 h-8 text-yellow-300 flex-shrink-0 fill-none stroke-current" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v1m0 10v1M9.5 9.5A1.5 1.5 0 0111 8h1.5a1.5 1.5 0 010 3H11a1.5 1.5 0 000 3h1.5A1.5 1.5 0 0014 12.5" />
+                  </svg>
+                  <span className="text-5xl font-black text-white tracking-tight leading-none">
+                    {showBalance ? balance.toLocaleString() : '·····'}
+                  </span>
+                </div>
+                {user.fullname && <p className="text-xs text-blue-300 mt-2">Hi, {user.fullname}</p>}
+              </div>
+              <button
+                onClick={() => setShowBalance(prev => !prev)}
+                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-blue-100 hover:bg-white/20 transition-colors flex-shrink-0 mb-1"
+                aria-label={showBalance ? 'Hide balance' : 'Show balance'}
+              >
+                {showBalance ? (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => openModal('send')}
+            className="flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 hover:bg-gray-100 active:scale-[0.97] transition-all text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Send</p>
+              <p className="text-xs text-gray-400">Transfer coins</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setShowEarnModal(true)}
+            className="flex items-center gap-3 px-4 py-4 rounded-2xl bg-gray-50 hover:bg-gray-100 active:scale-[0.97] transition-all text-left relative"
+          >
+            <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center text-yellow-500 flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
+                <circle cx="12" cy="12" r="9" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v1m0 10v1M9.5 9.5A1.5 1.5 0 0111 8h1.5a1.5 1.5 0 010 3H11a1.5 1.5 0 000 3h1.5A1.5 1.5 0 0014 12.5" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Earn</p>
+              <p className="text-xs text-gray-400">Get more coins</p>
+            </div>
+            <span className="absolute top-2.5 right-3 text-[9px] font-bold uppercase tracking-wider text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded-full">Soon</span>
+          </button>
+        </div>
+
+        <button
+          onClick={() => setShowLearnModal(true)}
+          className="w-full flex items-center justify-between px-4 py-4 rounded-2xl bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">How to earn Mobcoins</p>
+              <p className="text-xs text-gray-400">Tips to grow your balance</p>
+            </div>
+          </div>
+          <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-300 fill-none stroke-current flex-shrink-0" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">Spend Mobcoins</p>
+          <div className="grid grid-cols-2 gap-2">
+            {spendItems.map((e, t) => (
+              <button
+                key={t}
+                onClick={e.soon ? undefined : e.onClick}
+                disabled={e.soon}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 active:scale-[0.97] transition-all text-left relative disabled:cursor-default"
+              >
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${e.color}`}>{e.icon}</div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate leading-snug">{e.label}</p>
+                  <p className="text-xs text-gray-400 truncate">{e.sub}</p>
+                </div>
+                {e.soon && (
+                  <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded-full bg-white">
+                    Soon
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-100 p-4 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0 mt-0.5">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-900 mb-1">What are Mobcoins?</p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Mobcoins are Textmob's in-app reward currency. They have{' '}
+              <span className="font-semibold text-gray-700">no real monetary value</span> and cannot be exchanged for cash.
+              Earn them by engaging with the app and spend them on in-app perks.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {modalOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[100]" onClick={closeModal} />
+          <div className="fixed bottom-0 left-0 right-0 md:inset-0 md:flex md:items-center md:justify-center z-[110] pointer-events-none">
+            <div className="pointer-events-auto w-full md:max-w-md md:rounded-2xl bg-white rounded-t-2xl border-t md:border border-gray-100 max-h-[92vh] overflow-y-auto">
+              <div className="flex justify-center pt-3 pb-1 md:hidden">
+                <div className="w-9 h-1 rounded-full bg-gray-200" />
+              </div>
+              <div className="px-5 pt-4 pb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-base font-bold text-gray-900">{modalTitle}</p>
+                  <button onClick={closeModal} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5 mb-4 px-3 py-2 bg-gray-50 rounded-xl">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 text-yellow-500 fill-none stroke-current" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v1m0 10v1M9.5 9.5A1.5 1.5 0 0111 8h1.5a1.5 1.5 0 010 3H11a1.5 1.5 0 000 3h1.5A1.5 1.5 0 0014 12.5" />
+                  </svg>
+                  <span className="text-xs text-gray-500">
+                    Available balance:{' '}
+                    <span className="font-bold text-gray-900">{balance.toLocaleString()} Mobcoins</span>
+                  </span>
+                </div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Recipient</label>
+                <div className="relative mb-3">
+                  <svg viewBox="0 0 24 24" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 fill-none stroke-current" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 103 10.5a7.5 7.5 0 0013.15 6.15z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => {
+                      setSearchQuery(e.target.value);
+                      handleSearch(e.target.value);
+                    }}
+                    placeholder="Search by name or username…"
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-200 transition-all placeholder-gray-400 text-gray-800"
+                  />
+                </div>
+                {searchResults.length > 0 && (
+                  <div className="rounded-xl border border-gray-100 overflow-hidden mb-3">
+                    {searchResults.slice(0, 5).map(e => (
+                      <button
+                        onClick={() => {
+                          if (!selectedUsers.some(t => t.username === e.username)) {
+                            setSelectedUsers(t => [...t, e]);
+                          }
+                          setSearchQuery('');
+                          setSearchResults([]);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 text-left"
+                        key={e.username}
+                      >
+                        <img src={e.profile_pic || '/assets/default-avatar.jpg'} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate leading-snug">{e.fullname}</p>
+                          <p className="text-xs text-gray-400 truncate">@{e.username}</p>
+                        </div>
+                        {selectedUsers.some(t => t.username === e.username) && (
+                          <span className="text-[10px] font-bold text-blue-600 flex-shrink-0">Added</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedUsers.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {selectedUsers.map(e => (
+                      <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold" key={e.username}>
+                        <img src={e.profile_pic || '/assets/default-avatar.jpg'} className="w-4 h-4 rounded-full object-cover" alt="" />
+                        {e.fullname}
+                        <button
+                          onClick={() => setSelectedUsers(t => t.filter(t => t.username !== e.username))}
+                          className="text-blue-400 hover:text-blue-700 transition-colors ml-0.5"
+                          aria-label="Remove"
+                        >
+                          <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Amount</label>
+                <div className="relative mb-5">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-yellow-500 fill-none stroke-current" strokeWidth="1.5">
+                      <circle cx="12" cy="12" r="9" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v1m0 10v1M9.5 9.5A1.5 1.5 0 0111 8h1.5a1.5 1.5 0 010 3H11a1.5 1.5 0 000 3h1.5A1.5 1.5 0 0014 12.5" />
+                    </svg>
+                  </div>
+                  <input
+                    type="number"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                    placeholder="0"
+                    min="1"
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-200 transition-all placeholder-gray-400 text-gray-800"
+                  />
+                </div>
+                {message && (
+                  <p className={`text-xs text-center mb-4 font-semibold ${message.toLowerCase().includes('error') || message.toLowerCase().includes('insufficient') ? 'text-red-500' : 'text-green-600'}`}>
+                    {message}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={closeModal} className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-500 bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSend}
+                    disabled={sending || !selectedUsers.length || !amount}
+                    className="flex-1 py-3 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {sending ? 'Sending…' : buttonLabel}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {showEarnModal && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[100]" onClick={() => setShowEarnModal(false)} />
+          <div className="fixed bottom-0 left-0 right-0 md:inset-0 md:flex md:items-center md:justify-center z-[110] pointer-events-none">
+            <div className="pointer-events-auto w-full md:max-w-sm md:rounded-2xl bg-white rounded-t-2xl border-t md:border border-gray-100">
+              <div className="px-5 pt-4 pb-8 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-yellow-50 flex items-center justify-center mx-auto mb-4">
+                  <svg viewBox="0 0 24 24" className="w-7 h-7 text-yellow-500 fill-none stroke-current" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v1m0 10v1M9.5 9.5A1.5 1.5 0 0111 8h1.5a1.5 1.5 0 010 3H11a1.5 1.5 0 000 3h1.5A1.5 1.5 0 0014 12.5" />
+                  </svg>
+                </div>
+                <p className="text-base font-bold text-gray-900 mb-1">Earning is coming soon</p>
+                <p className="text-xs text-gray-400 leading-relaxed mb-6">
+                  We're building ways for you to earn Mobcoins, through watch rewards, daily check-ins, referrals, and more. Stay tuned!
+                </p>
+                <button onClick={() => setShowEarnModal(false)} className="w-full py-3 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all">
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {showLearnModal && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[100]" onClick={() => setShowLearnModal(false)} />
+          <div className="fixed bottom-0 left-0 right-0 md:inset-0 md:flex md:items-center md:justify-center z-[110] pointer-events-none">
+            <div className="pointer-events-auto w-full md:max-w-md md:rounded-2xl bg-white rounded-t-2xl border-t md:border border-gray-100 max-h-[80vh] overflow-y-auto">
+              <div className="px-5 pt-4 pb-8">
+                <div className="flex items-center justify-between mb-5">
+                  <p className="text-base font-bold text-gray-900">How to earn Mobcoins</p>
+                  <button onClick={() => setShowLearnModal(false)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    {
+                      icon: <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>,
+                      color: 'text-blue-600 bg-blue-50',
+                      label: 'Post regularly',
+                      sub: 'Share posts, thoughts, snaps and events. Active creators earn more.'
+                    },
+                    {
+                      icon: <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>,
+                      color: 'text-red-500 bg-red-50',
+                      label: 'React & like content',
+                      sub: 'Engage with posts from people you follow. Every reaction counts.'
+                    },
+                    {
+                      icon: <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" /></svg>,
+                      color: 'text-green-600 bg-green-50',
+                      label: 'Comment meaningfully',
+                      sub: 'Leave thoughtful comments on posts. Quality over quantity.'
+                    },
+                    {
+                      icon: <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>,
+                      color: 'text-purple-600 bg-purple-50',
+                      label: 'Grow your network',
+                      sub: 'Add friends and follow people. A bigger network means more engagement.'
+                    },
+                    {
+                      icon: <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+                      color: 'text-amber-600 bg-amber-50',
+                      label: 'Stay consistent',
+                      sub: 'Show up daily. Consistent activity is rewarded over time.'
+                    }
+                  ].map((item, t) => (
+                    <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-gray-50" key={t}>
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${item.color}`}>{item.icon}</div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 leading-snug">{item.label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{item.sub}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setShowLearnModal(false)} className="w-full mt-5 py-3 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all">
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

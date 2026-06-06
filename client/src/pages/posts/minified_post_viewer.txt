@@ -1,0 +1,362 @@
+function Ur({
+  id: e
+}) {
+  let [t, n] = v.useState(null);
+  let [r, i] = v.useState(true);
+  let [a, o] = v.useState(``);
+  let [s, c] = v.useState(null);
+  let [l, u] = v.useState(false);
+  let [d, f] = v.useState(null);
+  let [p, m] = v.useState({});
+  function h(e, t) {
+    let n = {};
+    let r = null;
+    if (Array.isArray(e)) {
+      e.forEach(e => {
+        if (e?.reaction) {
+          n[e.reaction] = (n[e.reaction] || 0) + 1;
+          if (e.username === t) {
+            r = e.reaction;
+          }
+        }
+      });
+      return {
+        counts: n,
+        userReaction: r
+      };
+    } else {
+      return {
+        counts: {},
+        userReaction: null
+      };
+    }
+  }
+  async function g(e) {
+    try {
+      let t = await J(`/get-post-reactions?postId=${encodeURIComponent(e)}`);
+      if (!t.ok) {
+        return;
+      }
+      let n = await t.json();
+      let r = n.reactions ? h(n.reactions, localStorage.currentUser) : {
+        counts: n.counts || {},
+        userReaction: n.userReaction || null
+      };
+      m(t => ({
+        ...t,
+        [String(e)]: r
+      }));
+    } catch {}
+  }
+  v.useEffect(() => {
+    let t = true;
+    async function r() {
+      i(true);
+      o(``);
+      c(null);
+      u(false);
+      try {
+        let r = await J(`/get-post?id=${encodeURIComponent(e)}`);
+        if (!r.ok) {
+          throw Error(`Post not found`);
+        }
+        let i = await r.json();
+        if (!t) {
+          return;
+        }
+        n(i);
+        if (Array.isArray(i.reactions)) {
+          m(e => ({
+            ...e,
+            [String(i.id)]: h(i.reactions, localStorage.currentUser)
+          }));
+        } else {
+          g(i.id);
+        }
+        if (i.type?.startsWith(`group-post-`)) {
+          let e = i.type.replace(`group-post-`, ``);
+          try {
+            let n = await J(`/groups/${e}/light?username=${localStorage.currentUser}`);
+            if (n.status === 403) {
+              u(true);
+              return;
+            }
+            if (!n.ok) {
+              throw Error(`Failed to fetch group`);
+            }
+            if (t) {
+              c(await n.json());
+            }
+          } catch (e) {
+            if (e.message === `Access denied`) {
+              u(true);
+            } else {
+              console.error(`Group fetch failed:`, e);
+            }
+          }
+        }
+      } catch (e) {
+        if (t) {
+          o(e.message);
+        }
+      } finally {
+        if (t) {
+          i(false);
+        }
+      }
+    }
+    r();
+    let a = t => {
+      if (t?.postId === e) {
+        n(e => !e || e.comments.some(e => e.id === t.id) ? e : {
+          ...e,
+          comments: [...e.comments, t]
+        });
+      }
+    };
+    window.socket?.on(`new-comment`, a);
+    return () => {
+      t = false;
+      window.socket?.off(`new-comment`, a);
+    };
+  }, [e]);
+  function _(e) {
+    let t = localStorage.currentUser;
+    n(n => {
+      if (!n || n.id !== e) {
+        return n;
+      }
+      let r = n.likes.includes(t);
+      return {
+        ...n,
+        likes: r ? n.likes.filter(e => e !== t) : [...n.likes, t]
+      };
+    });
+    J(`/like-post`, {
+      method: `POST`,
+      headers: {
+        "Content-Type": `application/json`
+      },
+      body: JSON.stringify({
+        postId: e,
+        username: t
+      })
+    }).catch(() => {
+      n(n => {
+        if (!n || n.id !== e) {
+          return n;
+        }
+        let r = n.likes.includes(t);
+        return {
+          ...n,
+          likes: r ? n.likes.filter(e => e !== t) : [...n.likes, t]
+        };
+      });
+    });
+  }
+  async function y(e, r) {
+    let i = r.trim();
+    if (!!i && !!t) {
+      n(e => ({
+        ...e,
+        comments: [...e.comments, {
+          username: localStorage.currentUser,
+          text: i
+        }]
+      }));
+      try {
+        await J(`/add-comment`, {
+          method: `POST`,
+          headers: {
+            "Content-Type": `application/json`
+          },
+          body: JSON.stringify({
+            postId: e,
+            username: localStorage.currentUser,
+            comment: i
+          })
+        });
+      } catch {}
+    }
+  }
+  async function b(e, r) {
+    if (!t || t.type !== `poll`) {
+      return;
+    }
+    let i = localStorage.currentUser;
+    let a = t.options.find(e => e.votes.includes(i))?.id;
+    n(e => ({
+      ...e,
+      options: e.options.map(e => {
+        let t = e.votes.filter(e => e !== i);
+        if (e.id === r && a !== r) {
+          t.push(i);
+        }
+        return {
+          ...e,
+          votes: t
+        };
+      })
+    }));
+    try {
+      await J(`/vote-poll-option`, {
+        method: `POST`,
+        headers: {
+          "Content-Type": `application/json`
+        },
+        body: JSON.stringify({
+          postId: e,
+          optionId: r,
+          username: i
+        })
+      });
+    } catch (e) {
+      console.error(`Poll vote failed`, e);
+    }
+  }
+  function x(e, r, i) {
+    let a = localStorage.currentUser;
+    n(t => {
+      if (!t || t.id !== e) {
+        return t;
+      }
+      let n = (t.reactions || []).filter(e => e.username !== a);
+      if ((t.reactions || []).find(e => e.username === a)?.reaction === r) {
+        return {
+          ...t,
+          reactions: n
+        };
+      } else {
+        return {
+          ...t,
+          reactions: [...n, {
+            username: a,
+            type: `emoji`,
+            reaction: r,
+            etext: i
+          }]
+        };
+      }
+    });
+    m(n => {
+      let o = {
+        ...n
+      };
+      let s = (t?.reactions || []).filter(e => e.username !== a);
+      if ((t?.reactions || []).find(e => e.username === a)?.reaction !== r) {
+        s.push({
+          username: a,
+          reaction: r,
+          etext: i
+        });
+      }
+      o[String(e)] = h(s, a);
+      return o;
+    });
+    J(`/react-post`, {
+      method: `POST`,
+      headers: {
+        "Content-Type": `application/json`
+      },
+      body: JSON.stringify({
+        postId: e,
+        username: a,
+        reaction: r,
+        etext: i
+      })
+    }).then(t => t.ok ? t.json().then(t => {
+      if (t?.reactions) {
+        let r = h(t.reactions, a);
+        m(t => ({
+          ...t,
+          [String(e)]: r
+        }));
+        n(n => n?.id === e ? {
+          ...n,
+          reactions: t.reactions
+        } : n);
+      }
+    }) : g(e)).catch(() => setTimeout(() => g(e), 1500));
+  }
+  if (r) {
+    const Component1910 = `circle`;
+    const Component1911 = `path`;
+    const Component1912 = `svg`;
+    const Component1913 = `div`;
+    return <Component1913 className={`flex justify-center items-center p-6`}><Component1912 className={`animate-spin w-8 h-8 text-blue-600`} viewBox={`0 0 24 24`} fill={`none`}><Component1910 className={`opacity-25`} cx={`12`} cy={`12`} r={`10`} stroke={`currentColor`} strokeWidth={`4`} /><Component1911 className={`opacity-75`} fill={`currentColor`} d={`M4 12a8 8 0 018-8v8H4z`} /></Component1912></Component1913>;
+  } else if (a) {
+    const Component1914 = `div`;
+    return <Component1914 className={`p-6 text-center text-sm text-red-500`}>{a}</Component1914>;
+  } else if (l) {
+    const Component1915 = `div`;
+    return <Component1915 className={`p-6 text-center text-sm text-yellow-600`}>{`Access denied to this group post.`}</Component1915>;
+  } else if (t) {
+    const Component1916 = `div`;
+    const Component1917 = `p`;
+    const Component1918 = `div`;
+    const Component1919 = `div`;
+    return <Component1919 className={`bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800`}><Zn post={t} groupProfiles={s ? {
+        [s.id]: s
+      } : {}} liveCounts={{}} reactionCountsCache={p} reactionsOpenFor={d} setReactionsOpenFor={f} handlePollVote={b} handleComment={y} handleLike={_} handleReact={x} showCommentInput={false} showViewButton={false} /><Component1916 className={`px-4 py-3 border-t border-gray-100 dark:border-gray-800`}><Wr onSubmit={e => y(t.id, e)} /></Component1916>{t.comments.length > 0 && <Component1918 className={`px-4 pb-6 space-y-4`}><Component1917 className={`text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 pt-2`}>{`Comments`}</Component1917>{[...t.comments].reverse().map((e, t) => <Vn cmt={e} key={e.id || t} />)}</Component1918>}</Component1919>;
+  } else {
+    const Component1920 = `div`;
+    return <Component1920 className={`p-6 text-center text-sm text-gray-400`}>{`No post to display.`}</Component1920>;
+  }
+}
+function Wr({
+  onSubmit: e
+}) {
+  let [t, n] = v.useState(``);
+  let r = v.useRef(null);
+  let {
+    suggestions: i,
+    setSuggestions: a,
+    activeIndex: o,
+    setActiveIndex: s,
+    queryInfo: c,
+    setQueryInfo: l
+  } = vn(t, r);
+  let u = e => {
+    let i = e.type === `user` ? `@${e.username}` : e.query;
+    let o = t.slice(0, c.start);
+    let s = t.slice(c.end);
+    n(`${o + i} ${s}`);
+    a([]);
+    l(null);
+    setTimeout(() => r.current?.focus(), 10);
+  };
+  let d = e => {
+    if (i.length > 0) {
+      if (e.key === `ArrowDown`) {
+        e.preventDefault();
+        s(e => (e + 1) % i.length);
+      } else if (e.key === `ArrowUp`) {
+        e.preventDefault();
+        s(e => (e - 1 + i.length) % i.length);
+      } else if (e.key === `Enter` || e.key === `Tab`) {
+        e.preventDefault();
+        u(i[o]);
+      } else if (e.key === `Escape`) {
+        a([]);
+        l(null);
+      }
+    } else if (e.key === `Enter`) {
+      f();
+    }
+  };
+  function f() {
+    let r = t.trim();
+    if (r) {
+      e(r);
+      n(``);
+      a([]);
+    }
+  }
+  const Component1921 = `img`;
+  const Component1922 = `input`;
+  const Component1923 = `button`;
+  const Component1924 = `div`;
+  const Component1925 = `div`;
+  return <Component1925 className={`flex items-center gap-2 relative`}><Component1921 src={localStorage.cached_profile_pic || `${hn}default-avatar`} className={`w-8 h-8 rounded-full object-cover flex-shrink-0`} alt={``} /><Component1924 className={`flex-1 flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900 transition-all relative`}><Component1922 ref={r} type={`text`} value={t} onChange={e => n(e.target.value)} onKeyDown={d} placeholder={`Write a comment…`} className={`flex-1 bg-transparent text-sm outline-none placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-200`} /><_n items={i} onSelect={u} activeIndex={o} />{t.trim() && <Component1923 onClick={f} className={`text-blue-600 dark:text-blue-400 font-bold text-xs flex-shrink-0`}>{`Post`}</Component1923>}</Component1924></Component1925>;
+}
+function Gr

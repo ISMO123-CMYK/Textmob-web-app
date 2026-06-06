@@ -1,6 +1,5 @@
 .env
 node_modules/
-client/
 .gemini/
 thetextmobapp.apk
 galaxybells.mp3

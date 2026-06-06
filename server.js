@@ -24,6 +24,8 @@ const supabaseUr = "https://ycgczjvuygmunmksarzg.supabase.co";
 const supabaseKe = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljZ2N6anZ1eWdtdW5ta3NhcnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjg1NjIsImV4cCI6MjA1ODk0NDU2Mn0.yH-mlb2PGj4FoXjUxCp3JUm9CYutuGRR7bRAV-Tf9fA";
 const supabase2 = createClient(supabaseUr, supabaseKe);
 
+const authorMobcoinsCache = new Map();
+
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 const fetch = require("node-fetch")
@@ -326,6 +328,80 @@ app.get("/api/turn-credentials", async (req, res) => {
   } catch (error) {
     console.error("TURN credentials error:", error.message);
     res.json({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+  }
+});
+
+// --- HTTP Chunk Streaming Endpoints ---
+app.post("/api/live-chunk-upload/:postId", express.raw({ type: "*/*", limit: "50mb" }), (req, res) => {
+  try {
+    const { postId } = req.params;
+    const chunk = req.body;
+    if (!chunk || chunk.length === 0) {
+      return res.status(400).json({ error: "Empty chunk" });
+    }
+
+    if (!liveChunkBuffers.has(postId)) {
+      liveChunkBuffers.set(postId, []);
+    }
+    liveChunkBuffers.get(postId).push(chunk);
+
+    const s = liveSessions.get(postId);
+    if (s && s.activeStreams) {
+      for (const clientRes of s.activeStreams) {
+        try {
+          clientRes.write(chunk);
+        } catch (e) {
+          console.warn("Error writing chunk to client stream", e);
+        }
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("live-chunk-upload error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/live-stream/:postId", (req, res) => {
+  try {
+    const { postId } = req.params;
+    const s = liveSessions.get(postId);
+    if (!s) {
+      return res.status(404).json({ error: "Live session not found" });
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "video/webm; codecs=vp8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
+      "Access-Control-Allow-Origin": "*"
+    });
+
+    const chunks = liveChunkBuffers.get(postId) || [];
+    if (chunks.length > 0) {
+      // Always write the first chunk containing the WebM/VP8 metadata & container headers
+      res.write(chunks[0]);
+      
+      // Write only the last 2 chunks to catch the viewer up to the live edge immediately
+      const startIdx = Math.max(1, chunks.length - 2);
+      for (let i = startIdx; i < chunks.length; i++) {
+        res.write(chunks[i]);
+      }
+    }
+
+    if (!s.activeStreams) {
+      s.activeStreams = new Set();
+    }
+    s.activeStreams.add(res);
+
+    req.on("close", () => {
+      if (s && s.activeStreams) {
+        s.activeStreams.delete(res);
+      }
+    });
+  } catch (err) {
+    console.error("live-stream error:", err);
+    try { res.status(500).json({ error: err.message }); } catch (e) { }
   }
 });
 
@@ -3999,6 +4075,8 @@ const TMP_DIR = path.join(process.cwd(), "tmp-live");
 
 // in-memory sessions: postId -> session object
 const liveSessions = new Map();
+// in-memory chunk buffers: postId -> Array of Buffers
+const liveChunkBuffers = new Map();
 // socketId -> Set(postId)
 const socketJoins = new Map();
 
@@ -4013,6 +4091,21 @@ async function appendChunk(filePath, chunkBuffer) {
 async function removeDirRecursive(dirPath) {
   try {
     await fs.rm(dirPath, { recursive: true, force: true });
+  } catch (e) { }
+}
+async function cleanupLiveSessionData(postId, s) {
+  if (s) {
+    if (s.activeStreams) {
+      for (const clientRes of s.activeStreams) {
+        try { clientRes.end(); } catch (e) { }
+      }
+      s.activeStreams.clear();
+    }
+  }
+  liveChunkBuffers.delete(postId);
+  try {
+    const postTempDir = path.join(TMP_DIR, String(postId));
+    await fs.rm(postTempDir, { recursive: true, force: true });
   } catch (e) { }
 }
 function joinIndexAdd(socketId, postId) {
@@ -4094,6 +4187,7 @@ io.on("connection", function (socket) {
       }
 
       // delete session
+      cleanupLiveSessionData(postId, s);
       liveSessions.delete(postId);
 
       // Optionally update DB with savedUrl (if you want server to be source of truth)
@@ -4491,6 +4585,7 @@ io.on("connection", function (socket) {
         console.warn("endLive: removeDirRecursive failed", e);
       }
 
+      await cleanupLiveSessionData(postId, s);
       liveSessions.delete(postId);
 
       if (ack) ack({ ok: true, savedUrl });
@@ -4825,7 +4920,7 @@ app.get('/about', (req, res) => {
 // Endpoint to get a single post by ID
 app.get("/get-post", async (req, res) => {
   try {
-    const { id } = req.query;
+    const id = req.query.id || req.query.postId;
     if (!id) {
       return res.status(400).json({ error: "Post ID is required" });
     }
@@ -4863,17 +4958,29 @@ app.get("/get-post", async (req, res) => {
 app.get("/get-user-posts", async (req, res) => {
   try {
     const { username } = req.query;
+    const page = Math.max(parseInt(req.query.page || "0", 10) || 0, 0);
+    const limit = Math.min(Math.max(parseInt(req.query.limit || "0", 10) || 0, 0), 100);
+    const shouldPaginate = page > 0 || limit > 0;
+    const pageSize = limit || 24;
+    const from = (Math.max(page, 1) - 1) * pageSize;
+    const to = from + pageSize;
 
     if (!username) {
       return res.status(400).json({ error: "Username is required" });
     }
 
     // Fetch posts sorted by created_at (most recent first)
-    const { data: posts, error } = await supabase2
+    let query = supabase2
       .from("Posts")
       .select("*")
       .eq("username", username)
       .order("created_at", { ascending: false }); // <-- sort here
+
+    if (shouldPaginate) {
+      query = query.range(from, to);
+    }
+
+    const { data: posts, error } = await query;
 
     if (error) {
       console.error("Error fetching posts:", error);
@@ -7170,6 +7277,7 @@ app.get("/get-posts", async (req, res) => {
     const { username, tab = "foryou", page = 1, seenIds = "" } = req.query;
     if (!username) return res.status(400).json({ error: "Missing username parameter" });
     const limit = parseInt(req.query.limit, 10) || 10;
+    const pg = parseInt(page, 10) || 1;
 
     // Instead of hitting serverSeen memory (which leaks over time and causes sync issues),
     // let's rely just on the dynamically requested feed without caching all posts.
@@ -7190,14 +7298,85 @@ app.get("/get-posts", async (req, res) => {
       blockedUsers = new Set(me?.blocked_users || []);
     } catch { /* non-fatal */ }
 
-    // First fetch a batch of posts dynamically from Supabase
-    const { data: fetchedPosts, error } = await supabase2
-      .from("Posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(300); // 300 recent points to algorithmically rank
+    if (tab === "following") {
+      const followingsAndFriends = [...new Set([...userFollowing, ...userFriends])].filter(u => !blockedUsers.has(u));
 
-    if (error || !fetchedPosts) return res.json([]);
+      if (followingsAndFriends.length === 0) {
+        return res.json([]);
+      }
+
+      // Fetch posts specifically from these users
+      const { data: posts, error: postErr } = await supabase2
+        .from("Posts")
+        .select("*")
+        .in("username", followingsAndFriends)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (postErr || !posts) {
+        return res.json([]);
+      }
+
+      // Filter out group posts and disabled posts
+      const filtered = posts.filter(p =>
+        p && p.id && p.username &&
+        !(p.type && p.type.toLowerCase().startsWith("group")) &&
+        !(p.disabled === true)
+      );
+
+      const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
+
+      // Sort: unseen first, then newest first
+      const sorted = filtered.sort((a, b) => {
+        const aSeen = clientSeenIds.has(String(a.id)) ? 1 : 0;
+        const bSeen = clientSeenIds.has(String(b.id)) ? 1 : 0;
+        if (aSeen !== bSeen) return aSeen - bSeen;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      const startIndex = (pg - 1) * limit;
+      return res.json(sorted.slice(startIndex, startIndex + limit));
+    }
+
+    // Tab is "foryou": Run profile query and global posts query in parallel
+    let fetchedPosts = [];
+    let postsError = null;
+    try {
+      const [meResult, postsResult] = await Promise.all([
+        supabase
+          .from("users")
+          .select("following, friends, blocked_users")
+          .eq("username", username)
+          .single(),
+        supabase2
+          .from("Posts")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(300)
+      ]);
+
+      if (meResult.data) {
+        userFollowing = new Set(meResult.data.following || []);
+        userFriends = new Set(meResult.data.friends || []);
+        blockedUsers = new Set(meResult.data.blocked_users || []);
+      }
+      fetchedPosts = postsResult.data || [];
+      postsError = postsResult.error;
+    } catch (err) {
+      console.error("Parallel fetch failed, falling back to sequential:", err);
+      // Fallback
+      try {
+        const { data: postsData, error: err } = await supabase2
+          .from("Posts")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(300);
+        fetchedPosts = postsData || [];
+        postsError = err;
+      } catch { }
+    }
+
+    if (postsError || !fetchedPosts) return res.json([]);
 
     // Filter out group posts, blocked users, and self if blocked
     const eligible = fetchedPosts.filter(p =>
@@ -7213,31 +7392,9 @@ app.get("/get-posts", async (req, res) => {
     const now = Date.now();
     const HOUR = 3600000;
 
-    // Fetch dynamic mobcoins of ONLY these users to avoid caching global state
-    const authorUsernames = [...new Set(eligible.map(p => p.username))];
-    const { data: authorsInfo } = await supabase
-      .from("users")
-      .select("username, mobcoins")
-      .in("username", authorUsernames);
-
+    // No database queries for mobcoins to save Supabase egress quota
     const userMobcoins = {};
-    if (authorsInfo) {
-      authorsInfo.forEach(u => {
-        userMobcoins[u.username] = Math.min(200, Math.floor((u.mobcoins || 0) / 5));
-      });
-    }
 
-    if (tab === "following") {
-      const followingPosts = eligible
-        .filter(p => userFollowing.has(p.username) || userFriends.has(p.username))
-        .sort((a, b) => {
-          const aSeen = clientSeenIds.has(String(a.id)) ? 1 : 0;
-          const bSeen = clientSeenIds.has(String(b.id)) ? 1 : 0;
-          if (aSeen !== bSeen) return aSeen - bSeen;
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
-      return res.json(followingPosts.slice(0, limit));
-    }
 
     // TIKTOK Algorithm Scorers
     function scorePost(p) {
@@ -7262,7 +7419,7 @@ app.get("/get-posts", async (req, res) => {
       const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
 
       let typeBonus = 1.0;
-      if (p.type === "live" || p.type === "event") typeBonus = 3.0;
+      if (p.type === "live") typeBonus = 3.0;
       if (p.media && p.media.length > 0) typeBonus = 1.5;
       if (p.type === "poll") typeBonus = 1.2;
 
@@ -7342,46 +7499,54 @@ app.get("/get-live-posts", async (req, res) => {
     const { username } = req.query;
     if (!username) return res.status(400).json({ error: "Username is required" });
 
-    // Refresh post cache if empty/stale
-    if (!postCache.allPosts.length || Date.now() - postCache.lastUpdated > 60000) {
-      await refreshPostCache();
+    // Fetch active live posts directly from Supabase
+    const { data: livePosts, error } = await supabase2
+      .from("Posts")
+      .select("*")
+      .eq("type", "live")
+      .order("created_at", { ascending: false });
+
+    if (error || !livePosts) {
+      return res.json([]);
     }
 
-    // Initialize user state
-    if (!userFeedState.has(username)) userFeedState.set(username, new Set());
-    const seen = userFeedState.get(username);
+    // Filter out posts from blocked users if the blocklist is available
+    let blockedUsers = new Set();
+    try {
+      const { data: me } = await supabase
+        .from("users")
+        .select("blocked_users")
+        .eq("username", username)
+        .single();
+      blockedUsers = new Set(me?.blocked_users || []);
+    } catch { /* non-fatal */ }
 
-    // Split live posts into unseen and seenAgain
-    const unseen = [];
-    const seenAgain = [];
+    const eligible = livePosts.filter(p => p && p.username && !blockedUsers.has(p.username) && !(p.disabled === true));
 
-    for (const post of postCache.allPosts) {
-      if (post.type !== "live") continue; // only live/event
+    // Optional: Rank by creator's mobcoins to prioritize popular creators
+    const authorUsernames = [...new Set(eligible.map(p => p.username))];
+    if (authorUsernames.length > 0) {
+      try {
+        const { data: authorsInfo } = await supabase
+          .from("users")
+          .select("username, mobcoins")
+          .in("username", authorUsernames);
 
-      if (seen.has(post.id)) seenAgain.push(post);
-      else {
-        unseen.push(post);
-        seen.add(post.id);
-        // Trim seen set (FIFO)
-        if (seen.size > 500) {
-          seen.delete(seen.values().next().value);
+        if (authorsInfo) {
+          const mobcoinsMap = {};
+          authorsInfo.forEach(u => {
+            mobcoinsMap[u.username] = u.mobcoins || 0;
+          });
+          eligible.sort((a, b) => {
+            const scoreA = new Date(a.created_at).getTime() + (mobcoinsMap[a.username] || 0) * 1e9;
+            const scoreB = new Date(b.created_at).getTime() + (mobcoinsMap[b.username] || 0) * 1e9;
+            return scoreB - scoreA;
+          });
         }
-      }
+      } catch { /* fallback to default order */ }
     }
 
-    // --- Scoring function using cached mobcoins ---
-    const getPostScore = post =>
-      new Date(post.created_at).getTime() + (userMobcoinsCache[post.username] || 0) * 1e9;
-
-    // --- Prioritize live posts (they're all live already, just score sort) ---
-    unseen.sort((a, b) => getPostScore(b) - getPostScore(a));
-    const rankedSeenAgain = shuffleArray(seenAgain); // shuffle old ones
-
-    // Return top live posts
-    res.json([
-      ...unseen,
-      ...rankedSeenAgain
-    ]);
+    res.json(eligible);
 
   } catch (err) {
     console.error("Live Feed Error:", err);

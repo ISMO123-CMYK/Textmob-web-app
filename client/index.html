@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/darkreader/darkreader.min.js"></script>
+  <script>
+    window.VITE_API_URL = "https://textmob-provider-api-99ii.onrender.com";
+    const user = localStorage.getItem("currentUser");
+    const isAuthPage = window.location.pathname.startsWith('/auth') || window.location.hash.startsWith('#/auth');
+    if ((!user || user === "undefined") && !isAuthPage) {
+      window.location.href = '/auth';
+    }
+
+    // TextMob iframe script
+    (function () {
+      const PARENT_ORIGIN = window.location.origin;
+      function getCurrentUser() {
+        return localStorage.getItem("currentUser") || "";
+      }
+      function postCurrentUserToParent() {
+        const payload = { type: "currentUser", value: getCurrentUser() };
+        try { window.parent.postMessage(JSON.stringify(payload), PARENT_ORIGIN); }
+        catch (err) { console.error("postMessage to parent failed:", err); }
+      }
+      window.addEventListener("DOMContentLoaded", postCurrentUserToParent);
+      window.addEventListener("message", (ev) => {
+        let data;
+        try { data = typeof ev.data === "string" ? JSON.parse(ev.data) : ev.data; }
+        catch (err) { return; }
+        if (!data || !data.type) return;
+        if (data.type === "requestCurrentUser") { postCurrentUserToParent(); }
+      });
+    })();
+
+    // DarkReader preferences
+    (function () {
+      function safeCallDarkReader(fn) {
+        if (window.DarkReader) { try { fn(); } catch (e) { console.error("DarkReader error", e); } return; }
+        let tries = 0;
+        const t = setInterval(() => {
+          tries += 1;
+          if (window.DarkReader) { clearInterval(t); try { fn(); } catch (e) { console.error("DarkReader error", e); } }
+          else if (tries > 30) { clearInterval(t); }
+        }, 100);
+      }
+      function applyDarkMode(mode) {
+        if (mode === "light") {
+          if (window.DarkReader) { try { window.DarkReader.disable(); } catch (e) { } }
+          return;
+        }
+        safeCallDarkReader(() => {
+          try { if (window.DarkReader && typeof window.DarkReader.setFetchMethod === "function") { window.DarkReader.setFetchMethod(window.fetch); } } catch (e) { }
+          if (mode === "dark") { window.DarkReader.enable({ brightness: 100, contrast: 100, sepia: 0 }); }
+          else if (mode === "custom") { window.DarkReader.enable({ brightness: 110, contrast: 90, sepia: 8 }); }
+          else {
+            if (typeof window.DarkReader.auto === "function") { window.DarkReader.auto({ brightness: 100, contrast: 100, sepia: 0 }); }
+            else { const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; prefersDark ? window.DarkReader.enable() : window.DarkReader.disable(); }
+          }
+        });
+      }
+      const savedMode = localStorage.getItem("darkMode") || "system";
+      applyDarkMode(savedMode);
+      window.addEventListener("app:preferences:update", (e) => {
+        try { const detail = e.detail || {}; if (typeof detail.darkMode === "string") { localStorage.setItem("darkMode", detail.darkMode); applyDarkMode(detail.darkMode); } } catch (err) { }
+      });
+      window.addEventListener("storage", (e) => { if (e.key === "darkMode" && e.newValue) { applyDarkMode(e.newValue); } });
+      if (window.matchMedia) {
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        if (mq.addEventListener) { mq.addEventListener("change", () => { const current = localStorage.getItem("darkMode") || "system"; if (current === "system") applyDarkMode("system"); }); }
+        else if (mq.addListener) { mq.addListener(() => { const current = localStorage.getItem("darkMode") || "system"; if (current === "system") applyDarkMode("system"); }); }
+      }
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="manifest" href="/manifest.json" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          console.log('SW registered:', reg);
+        }).catch(err => {
+          console.log('SW registration failed:', err);
+        });
+      });
+    }
+  </script>
+
+  <link rel="icon"
+    href="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png">
+
+  <!-- CDN Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fabric@5.2.1/dist/fabric.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.2/color-thief.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+
+  <!-- SEO Meta -->
+  <meta name="title" content="Textmob – Africa's Social Network" />
+  <meta name="description"
+    content="Textmob is Africa's microblogging platform where every voice matters. Share thoughts, connect with like-minds, and join the conversation." />
+  <meta name="keywords"
+    content="Textmob, African social network, microblogging, Africa, connect, share, community, Nigerian social media, pan-african, social platform" />
+  <meta name="author" content="Textmob" />
+  <meta name="robots" content="index, follow" />
+  <meta name="note"
+    content="Textmob (textmob.web.app) is not affiliated with TXTmob, TextMob SMS, or any SMS/text messaging service. Textmob is an African social network and microblogging platform." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Textmob – Africa's Social Network" />
+  <meta property="og:description"
+    content="Textmob is Africa's microblogging platform where every voice matters. Share thoughts, connect with like-minds, and join the conversation." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://textmob.web.app" />
+  <meta property="og:site_name" content="Textmob" />
+  <meta property="og:image"
+    content="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" />
+  <meta name="google-site-verification" content="1HK9t5P6Oum2egWt8HDZaeAcGQ7WHseZUxRDj3AUa1o" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:title" content="Textmob – Africa's Social Network" />
+  <meta name="twitter:description"
+    content="Textmob is Africa's microblogging platform where every voice matters. Share thoughts, connect with like-minds, and join the conversation." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@textmob" />
+  <meta name="twitter:image"
+    content="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" />
+
+  <title>Textmob</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <style>
+    html,
+    body {
+      overscroll-behavior-y: none;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .group-card {
+      transition: all 0.2s;
+    }
+
+    .group-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .message-seen {
+      opacity: 0.7;
+    }
+
+    @keyframes blink {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    .cursor-blink:hover::after {
+      content: '|';
+      display: inline-block;
+      animation: blink 1s infinite;
+      margin-left: 2px;
+      color: #4B5563;
+    }
+
+    @keyframes fade-in {
+      0% {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .dv {
+      width: 3rem;
+      height: 2.5rem;
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.25s ease-out;
+    }
+
+    @keyframes float-up {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(-100px) scale(2);
+        opacity: 0;
+      }
+    }
+
+    .reaction-float {
+      animation: float-up 0.8s ease-out forwards;
+    }
+
+    .reaction-burst-particle {
+      animation: float-up 1s ease-out forwards;
+      filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.2));
+    }
+
+    iframe {
+      padding-right: 20px;
+    }
+
+    .markdown h1,
+    .markdown h2,
+    .markdown h3 {
+      font-weight: 700;
+      color: #1e40af;
+      margin-top: 1rem;
+    }
+
+    .markdown p {
+      margin: 0.5rem 0;
+    }
+
+    .markdown code {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      font-family: monospace;
+    }
+
+    .markdown pre {
+      background-color: #1e293b;
+      color: #f1f5f9;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+
+    .markdown table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+
+    .markdown th,
+    .markdown td {
+      border: 1px solid #e5e7eb;
+      padding: 0.5rem;
+      text-align: left;
+    }
+
+    .markdown ul {
+      list-style-type: disc;
+      margin-left: 1.5rem;
+    }
+
+    .markdown a {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+
+    @keyframes slide-n {
+      from {
+        transform: translateX(-30px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .animate-slide-in {
+      animation: slide-n 0.4s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(30%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes spark-progress {
+      from {
+        width: 0%;
+      }
+
+      to {
+        width: 100%;
+      }
+    }
+
+    video {
+      border-radius: 15px;
+      cursor: pointer;
+    }
+
+    img {
+      cursor: pointer;
+    }
+
+    @layer utilities {
+      @keyframes wiggle {
+        0% {
+          transform: rotate(-1deg) scale(0.98);
+        }
+
+        100% {
+          transform: rotate(1deg) scale(1.02);
+        }
+      }
+
+      .animate-wiggle {
+        animation: wiggle 0.8s ease-in-out infinite alternate;
+      }
+    }
+
+    .emoji {
+      width: 20px;
+      vertical-align: -0.125em;
+      display: inline-block;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-family: 'Montserrat', 'Inter', sans-serif;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-top: 0;
+    }
+
+    .scrollbar-thin {
+      scrollbar-width: thin;
+    }
+
+    .scrollbar-thumb-rounded {
+      scrollbar-color: rgba(107, 114, 128, .5) transparent;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background-color: rgba(107, 114, 128, .5);
+      border-radius: 3px;
+    }
+
+    :root {
+      --ctrl-bg: rgba(0, 0, 0, 0.6);
+      --ctrl-hover-bg: rgba(0, 0, 0, 0.8);
+      --icon-size: 24px;
+      --transition-speed: 0.2s;
+      --primary-color: #fff;
+    }
+
+    .video-container {
+      position: relative;
+      background: #000;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .video-container video {
+      display: block;
+      width: 100%;
+      height: auto;
+      transition: filter var(--transition-speed);
+    }
+
+    .video-container.paused video {
+      filter: brightness(0.7);
+    }
+
+    .big-play {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      color: var(--primary-color);
+      width: var(--icon-size);
+      height: var(--icon-size);
+      opacity: 0;
+      transition: transform var(--transition-speed) ease-out, opacity var(--transition-speed);
+      pointer-events: none;
+    }
+
+    .video-container.paused .big-play {
+      transform: translate(-50%, -50%) scale(1.5);
+      opacity: 0.8;
+    }
+
+    .video-container.paused:hover .big-play {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.8);
+    }
+
+    .controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--ctrl-bg);
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      transform: translateY(100%);
+      transition: transform var(--transition-speed) ease-out;
+    }
+
+    .video-container:hover .controls,
+    .video-container.focused .controls {
+      transform: translateY(0);
+    }
+
+    .controls button {
+      background: none;
+      border: none;
+      color: var(--primary-color);
+      cursor: pointer;
+      width: var(--icon-size);
+      height: var(--icon-size);
+      padding: 4px;
+      transition: background var(--transition-speed);
+    }
+
+    .controls button:hover {
+      background: var(--ctrl-hover-bg);
+      border-radius: 4px;
+    }
+
+    .controls input[type=range] {
+      flex: 1;
+      margin: 0 8px;
+      appearance: none;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .controls input[type=range]::-webkit-slider-thumb {
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      background: var(--primary-color);
+      border-radius: 50%;
+    }
+
+    .time {
+      color: var(--primary-color);
+      font-size: 12px;
+      min-width: 50px;
+      text-align: center;
+    }
+
+    /* animate-pulse handled by Tailwind */
+    .story-ring {
+      display: inline-block;
+      padding: 2px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+
+    .story-ring img {
+      display: block;
+      border-radius: 50%;
+    }
+
+    .story-ring[data-sparks="1"] {
+      background: #5ac0e7;
+    }
+
+    .story-ring[data-sparks="2"] {
+      background: conic-gradient(#5ac0e7 0deg 180deg, #e75a9d 180deg 360deg);
+    }
+
+    .story-ring[data-sparks="3"] {
+      background: conic-gradient(#5ac0e7 0deg 120deg, #e75a9d 120deg 240deg, #a0e75a 240deg 360deg);
+    }
+
+    .story-ring[data-sparks="4"] {
+      background: conic-gradient(#5ac0e7 0deg 90deg, #e75a9d 90deg 180deg, #a0e75a 180deg 270deg, #f2e75a 270deg 360deg);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800">
+  <!-- SEO crawlers only -->
+  <div style="position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;" aria-hidden="true">
+    <h1>Textmob – Africa's Social Network</h1>
+    <p>Textmob is an African microblogging and social networking platform built for Africans to share thoughts, connect
+      with like-minded people, and amplify African voices across the continent and diaspora.</p>
+  </div>
+
+  <div id="app"></div>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    (function () {
+      var API_URL = window.VITE_API_URL || 'https://textmob-provider-api-99ii.onrender.com';
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        API_URL = 'http://localhost:5000';
+      }
+      try {
+        window.socket = io(API_URL, { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 2000 });
+        window.socket.on('connect', function () { console.log('[Socket.IO] Connected:', window.socket.id); });
+        window.socket.on('disconnect', function (reason) { console.log('[Socket.IO] Disconnected:', reason); });
+        window.socket.on('connect_error', function (err) { console.warn('[Socket.IO] Connection error:', err.message); });
+      } catch (e) { console.error('[Socket.IO] Init failed:', e); }
+    })();
+  </script>
+  <script type="module" src="/src/main.jsx"></script>
+  <script>
+    (function () {
+      // Skip ALL video auto-pause logic on live stream pages (viewer + streamer)
+      function isLivePage() {
+        var p = window.location.pathname;
+        return p.includes('/live/') || p.includes('/create-live');
+      }
+
+      // Re-check on every SPA navigation
+      function shouldSkip() { return isLivePage(); }
+
+      // 1. Handle tab switching — pause feed/snap videos only
+      document.addEventListener("visibilitychange", () => {
+        if (shouldSkip()) return;
+        if (document.hidden) {
+          document.querySelectorAll('video').forEach(vid => {
+            if (!vid.paused) vid.pause();
+          });
+        }
+      });
+
+      // 2. Handle scrolling away — pause off-screen videos only
+      const observer = new IntersectionObserver((entries) => {
+        if (shouldSkip()) return;
+        entries.forEach(entry => {
+          const vid = entry.target;
+          if (!entry.isIntersecting && !vid.paused) {
+            vid.pause();
+          }
+        });
+      }, { threshold: 0.0 });
+
+      // 3. Watch DOM for new videos
+      const mutationObserver = new MutationObserver((mutations) => {
+        if (shouldSkip()) return;
+        mutations.forEach(mutation => {
+          mutation.addedNodes.forEach(node => {
+            if (node.nodeType !== 1) return;
+            if (node.tagName === 'VIDEO') observer.observe(node);
+            else if (node.querySelectorAll) node.querySelectorAll('video').forEach(v => observer.observe(v));
+          });
+        });
+      });
+
+      mutationObserver.observe(document.body, { childList: true, subtree: true });
+      document.querySelectorAll('video').forEach(v => observer.observe(v));
+    })();
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "Textmob",
+  "short_name": "Textmob",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "description": "Textmob - Nigeria's fastest-growing social network.",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
