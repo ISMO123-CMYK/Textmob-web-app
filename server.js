@@ -24,6 +24,13 @@ const supabaseUr = "https://ycgczjvuygmunmksarzg.supabase.co";
 const supabaseKe = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljZ2N6anZ1eWdtdW5ta3NhcnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjg1NjIsImV4cCI6MjA1ODk0NDU2Mn0.yH-mlb2PGj4FoXjUxCp3JUm9CYutuGRR7bRAV-Tf9fA";
 const supabase2 = createClient(supabaseUr, supabaseKe);
 
+// --- Live Streaming Global State ---
+const liveSessions = new Map();
+const liveChunkBuffers = new Map();
+const liveRooms = globalThis.__liveRooms || (globalThis.__liveRooms = new Map());
+const socketJoins = globalThis.__socketJoins || (globalThis.__socketJoins = new Map());
+const TMP_DIR = path.join(process.cwd(), "tmp-live");
+
 const authorMobcoinsCache = new Map();
 
 const cloudinary = require("cloudinary").v2;
@@ -330,93 +337,160 @@ app.get("/api/turn-credentials", async (req, res) => {
     res.json({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
   }
 });
+// --- Live buffer settings ---
+const CHUNK_MS = 250;
+const LIVE_WINDOW_SECS = 60; // larger window = more history for stable playback
+const LIVE_WINDOW_MS = LIVE_WINDOW_SECS * 1000;
 
-// --- HTTP Chunk Streaming Endpoints ---
-app.post("/api/live-chunk-upload/:postId", express.raw({ type: "*/*", limit: "50mb" }), (req, res) => {
+function createLiveSessionState() {
+  return {
+    initChunk: null,          // first WebM header/init chunk
+    mediaChunks: [],          // { ts, data }
+    activeStreams: new Set(),
+    lastSeenAt: Date.now()
+  };
+}
+
+function getLiveSessionState(postId) {
+  if (!liveSessions.has(postId)) {
+    liveSessions.set(postId, createLiveSessionState());
+  }
+  if (!liveChunkBuffers.has(postId)) {
+    liveChunkBuffers.set(postId, createLiveSessionState());
+  }
+
+  const session = liveSessions.get(postId);
+  const bufferState = liveChunkBuffers.get(postId);
+
+  // keep both maps in sync if you still reference both elsewhere
+  if (!session.initChunk && bufferState.initChunk) session.initChunk = bufferState.initChunk;
+  if (session.mediaChunks.length === 0 && bufferState.mediaChunks.length > 0) {
+    session.mediaChunks = bufferState.mediaChunks.slice();
+  }
+
+  return session;
+}
+
+function trimLiveMedia(state) {
+  const cutoff = Date.now() - LIVE_WINDOW_MS;
+  state.mediaChunks = state.mediaChunks.filter(c => c.ts >= cutoff);
+}
+
+function pushLiveChunk(postId, chunk) {
+  if (!chunk || chunk.length === 0) return;
+
+  const state = getLiveSessionState(postId);
+  const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+
+  state.lastSeenAt = Date.now();
+
+  // First chunk becomes the init/header chunk.
+  // If the stream restarts, you can reset this explicitly from your encoder logic.
+  if (!state.initChunk) {
+    state.initChunk = buf;
+    liveChunkBuffers.set(postId, state);
+    return;
+  }
+
+  state.mediaChunks.push({
+    ts: Date.now(),
+    data: buf
+  });
+
+  trimLiveMedia(state);
+  liveChunkBuffers.set(postId, state);
+}
+
+function cleanupDeadStream(state, res) {
   try {
-    const { postId } = req.params;
-    const chunk = req.body;
-    if (!chunk || chunk.length === 0) {
-      return res.status(400).json({ error: "Empty chunk" });
-    }
+    state.activeStreams.delete(res);
+  } catch { }
+  try {
+    res.end();
+  } catch { }
+}
 
-    if (!liveChunkBuffers.has(postId)) {
-      liveChunkBuffers.set(postId, []);
-    }
-    liveChunkBuffers.get(postId).push(chunk);
+app.post(
+  "/api/live-chunk-upload/:postId",
+  express.raw({ type: "*/*", limit: "50mb" }),
+  (req, res) => {
+    try {
+      const { postId } = req.params;
+      const chunk = req.body;
 
-    const s = liveSessions.get(postId);
-    if (s && s.activeStreams) {
-      for (const clientRes of s.activeStreams) {
+      if (!chunk || chunk.length === 0) {
+        return res.status(400).json({ error: "Empty chunk" });
+      }
+
+      pushLiveChunk(postId, chunk);
+
+      const state = getLiveSessionState(postId);
+
+      // Push the chunk to connected viewers
+      for (const clientRes of [...state.activeStreams]) {
         try {
           clientRes.write(chunk);
         } catch (e) {
-          console.warn("Error writing chunk to client stream", e);
+          cleanupDeadStream(state, clientRes);
         }
       }
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("live-chunk-upload error:", err);
+      res.status(500).json({ error: err.message });
     }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("live-chunk-upload error:", err);
-    res.status(500).json({ error: err.message });
   }
-});
+);
 
 app.get("/api/live-stream/:postId", (req, res) => {
   try {
     const { postId } = req.params;
-    const s = liveSessions.get(postId);
-    if (!s) {
+    const state = liveSessions.get(postId) || liveChunkBuffers.get(postId);
+
+    if (!state || !state.initChunk) {
       return res.status(404).json({ error: "Live session not found" });
     }
 
     res.writeHead(200, {
-      "Content-Type": "video/webm; codecs=vp8",
-      "Cache-Control": "no-cache, no-transform",
+      "Content-Type": "video/webm",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
       "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
       "Access-Control-Allow-Origin": "*"
     });
 
-    const chunks = liveChunkBuffers.get(postId) || [];
-    if (chunks.length > 0) {
-      // Always send chunk[0] — it holds the WebM container headers (EBML/SeekHead)
-      // without it the browser can't decode anything
-      res.write(chunks[0]);
+    // Send init/header first
+    res.write(state.initChunk);
 
-      const isLiveJoin = req.query.live === '1';
+    // Keep only the near-latest tail
+    trimLiveMedia(state);
 
-      // For fresh joins, skip history and only send last ~30 seconds of chunks.
-      // Assumes ~4 chunks/sec (250ms each) → 120 chunks = 30s.
-      // Adjust CHUNKS_PER_SEC to match your actual encoder interval.
-      const CHUNKS_PER_SEC = 4;
-      const CATCHUP_SECS = 30;
-      const recentWindow = CHUNKS_PER_SEC * CATCHUP_SECS;
-
-      const startIdx = isLiveJoin
-        ? Math.max(1, chunks.length - recentWindow)
-        : 1; // non-live-join gets full history (e.g. rewatch/recovery)
-
-      for (let i = startIdx; i < chunks.length; i++) {
-        res.write(chunks[i]);
+    for (const item of state.mediaChunks) {
+      try {
+        res.write(item.data);
+      } catch (e) {
+        // ignore write failure on initial burst; cleanup happens below
       }
     }
 
-    if (!s.activeStreams) {
-      s.activeStreams = new Set();
-    }
-    s.activeStreams.add(res);
+    state.activeStreams.add(res);
 
-    req.on("close", () => {
-      if (s && s.activeStreams) {
-        s.activeStreams.delete(res);
-      }
-    });
+    const cleanup = () => cleanupDeadStream(state, res);
+
+    req.on("close", cleanup);
+    req.on("aborted", cleanup);
+    res.on("close", cleanup);
+    res.on("error", cleanup);
   } catch (err) {
     console.error("live-stream error:", err);
-    try { res.status(500).json({ error: err.message }); } catch (e) { }
+    try {
+      res.status(500).json({ error: err.message });
+    } catch { }
   }
 });
-
 // Login Endpoint (Modified to include phone)
 app.post("/login", async (req, res) => {
   try {
@@ -4080,14 +4154,9 @@ async function updatePostAfterLive(postId, savedUrl) {
 // ---------------------------------------------------------------------------
 
 // ---------------------- LIVE SOCKET.IO MANAGER ------------------------------
-const TMP_DIR = path.join(process.cwd(), "tmp-live");
 
 // in-memory sessions: postId -> session object
-const liveSessions = new Map();
-// in-memory chunk buffers: postId -> Array of Buffers
-const liveChunkBuffers = new Map();
-// socketId -> Set(postId)
-const socketJoins = new Map();
+// (already declared at top)
 
 async function ensureDir(p) {
   try {
@@ -4150,163 +4219,192 @@ function removeUserSocket(username, socketId) {
   } catch (e) { }
 }
 
-// MAIN Socket.IO handlers
-io.on("connection", function (socket) {
-  // ---------- Live health-monitor + cleanup helper ----------
-  // Assumes these exist in your file: io, liveSessions (Map), joinIndexDelete, removeDirRecursive, updatePostAfterLive (optional)
-  const LIVE_HEARTBEAT_TTL_MS = 30 * 1000; // consider session dead if no heartbeat within 30s
-  const LIVE_MONITOR_INTERVAL_MS = 10 * 1000; // check every 10s
+// ===============================
+// LIVE SOCKET STATE (room/session only)
+// Keep your WebM/media buffer in a separate Map.
+// ===============================
 
-  // Helper: safely finish/cleanup a live session (idempotent)
-  async function finishLiveSession(postId, opts = {}) {
-    try {
-      postId = String(postId);
-      const s = liveSessions.get(postId);
-      if (!s) {
-        // already cleaned
-        return { ok: true, reason: "not_found" };
-      }
+const LIVE_HEARTBEAT_TTL_MS = 30 * 1000;
+const LIVE_MONITOR_INTERVAL_MS = 10 * 1000;
 
-      const savedUrl = opts.savedUrl || null;
-      const reason = opts.reason || "server-ended";
+function getSocketById(socketId) {
+  try {
+    if (!socketId) return null;
 
-      // Notify room and global listeners (so feeds/watchers update)
-      try { io.to(s.room).emit("liveEnded", { postId, savedUrl, reason }); } catch (e) { console.warn("emit room liveEnded failed", e); }
-      try { io.emit("liveEnded", { postId, savedUrl, reason }); } catch (e) { console.warn("emit global liveEnded failed", e); }
-
-      // cleanup join index entries for viewers and host
-      try {
-        if (s.viewers && s.viewers.size) {
-          for (const viewerSocketId of Array.from(s.viewers)) {
-            try { joinIndexDelete(viewerSocketId, postId); } catch (e) { }
-          }
-        }
-        try { joinIndexDelete(s.host, postId); } catch (e) { }
-      } catch (e) {
-        console.warn("finishLiveSession joinIndex cleanup failed", e);
-      }
-
-      // attempt to remove recording dir if present (guarded)
-      try {
-        if (s.rec && s.rec.dir) {
-          await removeDirRecursive(s.rec.dir).catch((e) => console.warn("removeDirRecursive failed", e));
-        }
-      } catch (e) {
-        console.warn("finishLiveSession removeDirRecursive error", e);
-      }
-
-      // delete session
-      cleanupLiveSessionData(postId, s);
-      liveSessions.delete(postId);
-
-      // Optionally update DB with savedUrl (if you want server to be source of truth)
-      if (opts.savedUrl && typeof updatePostAfterLive === "function") {
-        try { await updatePostAfterLive(postId, opts.savedUrl); } catch (e) { console.warn("updatePostAfterLive failed", e); }
-      }
-
-      console.log(`Finished live session ${postId} (reason=${reason})`);
-      return { ok: true, reason };
-    } catch (e) {
-      console.error("finishLiveSession error", e);
-      return { ok: false, error: e && e.message ? e.message : e };
+    if (io.sockets && io.sockets.sockets && typeof io.sockets.sockets.get === "function") {
+      return io.sockets.sockets.get(socketId) || null;
     }
+
+    if (io.sockets && io.sockets.connected) {
+      return io.sockets.connected[socketId] || null;
+    }
+
+    return null;
+  } catch {
+    return null;
   }
+}
 
-  // Heartbeat: host can emit periodically to mark session alive
-  // Add handler inside your io.on("connection") block:
-  // socket.on("livePulse", function(payload) { ... })
-  //
-  // We'll also add a guard here (if payload.postId exists & socket is the host)
-  function attachLivePulseHandler(socket) {
-    socket.on("livePulse", function (payload) {
-      try {
-        if (!payload || !payload.postId) return;
-        const postId = String(payload.postId);
-        const s = liveSessions.get(postId);
-        // only accept pulse if this socket is the host recorded for the session
-        if (!s || s.host !== socket.id) return;
-        s.lastPulse = Date.now();
-        // optional: also store some diagnostics (e.g., client-reported tracks)
-        if (payload.tracks) s.lastTracks = payload.tracks;
-      } catch (e) {
-        console.warn("livePulse handler error", e);
-      }
-    });
-  }
+function addSocketJoin(socketId, postId) {
+  const sid = String(socketId);
+  const pid = String(postId);
 
-  // Call this after your io.on("connection") sets up other handlers:
-  // inside io.on("connection", function(socket) { ... });
-  // add: attachLivePulseHandler(socket);
-  // (or simply paste the socket.on('livePulse') handler into your connection block)
+  if (!socketJoins.has(sid)) socketJoins.set(sid, new Set());
+  socketJoins.get(sid).add(pid);
+}
 
-  // Monitor: regularly inspect liveSessions and finish sessions that are stale
-  setInterval(async () => {
-    try {
-      const now = Date.now();
-      const checks = [];
+function deleteSocketJoin(socketId, postId) {
+  const sid = String(socketId);
+  const pid = String(postId);
 
-      for (const [postId, s] of liveSessions.entries()) {
-        // 1) If host socket is missing or not connected, end the live
-        let hostAlive = false;
+  const set = socketJoins.get(sid);
+  if (!set) return;
+
+  set.delete(pid);
+  if (set.size === 0) socketJoins.delete(sid);
+}
+
+function cleanupRoomMembers(roomState, postId) {
+  try {
+    if (roomState?.viewers && roomState.viewers.size) {
+      for (const viewerSocketId of Array.from(roomState.viewers)) {
         try {
-          // socket.io v3+: io.sockets.sockets.get(id)
-          const hostSocket = (io.sockets && io.sockets.sockets && typeof io.sockets.sockets.get === "function")
-            ? io.sockets.sockets.get(s.host)
-            // fallback (older socket.io): io.sockets.connected[id]
-            : (io.sockets && io.sockets.connected && io.sockets.connected[s.host]);
-
-          if (hostSocket) {
-            // newer versions have .connected or .disconnected flags
-            hostAlive = !(hostSocket.disconnected === true);
-          } else {
-            hostAlive = false;
-          }
-        } catch (e) {
-          hostAlive = false;
-        }
-
-        if (!hostAlive) {
-          console.log(`Monitor: host socket missing for post ${postId} — finishing session`);
-          checks.push(finishLiveSession(postId, { reason: "host-socket-gone" }));
-          continue;
-        }
-
-        // 2) If heartbeat exists and expired -> finish
-        if (s.lastPulse && (now - s.lastPulse) > LIVE_HEARTBEAT_TTL_MS) {
-          console.log(`Monitor: heartbeat timeout for post ${postId} (lastPulse=${s.lastPulse})`);
-          checks.push(finishLiveSession(postId, { reason: "heartbeat-timeout" }));
-          continue;
-        }
-
-        // 3) (Optional) If you store any rec state indicating streaming stopped, check here:
-        // e.g., if (s.streaming === false) finish...
+          deleteSocketJoin(viewerSocketId, postId);
+        } catch { }
       }
-
-      if (checks.length) await Promise.all(checks);
-    } catch (e) {
-      console.error("live monitor error", e);
     }
-  }, LIVE_MONITOR_INTERVAL_MS);
+    if (roomState?.host) {
+      try {
+        deleteSocketJoin(roomState.host, postId);
+      } catch { }
+    }
+  } catch (e) {
+    console.warn("cleanupRoomMembers failed", e);
+  }
+}
 
-  // if clients pass username at handshake via { auth: { username } } capture it
+async function finishLiveSession(postId, opts = {}) {
+  try {
+    postId = String(postId);
+    const s = liveRooms.get(postId);
+    if (!s) {
+      return { ok: true, reason: "not_found" };
+    }
+
+    const savedUrl = opts.savedUrl || null;
+    const reason = opts.reason || "server-ended";
+
+    try {
+      io.to(s.room).emit("liveEnded", { postId, savedUrl, reason });
+    } catch (e) {
+      console.warn("emit room liveEnded failed", e);
+    }
+
+    try {
+      io.emit("liveEnded", { postId, savedUrl, reason });
+    } catch (e) {
+      console.warn("emit global liveEnded failed", e);
+    }
+
+    cleanupRoomMembers(s, postId);
+
+    try {
+      if (s.rec && s.rec.dir && typeof removeDirRecursive === "function") {
+        await removeDirRecursive(s.rec.dir).catch((e) => console.warn("removeDirRecursive failed", e));
+      }
+    } catch (e) {
+      console.warn("finishLiveSession removeDirRecursive error", e);
+    }
+
+    try {
+      if (typeof cleanupLiveSessionData === "function") {
+        await cleanupLiveSessionData(postId, s);
+      }
+    } catch (e) {
+      console.warn("cleanupLiveSessionData failed", e);
+    }
+
+    liveRooms.delete(postId);
+
+    if (opts.savedUrl && typeof updatePostAfterLive === "function") {
+      try {
+        await updatePostAfterLive(postId, opts.savedUrl);
+      } catch (e) {
+        console.warn("updatePostAfterLive failed", e);
+      }
+    }
+
+    console.log(`Finished live session ${postId} (reason=${reason})`);
+    return { ok: true, reason };
+  } catch (e) {
+    console.error("finishLiveSession error", e);
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+}
+
+// heartbeat monitor: only runs once for the whole server
+setInterval(async () => {
+  try {
+    const now = Date.now();
+    const checks = [];
+
+    for (const [postId, s] of liveRooms.entries()) {
+      const hostSocket = getSocketById(s.host);
+      const hostAlive = !!hostSocket && hostSocket.disconnected !== true;
+
+      // Only kill if the heartbeat has timed out. 
+      // Do NOT kill immediately if hostAlive is false, to allow for reconnection.
+      if (s.lastPulse && (now - s.lastPulse) > LIVE_HEARTBEAT_TTL_MS) {
+        console.log(`Monitor: heartbeat timeout for post ${postId}`);
+        checks.push(finishLiveSession(postId, { reason: "heartbeat-timeout" }));
+        continue;
+      }
+    }
+
+    if (checks.length) await Promise.all(checks);
+  } catch (e) {
+    console.error("live monitor error", e);
+  }
+}, LIVE_MONITOR_INTERVAL_MS);
+
+// ===============================
+// MAIN Socket.IO handlers
+// ===============================
+io.on("connection", function (socket) {
+  // handshake username
   try {
     const hsUser = socket.handshake && socket.handshake.auth && socket.handshake.auth.username;
     if (hsUser) {
       socket.data.username = hsUser;
-      addUserSocket(hsUser, socket.id);
+      if (typeof addUserSocket === "function") addUserSocket(hsUser, socket.id);
     }
-  } catch (e) { }
+  } catch { }
 
   // allow clients to identify themselves after connection
   socket.on("identify", function (username) {
     try {
       if (!username) return;
       socket.data.username = username;
-      addUserSocket(username, socket.id);
-    } catch (e) { }
+      if (typeof addUserSocket === "function") addUserSocket(username, socket.id);
+    } catch { }
   });
 
-  // ---- startLive (replace existing) ----
+  // host heartbeat
+  socket.on("livePulse", function (payload) {
+    try {
+      if (!payload || !payload.postId) return;
+      const postId = String(payload.postId);
+      const s = liveRooms.get(postId);
+      if (!s || s.host !== socket.id) return;
+
+      s.lastPulse = Date.now();
+      if (payload.tracks) s.lastTracks = payload.tracks;
+    } catch (e) {
+      console.warn("livePulse handler error", e);
+    }
+  });
+
+  // ---- startLive ----
   socket.on("startLive", async function (payload, ack) {
     try {
       if (!payload || !payload.username) {
@@ -4314,7 +4412,6 @@ io.on("connection", function (socket) {
         return;
       }
 
-      // If postId is provided, use it; otherwise create in DB
       let postId = payload.postId ? String(payload.postId) : null;
       if (!postId) {
         try {
@@ -4333,22 +4430,28 @@ io.on("connection", function (socket) {
       }
 
       const room = "live:" + postId;
+      const existing = liveRooms.get(postId);
 
-      // Create session metadata only
-      liveSessions.set(postId, {
-        host: socket.id,
-        username: payload.username,
-        room: room,
-        viewers: new Set(),
-        startedAt: Date.now()
-      });
+      if (existing) {
+        existing.host = socket.id;
+        existing.lastPulse = Date.now();
+        liveRooms.set(postId, existing);
+      } else {
+        liveRooms.set(postId, {
+          host: socket.id,
+          username: payload.username,
+          room,
+          viewers: new Set(),
+          startedAt: Date.now(),
+          lastPulse: Date.now(),
+          paused: false,
+          rec: null
+        });
+      }
 
       socket.join(room);
 
-      // Notify host & watchers:
-      // 1) notify room (host is already in room) - for host-local handling
       io.to(room).emit("liveStarted", { postId, username: payload.username });
-      // 2) notify everyone (so feeds / watch pages not already in the room can update lists)
       io.emit("liveStarted", { postId, username: payload.username });
 
       if (ack) ack({ ok: true, postId });
@@ -4358,19 +4461,16 @@ io.on("connection", function (socket) {
     }
   });
 
-
-
-
   // ----------------- getLiveUrl -----------------
   socket.on("getLiveUrl", function (postId, ack) {
     try {
       postId = String(postId);
-      var s = liveSessions.get(postId);
+      const s = liveRooms.get(postId);
       if (!s) {
-        if (ack) ack({ ok: true, postId: postId, url: null, count: 0 });
+        if (ack) ack({ ok: true, postId, url: null, count: 0, paused: false });
         return;
       }
-      if (ack) ack({ ok: true, postId: postId, url: s.room, count: s.viewers.size });
+      if (ack) ack({ ok: true, postId, url: s.room, count: s.viewers.size, paused: !!s.paused });
     } catch (e) {
       console.error("getLiveUrl error:", e);
       if (ack) ack({ ok: false, error: "Internal error" });
@@ -4385,8 +4485,8 @@ io.on("connection", function (socket) {
         return;
       }
 
-      var postId = String(payload.postId);
-      var s = liveSessions.get(postId);
+      const postId = String(payload.postId);
+      const s = liveRooms.get(postId);
       if (!s) {
         if (ack) ack({ ok: false, error: "Live not found" });
         return;
@@ -4394,22 +4494,23 @@ io.on("connection", function (socket) {
 
       socket.join(s.room);
       s.viewers.add(socket.id);
-      joinIndexAdd(socket.id, postId);
+      addSocketJoin(socket.id, postId);
 
-      io.to(s.room).emit("viewerCountUpdate", { postId: postId, count: s.viewers.size });
-
-      io.emit("liveStatsUpdate", { postId: postId, count: s.viewers.size });
-
+      io.to(s.room).emit("viewerCountUpdate", { postId, count: s.viewers.size });
+      io.emit("liveStatsUpdate", { postId, count: s.viewers.size });
 
       try {
         if (s.host) {
-          io.to(s.host).emit("viewer-wants-offer", { postId: postId, viewerSocketId: socket.id });
+          io.to(s.host).emit("viewer-wants-offer", {
+            postId,
+            viewerSocketId: socket.id
+          });
         }
       } catch (e) {
         console.warn("failed to notify host for offer:", e);
       }
 
-      if (ack) ack({ ok: true, room: s.room, count: s.viewers.size });
+      if (ack) ack({ ok: true, room: s.room, count: s.viewers.size, paused: !!s.paused });
     } catch (e) {
       console.error("joinLive error:", e);
       if (ack) ack({ ok: false, error: "Internal error" });
@@ -4420,10 +4521,10 @@ io.on("connection", function (socket) {
   socket.on("host-offer", function (payload) {
     try {
       if (!payload || !payload.to || !payload.sdp) return;
-      var to = payload.to;
-      var sdp = payload.sdp;
-      var postId = payload.postId ? String(payload.postId) : null;
-      io.to(to).emit("host-offer", { from: socket.id, sdp: sdp, postId: postId });
+      const to = payload.to;
+      const sdp = payload.sdp;
+      const postId = payload.postId ? String(payload.postId) : null;
+      io.to(to).emit("host-offer", { from: socket.id, sdp, postId });
     } catch (e) {
       console.error("host-offer forward error:", e);
     }
@@ -4433,9 +4534,9 @@ io.on("connection", function (socket) {
   socket.on("viewer-answer", function (payload) {
     try {
       if (!payload || !payload.to || !payload.sdp) return;
-      var to = payload.to;
-      var sdp = payload.sdp;
-      io.to(to).emit("viewer-answer", { from: socket.id, sdp: sdp });
+      const to = payload.to;
+      const sdp = payload.sdp;
+      io.to(to).emit("viewer-answer", { from: socket.id, sdp });
     } catch (e) {
       console.error("viewer-answer forward error:", e);
     }
@@ -4445,9 +4546,9 @@ io.on("connection", function (socket) {
   socket.on("ice-candidate-live", function (payload) {
     try {
       if (!payload || !payload.to || !payload.candidate) return;
-      var to = payload.to;
-      var candidate = payload.candidate;
-      io.to(to).emit("ice-candidate-live", { from: socket.id, candidate: candidate });
+      const to = payload.to;
+      const candidate = payload.candidate;
+      io.to(to).emit("ice-candidate-live", { from: socket.id, candidate });
     } catch (e) {
       console.error("ice-candidate-live forward error:", e);
     }
@@ -4457,75 +4558,68 @@ io.on("connection", function (socket) {
   socket.on("liveComment", function (payload) {
     try {
       if (!payload || !payload.postId || !payload.comment) return;
-      var postId = String(payload.postId);
-      io.to("live:" + postId).emit("liveComment", { postId: postId, comment: payload.comment });
+      const postId = String(payload.postId);
+      io.to("live:" + postId).emit("liveComment", { postId, comment: payload.comment });
     } catch (e) {
       console.error("liveComment error:", e);
     }
   });
-  // ================================================================
-  //  ADD THESE BLOCKS inside your io.on("connection", ...) block
-  //  Place them right after your existing liveComment handler.
-  //
-  //  Your existing server already handles everything else correctly.
-  //  Your room name is "live:" + postId — confirmed from your code:
-  //    const room = "live:" + postId;
-  //    socket.join(room);
-  //    io.to(s.room).emit(...) where s.room = "live:" + postId
-  // ================================================================
-
 
   // ----------------- mobcoins-gift broadcast -----------------
-  // THE MISSING HANDLER. Client emits after /t/send-mobcoins succeeds.
-  // Without this the gift event is received by the server but never
-  // relayed to the room, so nobody sees the celebration.
-  //
-  // Place this right after your liveComment socket.on block:
-
   socket.on("mobcoins-gift", function (payload) {
     try {
       if (!payload || !payload.postId || !payload.giftId) return;
-      var postId = String(payload.postId);
-      var room = "live:" + postId;
+      const postId = String(payload.postId);
+      const room = "live:" + postId;
 
-      // io.to() includes the sender — everyone in the room sees it
       io.to(room).emit("mobcoins-gift", {
         fromId: payload.fromId || null,
         toIds: payload.toIds || [],
         amount: payload.amount || 0,
         giftId: payload.giftId,
-        postId: postId,
+        postId
       });
 
       console.log(
-        "[gift] " + (payload.fromId || "anon") +
-        " → " + payload.giftId +
-        " (" + (payload.amount || 0) + " coins) room=" + room
+        "[gift] " +
+        (payload.fromId || "anon") +
+        " → " +
+        payload.giftId +
+        " (" +
+        (payload.amount || 0) +
+        " coins) room=" +
+        room
       );
     } catch (e) {
       console.error("mobcoins-gift handler error:", e);
     }
   });
 
-
   // ----------------- livePaused / liveResumed relay -----------------
-  // Add these if not already in your server.
-  // Host pauses/resumes → relay to viewers in the room.
-
   socket.on("livePaused", function (payload) {
     try {
       if (!payload || !payload.postId) return;
-      // socket.to() excludes sender (host already knows they paused)
-      socket.to("live:" + String(payload.postId)).emit("livePaused", payload);
-    } catch (e) { console.error("livePaused relay error:", e); }
+      const postId = String(payload.postId);
+      const s = liveRooms.get(postId);
+      if (s) s.paused = true;
+      socket.to("live:" + postId).emit("livePaused", payload);
+    } catch (e) {
+      console.error("livePaused relay error:", e);
+    }
   });
 
   socket.on("liveResumed", function (payload) {
     try {
       if (!payload || !payload.postId) return;
-      socket.to("live:" + String(payload.postId)).emit("liveResumed", payload);
-    } catch (e) { console.error("liveResumed relay error:", e); }
+      const postId = String(payload.postId);
+      const s = liveRooms.get(postId);
+      if (s) s.paused = false;
+      socket.to("live:" + postId).emit("liveResumed", payload);
+    } catch (e) {
+      console.error("liveResumed relay error:", e);
+    }
   });
+
   // ----------------- leaveLive -----------------
   socket.on("leaveLive", function (payload, ack) {
     try {
@@ -4533,14 +4627,16 @@ io.on("connection", function (socket) {
         if (ack) ack({ ok: false, error: "Missing postId" });
         return;
       }
-      var postId = String(payload.postId);
-      var s = liveSessions.get(postId);
+
+      const postId = String(payload.postId);
+      const s = liveRooms.get(postId);
       if (s) {
         s.viewers.delete(socket.id);
         socket.leave(s.room);
-        joinIndexDelete(socket.id, postId);
-        io.to(s.room).emit("viewerCountUpdate", { postId: postId, count: s.viewers.size });
+        deleteSocketJoin(socket.id, postId);
+        io.to(s.room).emit("viewerCountUpdate", { postId, count: s.viewers.size });
       }
+
       if (ack) ack({ ok: true });
     } catch (e) {
       console.error("leaveLive error:", e);
@@ -4556,46 +4652,41 @@ io.on("connection", function (socket) {
         return;
       }
 
-      var postId = String(payload.postId);
-      var savedUrl = payload.savedUrl || null;
+      const postId = String(payload.postId);
+      const savedUrl = payload.savedUrl || null;
+      const s = liveRooms.get(postId);
 
-      var s = liveSessions.get(postId);
       if (!s) {
         if (ack) ack({ ok: true, message: "Already ended" });
         return;
       }
 
-      // Notify viewers that live ended
       io.to(s.room).emit("liveEnded", { postId, savedUrl });
-
-      // Also broadcast globally in case watchers aren't in-room
       io.emit("liveEnded", { postId, savedUrl });
 
-      await updatePostAfterLive(postId);
-
-      // Cleanup session
-      // Remove join index entries for all known viewers in the session
-      try {
-        for (const viewerSocketId of Array.from(s.viewers || [])) {
-          joinIndexDelete(viewerSocketId, postId);
+      if (typeof updatePostAfterLive === "function") {
+        try {
+          await updatePostAfterLive(postId);
+        } catch (e) {
+          console.warn("updatePostAfterLive failed", e);
         }
-        // also remove host join entry (if any)
-        joinIndexDelete(s.host, postId);
-      } catch (e) {
-        console.warn("endLive: joinIndex cleanup failed", e);
       }
 
-      // If there was a recording dir reference, try to remove it (guarded)
+      cleanupRoomMembers(s, postId);
+
       try {
-        if (s.rec && s.rec.dir) {
+        if (s.rec && s.rec.dir && typeof removeDirRecursive === "function") {
           await removeDirRecursive(s.rec.dir);
         }
       } catch (e) {
         console.warn("endLive: removeDirRecursive failed", e);
       }
 
-      await cleanupLiveSessionData(postId, s);
-      liveSessions.delete(postId);
+      if (typeof cleanupLiveSessionData === "function") {
+        await cleanupLiveSessionData(postId, s);
+      }
+
+      liveRooms.delete(postId);
 
       if (ack) ack({ ok: true, savedUrl });
     } catch (e) {
@@ -4604,37 +4695,39 @@ io.on("connection", function (socket) {
     }
   });
 
-
-  // ----------------- disconnect cleanup (single robust handler) -----------------
+  // ----------------- disconnect cleanup -----------------
   socket.on("disconnect", async function () {
     try {
-      // remove from username map if set
-      try { if (socket.data && socket.data.username) removeUserSocket(socket.data.username, socket.id); } catch (e) { }
+      try {
+        if (socket.data && socket.data.username && typeof removeUserSocket === "function") {
+          removeUserSocket(socket.data.username, socket.id);
+        }
+      } catch { }
 
-      var joined = socketJoins.get(socket.id);
-      if (!joined) {
-        // nothing to clean for this socket
-        return;
-      }
+      const joined = socketJoins.get(socket.id);
+      if (!joined) return;
 
-      var copy = Array.from(joined);
-      for (var i = 0; i < copy.length; i++) {
-        var postId = copy[i];
-        var s = liveSessions.get(postId);
-        if (!s) continue;
-
-        if (s.host === socket.id) {
-          // host disconnected: end live, notify viewers, delete recording (idempotent)
-          try { io.to(s.room).emit("liveEnded", { postId: postId }); } catch (e) { }
-          try { await removeDirRecursive(s.rec.dir); } catch (e) { }
-          liveSessions.delete(postId);
-        } else {
-          // viewer disconnected
-          s.viewers.delete(socket.id);
-          try { io.to(s.room).emit("viewerCountUpdate", { postId: postId, count: s.viewers.size }); } catch (e) { }
+      const copy = Array.from(joined);
+      for (let i = 0; i < copy.length; i++) {
+        const postId = String(copy[i]);
+        const s = liveRooms.get(postId);
+        if (!s) {
+          deleteSocketJoin(socket.id, postId);
+          continue;
         }
 
-        joinIndexDelete(socket.id, postId);
+        if (s.host === socket.id) {
+          // If the host disconnects, don't kill the room immediately.
+          // The monitor (heartbeat check) will handle it if they don't reconnect.
+          console.log(`Host socket ${socket.id} disconnected from post ${postId}. Waiting for pulse...`);
+        } else {
+          s.viewers.delete(socket.id);
+          try {
+            io.to(s.room).emit("viewerCountUpdate", { postId, count: s.viewers.size });
+          } catch { }
+        }
+
+        deleteSocketJoin(socket.id, postId);
       }
 
       socketJoins.delete(socket.id);
@@ -4642,7 +4735,6 @@ io.on("connection", function (socket) {
       console.error("disconnect cleanup error:", e);
     }
   });
-
 }); // end io.on("connection")
 
 // ----------------- Live Recording Upload -----------------

@@ -300,7 +300,6 @@ function VideoSeeker({ videoRef, currentTime, duration }) {
         position: 'relative'
       }}
     >
-      {/* Track Background */}
       <div
         style={{
           width: '100%',
@@ -311,7 +310,6 @@ function VideoSeeker({ videoRef, currentTime, duration }) {
           transition: 'height 0.1s ease'
         }}
       >
-        {/* Progress Fill */}
         <div
           style={{
             position: 'absolute',
@@ -323,7 +321,6 @@ function VideoSeeker({ videoRef, currentTime, duration }) {
             borderRadius: 3
           }}
         />
-        {/* Handle Knob */}
         {(isHovered || isDragging) && (
           <div
             style={{
@@ -392,7 +389,9 @@ export default function LiveContent() {
   const [comments, setComments] = useState([]);
   const [inputText, setInputText] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [isPaused, setIsPaused] = useState(false);
+  const [streamPaused, setStreamPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
+  const effectivePaused = streamPaused || userPaused;
   const [showGiftDrawer, setShowGiftDrawer] = useState(false);
   const [confettis, setConfettis] = useState([]);
   const [giftOverlays, setGiftOverlays] = useState([]);
@@ -407,102 +406,20 @@ export default function LiveContent() {
   const [videoDuration, setVideoDuration] = useState(0);
   const [isLandscapeStream, setIsLandscapeStream] = useState(false);
 
-  const handleTimeUpdate = (e) => {
-    const vid = e.target;
-    setVideoTime(vid.currentTime);
-
-    // Dynamically track the camera feed orientation
-    if (vid.videoWidth && vid.videoHeight) {
-      setIsLandscapeStream(vid.videoWidth > vid.videoHeight);
-    }
-
-    if (vid.buffered && vid.buffered.length > 0) {
-      const bEnd = vid.buffered.end(vid.buffered.length - 1);
-      if (!vid.duration || !isFinite(vid.duration)) {
-        setVideoDuration(bEnd);
-      }
-
-      // Multi-tier latency catch-up for audio/video sync:
-      // - >2.5s behind: hard seek to live edge (fixes hearing audio before video)
-      // - 1-2.5s behind: speed up playback gradually to close the gap
-      // - caught up: ensure normal playback rate
-      const lag = bEnd - vid.currentTime;
-      if (!isPaused) {
-        if (lag > 2.5) {
-          vid.currentTime = Math.max(0, bEnd - 0.3);
-          vid.playbackRate = 1.0;
-        } else if (lag > 1.0) {
-          vid.playbackRate = 1.06;
-        } else if (vid.playbackRate !== 1.0) {
-          vid.playbackRate = 1.0;
-        }
-      }
-    }
-  };
-
-  const handleDurationChange = (e) => {
-    const vid = e.target;
-    if (vid.duration && isFinite(vid.duration)) {
-      setVideoDuration(vid.duration);
-    }
-  };
-
   const videoRef = useRef(null);
   const peerRef = useRef(null);
   const chatScrollRef = useRef(null);
   const streamEndedReceivedRef = useRef(false);
   const recoveryAttemptsRef = useRef(0);
-
-  // --- Stability: auto-recovery for stalls and stream errors ---
-  const handleVideoStalled = () => {
-    const vid = videoRef.current;
-    if (!vid || isPaused || streamEndedReceivedRef.current) return;
-    // Nudge playback to the buffer edge and retry play
-    if (vid.buffered && vid.buffered.length > 0) {
-      const bEnd = vid.buffered.end(vid.buffered.length - 1);
-      if (bEnd - vid.currentTime > 0.5) {
-        vid.currentTime = Math.max(0, bEnd - 0.3);
-      }
-    }
-    vid.play().catch(() => { });
-  };
-
-  // ✅ CHANGED: recovery reconnect does NOT use ?live=1 so it reloads
-  // from a safe point rather than skipping ahead again on reconnect
-  const handleVideoError = () => {
-    if (streamEndedReceivedRef.current) return;
-    if (recoveryAttemptsRef.current >= 5) {
-      setErrorMessage('Stream connection lost. Please rejoin.');
-      return;
-    }
-    recoveryAttemptsRef.current++;
-    setTimeout(() => {
-      const vid = videoRef.current;
-      if (!vid) return;
-      vid.src = `${API_BASE_URL}/api/live-stream/${postId}?t=${Date.now()}`;
-      vid.load();
-      vid.play().catch(() => { });
-    }, 1000 * recoveryAttemptsRef.current);
-  };
-
-  const handleVideoEnded = () => {
-    if (streamEndedReceivedRef.current) {
-      teardownPeerConnection();
-      try {
-        window.Lexum?.navigate(`/`);
-      } catch { }
-    }
-  };
+  const stallTimerRef = useRef(null);
 
   const hasJoinedRef = useRef(false);
   const seenCommentsSet = useRef(new Set());
 
-  // Handle styles injection
   useEffect(() => {
     injectLiveStyles();
   }, []);
 
-  // Listen to screen size changes
   useEffect(() => {
     const checkViewport = () => setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
     checkViewport();
@@ -510,7 +427,6 @@ export default function LiveContent() {
     return () => window.removeEventListener('resize', checkViewport);
   }, []);
 
-  // Fullscreen changes
   useEffect(() => {
     const handleFs = () => setIsFullscreen(!!document.fullscreenElement || !!document.webkitFullscreenElement);
     document.addEventListener('fullscreenchange', handleFs);
@@ -521,7 +437,6 @@ export default function LiveContent() {
     };
   }, []);
 
-  // Auto scroll chat
   useEffect(() => {
     chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [comments]);
@@ -554,7 +469,143 @@ export default function LiveContent() {
     }, 4000);
   };
 
-  // Socket IO & WebRTC Listeners
+  const handleTimeUpdate = (e) => {
+    const vid = e.target;
+    setVideoTime(vid.currentTime);
+
+    // If we've played for at least 10 seconds successfully, reset recovery attempts
+    if (vid.currentTime > 10 && recoveryAttemptsRef.current > 0) {
+      recoveryAttemptsRef.current = 0;
+    }
+
+    if (vid.videoWidth && vid.videoHeight) {
+      setIsLandscapeStream(vid.videoWidth > vid.videoHeight);
+    }
+
+    if (vid.buffered && vid.buffered.length > 0) {
+      const bEnd = vid.buffered.end(vid.buffered.length - 1);
+      if (!vid.duration || !isFinite(vid.duration)) {
+        setVideoDuration(bEnd);
+      } else {
+        setVideoDuration(vid.duration);
+      }
+
+      if (!effectivePaused) {
+        const lag = bEnd - vid.currentTime;
+        // Only jump if lag is extreme (e.g. > 30s), otherwise catch up with playbackRate
+        // When jumping, we jump to 15s behind the edge to maintain our stability cushion
+        if (lag > 30) {
+          vid.currentTime = Math.max(0, bEnd - 15.0);
+          vid.playbackRate = 1.0;
+        } else if (lag > 2.0) {
+          vid.playbackRate = 1.1; // Smooth catchup
+        } else if (vid.playbackRate !== 1.0) {
+          vid.playbackRate = 1.0;
+        }
+      }
+    }
+  };
+
+  const handleDurationChange = (e) => {
+    const vid = e.target;
+    if (vid.duration && isFinite(vid.duration)) {
+      setVideoDuration(vid.duration);
+    }
+  };
+
+  const handleVideoPlaying = () => {
+    setErrorMessage('');
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current);
+      stallTimerRef.current = null;
+    }
+  };
+
+  const handleVideoStalled = () => {
+    const vid = videoRef.current;
+    if (!vid || effectivePaused || streamEndedReceivedRef.current) return;
+
+    if (stallTimerRef.current) return;
+
+    stallTimerRef.current = setTimeout(() => {
+      stallTimerRef.current = null;
+      if (!videoRef.current || effectivePaused || streamEndedReceivedRef.current) return;
+      
+      // If still stalled (readyState < HAVE_CURRENT_DATA), trigger full recovery
+      if (videoRef.current.readyState < 2 || videoRef.current.paused) {
+        handleVideoError();
+      } else {
+        videoRef.current.play().catch(() => { });
+      }
+    }, 5000); // 5 seconds instead of 2 seconds
+  };
+
+  const handleVideoError = () => {
+    if (streamEndedReceivedRef.current || effectivePaused) return;
+
+    if (recoveryAttemptsRef.current >= 3) {
+      setErrorMessage('Stream connection lost. Please rejoin.');
+      return;
+    }
+
+    recoveryAttemptsRef.current += 1;
+
+    setTimeout(() => {
+      const vid = videoRef.current;
+      if (!vid) return;
+
+      try {
+        vid.pause();
+        vid.removeAttribute('src');
+        vid.srcObject = null;
+        vid.src = `${API_BASE_URL}/api/live-stream/${postId}?live=1&retry=${recoveryAttemptsRef.current}&t=${Date.now()}`;
+        vid.load();
+        setTimeout(() => {
+          vid.play().catch(() => { });
+        }, 200);
+      } catch { }
+    }, 1000); // 1 second delay before retrying
+  };
+
+  const teardownPeerConnection = () => {
+    setJoined(false);
+    try {
+      peerRef.current?.close();
+      peerRef.current = null;
+    } catch { }
+
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current);
+      stallTimerRef.current = null;
+    }
+
+    if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+      } catch { }
+      try {
+        videoRef.current.removeAttribute('src');
+      } catch { }
+      videoRef.current.srcObject = null;
+      try {
+        videoRef.current.load();
+      } catch { }
+    }
+  };
+
+  const handleVideoEnded = () => {
+    if (streamEndedReceivedRef.current) {
+      teardownPeerConnection();
+      try {
+        window.Lexum?.navigate(`/`);
+      } catch { }
+    } else {
+      // Unexpected end (e.g. server ended connection but live still active)
+      // Attempt recovery
+      handleVideoError();
+    }
+  };
+
   useEffect(() => {
     const socket = window.socket;
     if (!socket || !postId) return;
@@ -613,15 +664,17 @@ export default function LiveContent() {
 
     function onLivePaused(data) {
       if (data?.postId?.toString() === postId.toString()) {
-        setIsPaused(true);
+        setStreamPaused(true);
         videoRef.current?.pause();
       }
     }
 
     function onLiveResumed(data) {
       if (data?.postId?.toString() === postId.toString()) {
-        setIsPaused(false);
-        videoRef.current?.play().catch(() => { });
+        setStreamPaused(false);
+        if (!userPaused) {
+          videoRef.current?.play().catch(() => { });
+        }
       }
     }
 
@@ -640,9 +693,8 @@ export default function LiveContent() {
       socket.off('livePaused', onLivePaused);
       socket.off('liveResumed', onLiveResumed);
     };
-  }, [postId, audioMuted]);
+  }, [postId, audioMuted, userPaused]);
 
-  // Initial stream details load
   useEffect(() => {
     if (!postId) return;
     const socket = window.socket;
@@ -665,7 +717,6 @@ export default function LiveContent() {
       .catch(() => { });
   }, [postId]);
 
-  // Auto trigger join on mount
   useEffect(() => {
     if (isMobile && !hasJoinedRef.current) {
       hasJoinedRef.current = true;
@@ -673,88 +724,80 @@ export default function LiveContent() {
     }
   }, [isMobile]);
 
-  // Leave stream and stop video when unmounting or changing streams
   useEffect(() => {
     return () => {
       leaveStreamChannel();
     };
   }, [postId]);
 
-  const teardownPeerConnection = () => {
-    setJoined(false);
-    try {
-      peerRef.current?.close();
-      peerRef.current = null;
-    } catch { }
-    if (videoRef.current) {
-      try { videoRef.current.pause(); } catch { }
-      videoRef.current.src = "";
-      videoRef.current.srcObject = null;
-      try { videoRef.current.load(); } catch { }
-    }
-  };
-
-  // ✅ CHANGED: added ?live=1 so the server only sends the last ~30s
-  // of buffered chunks instead of the full stream history,
-  // saving mobile data and drastically reducing load time for late joiners
   const joinStreamChannel = () => {
     setErrorMessage('');
     const socket = window.socket;
     if (!socket) return;
+
     socket.emit('joinLive', { postId }, (res) => {
-      if (res?.ok) {
-        if (res.count != null) {
-          setViewerCount(Number(res.count));
-        }
+      if (!res?.ok) {
+        setErrorMessage(res?.error || 'Failed to join.');
+        return;
+      }
 
-        const baseUrl = API_BASE_URL;
-        if (videoRef.current) {
-          const vid = videoRef.current;
+      if (res.count != null) {
+        setViewerCount(Number(res.count));
+      }
 
-          // ✅ CHANGED: ?live=1 tells the server to skip stream history
-          // and only send the last ~30s of chunks — new joiners start
-          // at the live edge immediately instead of downloading everything
-          vid.src = `${baseUrl}/api/live-stream/${postId}?live=1`;
-          vid.muted = audioMuted;
+      setStreamPaused(!!res.paused);
+      setUserPaused(false);
+      recoveryAttemptsRef.current = 0;
+      streamEndedReceivedRef.current = false;
 
-          // Seek to the live edge once enough data has loaded
-          let seekAttempts = 0;
-          const seekToLive = () => {
-            let targetTime = 0;
-            if (vid.duration && isFinite(vid.duration) && vid.duration > 1) {
-              targetTime = Math.max(0, vid.duration - 0.5);
-            } else if (vid.buffered && vid.buffered.length > 0) {
-              const lastIndex = vid.buffered.length - 1;
-              targetTime = Math.max(0, vid.buffered.end(lastIndex) - 0.5);
-            }
+      const vid = videoRef.current;
+      if (!vid) return;
 
-            if (targetTime > 0 && Math.abs(vid.currentTime - targetTime) > 2) {
+      const src = `${API_BASE_URL}/api/live-stream/${postId}?live=1`;
+
+      vid.preload = 'metadata';
+      vid.muted = audioMuted;
+      vid.src = src;
+      vid.load();
+
+      const snapToLive = () => {
+        try {
+          let targetTime = 0;
+          let bEnd = 0;
+
+          if (vid.buffered && vid.buffered.length > 0) {
+            bEnd = vid.buffered.end(vid.buffered.length - 1);
+          } else if (vid.duration && isFinite(vid.duration)) {
+            bEnd = vid.duration;
+          }
+
+          if (bEnd > 0) {
+            // Target is 15s behind the edge, but at least 0.
+            targetTime = Math.max(0, bEnd - 15.0);
+            
+            // If we are too close to the edge (within 2s), force a seek to the target
+            if (Math.abs(vid.currentTime - targetTime) > 0.5 || (bEnd - vid.currentTime < 2.0)) {
+              console.log(`Snapping to live: current=${vid.currentTime.toFixed(2)}, target=${targetTime.toFixed(2)}, edge=${bEnd.toFixed(2)}`);
               vid.currentTime = targetTime;
             }
-            seekAttempts++;
-            if (seekAttempts > 30 || (targetTime > 0 && vid.currentTime > targetTime - 3)) {
-              clearInterval(seekInterval);
-            }
-          };
-          const seekInterval = setInterval(seekToLive, 500);
+          }
+        } catch { }
 
-          vid.addEventListener('loadeddata', () => {
-            if (vid.duration && isFinite(vid.duration) && vid.duration > 1) {
-              vid.currentTime = Math.max(0, vid.duration - 0.5);
-            } else if (vid.buffered && vid.buffered.length > 0) {
-              vid.currentTime = Math.max(0, vid.buffered.end(vid.buffered.length - 1) - 0.5);
-            }
-          }, { once: true });
-
-          vid.play().catch(err => {
-            console.warn("Playback initialization failed:", err);
-          });
+        if (!streamPaused && !userPaused) {
+          vid.play().catch(() => { });
         }
-        recoveryAttemptsRef.current = 0;
-        setJoined(true);
-      } else {
-        setErrorMessage(res?.error || 'Failed to join.');
-      }
+      };
+
+      vid.addEventListener('loadedmetadata', snapToLive, { once: true });
+      vid.addEventListener('canplay', snapToLive, { once: true });
+
+      setTimeout(() => {
+        if (!streamPaused && !userPaused) {
+          vid.play().catch(() => { });
+        }
+      }, 50);
+
+      setJoined(true);
     });
   };
 
@@ -771,18 +814,18 @@ export default function LiveContent() {
     setAudioMuted(nextVal);
     if (videoRef.current) {
       videoRef.current.muted = nextVal;
-      if (!nextVal) {
+      if (!nextVal && !effectivePaused) {
         videoRef.current.play().catch(() => { });
       }
     }
   };
 
   const togglePauseOverride = () => {
-    const nextVal = !isPaused;
-    setIsPaused(nextVal);
+    const nextVal = !userPaused;
+    setUserPaused(nextVal);
     if (videoRef.current) {
       if (nextVal) videoRef.current.pause();
-      else videoRef.current.play().catch(() => { });
+      else if (!streamPaused) videoRef.current.play().catch(() => { });
     }
   };
 
@@ -975,9 +1018,11 @@ export default function LiveContent() {
             ref={videoRef}
             autoPlay
             playsInline
+            preload="metadata"
             muted={audioMuted}
             onTimeUpdate={handleTimeUpdate}
             onDurationChange={handleDurationChange}
+            onPlaying={handleVideoPlaying}
             onEnded={handleVideoEnded}
             onError={handleVideoError}
             onStalled={handleVideoStalled}
@@ -991,7 +1036,6 @@ export default function LiveContent() {
               background: '#000'
             }}
           />
-          {/* Top Gradients */}
           <div
             style={{
               position: 'absolute',
@@ -1015,7 +1059,7 @@ export default function LiveContent() {
             }}
           />
 
-          {isPaused && (
+          {effectivePaused && (
             <div
               style={{
                 position: 'absolute',
@@ -1027,7 +1071,9 @@ export default function LiveContent() {
                 pointerEvents: 'none'
               }}
             >
-              <p style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Paused</p>
+              <p style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>
+                {streamPaused && !userPaused ? 'Stream Paused' : 'Paused'}
+              </p>
             </div>
           )}
 
@@ -1048,7 +1094,6 @@ export default function LiveContent() {
             />
           ))}
 
-          {/* Top info row */}
           <div
             style={{
               position: 'absolute',
@@ -1140,7 +1185,6 @@ export default function LiveContent() {
             </div>
           </div>
 
-          {/* Scrolled overlay comments */}
           {showChat && (
             <div
               style={{
@@ -1161,7 +1205,6 @@ export default function LiveContent() {
             </div>
           )}
 
-          {/* Send gift popover pane */}
           {showGiftDrawer && (
             <div
               style={{
@@ -1247,7 +1290,6 @@ export default function LiveContent() {
             </div>
           )}
 
-          {/* Lower interactive UI panel */}
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 12px 32px' }}>
             {joined && videoDuration > 0 && (
               <div
@@ -1325,8 +1367,8 @@ export default function LiveContent() {
                   </svg>
                 )}
               </button>
-              <button onClick={togglePauseOverride} title={isPaused ? 'Resume' : 'Pause'} style={renderIconBtnStyle(isPaused)}>
-                {isPaused ? (
+              <button onClick={togglePauseOverride} title={userPaused ? 'Resume' : 'Pause'} style={renderIconBtnStyle(userPaused)}>
+                {userPaused ? (
                   <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: '#fff' }}>
                     <path d="M8 5v14l11-7z" />
                   </svg>
@@ -1358,9 +1400,7 @@ export default function LiveContent() {
         </div>
       ) : (
         <>
-          {/* Desktop Dual Column View */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 24, gap: 16, minWidth: 0 }}>
-            {/* Header controls row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between' }}>
               <span
                 style={{
@@ -1391,8 +1431,8 @@ export default function LiveContent() {
                     </svg>
                   )}
                 </button>
-                <button onClick={togglePauseOverride} title={isPaused ? 'Resume' : 'Pause'} style={renderIconBtnStyle(isPaused)}>
-                  {isPaused ? (
+                <button onClick={togglePauseOverride} title={userPaused ? 'Resume' : 'Pause'} style={renderIconBtnStyle(userPaused)}>
+                  {userPaused ? (
                     <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: '#fff' }}>
                       <path d="M8 5v14l11-7z" />
                     </svg>
@@ -1441,16 +1481,17 @@ export default function LiveContent() {
               </div>
             </div>
 
-            {/* Main Video Box */}
             <div style={{ position: 'relative', flex: 1, background: '#000', borderRadius: 16, overflow: 'hidden' }}>
               <video
                 controls
                 ref={videoRef}
                 autoPlay
                 playsInline
+                preload="metadata"
                 muted={audioMuted}
                 onTimeUpdate={handleTimeUpdate}
                 onDurationChange={handleDurationChange}
+                onPlaying={handleVideoPlaying}
                 onEnded={handleVideoEnded}
                 onError={handleVideoError}
                 onStalled={handleVideoStalled}
@@ -1481,7 +1522,7 @@ export default function LiveContent() {
                 </div>
               )}
 
-              {isPaused && (
+              {effectivePaused && (
                 <div
                   style={{
                     position: 'absolute',
@@ -1493,7 +1534,9 @@ export default function LiveContent() {
                     pointerEvents: 'none'
                   }}
                 >
-                  <p style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>Paused</p>
+                  <p style={{ color: '#fff', fontSize: 20, fontWeight: 800 }}>
+                    {streamPaused && !userPaused ? 'Stream Paused' : 'Paused'}
+                  </p>
                 </div>
               )}
 
@@ -1517,7 +1560,6 @@ export default function LiveContent() {
             {errorMessage && <p style={{ fontSize: 12, color: '#f87171' }}>{errorMessage}</p>}
           </div>
 
-          {/* Desktop Right Column: Chat & Gifts */}
           <div style={{ width: 320, borderLeft: '1px solid rgba(255,255,255,.08)', display: 'flex', flexDirection: 'column' }}>
             <div
               style={{
@@ -1543,7 +1585,6 @@ export default function LiveContent() {
               <div ref={chatScrollRef} />
             </div>
 
-            {/* Desktop Gifts tray */}
             <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', padding: '10px 12px' }}>
               <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 8 }}>
                 Send a Gift

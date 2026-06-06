@@ -417,12 +417,29 @@ export default function CreateLiveContent() {
     socket.on('liveComment', onLiveComment);
     socket.on('mobcoins-gift', onMobcoinsGift);
 
+    const onConnect = () => {
+      if (liveActive && postId) {
+        console.log('Socket reconnected, re-associating as host...');
+        socket.emit('startLive', {
+          postId,
+          username: localStorage.currentUser || 'Guest',
+          reconnect: true
+        }, (res) => {
+          if (!res?.ok) {
+            console.error('Failed to re-associate as host', res?.error);
+          }
+        });
+      }
+    };
+    socket.on('connect', onConnect);
+
     return () => {
       socket.off('viewerCountUpdate', onViewerCount);
       socket.off('liveComment', onLiveComment);
       socket.off('mobcoins-gift', onMobcoinsGift);
+      socket.off('connect', onConnect);
     };
-  }, [postId]);
+  }, [postId, liveActive]);
 
   const startRecording = (stream, id) => {
     chunkBufferRef.current = [];
@@ -445,18 +462,24 @@ export default function CreateLiveContent() {
       if (e?.data?.size > 0) {
         chunkBufferRef.current.push(e.data);
 
-        try {
-          const arrayBuffer = await e.data.arrayBuffer();
-          await fetch(`${API_BASE_URL}/api/live-chunk-upload/${id}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/octet-stream'
-            },
-            body: arrayBuffer
-          });
-        } catch (err) {
-          console.error('Error uploading chunk:', err);
-        }
+        const uploadChunk = async (data, retryCount = 0) => {
+          try {
+            const arrayBuffer = await data.arrayBuffer();
+            const resp = await fetch(`${API_BASE_URL}/api/live-chunk-upload/${id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/octet-stream' },
+              body: arrayBuffer
+            });
+            if (!resp.ok) throw new Error(`Upload failed with status ${resp.status}`);
+          } catch (err) {
+            console.error(`Error uploading chunk (attempt ${retryCount + 1}):`, err);
+            if (retryCount < 3) {
+              setTimeout(() => uploadChunk(data, retryCount + 1), 1000);
+            }
+          }
+        };
+
+        uploadChunk(e.data);
       }
     };
 
