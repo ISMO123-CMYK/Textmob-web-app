@@ -235,7 +235,82 @@ export default function CreateLiveContent() {
   const cameraSwitchTimerRef = useRef(null);
   const seenCommentsRef = useRef(new Set());
   const chatScrollRef = useRef(null);
+  const liveLink = postId ? window.location.origin + '/live/' + postId : '';
 
+  const copyText = async function (text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+
+    window.prompt('Copy this link', text);
+    return Promise.resolve();
+  };
+
+  const copyLiveLink = async function () {
+    if (!liveLink) return;
+
+    try {
+      await copyText(liveLink);
+      window.alert('Live link copied.');
+    } catch (err) {
+      window.prompt('Copy this link', liveLink);
+    }
+  };
+
+  const shareLiveLink = async function () {
+    if (!liveLink) return;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Textmob Live',
+          text: title ? title : 'Watch my live stream',
+          url: liveLink
+        });
+        return;
+      }
+
+      await copyLiveLink();
+    } catch (err) {
+      try {
+        await copyLiveLink();
+      } catch (e) { }
+    }
+  };
+
+  const LiveLinkButtons = function () {
+    if (!liveLink) return null;
+
+    return (
+      <>
+        <button
+          type="button"
+          onClick={shareLiveLink}
+          title="Share live link"
+          aria-label="Share live link"
+          className="w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all active:scale-95"
+        >
+          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l6-6m0 0H9m6 0v6" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13.5V19a1 1 0 001 1h12a1 1 0 001-1v-5.5" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          onClick={copyLiveLink}
+          title="Copy live link"
+          aria-label="Copy live link"
+          className="w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all active:scale-95"
+        >
+          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
+            <rect x="9" y="9" width="10" height="10" rx="2" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 15H6a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1" />
+          </svg>
+        </button>
+      </>
+    );
+  };
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
     handleResize();
@@ -723,7 +798,6 @@ export default function CreateLiveContent() {
                 />
               ))}
             </div>
-
             {liveActive ? (
               <div className="flex items-center gap-3">
                 <button
@@ -768,6 +842,8 @@ export default function CreateLiveContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                   </svg>
                 </button>
+
+                <LiveLinkButtons />
 
                 <div className="flex-1" />
 
@@ -900,6 +976,7 @@ export default function CreateLiveContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                   </svg>
                 </button>
+                <LiveLinkButtons />
               </Fragment>
             ) : (
               <div className="flex items-center justify-between w-full">
@@ -981,6 +1058,8 @@ export default function CreateLiveContent() {
                       className="w-11 h-11 rounded-xl bg-white/15 text-white flex items-center justify-center"
                     />
                   )}
+
+                  <LiveLinkButtons />
 
                   <div className="flex-1" />
 

@@ -379,11 +379,23 @@ app.get("/api/live-stream/:postId", (req, res) => {
 
     const chunks = liveChunkBuffers.get(postId) || [];
     if (chunks.length > 0) {
-      // Always write the first chunk containing the WebM/VP8 metadata & container headers
+      // Always send chunk[0] — it holds the WebM container headers (EBML/SeekHead)
+      // without it the browser can't decode anything
       res.write(chunks[0]);
 
-      // Write only the last 2 chunks to catch the viewer up to the live edge immediately
-      const startIdx = Math.max(1, chunks.length - 2);
+      const isLiveJoin = req.query.live === '1';
+
+      // For fresh joins, skip history and only send last ~30 seconds of chunks.
+      // Assumes ~4 chunks/sec (250ms each) → 120 chunks = 30s.
+      // Adjust CHUNKS_PER_SEC to match your actual encoder interval.
+      const CHUNKS_PER_SEC = 4;
+      const CATCHUP_SECS = 30;
+      const recentWindow = CHUNKS_PER_SEC * CATCHUP_SECS;
+
+      const startIdx = isLiveJoin
+        ? Math.max(1, chunks.length - recentWindow)
+        : 1; // non-live-join gets full history (e.g. rewatch/recovery)
+
       for (let i = startIdx; i < chunks.length; i++) {
         res.write(chunks[i]);
       }

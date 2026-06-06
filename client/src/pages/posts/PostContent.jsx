@@ -176,7 +176,7 @@ export default function PostContent() {
       let data = await res.json();
       let result = data.reactions ? computeReactionData(data.reactions, localStorage.currentUser) : { counts: data.counts || {}, userReaction: data.userReaction || null };
       setReactionsCache(c => ({ ...c, [String(id)]: result }));
-    } catch {}
+    } catch { }
   }
 
   useEffect(() => {
@@ -195,11 +195,7 @@ export default function PostContent() {
         }
         let data = await res.json();
         if (!active) return;
-        if (data.type === 'snap') {
-          if (window.Lexum) window.Lexum.navigate('/snaps');
-          else window.location.hash = '/snaps';
-          return;
-        }
+
         setPost(data);
 
         if (Array.isArray(data.reactions)) {
@@ -292,7 +288,7 @@ export default function PostContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ postId: id, username: localStorage.currentUser, comment: trimmed })
       });
-    } catch {}
+    } catch { }
   };
 
   const handlePollVote = async (id, optionId) => {

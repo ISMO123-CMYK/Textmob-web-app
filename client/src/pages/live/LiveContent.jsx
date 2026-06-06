@@ -87,7 +87,6 @@ function GiftOverlay({ gift, sender, onDone }) {
           </div>
         )}
       </div>
-
     </>
   );
 }
@@ -468,6 +467,8 @@ export default function LiveContent() {
     vid.play().catch(() => { });
   };
 
+  // ✅ CHANGED: recovery reconnect does NOT use ?live=1 so it reloads
+  // from a safe point rather than skipping ahead again on reconnect
   const handleVideoError = () => {
     if (streamEndedReceivedRef.current) return;
     if (recoveryAttemptsRef.current >= 5) {
@@ -492,6 +493,7 @@ export default function LiveContent() {
       } catch { }
     }
   };
+
   const hasJoinedRef = useRef(false);
   const seenCommentsSet = useRef(new Set());
 
@@ -567,8 +569,6 @@ export default function LiveContent() {
       if (pId?.toString() === postId.toString()) {
         streamEndedReceivedRef.current = true;
 
-        // Wait for the video element to finish playing the buffered contents.
-        // We check if the video is already ended, paused, or has no buffered data.
         const vid = videoRef.current;
         if (!vid || vid.paused || vid.ended || !vid.buffered || vid.buffered.length === 0) {
           teardownPeerConnection();
@@ -578,7 +578,6 @@ export default function LiveContent() {
           return;
         }
 
-        // Set a fallback timer (8 seconds) to transition anyway if the ended event misses
         setTimeout(() => {
           if (streamEndedReceivedRef.current) {
             teardownPeerConnection();
@@ -695,6 +694,9 @@ export default function LiveContent() {
     }
   };
 
+  // ✅ CHANGED: added ?live=1 so the server only sends the last ~30s
+  // of buffered chunks instead of the full stream history,
+  // saving mobile data and drastically reducing load time for late joiners
   const joinStreamChannel = () => {
     setErrorMessage('');
     const socket = window.socket;
@@ -708,12 +710,14 @@ export default function LiveContent() {
         const baseUrl = API_BASE_URL;
         if (videoRef.current) {
           const vid = videoRef.current;
-          vid.src = `${baseUrl}/api/live-stream/${postId}`;
+
+          // ✅ CHANGED: ?live=1 tells the server to skip stream history
+          // and only send the last ~30s of chunks — new joiners start
+          // at the live edge immediately instead of downloading everything
+          vid.src = `${baseUrl}/api/live-stream/${postId}?live=1`;
           vid.muted = audioMuted;
 
           // Seek to the live edge once enough data has loaded
-          // The backend dumps all historical chunks first, so we need
-          // to skip ahead to the current position
           let seekAttempts = 0;
           const seekToLive = () => {
             let targetTime = 0;
@@ -728,14 +732,12 @@ export default function LiveContent() {
               vid.currentTime = targetTime;
             }
             seekAttempts++;
-            // Stop trying after ~15 seconds or once we're caught up
             if (seekAttempts > 30 || (targetTime > 0 && vid.currentTime > targetTime - 3)) {
               clearInterval(seekInterval);
             }
           };
           const seekInterval = setInterval(seekToLive, 500);
 
-          // Also seek once when metadata/data loads
           vid.addEventListener('loadeddata', () => {
             if (vid.duration && isFinite(vid.duration) && vid.duration > 1) {
               vid.currentTime = Math.max(0, vid.duration - 0.5);
@@ -846,7 +848,6 @@ export default function LiveContent() {
         return;
       }
 
-      // Sync via Socket
       const socket = window.socket;
       if (socket) {
         socket.emit('mobcoins-gift', {
@@ -889,6 +890,75 @@ export default function LiveContent() {
     color: '#fff',
     flexShrink: 0
   });
+
+  const liveLink = postId ? window.location.origin + '/live/' + postId : '';
+
+  const copyText = async function (text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    window.prompt('Copy this link', text);
+    return Promise.resolve();
+  };
+
+  const copyLiveLink = async function () {
+    if (!liveLink) return;
+    try {
+      await copyText(liveLink);
+      window.alert('Live link copied.');
+    } catch (err) {
+      window.prompt('Copy this link', liveLink);
+    }
+  };
+
+  const shareLiveLink = async function () {
+    if (!liveLink) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Textmob Live',
+          text: 'Watch this live stream',
+          url: liveLink
+        });
+        return;
+      }
+      await copyLiveLink();
+    } catch (err) {
+      try {
+        await copyLiveLink();
+      } catch (e) { }
+    }
+  };
+
+  const LiveLinkButtons = function () {
+    if (!liveLink) return null;
+    return (
+      <>
+        <button
+          onClick={shareLiveLink}
+          title="Share live link"
+          aria-label="Share live link"
+          style={renderIconBtnStyle(false)}
+        >
+          <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l6-6m0 0H9m6 0v6" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13.5V19a1 1 0 001 1h12a1 1 0 001-1v-5.5" />
+          </svg>
+        </button>
+        <button
+          onClick={copyLiveLink}
+          title="Copy live link"
+          aria-label="Copy live link"
+          style={renderIconBtnStyle(false)}
+        >
+          <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+            <rect x="9" y="9" width="10" height="10" rx="2" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 15H6a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1" />
+          </svg>
+        </button>
+      </>
+    );
+  };
 
   return (
     <div
@@ -1035,13 +1105,7 @@ export default function LiveContent() {
               >
                 <svg
                   viewBox="0 0 24 24"
-                  style={{
-                    width: 16,
-                    height: 16,
-                    fill: 'none',
-                    stroke: '#fff',
-                    strokeWidth: 2
-                  }}
+                  style={{ width: 16, height: 16, fill: 'none', stroke: '#fff', strokeWidth: 2 }}
                 >
                   <path
                     strokeLinecap="round"
@@ -1050,23 +1114,17 @@ export default function LiveContent() {
                   />
                 </svg>
               </button>
+
+              <LiveLinkButtons />
+
               {joined ? (
                 <button
                   onClick={leaveStreamChannel}
-                  style={{
-                    ...renderIconBtnStyle(false),
-                    background: 'rgba(220,38,38,.7)'
-                  }}
+                  style={{ ...renderIconBtnStyle(false), background: 'rgba(220,38,38,.7)' }}
                 >
                   <svg
                     viewBox="0 0 24 24"
-                    style={{
-                      width: 16,
-                      height: 16,
-                      fill: 'none',
-                      stroke: '#fff',
-                      strokeWidth: 2.5
-                    }}
+                    style={{ width: 16, height: 16, fill: 'none', stroke: '#fff', strokeWidth: 2.5 }}
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -1074,12 +1132,7 @@ export default function LiveContent() {
               ) : (
                 <button
                   onClick={joinStreamChannel}
-                  style={{
-                    ...renderIconBtnStyle(false),
-                    background: '#2563eb',
-                    padding: '0 12px',
-                    width: 'auto'
-                  }}
+                  style={{ ...renderIconBtnStyle(false), background: '#2563eb', padding: '0 12px', width: 'auto' }}
                 >
                   <span style={{ fontSize: 12, fontWeight: 700 }}>Join</span>
                 </button>
@@ -1122,11 +1175,7 @@ export default function LiveContent() {
             >
               <div
                 className="tm-glass"
-                style={{
-                  borderRadius: 20,
-                  padding: 12,
-                  border: '1px solid rgba(255,255,255,.1)'
-                }}
+                style={{ borderRadius: 20, padding: 12, border: '1px solid rgba(255,255,255,.1)' }}
               >
                 <div
                   style={{
@@ -1148,38 +1197,18 @@ export default function LiveContent() {
                     Send a Gift
                   </p>
                   <button
-                    onClick={() => {
-                      setShowGiftDrawer(false);
-                      setGiftErrorMessage('');
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: 'rgba(255,255,255,.5)'
-                    }}
+                    onClick={() => { setShowGiftDrawer(false); setGiftErrorMessage(''); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,.5)' }}
                   >
                     <svg
                       viewBox="0 0 24 24"
-                      style={{
-                        width: 16,
-                        height: 16,
-                        fill: 'none',
-                        stroke: 'currentColor',
-                        strokeWidth: 2.5
-                      }}
+                      style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 2.5 }}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4,1fr)',
-                    gap: 8
-                  }}
-                >
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                   {giftsList.map(g => (
                     <button
                       key={g.id}
@@ -1202,32 +1231,15 @@ export default function LiveContent() {
                       <div style={{ color: g.color }}>
                         <GiftIcon id={g.id} size={26} />
                       </div>
-                      <span
-                        style={{
-                          fontSize: 9,
-                          fontWeight: 700,
-                          color: 'rgba(255,255,255,.7)',
-                          textAlign: 'center',
-                          lineHeight: 1.2
-                        }}
-                      >
+                      <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.7)', textAlign: 'center', lineHeight: 1.2 }}>
                         {g.name}
                       </span>
-                      <span style={{ fontSize: 9, fontWeight: 900, color: '#fde68a' }}>
-                        {g.cost}
-                      </span>
+                      <span style={{ fontSize: 9, fontWeight: 900, color: '#fde68a' }}>{g.cost}</span>
                     </button>
                   ))}
                 </div>
                 {giftErrorMessage && (
-                  <p
-                    style={{
-                      fontSize: 11,
-                      color: '#f87171',
-                      textAlign: 'center',
-                      marginTop: 8
-                    }}
-                  >
+                  <p style={{ fontSize: 11, color: '#f87171', textAlign: 'center', marginTop: 8 }}>
                     {giftErrorMessage}
                   </p>
                 )}
@@ -1236,15 +1248,7 @@ export default function LiveContent() {
           )}
 
           {/* Lower interactive UI panel */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: '0 12px 32px'
-            }}
-          >
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '0 12px 32px' }}>
             {joined && videoDuration > 0 && (
               <div
                 style={{
@@ -1257,11 +1261,7 @@ export default function LiveContent() {
                   gap: 2
                 }}
               >
-                <VideoSeeker
-                  videoRef={videoRef}
-                  currentTime={videoTime}
-                  duration={videoDuration}
-                />
+                <VideoSeeker videoRef={videoRef} currentTime={videoTime} duration={videoDuration} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 10, color: '#fff' }}>
                   <span>{formatTime(videoTime)} / {formatTime(videoDuration)}</span>
                   <span style={{ fontSize: 9, color: '#ff4444', fontWeight: 800 }}>LIVE</span>
@@ -1299,15 +1299,7 @@ export default function LiveContent() {
                 {inputText.trim() && (
                   <button
                     onClick={handlePostComment}
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: '#60a5fa',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      flexShrink: 0
-                    }}
+                    style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
                   >
                     Post
                   </button>
@@ -1315,64 +1307,25 @@ export default function LiveContent() {
               </div>
               <button
                 onClick={() => setShowGiftDrawer(prev => !prev)}
-                style={{
-                  ...renderIconBtnStyle(showGiftDrawer),
-                  width: 44,
-                  height: 44,
-                  borderRadius: 14
-                }}
+                style={{ ...renderIconBtnStyle(showGiftDrawer), width: 44, height: 44, borderRadius: 14 }}
               >
                 <GiftIcon id="crown" size={20} />
               </button>
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={toggleMute}
-                title={audioMuted ? 'Unmute' : 'Mute'}
-                style={renderIconBtnStyle(audioMuted)}
-              >
+              <button onClick={toggleMute} title={audioMuted ? 'Unmute' : 'Mute'} style={renderIconBtnStyle(audioMuted)}>
                 {audioMuted ? (
-                  <svg
-                    viewBox="0 0 24 24"
-                    style={{
-                      width: 18,
-                      height: 18,
-                      fill: 'none',
-                      stroke: '#fff',
-                      strokeWidth: 2
-                    }}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
-                    />
+                  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
                   </svg>
                 ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    style={{
-                      width: 18,
-                      height: 18,
-                      fill: 'none',
-                      stroke: '#fff',
-                      strokeWidth: 2
-                    }}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
-                    />
+                  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
                   </svg>
                 )}
               </button>
-              <button
-                onClick={togglePauseOverride}
-                title={isPaused ? 'Resume' : 'Pause'}
-                style={renderIconBtnStyle(isPaused)}
-              >
+              <button onClick={togglePauseOverride} title={isPaused ? 'Resume' : 'Pause'} style={renderIconBtnStyle(isPaused)}>
                 {isPaused ? (
                   <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: '#fff' }}>
                     <path d="M8 5v14l11-7z" />
@@ -1384,57 +1337,19 @@ export default function LiveContent() {
                   </svg>
                 )}
               </button>
-              <button
-                onClick={toggleFullscreen}
-                title="Fullscreen"
-                style={renderIconBtnStyle(isFullscreen)}
-              >
+              <button onClick={toggleFullscreen} title="Fullscreen" style={renderIconBtnStyle(isFullscreen)}>
                 {isFullscreen ? (
-                  <svg
-                    viewBox="0 0 24 24"
-                    style={{
-                      width: 18,
-                      height: 18,
-                      fill: 'none',
-                      stroke: '#fff',
-                      strokeWidth: 2
-                    }}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5M15 15l5.25 5.25"
-                    />
+                  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5M15 15l5.25 5.25" />
                   </svg>
                 ) : (
-                  <svg
-                    viewBox="0 0 24 24"
-                    style={{
-                      width: 18,
-                      height: 18,
-                      fill: 'none',
-                      stroke: '#fff',
-                      strokeWidth: 2
-                    }}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
-                    />
+                  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
                   </svg>
                 )}
               </button>
               {errorMessage && (
-                <p
-                  style={{
-                    flex: 1,
-                    fontSize: 11,
-                    color: '#f87171',
-                    textAlign: 'center',
-                    alignSelf: 'center'
-                  }}
-                >
+                <p style={{ flex: 1, fontSize: 11, color: '#f87171', textAlign: 'center', alignSelf: 'center' }}>
                   {errorMessage}
                 </p>
               )}
@@ -1444,16 +1359,7 @@ export default function LiveContent() {
       ) : (
         <>
           {/* Desktop Dual Column View */}
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              padding: 24,
-              gap: 16,
-              minWidth: 0
-            }}
-          >
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 24, gap: 16, minWidth: 0 }}>
             {/* Header controls row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between' }}>
               <span
@@ -1469,65 +1375,23 @@ export default function LiveContent() {
                   borderRadius: 999
                 }}
               >
-                <span
-                  className="tm-live-dot"
-                  style={{
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: '#fff'
-                  }}
-                />
+                <span className="tm-live-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff' }} />
                 LIVE · {viewerCount} watching
               </span>
 
               <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={toggleMute}
-                  title={audioMuted ? 'Unmute' : 'Mute'}
-                  style={renderIconBtnStyle(audioMuted)}
-                >
+                <button onClick={toggleMute} title={audioMuted ? 'Unmute' : 'Mute'} style={renderIconBtnStyle(audioMuted)}>
                   {audioMuted ? (
-                    <svg
-                      viewBox="0 0 24 24"
-                      style={{
-                        width: 18,
-                        height: 18,
-                        fill: 'none',
-                        stroke: '#fff',
-                        strokeWidth: 2
-                      }}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
-                      />
+                    <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
                     </svg>
                   ) : (
-                    <svg
-                      viewBox="0 0 24 24"
-                      style={{
-                        width: 18,
-                        height: 18,
-                        fill: 'none',
-                        stroke: '#fff',
-                        strokeWidth: 2
-                      }}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z"
-                      />
+                    <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
                     </svg>
                   )}
                 </button>
-                <button
-                  onClick={togglePauseOverride}
-                  title={isPaused ? 'Resume' : 'Pause'}
-                  style={renderIconBtnStyle(isPaused)}
-                >
+                <button onClick={togglePauseOverride} title={isPaused ? 'Resume' : 'Pause'} style={renderIconBtnStyle(isPaused)}>
                   {isPaused ? (
                     <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: '#fff' }}>
                       <path d="M8 5v14l11-7z" />
@@ -1542,84 +1406,34 @@ export default function LiveContent() {
                 <button
                   onClick={() => {
                     if (videoRef.current) {
-                      videoRef.current.currentTime = Math.max(
-                        0,
-                        videoRef.current.currentTime - 10
-                      );
+                      videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10);
                     }
                   }}
                   title="Rewind 10s"
                   style={renderIconBtnStyle(false)}
                 >
-                  <svg
-                    viewBox="0 0 24 24"
-                    style={{
-                      width: 18,
-                      height: 18,
-                      fill: 'none',
-                      stroke: '#fff',
-                      strokeWidth: 2
-                    }}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"
-                    />
+                  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
                   </svg>
                 </button>
-                <button
-                  onClick={toggleFullscreen}
-                  title="Fullscreen"
-                  style={renderIconBtnStyle(isFullscreen)}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    style={{
-                      width: 18,
-                      height: 18,
-                      fill: 'none',
-                      stroke: '#fff',
-                      strokeWidth: 2
-                    }}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
-                    />
+                <button onClick={toggleFullscreen} title="Fullscreen" style={renderIconBtnStyle(isFullscreen)}>
+                  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
                   </svg>
                 </button>
                 {joined ? (
                   <button
                     onClick={leaveStreamChannel}
-                    style={{
-                      ...renderIconBtnStyle(false),
-                      background: 'rgba(220,38,38,.7)'
-                    }}
+                    style={{ ...renderIconBtnStyle(false), background: 'rgba(220,38,38,.7)' }}
                   >
-                    <svg
-                      viewBox="0 0 24 24"
-                      style={{
-                        width: 16,
-                        height: 16,
-                        fill: 'none',
-                        stroke: '#fff',
-                        strokeWidth: 2.5
-                      }}
-                    >
+                    <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, fill: 'none', stroke: '#fff', strokeWidth: 2.5 }}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 ) : (
                   <button
                     onClick={joinStreamChannel}
-                    style={{
-                      ...renderIconBtnStyle(false),
-                      background: '#2563eb',
-                      width: 'auto',
-                      padding: '0 16px'
-                    }}
+                    style={{ ...renderIconBtnStyle(false), background: '#2563eb', width: 'auto', padding: '0 16px' }}
                   >
                     <span style={{ fontSize: 13, fontWeight: 700 }}>Join Stream</span>
                   </button>
@@ -1628,15 +1442,7 @@ export default function LiveContent() {
             </div>
 
             {/* Main Video Box */}
-            <div
-              style={{
-                position: 'relative',
-                flex: 1,
-                background: '#000',
-                borderRadius: 16,
-                overflow: 'hidden'
-              }}
-            >
+            <div style={{ position: 'relative', flex: 1, background: '#000', borderRadius: 16, overflow: 'hidden' }}>
               <video
                 controls
                 ref={videoRef}
@@ -1649,13 +1455,8 @@ export default function LiveContent() {
                 onError={handleVideoError}
                 onStalled={handleVideoStalled}
                 onWaiting={handleVideoStalled}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain'
-                }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
-
 
               {!joined && (
                 <div
@@ -1670,21 +1471,10 @@ export default function LiveContent() {
                     gap: 12
                   }}
                 >
-                  <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 14 }}>
-                    Tap join to watch the live stream
-                  </p>
+                  <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 14 }}>Tap join to watch the live stream</p>
                   <button
                     onClick={joinStreamChannel}
-                    style={{
-                      padding: '12px 28px',
-                      background: '#2563eb',
-                      color: '#fff',
-                      borderRadius: 14,
-                      fontSize: 14,
-                      fontWeight: 800,
-                      border: 'none',
-                      cursor: 'pointer'
-                    }}
+                    style={{ padding: '12px 28px', background: '#2563eb', color: '#fff', borderRadius: 14, fontSize: 14, fontWeight: 800, border: 'none', cursor: 'pointer' }}
                   >
                     Join Stream
                   </button>
@@ -1728,14 +1518,7 @@ export default function LiveContent() {
           </div>
 
           {/* Desktop Right Column: Chat & Gifts */}
-          <div
-            style={{
-              width: 320,
-              borderLeft: '1px solid rgba(255,255,255,.08)',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
+          <div style={{ width: 320, borderLeft: '1px solid rgba(255,255,255,.08)', display: 'flex', flexDirection: 'column' }}>
             <div
               style={{
                 padding: '12px 16px',
@@ -1746,24 +1529,12 @@ export default function LiveContent() {
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>Live Chat</span>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>
-                {viewerCount} watching
-              </span>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>{viewerCount} watching</span>
             </div>
 
-            <div
-              className="flex-1 overflow-y-auto tm-noscroll px-3 py-2"
-              style={{ flex: 1 }}
-            >
+            <div className="flex-1 overflow-y-auto tm-noscroll px-3 py-2" style={{ flex: 1 }}>
               {comments.length === 0 ? (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: 'rgba(255,255,255,.25)',
-                    textAlign: 'center',
-                    paddingTop: 20
-                  }}
-                >
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,.25)', textAlign: 'center', paddingTop: 20 }}>
                   No messages yet
                 </p>
               ) : (
@@ -1773,33 +1544,11 @@ export default function LiveContent() {
             </div>
 
             {/* Desktop Gifts tray */}
-            <div
-              style={{
-                borderTop: '1px solid rgba(255,255,255,.08)',
-                padding: '10px 12px'
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  color: 'rgba(255,255,255,.3)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1.5px',
-                  marginBottom: 8
-                }}
-              >
+            <div style={{ borderTop: '1px solid rgba(255,255,255,.08)', padding: '10px 12px' }}>
+              <p style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 8 }}>
                 Send a Gift
               </p>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4,1fr)',
-                  gap: 6,
-                  marginBottom: 8
-                }}
-              >
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 8 }}>
                 {giftsList.map(g => (
                   <button
                     key={g.id}
@@ -1821,28 +1570,15 @@ export default function LiveContent() {
                     <div style={{ color: g.color }}>
                       <GiftIcon id={g.id} size={22} />
                     </div>
-                    <span
-                      style={{
-                        fontSize: 8,
-                        fontWeight: 700,
-                        color: 'rgba(255,255,255,.6)',
-                        textAlign: 'center',
-                        lineHeight: 1.1
-                      }}
-                    >
+                    <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,.6)', textAlign: 'center', lineHeight: 1.1 }}>
                       {g.name}
                     </span>
-                    <span style={{ fontSize: 8, fontWeight: 900, color: '#fde68a' }}>
-                      {g.cost}
-                    </span>
+                    <span style={{ fontSize: 8, fontWeight: 900, color: '#fde68a' }}>{g.cost}</span>
                   </button>
                 ))}
               </div>
-
               {giftErrorMessage && (
-                <p style={{ fontSize: 11, color: '#f87171', marginBottom: 6 }}>
-                  {giftErrorMessage}
-                </p>
+                <p style={{ fontSize: 11, color: '#f87171', marginBottom: 6 }}>{giftErrorMessage}</p>
               )}
             </div>
 
@@ -1865,16 +1601,7 @@ export default function LiveContent() {
               />
               <button
                 onClick={handlePostComment}
-                style={{
-                  padding: '9px 14px',
-                  background: '#2563eb',
-                  color: '#fff',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
+                style={{ padding: '9px 14px', background: '#2563eb', color: '#fff', borderRadius: 12, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer' }}
               >
                 Send
               </button>
