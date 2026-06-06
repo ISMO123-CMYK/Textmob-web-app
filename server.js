@@ -6479,7 +6479,7 @@ async function generateAIResponse(messages) {
   }
 
   // Select model
-  var selectedModel = isImagePrompt ? "meta-llama/llama-4-scout-17b-16e-instruct" : "moonshotai/kimi-k2-instruct";
+  var selectedModel = isImagePrompt ? "meta-llama/llama-4-scout-17b-16e-instruct" : "openai/gpt-oss-20b";
 
   // Retry loop with backoff
   var maxTries = 10;

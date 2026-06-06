@@ -86,7 +86,6 @@ function GiftOverlay({ gift, sender, onDone }) {
           </div>
         )}
       </div>
-
     </>
   );
 }
@@ -167,9 +166,46 @@ function FloatersGroup({ floaters }) {
   );
 }
 
+function CameraFlipIcon({ facing }) {
+  if (facing === 'user') {
+    return (
+      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
+        <rect x="4.5" y="7.5" width="12" height="9" rx="2.25" />
+        <circle cx="10.5" cy="12" r="1.25" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5L20 7v3.5h-3.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 6.5h3.5m0 0V10" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
+      <rect x="7.5" y="7.5" width="12" height="9" rx="2.25" />
+      <circle cx="13.5" cy="12" r="1.25" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 13.5L4 17v-3.5h3.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 17.5H5m0 0V14" />
+    </svg>
+  );
+}
+
+function CameraFlipButton({ facing, onClick, className = '' }) {
+  const actionLabel = facing === 'user' ? 'Switch to rear camera' : 'Switch to front camera';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={actionLabel}
+      title={actionLabel}
+      className={className}
+    >
+      <CameraFlipIcon facing={facing} />
+    </button>
+  );
+}
+
 export default function CreateLiveContent() {
-  const [mode, setMode] = useState('camera'); // camera | screen
-  const [facing, setFacing] = useState('user'); // user | environment
+  const [mode, setMode] = useState('camera');
+  const [facing, setFacing] = useState('user');
   const [title, setTitle] = useState('');
   const [liveActive, setLiveActive] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -187,7 +223,6 @@ export default function CreateLiveContent() {
   const [floaters, setFloaters] = useState([]);
   const [giftOverlays, setGiftOverlays] = useState([]);
   const [timeLeft, setTimeLeft] = useState(600);
-
   const [isDesktop, setIsDesktop] = useState(false);
   const [showStartModal, setShowStartModal] = useState(false);
 
@@ -197,10 +232,10 @@ export default function CreateLiveContent() {
   const chunkBufferRef = useRef([]);
   const pulseIntervalRef = useRef(null);
   const timerIntervalRef = useRef(null);
+  const cameraSwitchTimerRef = useRef(null);
   const seenCommentsRef = useRef(new Set());
   const chatScrollRef = useRef(null);
 
-  // Responsive check
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
     handleResize();
@@ -208,15 +243,13 @@ export default function CreateLiveContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Inject premium live styles on mount
   useEffect(() => {
     injectLiveStyles();
   }, []);
 
-  // Countdown timer for 10 minutes max duration
   useEffect(() => {
     if (!liveActive) return;
-    setTimeLeft(600);
+    setTimeLeft(21600);
     const interval = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -230,19 +263,15 @@ export default function CreateLiveContent() {
     return () => clearInterval(interval);
   }, [liveActive]);
 
-  // Auto-scroll chat
   useEffect(() => {
     chatScrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [comments]);
 
-  // Handle pulse updates
   useEffect(() => {
     if (!liveActive || !postId) return;
     pulseIntervalRef.current = setInterval(() => {
       const socket = window.socket;
-      if (socket) {
-        socket.emit('livePulse', { postId });
-      }
+      if (socket) socket.emit('livePulse', { postId });
     }, 8000);
 
     return () => {
@@ -250,7 +279,6 @@ export default function CreateLiveContent() {
     };
   }, [liveActive, postId]);
 
-  // Local comments router helper
   const addCommentLocally = (comment) => {
     const key = comment.id || `${comment.username}|${comment.text || ''}|${comment.giftId || ''}|${comment.created_at || ''}`;
     if (!seenCommentsRef.current.has(key)) {
@@ -262,7 +290,7 @@ export default function CreateLiveContent() {
   const receiveGiftVisual = (gift, sender) => {
     const idx = Date.now() + Math.random();
     setGiftOverlays(prev => [...prev, { id: idx, gift, sender }]);
-    
+
     const count = { 1: 4, 2: 8, 3: 16, 4: 32, 5: 60 }[gift.tier] || 4;
     const items = Array.from({ length: count }, (_, i) => ({
       id: idx + i,
@@ -278,7 +306,6 @@ export default function CreateLiveContent() {
     }, 4000);
   };
 
-  // Socket routing setups
   useEffect(() => {
     const socket = window.socket;
     if (!socket || !postId) return;
@@ -322,13 +349,13 @@ export default function CreateLiveContent() {
     };
   }, [postId]);
 
-  // Recording triggers
   const startRecording = (stream, id) => {
     chunkBufferRef.current = [];
-    const codec = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
-    
-    // Adaptive quality
-    let bits = 1500000; // 1.5 Mbps default for 4G/Wifi
+    const codec = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+      ? 'video/webm;codecs=vp8'
+      : 'video/webm';
+
+    let bits = 1500000;
     if (navigator.connection) {
       const type = navigator.connection.effectiveType;
       if (type === '3g') bits = 500000;
@@ -342,13 +369,10 @@ export default function CreateLiveContent() {
     mr.ondataavailable = async (e) => {
       if (e?.data?.size > 0) {
         chunkBufferRef.current.push(e.data);
-        
-        // POST chunk immediately to the server
-        const chunkBlob = e.data;
+
         try {
-          const arrayBuffer = await chunkBlob.arrayBuffer();
-          const baseUrl = API_BASE_URL;
-          await fetch(`${baseUrl}/api/live-chunk-upload/${id}`, {
+          const arrayBuffer = await e.data.arrayBuffer();
+          await fetch(`${API_BASE_URL}/api/live-chunk-upload/${id}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/octet-stream'
@@ -380,7 +404,7 @@ export default function CreateLiveContent() {
 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${API_BASE_URL}/upload-live`, true);
-        
+
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             setProgressVal(Math.round((e.loaded / e.total) * 100));
@@ -408,7 +432,6 @@ export default function CreateLiveContent() {
     });
   };
 
-  // Media capture init
   const captureLocalMedia = async (id) => {
     setErrorMsg('');
     let stream;
@@ -438,7 +461,7 @@ export default function CreateLiveContent() {
         if (!videoRef.current || videoRef.current.readyState >= 1) return res();
         videoRef.current.addEventListener('loadedmetadata', res, { once: true });
       });
-      await videoRef.current.play().catch(() => {});
+      await videoRef.current.play().catch(() => { });
     }
 
     startRecording(stream, id);
@@ -459,13 +482,13 @@ export default function CreateLiveContent() {
     beginLiveBroadcast();
   };
 
-  // Core stream orchestrators
   const beginLiveBroadcast = async () => {
     const cleanTitle = title.trim();
     if (!cleanTitle) {
       setErrorMsg('Add a title first.');
       return;
     }
+
     setStarting(true);
     setErrorMsg('');
 
@@ -488,19 +511,23 @@ export default function CreateLiveContent() {
         setStarting(false);
         return;
       }
+
       const streamId = String(res.postId);
       setPostId(streamId);
+
       try {
         await captureLocalMedia(streamId);
         setLiveActive(true);
       } catch (err) {
         setErrorMsg(`Could not start stream: ${err?.message || ''}`);
-        try { socket.emit('endLive', { postId: streamId, save: false }); } catch {}
+        try {
+          socket.emit('endLive', { postId: streamId, save: false });
+        } catch { }
       }
+
       setStarting(false);
     });
   };
-
 
   const togglePauseOverride = () => {
     if (!localStreamRef.current) return;
@@ -510,10 +537,10 @@ export default function CreateLiveContent() {
     });
 
     if (nextVal) {
-      try { recorderRef.current?.pause(); } catch {}
+      try { recorderRef.current?.pause(); } catch { }
       window.socket?.emit('livePaused', { postId });
     } else {
-      try { recorderRef.current?.resume(); } catch {}
+      try { recorderRef.current?.resume(); } catch { }
       window.socket?.emit('liveResumed', { postId });
     }
     setPaused(nextVal);
@@ -528,26 +555,74 @@ export default function CreateLiveContent() {
     setMuted(nextVal);
   };
 
-  const flipCameraSensor = () => {
-    const nextVal = facing === 'user' ? 'environment' : 'user';
-    setFacing(nextVal);
-    if (localStreamRef.current && mode === 'camera') {
-      navigator.mediaDevices.getUserMedia({
-        video: { facingMode: nextVal },
-        audio: false
-      }).then(stream => {
-        const nextVideoTrack = stream.getVideoTracks()[0];
-        if (!nextVideoTrack) return;
-        const currentVideoTrack = localStreamRef.current.getVideoTracks()[0];
-        if (currentVideoTrack) {
-          localStreamRef.current.removeTrack(currentVideoTrack);
-          currentVideoTrack.stop();
-        }
-        localStreamRef.current.addTrack(nextVideoTrack);
-        if (videoRef.current) {
-          videoRef.current.srcObject = localStreamRef.current;
-        }
-      }).catch(() => {});
+  const restartRecorderForStream = (stream, id) => {
+    if (cameraSwitchTimerRef.current) {
+      clearTimeout(cameraSwitchTimerRef.current);
+      cameraSwitchTimerRef.current = null;
+    }
+
+    const currentRecorder = recorderRef.current;
+    if (!liveActive || !currentRecorder || currentRecorder.state === 'inactive') {
+      startRecording(stream, id);
+      return;
+    }
+
+    try {
+      currentRecorder.stop();
+    } catch { }
+
+    cameraSwitchTimerRef.current = setTimeout(() => {
+      if (liveActive && localStreamRef.current === stream) {
+        startRecording(stream, id);
+      }
+    }, 220);
+  };
+
+  const flipCameraFacing = async () => {
+    if (mode !== 'camera') return;
+
+    const nextFacing = facing === 'user' ? 'environment' : 'user';
+    setErrorMsg('');
+
+    try {
+      const existingStream = localStreamRef.current;
+      let newVideoStream;
+
+      try {
+        newVideoStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { exact: nextFacing } }
+        });
+      } catch {
+        newVideoStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: nextFacing } }
+        });
+      }
+
+      const newVideoTrack = newVideoStream.getVideoTracks()[0];
+      if (!newVideoTrack) throw new Error('No video track available.');
+
+      const audioTrack = existingStream?.getAudioTracks()?.[0] || null;
+      const oldVideoTracks = existingStream?.getVideoTracks?.() || [];
+
+      oldVideoTracks.forEach(track => {
+        try { track.stop(); } catch { }
+      });
+
+      const mergedStream = new MediaStream();
+      if (audioTrack) mergedStream.addTrack(audioTrack);
+      mergedStream.addTrack(newVideoTrack);
+
+      localStreamRef.current = mergedStream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = mergedStream;
+      }
+
+      setFacing(nextFacing);
+      restartRecorderForStream(mergedStream, postId || recorderRef.current?.post_id);
+    } catch (err) {
+      setErrorMsg('Could not switch camera.');
     }
   };
 
@@ -569,34 +644,38 @@ export default function CreateLiveContent() {
     if (!postId) return;
     setEnding(true);
 
-    try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
+    if (cameraSwitchTimerRef.current) {
+      clearTimeout(cameraSwitchTimerRef.current);
+      cameraSwitchTimerRef.current = null;
+    }
+
+    try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
     localStreamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
 
-    // Direct stop recorder without saving
     try {
       if (recorderRef.current && recorderRef.current.state !== 'inactive') {
         recorderRef.current.stop();
       }
-    } catch {}
+    } catch { }
 
     window.socket?.emit('endLive', { postId, save: false, savedUrl: null }, () => {
       setLiveActive(false);
       setViewerCount(0);
       setEnding(false);
       setComments([]);
-      try { window.Lexum?.navigate('/'); } catch {}
+      try { window.Lexum?.navigate('/'); } catch { }
     });
   };
 
-  // Clean mount/unmount triggers
   useEffect(() => () => {
-    try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch {}
-    try { if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop(); } catch {}
+    if (cameraSwitchTimerRef.current) clearTimeout(cameraSwitchTimerRef.current);
+    try { localStreamRef.current?.getTracks().forEach(t => t.stop()); } catch { }
+    try { if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop(); } catch { }
   }, []);
 
   return (
-    <div style={{ background: '#0a0a0a', minHeight: '100dvh', fontSizing: 'border-box' }}>
+    <div style={{ background: '#0a0a0a', minHeight: '100dvh', boxSizing: 'border-box' }}>
       {isDesktop ? (
         <div className="flex h-screen max-w-7xl mx-auto p-4 md:p-6 gap-4">
           <div className="flex-1 flex flex-col gap-4 min-w-0">
@@ -632,57 +711,105 @@ export default function CreateLiveContent() {
                 </div>
               )}
               {giftOverlays.map(g => (
-                <ConfettiBlast gift={g.gift} onDone={() => {}} key={`confetti-${g.id}`} />
+                <ConfettiBlast gift={g.gift} onDone={() => { }} key={`confetti-${g.id}`} />
               ))}
               <FloatersGroup floaters={floaters} />
               {giftOverlays.map(g => (
-                <GiftOverlay gift={g.gift} sender={g.sender} onDone={() => setGiftOverlays(p => p.filter(x => x.id !== g.id))} key={g.id} />
+                <GiftOverlay
+                  gift={g.gift}
+                  sender={g.sender}
+                  onDone={() => setGiftOverlays(p => p.filter(x => x.id !== g.id))}
+                  key={g.id}
+                />
               ))}
             </div>
 
             {liveActive ? (
               <div className="flex items-center gap-3">
-                <button onClick={togglePauseOverride} className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${paused ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}>
+                <button
+                  onClick={togglePauseOverride}
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${paused ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
+                >
                   {paused ? (
                     <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M8 5v14l11-7z" /></svg>
                   ) : (
                     <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
                   )}
                 </button>
-                <button onClick={toggleMuteOverride} className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${muted ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}>
+
+                <button
+                  onClick={toggleMuteOverride}
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${muted ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
+                >
                   {muted ? (
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                    </svg>
                   ) : (
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                    </svg>
                   )}
                 </button>
+
                 {mode === 'camera' && (
-                  <button onClick={flipCameraSensor} className="w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all">
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 3h5m0 0v5m0-5l-6 6M5 19H0m0 0v-5m0 5l6-6" /></svg>
-                  </button>
+                  <CameraFlipButton
+                    facing={facing}
+                    onClick={flipCameraFacing}
+                    className="w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all"
+                  />
                 )}
-                <button onClick={() => setShowChat(c => !c)} className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${showChat ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}>
-                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
+
+                <button
+                  onClick={() => setShowChat(c => !c)}
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${showChat ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
+                >
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                  </svg>
                 </button>
+
                 <div className="flex-1" />
-                <button onClick={stopBroadcastChannel} disabled={ending} className="px-6 h-11 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-lg shadow-red-600/10 active:scale-95 transition-all">
+
+                <button
+                  onClick={stopBroadcastChannel}
+                  disabled={ending}
+                  className="px-6 h-11 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-lg shadow-red-600/10 active:scale-95 transition-all"
+                >
                   {ending ? 'Ending...' : 'End Live'}
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
-                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="What is your stream about?" className="w-full bg-white/5 border border-white/10 text-white placeholder-white/20 rounded-2xl px-4 py-3 text-sm focus:border-blue-500 transition-colors" />
+                <input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="What is your stream about?"
+                  className="w-full bg-white/5 border border-white/10 text-white placeholder-white/20 rounded-2xl px-4 py-3 text-sm focus:border-blue-500 transition-colors"
+                />
                 <div className="flex gap-2">
                   {['camera', 'screen'].map(m => (
-                    <button key={m} onClick={() => setMode(m)} className={`flex-1 py-3 rounded-2xl text-xs font-bold transition-all ${mode === m ? 'bg-blue-600 text-white' : 'bg-white/10 text-white hover:bg-white/15'}`}>
+                    <button
+                      key={m}
+                      onClick={() => setMode(m)}
+                      className={`flex-1 py-3 rounded-2xl text-xs font-bold transition-all ${mode === m ? 'bg-blue-600 text-white' : 'bg-white/10 text-white hover:bg-white/15'}`}
+                    >
                       {m === 'camera' ? 'Camera Preview' : 'Share Screen'}
                     </button>
                   ))}
                   {mode === 'camera' && (
-                    <button onClick={flipCameraSensor} className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-colors">Sensor</button>
+                    <CameraFlipButton
+                      facing={facing}
+                      onClick={flipCameraFacing}
+                      className="w-12 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-colors"
+                    />
                   )}
                 </div>
-                <button onClick={handleGoLiveClick} disabled={starting} className="w-full py-4 rounded-2xl bg-red-600 text-white text-sm font-black hover:bg-red-700 shadow-xl shadow-red-600/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button
+                  onClick={handleGoLiveClick}
+                  disabled={starting}
+                  className="w-full py-4 rounded-2xl bg-red-600 text-white text-sm font-black hover:bg-red-700 shadow-xl shadow-red-600/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
                   <span className="w-2 h-2 bg-white rounded-full animate-ping" />
                   {starting ? 'Starting broadcast...' : 'Go Live · Start Stream'}
                 </button>
@@ -691,7 +818,6 @@ export default function CreateLiveContent() {
             )}
           </div>
 
-          {/* Right chat panel */}
           {(!liveActive || showChat) && (
             <div className="w-80 border-l border-white/5 flex flex-col bg-white/[0.02] rounded-3xl overflow-hidden border border-white/10">
               <div className="p-4 border-b border-white/5 flex items-center justify-between">
@@ -712,14 +838,24 @@ export default function CreateLiveContent() {
                 <div ref={chatScrollRef} />
               </div>
               <div className="p-3 border-t border-white/5 flex gap-2">
-                <input value={commentInput} onChange={e => setCommentInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && postHostComment()} placeholder="Type comment..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-blue-500" />
-                <button onClick={postHostComment} className="px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all">Send</button>
+                <input
+                  value={commentInput}
+                  onChange={e => setCommentInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && postHostComment()}
+                  placeholder="Type comment..."
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={postHostComment}
+                  className="px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all"
+                >
+                  Send
+                </button>
               </div>
             </div>
           )}
         </div>
       ) : (
-        /* Mobile Portrait View */
         <div className="relative h-screen flex flex-col overflow-hidden bg-black">
           <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
@@ -731,14 +867,18 @@ export default function CreateLiveContent() {
             </div>
           )}
           {giftOverlays.map(g => (
-            <ConfettiBlast gift={g.gift} onDone={() => {}} key={`confetti-${g.id}`} />
+            <ConfettiBlast gift={g.gift} onDone={() => { }} key={`confetti-${g.id}`} />
           ))}
           <FloatersGroup floaters={floaters} />
           {giftOverlays.map(g => (
-            <GiftOverlay gift={g.gift} sender={g.sender} onDone={() => setGiftOverlays(p => p.filter(x => x.id !== g.id))} key={g.id} />
+            <GiftOverlay
+              gift={g.gift}
+              sender={g.sender}
+              onDone={() => setGiftOverlays(p => p.filter(x => x.id !== g.id))}
+              key={g.id}
+            />
           ))}
 
-          {/* Top Panel */}
           <div className="absolute top-0 inset-x-0 pt-12 px-4 flex items-center justify-between">
             {liveActive ? (
               <Fragment>
@@ -752,8 +892,13 @@ export default function CreateLiveContent() {
                     {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
                   </span>
                 </div>
-                <button onClick={() => setShowChat(c => !c)} className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center border border-white/10">
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-white" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
+                <button
+                  onClick={() => setShowChat(c => !c)}
+                  className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center border border-white/10"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-white" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                  </svg>
                 </button>
               </Fragment>
             ) : (
@@ -769,10 +914,8 @@ export default function CreateLiveContent() {
                 </button>
               </div>
             )}
-
           </div>
 
-          {/* Bottom Chat / Comment Feed Overlay */}
           {liveActive && showChat && (
             <div className="absolute inset-x-4 bottom-48 max-h-40 overflow-hidden flex flex-col justify-end">
               <div className="space-y-1.5 overflow-hidden">
@@ -786,54 +929,101 @@ export default function CreateLiveContent() {
             </div>
           )}
 
-          {/* Control Trays */}
           <div className="absolute bottom-0 inset-x-0 p-4 pb-8">
             {liveActive ? (
               <div className="space-y-3">
                 <div className="flex gap-2">
-                  <input value={commentInput} onChange={e => setCommentInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && postHostComment()} placeholder="Say something..." className="flex-1 bg-black/40 border border-white/20 rounded-full px-4 py-2.5 text-xs text-white outline-none focus:border-blue-500" />
-                  <button onClick={postHostComment} className="px-4 bg-blue-600 text-white text-xs font-bold rounded-full active:scale-95 transition-all">Send</button>
+                  <input
+                    value={commentInput}
+                    onChange={e => setCommentInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && postHostComment()}
+                    placeholder="Say something..."
+                    className="flex-1 bg-black/40 border border-white/20 rounded-full px-4 py-2.5 text-xs text-white outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={postHostComment}
+                    className="px-4 bg-blue-600 text-white text-xs font-bold rounded-full active:scale-95 transition-all"
+                  >
+                    Send
+                  </button>
                 </div>
                 <div className="flex gap-2 items-center">
-                  <button onClick={togglePauseOverride} className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${paused ? 'bg-blue-600' : 'bg-white/15'}`}>
+                  <button
+                    onClick={togglePauseOverride}
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${paused ? 'bg-blue-600' : 'bg-white/15'}`}
+                  >
                     {paused ? (
                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M8 5v14l11-7z" /></svg>
                     ) : (
                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
                     )}
                   </button>
-                  <button onClick={toggleMuteOverride} className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${muted ? 'bg-blue-600' : 'bg-white/15'}`}>
+
+                  <button
+                    onClick={toggleMuteOverride}
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${muted ? 'bg-blue-600' : 'bg-white/15'}`}
+                  >
                     {muted ? (
-                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                      </svg>
                     ) : (
-                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg>
+                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                      </svg>
                     )}
                   </button>
+
                   {mode === 'camera' && (
-                    <button onClick={flipCameraSensor} className="w-11 h-11 rounded-xl bg-white/15 text-white flex items-center justify-center">
-                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 3h5m0 0v5m0-5l-6 6M5 19H0m0 0v-5m0 5l6-6" /></svg>
-                    </button>
+                    <CameraFlipButton
+                      facing={facing}
+                      onClick={flipCameraFacing}
+                      className="w-11 h-11 rounded-xl bg-white/15 text-white flex items-center justify-center"
+                    />
                   )}
+
                   <div className="flex-1" />
-                  <button onClick={stopBroadcastChannel} disabled={ending} className="px-5 h-11 rounded-xl bg-red-600 text-white text-xs font-black shadow-lg shadow-red-600/20 active:scale-95 transition-all">
+
+                  <button
+                    onClick={stopBroadcastChannel}
+                    disabled={ending}
+                    className="px-5 h-11 rounded-xl bg-red-600 text-white text-xs font-black shadow-lg shadow-red-600/20 active:scale-95 transition-all"
+                  >
                     {ending ? 'Ending...' : 'End Live'}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
-                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title of your live stream..." className="w-full bg-black/40 border border-white/20 text-white placeholder-white/30 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none" />
+                <input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Title of your live stream..."
+                  className="w-full bg-black/40 border border-white/20 text-white placeholder-white/30 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none"
+                />
                 <div className="flex gap-2">
                   {['camera', 'screen'].map(m => (
-                    <button key={m} onClick={() => setMode(m)} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${mode === m ? 'bg-blue-600 text-white' : 'bg-white/15 text-white'}`}>
+                    <button
+                      key={m}
+                      onClick={() => setMode(m)}
+                      className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${mode === m ? 'bg-blue-600 text-white' : 'bg-white/15 text-white'}`}
+                    >
                       {m === 'camera' ? 'Camera' : 'Screen'}
                     </button>
                   ))}
                   {mode === 'camera' && (
-                    <button onClick={flipCameraSensor} className="px-4 py-3 rounded-xl bg-white/15 text-white text-xs font-bold transition-colors">Sensor</button>
+                    <CameraFlipButton
+                      facing={facing}
+                      onClick={flipCameraFacing}
+                      className="w-12 py-3 rounded-xl bg-white/15 text-white flex items-center justify-center"
+                    />
                   )}
                 </div>
-                <button onClick={handleGoLiveClick} disabled={starting} className="w-full py-3.5 rounded-xl bg-red-600 text-white text-xs font-black hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button
+                  onClick={handleGoLiveClick}
+                  disabled={starting}
+                  className="w-full py-3.5 rounded-xl bg-red-600 text-white text-xs font-black hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
                   <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
                   {starting ? 'Starting...' : 'Go Live'}
                 </button>
@@ -844,7 +1034,6 @@ export default function CreateLiveContent() {
         </div>
       )}
 
-      {/* Start Live Guidance Modal */}
       {showStartModal && (
         <div
           style={{
@@ -907,8 +1096,8 @@ export default function CreateLiveContent() {
                   </svg>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: '0 0 2px' }}>Max Duration: 10 Minutes</p>
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: 0 }}>Your broadcast will automatically end after 10 minutes of active streaming.</p>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: '0 0 2px' }}>Max Duration: 6 Hours</p>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: 0 }}>Your broadcast will automatically end after 6 hours of active streaming.</p>
                 </div>
               </div>
 
@@ -976,7 +1165,6 @@ export default function CreateLiveContent() {
         </div>
       )}
 
-      {/* Progress Save Modal */}
       {savingProgress && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
           <div style={{ background: '#111', border: '1px solid rgba(255,255,255,.1)', borderRadius: 24, padding: 32, maxWidth: 320, width: '100%', textAlign: 'center' }}>
