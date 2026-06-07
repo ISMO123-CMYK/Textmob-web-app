@@ -29,19 +29,10 @@ const loudaSupabaseUrl = 'https://ldepewastfyohswgtgbb.supabase.co';
 const loudaSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZXBld2FzdGZ5b2hzd2d0Z2JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5ODkwOTUsImV4cCI6MjA5MDU2NTA5NX0.57USwUSsJL1ik-RwxZgcV1cJLzr3TDxcRX7xbum0Bms';
 const loudaSupabase = createClient(loudaSupabaseUrl, loudaSupabaseKey);
 
-// --- Caching for Louda Unread (5 seconds) ---
-const loudaUnreadCache = new Map();
-
 app.get('/api/louda-unread', async (req, res) => {
   try {
     const { username } = req.query;
     if (!username) return res.status(400).json({ error: 'Username required' });
-
-    // Check Cache
-    const cached = loudaUnreadCache.get(username);
-    if (cached && (Date.now() - cached.timestamp < 5000)) {
-      return res.json({ unreadCount: cached.count });
-    }
 
     // 1. Find the Textmob user's profile to get their phone number
     const { data: tmUser } = await supabase
@@ -66,7 +57,7 @@ app.get('/api/louda-unread', async (req, res) => {
       const formats = [tmPhone];
       if (raw.startsWith('234')) formats.push('0' + raw.slice(3));
       if (raw.startsWith('0')) formats.push('+234' + raw.slice(1));
-      
+
       const { data: loudaByPhone } = await loudaSupabase
         .from('users')
         .select('id, contacts, username, phone')
@@ -93,11 +84,11 @@ app.get('/api/louda-unread', async (req, res) => {
 
     // If found by username but phone matches and username was different (edge case)
     if (loudaUser.username !== username && tmPhone && loudaUser.phone === tmPhone) {
-       console.log(`[SYNC] Updating Louda user ${loudaUser.id} username from ${loudaUser.username} to ${username}`);
-       await loudaSupabase
-         .from('users')
-         .update({ username: username })
-         .eq('id', loudaUser.id);
+      console.log(`[SYNC] Updating Louda user ${loudaUser.id} username from ${loudaUser.username} to ${username}`);
+      await loudaSupabase
+        .from('users')
+        .update({ username: username })
+        .eq('id', loudaUser.id);
     }
 
     return await calculateUnread(loudaUser, res);
@@ -9702,8 +9693,5 @@ function getLocalIP() {
 }
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-});
-
-ng on http://localhost:${PORT}`);
 });
 
