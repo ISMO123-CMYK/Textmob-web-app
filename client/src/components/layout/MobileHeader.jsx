@@ -84,19 +84,27 @@ export default function MobileHeader() {
             <NavIcons.Search className="w-5 h-5" />
           </button>
 
-          {/* Menu button */}
+          {/* Notification Button */}
           <button
-            onClick={() => window.Lexum.navigate('/menu')}
+            onClick={() => window.Lexum.navigate('/activity')}
             className="relative p-2 rounded-full hover:bg-gray-100 text-gray-700 active:scale-95 transition-all"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
-            </svg>
+            <NavIcons.Bell className="w-5 h-5" />
             {unreadNotifications > 0 && (
               <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1">
                 {unreadNotifications > 99 ? '99+' : unreadNotifications}
               </span>
             )}
+          </button>
+
+          {/* Menu button */}
+          <button
+            onClick={() => window.Lexum.navigate('/menu')}
+            className="p-2 rounded-full hover:bg-gray-100 text-gray-700 active:scale-95 transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
           </button>
         </div>
       </header>

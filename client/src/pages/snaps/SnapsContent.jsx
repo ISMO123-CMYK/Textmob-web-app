@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch, API_BASE_URL } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import Lexum from '../../router/LexumRouter';
+import { useSnapUpload } from '../../utils/SnapUploadContext';
 
 // Time formatter function fi
 function fi(e) {
@@ -342,6 +343,7 @@ function FollowButton({ targetUsername, currentUsername, onUpdate }) {
 
 // Upload Snap Modal Component
 function NewSnapModal({ isOpen, onClose, username, onPosted }) {
+  const { startUpload, uploads } = useSnapUpload();
   let [caption, setCaption] = useState('');
   let [videoFile, setVideoFile] = useState(null);
   let [videoUrl, setVideoUrl] = useState(null);
@@ -351,6 +353,20 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
   let [dragActive, setDragActive] = useState(false);
   let fileInputRef = useRef(null);
   let captionRef = useRef(null);
+
+  // Check if there's an ongoing upload
+  const currentUpload = useMemo(() => {
+     return Object.values(uploads).find(u => u.status === 'uploading');
+  }, [uploads]);
+
+  useEffect(() => {
+    if (currentUpload) {
+      setUploading(true);
+      setProgress(currentUpload.progress);
+    } else {
+      setUploading(false);
+    }
+  }, [currentUpload]);
 
   let {
     suggestions,
@@ -390,7 +406,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
   };
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen && !currentUpload) {
       setCaption('');
       setVideoFile(null);
       setErrorMsg(null);
@@ -401,7 +417,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
         setVideoUrl(null);
       }
     }
-  }, [isOpen]);
+  }, [isOpen, currentUpload]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -430,33 +446,6 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
     }
   }
 
-  function uploadSnap(formData) {
-    return new Promise((resolve, reject) => {
-      let xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE_URL}/create-snap`);
-      xhr.upload.onprogress = e => {
-        if (e.lengthComputable) {
-          setProgress(Math.round((e.loaded / e.total) * 100));
-        }
-      };
-      xhr.onreadystatechange = () => {
-        if (xhr.readyState === 4) {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              resolve(JSON.parse(xhr.responseText || '{}'));
-            } catch {
-              resolve({});
-            }
-          } else {
-            reject(Error(`Upload failed (${xhr.status})`));
-          }
-        }
-      };
-      xhr.onerror = () => reject(Error('Network error'));
-      xhr.send(formData);
-    });
-  }
-
   async function handlePost(e) {
     e?.preventDefault();
     if (!videoFile) {
@@ -464,16 +453,23 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
       return;
     }
     setErrorMsg(null);
-    setUploading(true);
+    
     let formData = new FormData();
     formData.append('username', username);
     formData.append('text', caption || '');
     formData.append('visibility', 'public');
     formData.append('media', videoFile);
+
     try {
-      let result = await uploadSnap(formData);
-      setUploading(false);
-      onPosted?.(result);
+      setUploading(true);
+      startUpload(formData, (result) => {
+        onPosted?.(result);
+        setVideoFile(null);
+        setVideoUrl(null);
+        setCaption('');
+      }, (err) => {
+        setErrorMsg(err.message || 'Upload failed. Try again.');
+      });
       onClose();
     } catch (err) {
       setUploading(false);
@@ -515,17 +511,19 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
               }}
             >
               <video src={videoUrl} className="w-full h-full object-contain" controls playsInline muted />
-              <button
-                onClick={() => {
-                  setVideoFile(null);
-                  setVideoUrl(null);
-                }}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white"
-              >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              {!uploading && (
+                <button
+                  onClick={() => {
+                    setVideoFile(null);
+                    setVideoUrl(null);
+                  }}
+                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white"
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
                 <p className="text-white text-xs font-semibold truncate">{videoFile?.name}</p>
                 <p className="text-white/50 text-[10px]">{videoFile ? `${(videoFile.size / 1048576).toFixed(1)} MB` : ''}</p>
@@ -533,22 +531,23 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
             </div>
           ) : (
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !uploading && fileInputRef.current?.click()}
               onDragOver={e => {
                 e.preventDefault();
-                setDragActive(true);
+                if (!uploading) setDragActive(true);
               }}
               onDragLeave={() => setDragActive(false)}
               onDrop={e => {
                 e.preventDefault();
                 setDragActive(false);
-                handleVideoFile(e.dataTransfer?.files?.[0]);
+                if (!uploading) handleVideoFile(e.dataTransfer?.files?.[0]);
               }}
               className={cn(
                 "h-52 md:h-64 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed cursor-pointer transition-colors",
                 dragActive
                   ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                  : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700",
+                uploading && "opacity-50 cursor-not-allowed"
               )}
             >
               <input
@@ -556,6 +555,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
                 type="file"
                 accept="video/*"
                 className="hidden"
+                disabled={uploading}
                 onChange={e => handleVideoFile(e.target.files?.[0])}
               />
               <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
@@ -573,12 +573,13 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
             <textarea
               ref={captionRef}
               value={caption}
+              disabled={uploading}
               onChange={e => setCaption(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Add a caption…"
               rows={2}
               maxLength={280}
-              className="w-full bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-all resize-none"
+              className="w-full bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-all resize-none disabled:opacity-50"
             />
             <SuggestionsDropdown items={suggestions} onSelect={handleSelectSuggestion} activeIndex={activeIndex} />
             <p className="text-right text-[11px] text-gray-400 mt-1">{caption.length}/280</p>
@@ -613,28 +614,30 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
               </svg>
               <div>
                 <p className="text-xs font-bold text-blue-700 dark:text-blue-300">Uploading your snap…</p>
-                <p className="text-[11px] text-blue-500">Don't close this window</p>
+                <p className="text-[11px] text-blue-500">You can close this window and browse around!</p>
               </div>
             </div>
           )}
           <div className="flex gap-2 pb-1">
-            <button
-              onClick={() => {
-                setCaption('');
-                setVideoFile(null);
-                setVideoUrl(null);
-                setErrorMsg(null);
-              }}
-              className="px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-[0.98] transition-colors"
-            >
-              Reset
-            </button>
+            {!uploading && (
+              <button
+                onClick={() => {
+                  setCaption('');
+                  setVideoFile(null);
+                  setVideoUrl(null);
+                  setErrorMsg(null);
+                }}
+                className="px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-[0.98] transition-colors"
+              >
+                Reset
+              </button>
+            )}
             <button
               onClick={handlePost}
               disabled={uploading || !videoFile}
               className="flex-1 py-3 rounded-xl text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {uploading ? 'Posting…' : '✦ Post Snap'}
+              {uploading ? 'Posting in Background…' : '✦ Post Snap'}
             </button>
           </div>
         </div>

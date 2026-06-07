@@ -9,49 +9,37 @@ export default function Sidebar() {
   });
   const [profile, setProfile] = useState(null);
   const [unread, setUnread] = useState(null);
+  const [loudaUnread, setLoudaUnread] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const createMenuRef = useRef(null);
 
   useEffect(() => {
-    const t = setTimeout(() => localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed)), 300);      
-    return () => clearTimeout(t);
-  }, [collapsed]);
+    const user = localStorage.getItem('currentUser');
+    if (!user) return;
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
-    const t = setTimeout(() => document.addEventListener('mousedown', handler), 50);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
-  }, [menuOpen]);
+    const fetchUnread = () => {
+      apiFetch(`/ms-unread?username=${user}`, { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : { unreadCount: 0 })
+        .then(setUnread)
+        .catch(() => setUnread({ unreadCount: 0 }));
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [menuOpen]);
+      apiFetch(`/api/louda-unread?username=${user}`)
+        .then(r => r.ok ? r.json() : { unreadCount: 0 })
+        .then(data => setLoudaUnread(data.unreadCount || 0))
+        .catch(() => {});
+    };
 
-  useEffect(() => {
-    if (!createMenuOpen) return;
-    const handler = (e) => { if (createMenuRef.current && !createMenuRef.current.contains(e.target)) setCreateMenuOpen(false); };
-    const t = setTimeout(() => document.addEventListener('mousedown', handler), 50);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
-  }, [createMenuOpen]);
-
-  useEffect(() => {
-    if (!createMenuOpen) return;
-    const handler = (e) => { if (e.key === 'Escape') setCreateMenuOpen(false); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [createMenuOpen]);
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const user = localStorage.getItem('currentUser');
     if (!user) return;
     apiFetch(`/profile/${user}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).then(setProfile).catch(() => setProfile({}));
-    apiFetch(`/ms-unread?username=${user}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : { unreadCount: 0 }).then(setUnread).catch(() => setUnread({ unreadCount: 0 }));
   }, []);
 
   const currentPath = window.location.pathname;
@@ -60,7 +48,7 @@ export default function Sidebar() {
     { Icon: NavIcons.Home, label: 'Home', badge: null, to: '/' },
     { Icon: NavIcons.Snaps, label: 'Snaps', badge: null, to: '/snaps' },
     { Icon: NavIcons.Search, label: 'Discover', badge: null, to: '/topsearch' },
-    { Icon: NavIcons.Messages, label: 'Louda', badge: unread?.unreadCount || null, to: '/chats' },
+    { Icon: NavIcons.Messages, label: 'Louda', badge: loudaUnread || null, to: '/chats' },
     { Icon: NavIcons.AiChat, label: 'Textmob AI', badge: null, to: '/ai' },
     { Icon: NavIcons.Leaderboard, label: 'Hall of Fame', badge: null, to: '/halloffame' },
     { Icon: NavIcons.Wallet, label: 'Wallet', badge: null, to: '/wallet' },

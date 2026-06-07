@@ -183,44 +183,16 @@ function ReactionsBar({ postId, reactionCountsCache, reactionsOpenFor, setReacti
 
   return (
     <Fragment>
-      <div className="flex items-center gap-2 pt-3 select-none">
-        {topEmoji.length > 0 && (
-          <button onClick={() => setReactionsOpenFor(isOpen ? null : postId)} className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-            <span className="flex -space-x-1">
-              {topEmoji.map(({ emoji }) => (
-                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 text-[13px] leading-none border-2 border-white dark:border-gray-900" key={emoji}>{emoji}</span>
-              ))}
-            </span>
-            <span className={cn('text-xs font-semibold', userReaction ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400')}>{totalReactions}</span>
-          </button>
-        )}
-        <button
-          onClick={e => { e.stopPropagation(); setReactionsOpenFor(isOpen ? null : postId); }}
-          className={cn(
-            'ml-auto flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border transition-colors',
-            userReaction
-              ? 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-          )}
-        >
-          {userReaction ? (
-            <Fragment>
-              <span className="text-[13px] leading-none">{userReaction}</span>
-              <span>Reacted</span>
-            </Fragment>
-          ) : (
-            <Fragment>
-              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path strokeLinecap="round" d="M8 14s1.5 2 4 2 4-2 4-2" />
-                <line x1="9" y1="9" x2="9.01" y2="9" />
-                <line x1="15" y1="9" x2="15.01" y2="9" />
-              </svg>
-              <span>React</span>
-            </Fragment>
-          )}
-        </button>
-      </div>
+      {topEmoji.length > 0 && (
+        <div className="flex items-center gap-1.5 pt-1 select-none text-gray-500 dark:text-gray-400">
+          <span className="flex -space-x-1">
+            {topEmoji.map(({ emoji }) => (
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs leading-none border-2 border-white dark:border-gray-900" key={emoji}>{emoji}</span>
+            ))}
+          </span>
+          <span className={cn('text-xs font-semibold', userReaction ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400')}>{totalReactions}</span>
+        </div>
+      )}
 
       {/* Reaction picker modal */}
       {isOpen && (
@@ -328,7 +300,7 @@ function useMentions(value, inputRef) {
 }
 
 /* ─── Kn – action buttons (like, comment, view) ─── */
-function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate }) {
+function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate, reactionsOpenFor, setReactionsOpenFor }) {
   const [showInput, setShowInput] = useState(false);
   const [text, setText] = useState('');
   const liked = post.likes.includes(currentUser);
@@ -367,8 +339,8 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
   }
 
   return (
-    <div className="pt-3 border-t border-gray-100 dark:border-gray-800 mt-3">
-      <div className="flex items-center gap-1">
+    <div className="mt-2">
+      <div className="flex items-center gap-1 -ml-3">
         {/* Like */}
         <button
           onClick={() => handleLike(post.id)}
@@ -394,6 +366,17 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
           <span>{post.comments.length}</span>
         </button>
 
+        {/* Reaction */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setReactionsOpenFor(reactionsOpenFor === post.id ? null : post.id); }}
+          className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="React"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+
         {/* View */}
         {showViewButton && (
           <button
@@ -411,7 +394,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
 
       {/* Comment input */}
       {showCommentInput && showInput && (
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex items-center gap-2 mt-2">
           <img src={localStorage.cached_profile_pic || `${DEFAULT_PIC}`} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
           <div className="flex-1 flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900 transition-all relative">
             <input
@@ -825,7 +808,7 @@ function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, nav
   const dateStr = new Date(post.scheduled_for).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-4 pt-4 pb-5">
+    <div className="bg-white dark:bg-gray-900 px-4 pt-4 pb-5 border-b border-gray-100 dark:border-gray-800">
       <PostHeader post={post} authorProfile={authorProfile} groupProfiles={{}} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} />
       <div className="rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
         <div className="h-[3px] bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
@@ -857,6 +840,7 @@ function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, nav
           </button>
         </div>
       </div>
+      <div className="h-2 bg-gray-50 dark:bg-gray-800/50 -mx-4 mt-4" />
     </div>
   );
 }
@@ -864,8 +848,8 @@ function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, nav
 /* ─── Yn – live ended card ─── */
 function LiveEndedCard({ post, authorProfile }) {
   return (
-    <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 overflow-hidden pb-5">
-      <div className="relative">
+    <div className="bg-white dark:bg-gray-900 overflow-hidden pt-5">
+      <div className="relative mx-4 rounded-2xl overflow-hidden">
         <img src={post.media?.[0] || authorProfile.profile_pic || '/assets/live-fallback.jpg'} alt="Live stream thumbnail" className="w-full h-48 object-cover grayscale" loading="lazy" />
         <div className="absolute inset-0 bg-black/50" />
         <div className="absolute inset-0 flex items-center justify-center">
@@ -882,13 +866,14 @@ function LiveEndedCard({ post, authorProfile }) {
           <p className="text-gray-300 text-xs">{timeAgo(post.created_at)}</p>
         </div>
       </div>
-      <div className="px-4 pt-3 flex items-center gap-2.5">
+      <div className="px-4 pt-3 flex items-center gap-2.5 pb-5">
         <img src={authorProfile.profile_pic} alt={post.username} className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-gray-700" loading="lazy" />
         <div>
           <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{authorProfile.fullname}</span>
           <span className="text-sm text-gray-400"> was live</span>
         </div>
       </div>
+      <div className="h-2 bg-gray-50 dark:bg-gray-800/50" />
     </div>
   );
 }
@@ -1040,7 +1025,7 @@ const PostCard = ({
 
   // Default post (text, poll, media)
   return (
-    <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 px-4 pt-4 pb-5">
+    <div className="bg-white dark:bg-gray-900 px-4 pt-4 pb-4">
       <PostHeader post={post} authorProfile={authorProfile} groupProfiles={groupProfiles} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} />
       {post.text && (
         <div className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 mb-3 whitespace-pre-wrap">
@@ -1054,7 +1039,8 @@ const PostCard = ({
         </div>
       )}
       <ReactionsBar postId={post.id} reactionCountsCache={reactionCountsCache} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} handleReact={handleReact} />
-      <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} />
+      <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} />
+      <div className="h-2 bg-gray-50 dark:bg-gray-800/50 -mx-4 mt-4" />
     </div>
   );
 };

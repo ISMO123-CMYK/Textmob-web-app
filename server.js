@@ -24,6 +24,125 @@ const supabaseUr = "https://ycgczjvuygmunmksarzg.supabase.co";
 const supabaseKe = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljZ2N6anZ1eWdtdW5ta3NhcnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjg1NjIsImV4cCI6MjA1ODk0NDU2Mn0.yH-mlb2PGj4FoXjUxCp3JUm9CYutuGRR7bRAV-Tf9fA";
 const supabase2 = createClient(supabaseUr, supabaseKe);
 
+// --- Louda Integration (Hardcoded) ---
+const loudaSupabaseUrl = 'https://ldepewastfyohswgtgbb.supabase.co';
+const loudaSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZXBld2FzdGZ5b2hzd2d0Z2JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5ODkwOTUsImV4cCI6MjA5MDU2NTA5NX0.57USwUSsJL1ik-RwxZgcV1cJLzr3TDxcRX7xbum0Bms';
+const loudaSupabase = createClient(loudaSupabaseUrl, loudaSupabaseKey);
+
+// --- Caching for Louda Unread (5 seconds) ---
+const loudaUnreadCache = new Map();
+
+app.get('/api/louda-unread', async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: 'Username required' });
+
+    // Check Cache
+    const cached = loudaUnreadCache.get(username);
+    if (cached && (Date.now() - cached.timestamp < 5000)) {
+      return res.json({ unreadCount: cached.count });
+    }
+
+    // 1. Find the Textmob user's profile to get their phone number
+    const { data: tmUser } = await supabase
+      .from('users')
+      .select('phone')
+      .eq('username', username)
+      .single();
+
+    const tmPhone = tmUser?.phone;
+
+    // 2. Find the user on Louda
+    // First, try by exact username
+    let { data: loudaUser } = await loudaSupabase
+      .from('users')
+      .select('id, contacts, username, phone')
+      .eq('username', username)
+      .maybeSingle();
+
+    // If not found by username, try by phone
+    if (!loudaUser && tmPhone) {
+      const raw = tmPhone.replace(/[\s\-\(\)\+]+/g, '');
+      const formats = [tmPhone];
+      if (raw.startsWith('234')) formats.push('0' + raw.slice(3));
+      if (raw.startsWith('0')) formats.push('+234' + raw.slice(1));
+      
+      const { data: loudaByPhone } = await loudaSupabase
+        .from('users')
+        .select('id, contacts, username, phone')
+        .or(`phone.in.(${formats.map(f => `"${f}"`).join(',')})`)
+        .maybeSingle();
+
+      if (loudaByPhone) {
+        loudaUser = loudaByPhone;
+        // Found on Louda by phone! Update their Louda username to match Textmob
+        if (loudaUser.username !== username) {
+          console.log(`[SYNC] Updating Louda user ${loudaUser.id} username from ${loudaUser.username} to ${username}`);
+          await loudaSupabase
+            .from('users')
+            .update({ username: username })
+            .eq('id', loudaUser.id);
+          loudaUser.username = username;
+        }
+      }
+    }
+
+    if (!loudaUser) {
+      return res.json({ unreadCount: 0 });
+    }
+
+    // If found by username but phone matches and username was different (edge case)
+    if (loudaUser.username !== username && tmPhone && loudaUser.phone === tmPhone) {
+       console.log(`[SYNC] Updating Louda user ${loudaUser.id} username from ${loudaUser.username} to ${username}`);
+       await loudaSupabase
+         .from('users')
+         .update({ username: username })
+         .eq('id', loudaUser.id);
+    }
+
+    return await calculateUnread(loudaUser, res);
+
+  } catch (err) {
+    console.error('Louda unread error:', err);
+    res.status(500).json({ unreadCount: 0 });
+  }
+});
+
+async function calculateUnread(loudaUser, res) {
+  const loudaUserId = loudaUser.id;
+  let totalUnread = 0;
+
+  // 1. Sum unread counts from contacts (1-on-1 chats)
+  if (loudaUser.contacts && Array.isArray(loudaUser.contacts)) {
+    loudaUser.contacts.forEach(c => {
+      totalUnread += (c.unread_count || 0);
+    });
+  }
+
+  // 2. Count unread messages from groups
+  const { data: groups, error: groupsErr } = await loudaSupabase
+    .from('groups')
+    .select('messages')
+    .contains('members_ids', [loudaUserId]);
+
+  if (!groupsErr && groups) {
+    groups.forEach(g => {
+      if (g.messages && Array.isArray(g.messages)) {
+        const unreadInGroup = g.messages.filter(m => {
+          const isFromMe = String(m.from) === String(loudaUserId);
+          if (isFromMe) return false;
+          const readBy = m.read_by || [];
+          const hasRead = readBy.some(r => (typeof r === 'object' ? r.userId : r) === String(loudaUserId));
+          return !hasRead;
+        }).length;
+        totalUnread += unreadInGroup;
+      }
+    });
+  }
+
+  return res.json({ unreadCount: totalUnread });
+}
+
 // --- Live Streaming Global State ---
 const liveSessions = new Map();
 const liveChunkBuffers = new Map();
@@ -9583,5 +9702,8 @@ function getLocalIP() {
 }
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+});
+
+ng on http://localhost:${PORT}`);
 });
 

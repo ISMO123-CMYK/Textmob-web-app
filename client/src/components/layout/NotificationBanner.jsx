@@ -1,19 +1,6 @@
 import { useState, useEffect } from 'react';
 
 const FEATURE_STEPS = [
-  {
-    id: 'f1',
-    title: 'Textmob Mobile App',
-    description: 'Enjoy a faster, smoother experience with our native Android app! Get instant push notifications, optimized media streaming, and zero web load delays.',
-    image: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png',
-    isDownloadStep: true
-  },
-  {
-    id: 'f2',
-    title: 'Earn Mobcoins',
-    description: 'Post updates, engage with others, stay active, and complete challenges to earn Mobcoins! Use them to tip creators or unlock premium profile highlights.',
-    image: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png'
-  }
 ];
 
 function isExternalBrowser() {
@@ -32,7 +19,7 @@ export default function NotificationBanner() {
     const seen = JSON.parse(localStorage.getItem('seenFeatures') || '[]');
     const pending = FEATURE_STEPS.filter(step => !seen.includes(step.id));
     setSteps(pending);
-    
+
     if (pending.length > 0) {
       const updated = [...seen, pending[0].id];
       localStorage.setItem('seenFeatures', JSON.stringify(updated));
@@ -72,7 +59,7 @@ export default function NotificationBanner() {
         <div className="p-6 text-center border-t border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-3">{currentStep.title}</h2>
           <p className="text-gray-600 mb-4 leading-relaxed">{currentStep.description}</p>
-          
+
           {currentStep.feedback && (
             <textarea
               value={feedbackText}

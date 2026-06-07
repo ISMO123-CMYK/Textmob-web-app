@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 function MessageIcon(props) {
   return (
@@ -56,6 +56,150 @@ function PhoneIcon(props) {
 }
 
 export default function LoudaComingSoon() {
+  const buildLoudaUrl = useCallback(() => {
+    let currentUser = '';
+    if (typeof window !== 'undefined') {
+      currentUser =
+        window.localStorage.getItem('currentUser') ||
+        window.localStorage.currentUser ||
+        '';
+    }
+    const userId = encodeURIComponent(currentUser);
+    const base = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+      ? 'http://localhost:9000'
+      : 'https://louda.web.app';
+    return `${base}/?from=textmob&userId=${userId}`;
+  }, []);
+
+  const [showIframe, setShowIframe] = useState(true);
+  const [iframeSrc, setIframeSrc] = useState(() => buildLoudaUrl());
+  const [isLoading, setIsLoading] = useState(true);
+
+  const openLouda = useCallback(() => {
+    const src = buildLoudaUrl();
+    setIframeSrc(src);
+    setIsLoading(true);
+    setShowIframe(true);
+  }, [buildLoudaUrl]);
+  const isDesktop =
+    typeof window !== 'undefined' && window.innerWidth >= 768;
+
+  const closeLouda = useCallback(() => {
+    setShowIframe(false);
+    setIframeSrc('');
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const allowedOrigin = isLocal ? 'http://localhost:9000' : 'https://louda.web.app';
+      
+      if (event.origin !== allowedOrigin && event.origin !== 'https://louda.web.app') return;
+      const data = event.data;
+      const shouldClose =
+        data === 'LOUDA_CLOSE' ||
+        data === 'CLOSE_IFRAME' ||
+        data?.type === 'LOUDA_CLOSE' ||
+        data?.type === 'CLOSE_IFRAME' ||
+        data?.type === 'LOUDA_DONE' ||
+        data?.action === 'close' ||
+        data?.action === 'done';
+      if (shouldClose) {
+        closeLouda();
+        if (typeof window !== 'undefined' && window.Lexum?.navigate) {
+          window.Lexum.navigate('/');
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [closeLouda]);
+
+  if (showIframe) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 9999, background: '#000' }}>
+        <button
+          type="button"
+          onClick={() => {
+            closeLouda();
+            if (typeof window !== 'undefined' && window.Lexum?.navigate) {
+              window.Lexum.navigate('/');
+            }
+          }}
+          style={{
+            position: 'fixed',
+            top: 12,
+            left: 12,
+            zIndex: 10000,
+            width: 34,
+            height: 34,
+            borderRadius: '50%',
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 0,
+          }}
+          aria-label="Go back"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="rgba(255,255,255,0.85)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+
+        {isLoading && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 9998,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#06080d',
+          }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,0.15)',
+              borderTopColor: 'rgba(255,255,255,0.9)',
+              animation: 'spin 0.75s linear infinite',
+            }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        )}
+        <iframe
+          src={iframeSrc}
+          title="Louda"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: isDesktop ? '100%' : '394px',
+            height: '100%',
+            border: 'none',
+            display: 'block',
+            margin: isDesktop ? 0 : '0 auto',
+          }}
+          allow="camera; microphone; clipboard-read; clipboard-write; fullscreen"
+          onLoad={() => setIsLoading(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#06080d] text-white">
       <div
@@ -107,7 +251,6 @@ export default function LoudaComingSoon() {
               <MessageIcon className="h-4 w-4 text-[#ff9c00]" />
               <span className="text-sm font-medium text-white/85">Chat</span>
             </div>
-
             <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2">
               <TranslateIcon className="h-4 w-4 text-[#1fb6ff]" />
               <span className="text-sm font-medium text-white/85">Translate</span>
@@ -115,20 +258,24 @@ export default function LoudaComingSoon() {
           </div>
 
           <div className="mt-8">
-            <a
-              href="https://louda.web.app"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={openLouda}
               className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[linear-gradient(90deg,#ff9c00_0%,#ff2d55_55%,#1fb6ff_100%)] px-6 py-3 text-sm font-semibold text-white"
             >
               <PhoneIcon className="h-4 w-4" />
               Try Louda today
-            </a>
+            </button>
           </div>
 
-          <div onClick={() => {
-            window.Lexum.navigate('/')
-          }} className="mt-6 text-xs uppercase tracking-[0.45em] text-white/55">
+          <div
+            onClick={() => {
+              if (window.Lexum?.navigate) {
+                window.Lexum.navigate('/');
+              }
+            }}
+            className="mt-6 cursor-pointer text-xs uppercase tracking-[0.45em] text-white/55"
+          >
             Go Back Home
           </div>
         </div>

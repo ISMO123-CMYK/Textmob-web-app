@@ -1,5 +1,6 @@
 import React from 'react';
 import NotificationBanner from './NotificationBanner';
+import { SnapUploadProvider } from '../../utils/SnapUploadContext';
 
 export default function AppWrapper({ children }) {
   const username = (() => {
@@ -8,9 +9,9 @@ export default function AppWrapper({ children }) {
   })();
 
   return (
-    <>
+    <SnapUploadProvider>
       <NotificationBanner username={username} />
       {children}
-    </>
+    </SnapUploadProvider>
   );
 }

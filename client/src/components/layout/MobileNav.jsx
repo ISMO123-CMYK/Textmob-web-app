@@ -1,16 +1,34 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import NavIcons from '../../utils/navIcons';
 
 export default function MobileNav() {
   const [showCreate, setShowCreate] = useState(false);
+  const [loudaUnread, setLoudaUnread] = useState(0);
   const currentPath = window.location.pathname;
+
+  useEffect(() => {
+    const user = localStorage.getItem('currentUser');
+    if (!user) return;
+
+    const fetchLoudaUnread = () => {
+      apiFetch(`/api/louda-unread?username=${user}`)
+        .then(r => r.ok ? r.json() : { unreadCount: 0 })
+        .then(data => setLoudaUnread(data.unreadCount || 0))
+        .catch(() => {});
+    };
+
+    fetchLoudaUnread();
+    const interval = setInterval(fetchLoudaUnread, 5000); // Update every 5s
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { name: 'Home', icon: NavIcons.Home, to: '/' },
     { name: 'Fame', icon: NavIcons.Leaderboard, to: '/halloffame' },
     { name: 'Snaps', icon: NavIcons.Snaps, to: '/snaps' },
-    { name: 'Louda', icon: NavIcons.Messages, to: '/chats' },
+    { name: 'Louda', icon: NavIcons.Messages, to: '/chats', badge: loudaUnread },
   ];
 
   const createItems = [
@@ -61,6 +79,11 @@ export default function MobileNav() {
                 {active && <span className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-7 bg-blue-50 rounded-full" />}
                 <item.icon className={cn('w-[22px] h-[22px] relative z-10 transition-colors', active ? 'text-blue-600' : 'text-gray-400')} />
                 <span className={cn('text-[10px] font-semibold relative z-10 transition-colors', active ? 'text-blue-600' : 'text-gray-400')}>{item.name}</span>
+                {item.badge > 0 && (
+                  <span className="absolute top-2 right-4 flex items-center justify-center min-w-[14px] h-[14px] px-1 bg-red-600 text-white text-[8px] font-black rounded-full ring-2 ring-white z-20">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
               </button>
             );
           })}
