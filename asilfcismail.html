@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Textmob Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --card-bg: #141414;
+            --accent: #ff4d4d;
+            --accent-glow: rgba(255, 77, 77, 0.2);
+            --text-main: #ffffff;
+            --text-dim: #999999;
+            --glass: rgba(255, 255, 255, 0.05);
+            --success: #00ff88;
+            --warning: #ffcc00;
+            --info: #00d4ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            padding: 20px 40px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--glass);
+        }
+
+        .header h1 {
+            font-weight: 800;
+            font-size: 2rem;
+            letter-spacing: -1px;
+        }
+
+        .header .badge {
+            background: var(--accent);
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass);
+            border-radius: 16px;
+            padding: 20px;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .stat-label {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .stat-meta {
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid var(--glass);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            font-weight: 600;
+            color: var(--text-dim);
+            font-size: 1rem;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 20px;
+            margin: 40px 0 20px;
+            border-bottom: 1px solid var(--glass);
+            padding-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: var(--text-dim);
+            font-weight: 600;
+            transition: 0.3s;
+            border-radius: 8px;
+        }
+
+        .tab:hover {
+            background: var(--glass);
+        }
+
+        .tab.active {
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .admin-table-container {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid var(--glass);
+            margin-bottom: 40px;
+        }
+
+        .table-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 12px 18px;
+            background: #1e1e1e;
+            border: 1px solid var(--glass);
+            border-radius: 10px;
+            color: white;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+
+        th {
+            background: #1e1e1e;
+            color: var(--accent);
+            text-align: left;
+            padding: 14px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        td {
+            padding: 14px;
+            border-bottom: 1px solid var(--glass);
+            font-size: 0.9rem;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .badge-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .status-active,
+        .status-COMPLETED {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--success);
+        }
+
+        .status-disabled,
+        .status-REJECTED {
+            background: rgba(255, 77, 77, 0.1);
+            color: var(--accent);
+        }
+
+        .status-PENDING {
+            background: rgba(255, 204, 0, 0.1);
+            color: var(--warning);
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-toggle {
+            background: #333;
+            color: white;
+        }
+
+        .btn-toggle:hover {
+            background: #444;
+        }
+
+        .btn-coins {
+            background: var(--warning);
+            color: #000;
+            margin-left: 5px;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #000;
+        }
+
+        .btn-danger {
+            background: var(--accent);
+            color: white;
+            margin-left: 5px;
+        }
+
+        /* Hall of Fame Specific */
+        .ranking-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .ranking-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid var(--glass);
+        }
+
+        .ranking-card h3 {
+            margin-bottom: 15px;
+            color: var(--accent);
+            font-size: 1rem;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-bottom: 1px solid var(--glass);
+        }
+
+        .ranking-item:last-child {
+            border-bottom: none;
+        }
+
+        .ranking-pos {
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            width: 25px;
+        }
+
+        .ranking-info {
+            flex: 1;
+        }
+
+        .ranking-info .name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .ranking-info .handle {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .ranking-val {
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        /* Eligibility Banner */
+        .banner {
+            background: linear-gradient(90deg, var(--accent), #ff8000);
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .banner-info h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .banner-info p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .banner-value {
+            font-size: 2rem;
+            font-weight: 900;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 20px;
+            width: 400px;
+            border: 1px solid var(--glass);
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            background: #222;
+            border: 1px solid var(--glass);
+            color: white;
+            border-radius: 8px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-cancel {
+            background: #333;
+            color: white;
+        }
+
+        .btn-save {
+            background: var(--accent);
+            color: white;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            transition: opacity 0.5s;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--glass);
+            border-top: 5px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <p style="margin-top: 20px; color: var(--text-dim);">Accessing the Database...</p>
+    </div>
+
+    <div class="header">
+        <h1>Textmob</h1>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div id="last-updated" style="font-size: 0.8rem; color: var(--text-dim);"></div>
+            <div class="badge">ADMIN ACCESS</div>
+        </div>
+    </div>
+
+    <div class="stats-grid" id="stats-summary">
+        <!-- Stats cards will be injected here -->
+    </div>
+
+    <div class="charts-container">
+        <div class="chart-card">
+            <h3>Signup Velocity (Last 7 Days)</h3>
+            <canvas id="signupChart" height="150"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Content Creation (Last 7 Days)</h3>
+            <canvas id="contentChart" height="150"></canvas>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('users')">User Management</div>
+        <div class="tab" onclick="switchTab('payouts')">Payout Requests</div>
+        <div class="tab" onclick="switchTab('eligible')">Eligible for Withdrawal</div>
+        <div class="tab" onclick="switchTab('halloffame')">Hall of Fame & Rankings</div>
+    </div>
+
+    <!-- USERS SECTION -->
+    <div id="users-section" class="section active">
+        <div class="admin-table-container">
+            <div class="table-controls">
+                <input type="text" id="userSearch" class="search-input"
+                    placeholder="Search by username, name, email, phone or password...">
+                <button class="action-btn btn-toggle" onclick="fetchData()">Refresh Data</button>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Contact</th>
+                            <th>Credentials</th>
+                            <th>Coins</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersBody">
+                        <!-- User rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAYOUTS SECTION -->
+    <div id="payouts-section" class="section">
+        <div class="admin-table-container">
+            <div class="table-controls">
+                <input type="text" id="payoutSearch" class="search-input" placeholder="Filter by user or status...">
+                <button class="action-btn btn-toggle" onclick="fetchPayouts()">Refresh Payouts</button>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Requested By</th>
+                            <th>Type</th>
+                            <th>Coins</th>
+                            <th>Naira Value</th>
+                            <th>Payout Details</th>
+                            <th>Status</th>
+                            <th>Date Requested</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payoutsBody">
+                        <!-- Payout rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ELIGIBLE SECTION -->
+    <div id="eligible-section" class="section">
+        <div class="banner">
+            <div class="banner-info">
+                <h2>Potential Liabilities</h2>
+                <p id="eligibleCount">0 users are eligible to withdraw right now (>= 2,000 Mobcoins).</p>
+            </div>
+            <div class="banner-value" id="eligibleTotal">₦0</div>
+        </div>
+        <div class="admin-table-container">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Balance (Coins)</th>
+                            <th>Withdrawal Worth (Naira)</th>
+                            <th>Last Activity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eligibleBody">
+                        <!-- Eligible users injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- HALL OF FAME SECTION -->
+    <div id="halloffame-section" class="section">
+        <div class="ranking-grid">
+            <div class="ranking-card">
+                <h3>🏆 Hall of Fame (All Time)</h3>
+                <div id="hallOfFameBody">
+                    <!-- Data injected here -->
+                </div>
+            </div>
+            <div class="ranking-card">
+                <h3>🔥 Top Engagers (7 Days)</h3>
+                <div id="topEngagersBody">
+                    <!-- Data injected here -->
+                </div>
+            </div>
+            <div class="ranking-card">
+                <h3>💰 Richest Users</h3>
+                <div id="richestUsersBody">
+                    <!-- Data injected here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-table-container">
+            <h3>📊 Platform Content Analytics</h3>
+            <div id="contentStatsGrid" class="stats-grid" style="margin-top:20px;">
+                <!-- Content stats injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Coin Modal -->
+    <div id="coinModal" class="modal">
+        <div class="modal-content">
+            <h3>Update Mobcoins</h3>
+            <p id="coinModalUser" style="margin-bottom: 10px; color: var(--text-dim);"></p>
+            <input type="number" id="coinAmount" placeholder="Enter amount">
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="closeCoinModal()">Cancel</button>
+                <button class="modal-btn btn-save" onclick="saveCoins()">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = null;
+        let payoutsData = [];
+        let signupChart = null;
+        let contentChart = null;
+        let selectedUserId = null;
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+            document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`${tab}-section`).classList.add('active');
+
+            if (tab === 'payouts') fetchPayouts();
+            if (tab === 'halloffame') renderHallOfFame();
+            if (tab === 'eligible') renderEligible();
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/asilfcismail/data');
+                const data = await response.json();
+                allData = data;
+                renderDashboard();
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
+                document.getElementById('last-updated').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
+            } catch (err) {
+                console.error('Fetch error:', err);
+                alert('Failed to load admin data');
+            }
+        }
+
+        async function fetchPayouts() {
+            try {
+                const response = await fetch('/api/admin/payouts');
+                const data = await response.json();
+                payoutsData = data;
+                renderPayouts();
+            } catch (err) {
+                console.error('Fetch payouts error:', err);
+                alert('Failed to load payouts');
+            }
+        }
+
+        function renderDashboard() {
+            renderStats();
+            renderCharts();
+            renderUsers();
+            if (document.getElementById('halloffame-section').classList.contains('active')) renderHallOfFame();
+            if (document.getElementById('eligible-section').classList.contains('active')) renderEligible();
+        }
+
+        function renderStats() {
+            const a = allData.analytics;
+            const container = document.getElementById('stats-summary');
+            const stats = [
+                { label: 'Total Users', value: allData.users.length, meta: `${a.userWeeklyGrowth}% growth`, color: '' },
+                { label: 'Total Posts', value: a.posts.totalPosts, meta: `${a.postWeeklyGrowth}% growth`, color: '' },
+                { label: 'Engagement', value: a.posts.engagementRate, meta: 'Avg per post', color: '' },
+                { label: 'Total Mobcoins', value: a.totalMobcoins.toLocaleString(), meta: 'Global Liquidity', color: 'color: gold' },
+            ];
+
+            container.innerHTML = stats.map(s => `
+                <div class="stat-card">
+                    <div class="stat-label">${s.label}</div>
+                    <div class="stat-value" style="${s.color}">${s.value}</div>
+                    <div class="stat-meta ${s.meta.includes('-') ? 'negative' : 'positive'}">${s.meta}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderCharts() {
+            const a = allData.analytics;
+
+            if (signupChart) signupChart.destroy();
+            if (contentChart) contentChart.destroy();
+
+            const signupCtx = document.getElementById('signupChart').getContext('2d');
+            signupChart = new Chart(signupCtx, {
+                type: 'line',
+                data: {
+                    labels: a.signups.dayLabels,
+                    datasets: [{
+                        label: 'New Signups',
+                        data: a.signups.dayCounts,
+                        borderColor: '#ff4d4d',
+                        backgroundColor: 'rgba(255, 77, 77, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
+                }
+            });
+
+            const contentCtx = document.getElementById('contentChart').getContext('2d');
+            contentChart = new Chart(contentCtx, {
+                type: 'bar',
+                data: {
+                    labels: a.postCreations.dayLabels,
+                    datasets: [{
+                        label: 'Posts Created',
+                        data: a.postCreations.dayCounts,
+                        backgroundColor: '#00ff88',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        function renderUsers(filterTerm = '') {
+            const tbody = document.getElementById('usersBody');
+            const term = filterTerm.toLowerCase();
+
+            const filtered = allData.users.filter(u =>
+                u.username?.toLowerCase().includes(term) ||
+                u.fullname?.toLowerCase().includes(term) ||
+                u.email?.toLowerCase().includes(term) ||
+                u.phone?.toLowerCase().includes(term) ||
+                u.password?.toLowerCase().includes(term)
+            );
+
+            tbody.innerHTML = filtered.map(u => `
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <img class="avatar" src="${u.profile_pic || 'https://ui-avatars.com/api/?name=' + u.username}" onerror="this.src='https://ui-avatars.com/api/?name=' + u.username">
+                            <div>
+                                <div style="font-weight: 700;">@${u.username}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-dim);">${u.fullname || ''}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.8rem;">${u.email || 'No email'}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-dim);">${u.phone || ''}</div>
+                    </td>
+                    <td>
+                        <code style="background: #000; padding: 2px 5px; border-radius: 4px; color: var(--warning); font-size: 0.8rem;">${u.password || '********'}</code>
+                    </td>
+                    <td style="color: gold; font-weight: 700;">${(u.mobcoins || 0).toLocaleString()}</td>
+                    <td>
+                        <span class="badge-status ${u.disabled ? 'status-disabled' : 'status-active'}">
+                            ${u.disabled ? 'DISABLED' : 'ACTIVE'}
+                        </span>
+                    </td>
+                    <td style="font-size: 0.75rem; color: var(--text-dim);">${new Date(u.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <button class="action-btn btn-toggle" onclick="toggleUser('${u.id}', ${u.disabled})">
+                            ${u.disabled ? 'Enable' : 'Disable'}
+                        </button>
+                        <button class="action-btn btn-coins" onclick="openCoinModal('${u.id}', '${u.username}', ${u.mobcoins || 0})">
+                            Coins
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPayouts(filterTerm = '') {
+            const tbody = document.getElementById('payoutsBody');
+            const term = filterTerm.toLowerCase();
+
+            const filtered = payoutsData.filter(p =>
+                p.users?.username?.toLowerCase().includes(term) ||
+                p.status?.toLowerCase().includes(term) ||
+                p.type?.toLowerCase().includes(term)
+            );
+
+            tbody.innerHTML = filtered.map(p => {
+                const details = p.payout_details;
+                let detailsHtml = '';
+                if (p.type === 'CASH') {
+                    detailsHtml = `<b>${details.bank}</b><br>${details.account_no}<br>${details.name}`;
+                } else {
+                    detailsHtml = `<b>${details.network}</b><br>${details.phone}`;
+                }
+
+                return `
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <img class="avatar" src="${p.users?.profile_pic || 'https://ui-avatars.com/api/?name=' + p.users?.username}" onerror="this.src='https://ui-avatars.com/api/?name=' + p.users?.username">
+                            <div>
+                                <div style="font-weight: 700;">@${p.users?.username}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-dim);">${p.users?.fullname || ''}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="badge-status" style="background: var(--glass); color: var(--info)">${p.type}</span></td>
+                    <td style="font-weight: 700;">${p.coin_amount.toLocaleString()}</td>
+                    <td style="color: var(--success); font-weight: 700;">₦${p.naira_value}</td>
+                    <td style="font-size: 0.8rem; line-height: 1.4;">${detailsHtml}</td>
+                    <td>
+                        <span class="badge-status status-${p.status}">
+                            ${p.status}
+                        </span>
+                    </td>
+                    <td style="font-size: 0.75rem; color: var(--text-dim);">${new Date(p.created_at).toLocaleString()}</td>
+                    <td>
+                        ${p.status === 'PENDING' ? `
+                            <button class="action-btn btn-success" onclick="updatePayoutStatus('${p.id}', 'COMPLETED')">Complete</button>
+                            <button class="action-btn btn-danger" onclick="updatePayoutStatus('${p.id}', 'REJECTED')">Reject</button>
+                        ` : '<span style="color: var(--text-dim); font-style: italic;">Processed</span>'}
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        function renderEligible() {
+            if (!allData) return;
+            const threshold = 2000;
+            const excluded = ["textmobofficial", "ismailg", "ibg", "ibrahimg", "textmobai", 'bossprogrammer'];
+
+            const eligible = allData.users.filter(u => {
+                if (!u.username) return false;
+                const uname = u.username.toLowerCase();
+                return (u.mobcoins || 0) >= threshold && !excluded.includes(uname);
+            });
+
+            const totalNaira = eligible.reduce((s, u) => s + (u.mobcoins * 0.1), 0);
+
+            document.getElementById('eligibleCount').innerText = `${eligible.length} users are eligible to withdraw right now (>= 2,000 Mobcoins).`;
+            document.getElementById('eligibleTotal').innerText = `₦${totalNaira.toLocaleString()}`;
+
+            const tbody = document.getElementById('eligibleBody');
+            tbody.innerHTML = eligible.sort((a, b) => b.mobcoins - a.mobcoins).map(u => `
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <img class="avatar" src="${u.profile_pic || 'https://ui-avatars.com/api/?name=' + u.username}" onerror="this.src='https://ui-avatars.com/api/?name=' + u.username">
+                            <div>
+                                <div style="font-weight: 700;">@${u.username}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-dim);">${u.fullname || ''}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="font-weight: 700; color: gold;">${u.mobcoins.toLocaleString()}</td>
+                    <td style="font-weight: 800; color: var(--success);">₦${(u.mobcoins * 0.1).toLocaleString()}</td>
+                    <td style="font-size: 0.75rem; color: var(--text-dim);">${u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td>
+                        <button class="action-btn btn-toggle" onclick="switchTab('users'); document.getElementById('userSearch').value='${u.username}'; renderUsers('${u.username}')">Manage</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderHallOfFame() {
+            if (!allData) return;
+            const a = allData.analytics;
+
+            const hofBody = document.getElementById('hallOfFameBody');
+            hofBody.innerHTML = a.topUsers.map((u, i) => `
+                <div class="ranking-item">
+                    <div class="ranking-pos">#${i + 1}</div>
+                    <img class="avatar" src="${u.avatar || 'https://ui-avatars.com/api/?name=' + u.username}" onerror="this.src='https://ui-avatars.com/api/?name=' + u.username">
+                    <div class="ranking-info">
+                        <div class="name">${u.fullname || u.username}</div>
+                        <div class="handle">@${u.username}</div>
+                    </div>
+                    <div class="ranking-val">${u.score.toLocaleString()} pts</div>
+                </div>
+            `).join('');
+
+            const engBody = document.getElementById('topEngagersBody');
+            engBody.innerHTML = a.topUsers7d.map((u, i) => `
+                <div class="ranking-item">
+                    <div class="ranking-pos">#${i + 1}</div>
+                    <div class="ranking-info">
+                        <div class="name">${u.fullname || u.username}</div>
+                        <div class="handle">@${u.username}</div>
+                    </div>
+                    <div class="ranking-val" style="color:var(--accent)">${u.score7d}</div>
+                </div>
+            `).join('');
+
+            const richBody = document.getElementById('richestUsersBody');
+            richBody.innerHTML = a.topCoinHolders.map((u, i) => `
+                <div class="ranking-item">
+                    <div class="ranking-pos">#${i + 1}</div>
+                    <div class="ranking-info">
+                        <div class="name">${u.fullname || u.username}</div>
+                        <div class="handle">@${u.username}</div>
+                    </div>
+                    <div class="ranking-val" style="color:gold">₦${(u.mobcoins * 0.1).toLocaleString()}</div>
+                </div>
+            `).join('');
+
+            const contentStatsGrid = document.getElementById('contentStatsGrid');
+            const cs = a.posts;
+            const stats = [
+                { label: 'Total Posts', value: cs.totalPosts },
+                { label: 'Polls', value: cs.pollPosts },
+                { label: 'Standard Posts', value: cs.normalPosts },
+                { label: 'Events', value: cs.eventPosts },
+                { label: 'Total Likes', value: cs.totalLikes },
+                { label: 'Total Comments', value: cs.totalComments },
+            ];
+            contentStatsGrid.innerHTML = stats.map(s => `
+                <div class="stat-card">
+                    <div class="stat-label">${s.label}</div>
+                    <div class="stat-value">${s.value.toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+
+        // Search events
+        document.getElementById('userSearch').addEventListener('input', (e) => renderUsers(e.target.value));
+        document.getElementById('payoutSearch').addEventListener('input', (e) => renderPayouts(e.target.value));
+
+        async function updatePayoutStatus(id, status) {
+            if (!confirm(`Mark this payout as ${status}?`)) return;
+
+            try {
+                const response = await fetch('/api/admin/payout/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, status })
+                });
+
+                if (response.ok) {
+                    fetchPayouts();
+                    fetchData(); // Refresh general data too
+                } else {
+                    alert('Action failed');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error updating payout');
+            }
+        }
+
+        async function toggleUser(userId, currentDisabled) {
+            if (!confirm(`Are you sure you want to ${currentDisabled ? 'enable' : 'disable'} this user?`)) return;
+
+            try {
+                const response = await fetch('/api/admin/user/toggle-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, disabled: !currentDisabled })
+                });
+
+                if (response.ok) {
+                    fetchData(); // Refresh
+                } else {
+                    alert('Action failed');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error performing action');
+            }
+        }
+
+        function openCoinModal(userId, username, currentCoins) {
+            selectedUserId = userId;
+            document.getElementById('coinModalUser').innerText = `Editing @${username}`;
+            document.getElementById('coinAmount').value = currentCoins;
+            document.getElementById('coinModal').style.display = 'flex';
+        }
+
+        function closeCoinModal() {
+            document.getElementById('coinModal').style.display = 'none';
+        }
+
+        async function saveCoins() {
+            const amount = parseInt(document.getElementById('coinAmount').value);
+            if (isNaN(amount)) return alert('Invalid amount');
+
+            try {
+                const response = await fetch('/api/admin/user/update-coins', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: selectedUserId, mobcoins: amount })
+                });
+
+                if (response.ok) {
+                    closeCoinModal();
+                    fetchData(); // Refresh
+                } else {
+                    alert('Failed to update coins');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error updating coins');
+            }
+        }
+
+        // Initial fetch
+        fetchData();
+    </script>
+</body>
+
+</html>

@@ -3,12 +3,19 @@ const { GoogleGenAI } = require("@google/genai");
 const http = require("http");
 const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
+const axios = require("axios");
 const socketIo = require("socket.io");
+const NodeMediaServer = require("node-media-server");
+const ffmpeg = require("fluent-ffmpeg");
+const ffmpegPath = require("ffmpeg-static");
+const { PassThrough } = require("stream");
 const Fuse = require("fuse.js");
 const path = require("path");
 const fs = require("fs").promises;
-const axios = require("axios")
 const cors = require("cors");
+
+// ffmpeg-static exports the path string directly in recent versions
+ffmpeg.setFfmpegPath(ffmpegPath);
 const app = express();
 app.use(cors()); // Allow all origins
 const server = http.createServer(app); // attach raw HTTP server
@@ -28,6 +35,12 @@ const supabase2 = createClient(supabaseUr, supabaseKe);
 const loudaSupabaseUrl = 'https://ldepewastfyohswgtgbb.supabase.co';
 const loudaSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZXBld2FzdGZ5b2hzd2d0Z2JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5ODkwOTUsImV4cCI6MjA5MDU2NTA5NX0.57USwUSsJL1ik-RwxZgcV1cJLzr3TDxcRX7xbum0Bms';
 const loudaSupabase = createClient(loudaSupabaseUrl, loudaSupabaseKey);
+// --- Live Streaming Global State ---
+const liveSessions = new Map();
+const liveChunkBuffers = new Map();
+const liveRooms = globalThis.__liveRooms || (globalThis.__liveRooms = new Map());
+const socketJoins = globalThis.__socketJoins || (globalThis.__socketJoins = new Map());
+const TMP_DIR = path.join(process.cwd(), "tmp-live");
 
 app.get('/api/louda-unread', async (req, res) => {
   try {
@@ -133,19 +146,207 @@ async function calculateUnread(loudaUser, res) {
 
   return res.json({ unreadCount: totalUnread });
 }
+// --- Live buffer settings ---
+const CHUNK_MS = 250;
+const LIVE_WINDOW_SECS = 60; // larger window = more history for stable playback
+const LIVE_WINDOW_MS = LIVE_WINDOW_SECS * 1000;
 
-// --- Live Streaming Global State ---
-const liveSessions = new Map();
-const liveChunkBuffers = new Map();
-const liveRooms = globalThis.__liveRooms || (globalThis.__liveRooms = new Map());
-const socketJoins = globalThis.__socketJoins || (globalThis.__socketJoins = new Map());
-const TMP_DIR = path.join(process.cwd(), "tmp-live");
+function createLiveSessionState() {
+  return {
+    initChunk: null,          // first WebM header/init chunk
+    mediaChunks: [],          // { ts, data }
+    activeStreams: new Set(),
+    lastSeenAt: Date.now()
+  };
+}
+
+function getLiveSessionState(postId) {
+  if (!liveSessions.has(postId)) {
+    liveSessions.set(postId, createLiveSessionState());
+  }
+  if (!liveChunkBuffers.has(postId)) {
+    liveChunkBuffers.set(postId, createLiveSessionState());
+  }
+
+  const session = liveSessions.get(postId);
+  const bufferState = liveChunkBuffers.get(postId);
+
+  // keep both maps in sync if you still reference both elsewhere
+  if (!session.initChunk && bufferState.initChunk) session.initChunk = bufferState.initChunk;
+  if (session.mediaChunks.length === 0 && bufferState.mediaChunks.length > 0) {
+    session.mediaChunks = bufferState.mediaChunks.slice();
+  }
+
+  return session;
+}
+
+function trimLiveMedia(state) {
+  const cutoff = Date.now() - LIVE_WINDOW_MS;
+  state.mediaChunks = state.mediaChunks.filter(c => c.ts >= cutoff);
+}
+
+function pushLiveChunk(postId, chunk) {
+  if (!chunk || chunk.length === 0) return;
+
+  const state = getLiveSessionState(postId);
+  const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+
+  state.lastSeenAt = Date.now();
+
+  // First chunk becomes the init/header chunk.
+  // If the stream restarts, you can reset this explicitly from your encoder logic.
+  if (!state.initChunk) {
+    state.initChunk = buf;
+    liveChunkBuffers.set(postId, state);
+    return;
+  }
+
+  state.mediaChunks.push({
+    ts: Date.now(),
+    data: buf
+  });
+
+  trimLiveMedia(state);
+  liveChunkBuffers.set(postId, state);
+}
+
+function cleanupDeadStream(state, res) {
+  try {
+    state.activeStreams.delete(res);
+  } catch { }
+  try {
+    res.end();
+  } catch { }
+}
+
+app.post(
+  "/api/live-chunk-upload/:postId",
+  express.raw({ type: "*/*", limit: "50mb" }),
+  (req, res) => {
+    try {
+      const { postId } = req.params;
+      const chunk = req.body;
+
+      if (!chunk || chunk.length === 0) {
+        return res.status(400).json({ error: "Empty chunk" });
+      }
+
+      pushLiveChunk(postId, chunk);
+
+      const state = getLiveSessionState(postId);
+
+      // Push the chunk to connected viewers
+      for (const clientRes of [...state.activeStreams]) {
+        try {
+          clientRes.write(chunk);
+        } catch (e) {
+          cleanupDeadStream(state, clientRes);
+        }
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("live-chunk-upload error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+app.get("/api/live-stream/:postId", (req, res) => {
+  try {
+    const { postId } = req.params;
+    const state = liveSessions.get(postId) || liveChunkBuffers.get(postId);
+
+    if (!state || !state.initChunk) {
+      return res.status(404).json({ error: "Live session not found" });
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "video/webm",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Access-Control-Allow-Origin": "*"
+    });
+
+    // Send init/header first
+    res.write(state.initChunk);
+
+    // Keep only the near-latest tail
+    trimLiveMedia(state);
+
+    for (const item of state.mediaChunks) {
+      try {
+        res.write(item.data);
+      } catch (e) {
+        // ignore write failure on initial burst; cleanup happens below
+      }
+    }
+
+    state.activeStreams.add(res);
+
+    const cleanup = () => cleanupDeadStream(state, res);
+
+    req.on("close", cleanup);
+    req.on("aborted", cleanup);
+    res.on("close", cleanup);
+    res.on("error", cleanup);
+  } catch (err) {
+    console.error("live-stream error:", err);
+    try {
+      res.status(500).json({ error: err.message });
+    } catch { }
+  }
+});
+// Optional: endpoint to check stream health / metadata
+app.get("/api/live-info/:postId", (req, res) => {
+  try {
+    const { postId } = req.params;
+    const state = liveSessions.get(postId);
+    if (!state) return res.status(404).json({ error: "Not found" });
+
+    res.json({
+      ok: true,
+      hasInit: state.initChunks.length > 0,
+      initCount: state.initChunks.length,
+      mediaChunkCount: state.mediaChunks.length,
+      viewerCount: state.activeStreams.size,
+      lastSeenAt: state.lastSeenAt,
+      windowSecs: LIVE_WINDOW_SECS
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const authorMobcoinsCache = new Map();
 
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 const fetch = require("node-fetch")
+
+// --- HLS Proxy Middleware ---
+// Redirects HLS requests from Express (port 5000) to NMS (port 8000)
+app.get("/live/:postId/:file", async (req, res) => {
+  try {
+    const { postId, file } = req.params;
+    const nmsUrl = `http://localhost:8000/live/${postId}/${file}`;
+
+    const response = await axios({
+      method: 'get',
+      url: nmsUrl,
+      responseType: 'stream'
+    });
+
+    res.set(response.headers);
+    response.data.pipe(res);
+  } catch (err) {
+    res.status(404).send("HLS Segment not found");
+  }
+});
+
 // Array of domains to ping
 const domains = [
   'https://textmob-web-app.onrender.com',
@@ -304,10 +505,7 @@ function sendNotificationEmail(to, subject, message) {
             <tr>
               <td align="center" style="background:#fafafa; padding:20px 30px; font-size:13px; color:#777; line-height:1.6;">
                 <a href="https://textmob.web.app/about" style="color:#1E90FF; text-decoration:none; margin:0 10px;">About</a> | 
-                <a href="https://textmob.web.app/privacy" style="color:#1E90FF; text-decoration:none; margin:0 10px;">Privacy</a> | 
-                <a href="https://textmob.web.app/terms" style="color:#1E90FF; text-decoration:none; margin:0 10px;">Terms</a>
-                <br><br>
-                © 2025 Textmob. All rights reserved.
+                © 2026 Textmob. All rights reserved.
               </td>
             </tr>
 
@@ -445,159 +643,6 @@ app.get("/api/turn-credentials", async (req, res) => {
   } catch (error) {
     console.error("TURN credentials error:", error.message);
     res.json({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-  }
-});
-// --- Live buffer settings ---
-const CHUNK_MS = 250;
-const LIVE_WINDOW_SECS = 60; // larger window = more history for stable playback
-const LIVE_WINDOW_MS = LIVE_WINDOW_SECS * 1000;
-
-function createLiveSessionState() {
-  return {
-    initChunk: null,          // first WebM header/init chunk
-    mediaChunks: [],          // { ts, data }
-    activeStreams: new Set(),
-    lastSeenAt: Date.now()
-  };
-}
-
-function getLiveSessionState(postId) {
-  if (!liveSessions.has(postId)) {
-    liveSessions.set(postId, createLiveSessionState());
-  }
-  if (!liveChunkBuffers.has(postId)) {
-    liveChunkBuffers.set(postId, createLiveSessionState());
-  }
-
-  const session = liveSessions.get(postId);
-  const bufferState = liveChunkBuffers.get(postId);
-
-  // keep both maps in sync if you still reference both elsewhere
-  if (!session.initChunk && bufferState.initChunk) session.initChunk = bufferState.initChunk;
-  if (session.mediaChunks.length === 0 && bufferState.mediaChunks.length > 0) {
-    session.mediaChunks = bufferState.mediaChunks.slice();
-  }
-
-  return session;
-}
-
-function trimLiveMedia(state) {
-  const cutoff = Date.now() - LIVE_WINDOW_MS;
-  state.mediaChunks = state.mediaChunks.filter(c => c.ts >= cutoff);
-}
-
-function pushLiveChunk(postId, chunk) {
-  if (!chunk || chunk.length === 0) return;
-
-  const state = getLiveSessionState(postId);
-  const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-
-  state.lastSeenAt = Date.now();
-
-  // First chunk becomes the init/header chunk.
-  // If the stream restarts, you can reset this explicitly from your encoder logic.
-  if (!state.initChunk) {
-    state.initChunk = buf;
-    liveChunkBuffers.set(postId, state);
-    return;
-  }
-
-  state.mediaChunks.push({
-    ts: Date.now(),
-    data: buf
-  });
-
-  trimLiveMedia(state);
-  liveChunkBuffers.set(postId, state);
-}
-
-function cleanupDeadStream(state, res) {
-  try {
-    state.activeStreams.delete(res);
-  } catch { }
-  try {
-    res.end();
-  } catch { }
-}
-
-app.post(
-  "/api/live-chunk-upload/:postId",
-  express.raw({ type: "*/*", limit: "50mb" }),
-  (req, res) => {
-    try {
-      const { postId } = req.params;
-      const chunk = req.body;
-
-      if (!chunk || chunk.length === 0) {
-        return res.status(400).json({ error: "Empty chunk" });
-      }
-
-      pushLiveChunk(postId, chunk);
-
-      const state = getLiveSessionState(postId);
-
-      // Push the chunk to connected viewers
-      for (const clientRes of [...state.activeStreams]) {
-        try {
-          clientRes.write(chunk);
-        } catch (e) {
-          cleanupDeadStream(state, clientRes);
-        }
-      }
-
-      res.json({ ok: true });
-    } catch (err) {
-      console.error("live-chunk-upload error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
-
-app.get("/api/live-stream/:postId", (req, res) => {
-  try {
-    const { postId } = req.params;
-    const state = liveSessions.get(postId) || liveChunkBuffers.get(postId);
-
-    if (!state || !state.initChunk) {
-      return res.status(404).json({ error: "Live session not found" });
-    }
-
-    res.writeHead(200, {
-      "Content-Type": "video/webm",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      "Pragma": "no-cache",
-      "Expires": "0",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
-      "Access-Control-Allow-Origin": "*"
-    });
-
-    // Send init/header first
-    res.write(state.initChunk);
-
-    // Only send the last ~30 seconds of chunks to provide a stable starting point
-    const startTailFrom = Date.now() - 30000;
-    const tailChunks = state.mediaChunks.filter(c => c.ts >= startTailFrom);
-
-    for (const item of tailChunks) {
-      try {
-        res.write(item.data);
-      } catch (e) { }
-    }
-
-    state.activeStreams.add(res);
-
-    const cleanup = () => cleanupDeadStream(state, res);
-
-    req.on("close", cleanup);
-    req.on("aborted", cleanup);
-    res.on("close", cleanup);
-    res.on("error", cleanup);
-  } catch (err) {
-    console.error("live-stream error:", err);
-    try {
-      res.status(500).json({ error: err.message });
-    } catch { }
   }
 });
 // Login Endpoint (Modified to include phone)
@@ -1549,7 +1594,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
       console.error("Error inserting user:", insertError);
       return res.status(500).json({ error: "Failed to create account" });
     }
-    await updateMobcoins(username.split('@').pop().trimEnd(), +70, true, `You Just Received 70 Mobcoins As a new User on Textmob`);
+    await updateMobcoins(username.split('@').pop().trimEnd(), +30, true, `You Just Received 30 Mobcoins As a new User on Textmob`);
     res.json({ message: "Signup successful! You can now log in." });
   } catch (error) {
     console.error("Signup Error:", error);
@@ -4054,9 +4099,9 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
     try {
       await updateMobcoins(
         username.split("@").pop().trimEnd(),
-        +10,
+        +7,
         true,
-        "You just received 10 Mobcoins for creating a " + type + " on Textmob"
+        "You just received 7 Mobcoins for creating a " + type + " on Textmob"
       );
     } catch (mobErr) {
       console.error("[create-post] updateMobcoins failed:", mobErr);
@@ -4289,7 +4334,7 @@ async function cleanupLiveSessionData(postId, s) {
       s.activeStreams.clear();
     }
   }
-  liveChunkBuffers.delete(postId);
+  liveSessions.delete(postId);
   try {
     const postTempDir = path.join(TMP_DIR, String(postId));
     await fs.rm(postTempDir, { recursive: true, force: true });
@@ -4845,11 +4890,6 @@ io.on("connection", function (socket) {
     }
   });
 }); // end io.on("connection")
-
-// ----------------- Live Recording Upload -----------------
-const multe = require("multer");
-const uploa = multe({ dest: path.join(TMP_DIR, "uploads") });
-
 
 // ---------------------- FRONTEND EVENTS SUMMARY -----------------------------
 // Broadcaster:
@@ -5449,11 +5489,202 @@ async function fetchAll(client, table, selectQuery, orderByColumn = 'created_at'
 }
 // In-memory cache
 // -------------------------------------------------------------
-// GET /asilfcismail
-// (On-demand analytics fetching replacing previous massive global cache)
+// -------------------------------------------------------------
+// REDEMPTION SYSTEM
 // -------------------------------------------------------------
 
-app.get("/asilfcismail", async (req, res) => {
+app.get("/api/admin/payouts", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('redemption_queue')
+      .select('*, users(username, fullname, profile_pic)')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Admin payouts error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/payout/update", async (req, res) => {
+  try {
+    const { id, status } = req.body;
+    if (!id || !status) return res.status(400).json({ error: "ID and status required" });
+
+    const { data: payout, error: fetchError } = await supabase
+      .from('redemption_queue')
+      .select('*, users(username, email, fullname)')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const { error: updateError } = await supabase
+      .from('redemption_queue')
+      .update({
+        status,
+        processed_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (updateError) throw updateError;
+
+    // Send notification to user
+    const user = payout.users;
+    if (user && user.username) {
+      const msg = status === 'COMPLETED'
+        ? `Your redemption of ${payout.coin_amount} Mobcoins (₦${payout.naira_value}) has been processed successfully!`
+        : `Your redemption request for ${payout.coin_amount} Mobcoins has been rejected. Please contact support.`;
+
+      const subject = status === 'COMPLETED' ? "Redemption Successful! 🎉" : "Redemption Update";
+
+      await triggerNotification(user.username, 'mobcoins', {
+        msg: msg,
+        subject: subject,
+        html: msg,
+        link: "/wallet"
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update payout error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get("/api/user/payouts", async (req, res) => {
+  try {
+    const { userId } = req.query; // This is a username
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+
+    // Resolve username to UUID
+    const { data: user, error: uErr } = await supabase.from('users').select('id').eq('username', userId).single();
+    if (uErr || !user) return res.status(404).json({ error: "User not found" });
+
+    const { data, error } = await supabase
+      .from('redemption_queue')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('User payouts error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/redeem", async (req, res) => {
+  try {
+    const { userId, amount, type, details } = req.body; // userId is username
+
+    if (!userId || !amount || !type || !details) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const coinAmount = parseInt(amount);
+    if (isNaN(coinAmount) || coinAmount < 2000) {
+      return res.status(400).json({ error: "Minimum redemption is 2,000 Mobcoins" });
+    }
+
+    // Check if it's Saturday
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 6 = Saturday
+
+    // Fetch user by username to get UUID and current balance
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, mobcoins, username')
+      .eq('username', userId)
+      .single();
+
+    if (userError || !user) return res.status(404).json({ error: "User not found" });
+
+    // Check for existing pending or recent completed requests (once a week rule)
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const { data: existing, error: existingError } = await supabase
+      .from('redemption_queue')
+      .select('id, created_at, status')
+      .eq('user_id', user.id)
+      .or(`status.eq.PENDING,created_at.gte.${sevenDaysAgo.toISOString()}`)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      const lastRequest = new Date(existing[0].created_at);
+      const diffDays = Math.ceil((now - lastRequest) / (1000 * 60 * 60 * 24));
+
+      if (existing[0].status === 'PENDING') {
+        return res.status(400).json({ error: "You already have a pending redemption request." });
+      }
+      return res.status(400).json({ error: `You can only redeem once a week. Please wait ${7 - diffDays} more days.` });
+    }
+
+    if (user.mobcoins < coinAmount) {
+      return res.status(400).json({ error: "Insufficient Mobcoins" });
+    }
+
+    const nairaValue = (coinAmount * 0.1).toFixed(2);
+
+    // Atomic operation: Deduct coins and create queue entry
+    const { error: deductError } = await supabase
+      .from('users')
+      .update({ mobcoins: user.mobcoins - coinAmount })
+      .eq('id', user.id);
+
+    if (deductError) throw deductError;
+
+    const { error: queueError } = await supabase
+      .from('redemption_queue')
+      .insert({
+        user_id: user.id,
+        coin_amount: coinAmount,
+        naira_value: nairaValue,
+        type: type,
+        payout_details: details,
+        status: 'PENDING',
+        created_at: now.toISOString()
+      });
+
+    if (queueError) {
+      // Rollback
+      await supabase.from('users').update({ mobcoins: user.mobcoins }).eq('id', user.id);
+      throw queueError;
+    }
+
+    // Notify Admin
+    console.log(`[REDEMPTION] @${user.username} queued ${coinAmount} Mobcoins for ${type}`);
+
+    // Send notification to user
+    await triggerNotification(user.username, 'mobcoins', {
+      msg: `Your redemption request for ${coinAmount} Mobcoins (₦${nairaValue}) has been queued successfully! Payouts are every Saturday.`,
+      subject: "Redemption Request Received! 💰",
+      html: `Hi @${user.username},<br><br>We've received your redemption request for <b>${coinAmount} Mobcoins (₦${nairaValue})</b>. Your request has been queued and will be processed manually this coming Saturday.<br><br>If today is Saturday, your request will be processed next Saturday.<br><br>Thank you for using Textmob!`,
+      link: "/wallet"
+    });
+
+    const message = dayOfWeek === 6
+      ? "Your request is queued! Since today is Saturday, it will be processed next Saturday."
+      : "Your request is queued! Payouts are processed every Saturday.";
+
+    res.json({ success: true, message });
+  } catch (err) {
+    console.error('Redemption error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+// -------------------------------------------------------------
+
+app.get("/asilfcismail", (req, res) => {
+  res.sendFile(path.join(__dirname, "asilfcismail.html"));
+});
+
+app.get("/api/asilfcismail/data", async (req, res) => {
   try {
     const now = new Date();
 
@@ -5473,7 +5704,7 @@ app.get("/asilfcismail", async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
 
-    // ==================== ALL YOUR ORIGINAL ANALYTICS LOGIC (unchanged) ====================
+    // ANALYTICS LOGIC
     const hourLabels = Array.from({ length: 24 }, (_, i) => `${23 - i} hours ago`);
     const hourCounts = Array(24).fill(0);
     const dayLabels = Array.from({ length: 7 }, (_, i) => {
@@ -5652,9 +5883,8 @@ app.get("/asilfcismail", async (req, res) => {
     const currWeekPosts = postWeekCounts[3] || 0;
     const postWeeklyGrowth = prevWeekPosts > 0 ? ((currWeekPosts - prevWeekPosts) / prevWeekPosts * 100).toFixed(1) : 'N/A';
 
-    const newCache = {
+    res.json({
       users: users || [],
-      posts: posts || [],
       analytics: {
         signups: { hourLabels, hourCounts, dayLabels, dayCounts, weekLabels, weekCounts, monthLabels, monthCounts },
         postCreations: { hourLabels: postHourLabels, hourCounts: postHourCounts, dayLabels: postDayLabels, dayCounts: postDayCounts, weekLabels: postWeekLabels, weekCounts: postWeekCounts, monthLabels: postMonthLabels, monthCounts: postMonthCounts },
@@ -5667,399 +5897,50 @@ app.get("/asilfcismail", async (req, res) => {
         userWeeklyGrowth,
         postWeeklyGrowth
       }
-    };
-
-    // ==================== MAIN HTML DASHBOARD (NOW WITH FULL USER TABLE + RESPONSIVE) ====================
-    const a = newCache.analytics;
-    const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Textmob Analytics Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --bg: #111111;
-            --card-bg: #1a1a1a;
-            --accent: #ff4d4d;
-            --text-main: #ffffff;
-            --text-dim: #999999;
-            --glass: rgba(255, 255, 255, 0.05);
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Outfit', sans-serif;
-            background: var(--bg);
-            color: var(--text-main);
-            padding: 40px;
-            overflow-x: hidden;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-        .header h1 { font-weight: 800; font-size: 2.5rem; letter-spacing: -1px; }
-        .header .badge {
-            background: var(--accent);
-            padding: 8px 16px;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass);
-            border-radius: 20px;
-            padding: 24px;
-            position: relative;
-            overflow: hidden;
-        }
-        .card::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(45deg, transparent, var(--glass));
-            pointer-events: none;
-        }
-        .card-title {
-            color: var(--text-dim);
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        .stat { font-size: 2.2rem; font-weight: 700; margin-bottom: 4px; }
-        .growth { font-size: 0.9rem; font-weight: 600; }
-
-        .positive { color: #00ff88; }
-        .negative { color: #ff3366; }
-
-        .chart-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-        .chart-card {
-            background: var(--card-bg);
-            border-radius: 24px;
-            padding: 30px;
-            border: 1px solid var(--glass);
-        }
-        .chart-card h3 { margin-bottom: 24px; font-weight: 600; color: var(--text-dim); }
-
-        .top-users-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-            gap: 24px;
-            margin-bottom: 60px;
-        }
-        .user-row {
-            display: flex;
-            align-items: center;
-            padding: 16px;
-            background: var(--glass);
-            border-radius: 12px;
-            margin-bottom: 8px;
-        }
-        .user-avatar {
-            width: 40px; height: 40px;
-            border-radius: 50%;
-            margin-right: 16px;
-            object-fit: cover;
-            background: #333;
-        }
-        .user-info .name { font-weight: 600; font-size: 1rem; }
-        .user-info .meta { font-size: 0.8rem; color: var(--text-dim); }
-        .user-score { margin-left: auto; font-weight: 700; color: var(--accent); }
-
-        /* === FULL USERS TABLE === */
-        .full-users {
-            background: var(--card-bg);
-            border-radius: 24px;
-            padding: 30px;
-            border: 1px solid var(--glass);
-            margin-bottom: 40px;
-        }
-        .full-users h3 {
-            margin-bottom: 20px;
-            color: var(--text-dim);
-        }
-        .search-box {
-            width: 100%;
-            padding: 14px 18px;
-            background: #222;
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-size: 1rem;
-            margin-bottom: 20px;
-        }
-        .table-wrapper {
-            overflow-x: auto;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 900px;
-        }
-        th, td {
-            padding: 14px 12px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            font-size: 0.95rem;
-        }
-        th {
-            background: #222;
-            color: var(--accent);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.8rem;
-            letter-spacing: 0.5px;
-        }
-        tr:hover {
-            background: rgba(255,77,77,0.08);
-        }
-        .avatar-cell img {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-        .password-cell {
-            font-family: monospace;
-            font-size: 0.85rem;
-            color: #ffcc00;
-            background: #111;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-
-        /* RESPONSIVE IMPROVEMENTS */
-        @media (max-width: 768px) {
-            body { padding: 20px; }
-            .header h1 { font-size: 2rem; }
-            .grid { grid-template-columns: 1fr; }
-            .chart-section { grid-template-columns: 1fr; }
-            .top-users-grid { grid-template-columns: 1fr; }
-            table { min-width: 700px; }
-            th, td { padding: 10px 8px; font-size: 0.9rem; }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Textmob <span style="color:var(--accent)">Vault</span></h1>
-        <div class="badge">Live • Full Database Access</div>
-    </div>
-
-    <div class="grid">
-        <div class="card">
-            <div class="card-title">Total Users</div>
-            <div class="stat">${newCache.users.length}</div>
-            <div class="growth ${a.userWeeklyGrowth.startsWith('-') ? 'negative' : 'positive'}">
-                ${a.userWeeklyGrowth}% this week
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-title">Total Posts</div>
-            <div class="stat">${a.posts.totalPosts}</div>
-            <div class="growth ${a.postWeeklyGrowth.startsWith('-') ? 'negative' : 'positive'}">
-                ${a.postWeeklyGrowth}% this week
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-title">Engagement Rate</div>
-            <div class="stat">${a.posts.engagementRate}</div>
-            <div class="growth positive">High Activity</div>
-        </div>
-        <div class="card">
-            <div class="card-title">Liquidity (Mobcoins)</div>
-            <div class="stat">${a.totalMobcoins.toLocaleString()}</div>
-            <div class="growth" style="color: gold">Premium Economy</div>
-        </div>
-    </div>
-
-    <div class="chart-section">
-        <div class="chart-card">
-            <h3>Signup Velocity (Daily)</h3>
-            <canvas id="signupChart" height="120"></canvas>
-        </div>
-        <div class="chart-card">
-            <h3>Content Creation (Daily)</h3>
-            <canvas id="contentChart" height="120"></canvas>
-        </div>
-    </div>
-
-    <div class="top-users-grid">
-        <div class="chart-card">
-            <h3>Top Engagers (Last 7 Days)</h3>
-            ${a.topUsers7d.map(u => `
-                <div class="user-row">
-                    <img class="user-avatar" src="${u.avatar || 'https://via.placeholder.com/40'}" onerror="this.src='https://ui-avatars.com/api/?name=${u.username}&background=random'">
-                    <div class="user-info">
-                        <div class="name">@${u.username}</div>
-                        <div class="meta">${u.totalEngagement7d} engagements</div>
-                    </div>
-                    <div class="user-score">${u.score7d}</div>
-                </div>
-            `).join('')}
-        </div>
-        <div class="chart-card">
-            <h3>Richest Users</h3>
-            ${a.topCoinHolders.map(u => `
-                <div class="user-row">
-                    <div class="user-info">
-                        <div class="name">@${u.username}</div>
-                        <div class="meta">${u.fullname}</div>
-                    </div>
-                    <div class="user-score" style="color:gold">${u.mobcoins.toLocaleString()} ??</div>
-                </div>
-            `).join('')}
-        </div>
-    </div>
-
-    <!-- ==================== FULL USERS TABLE (ALL DETAILS + PASSWORD) ==================== -->
-    <div class="full-users">
-        <h3>All Users — Complete Database (${newCache.users.length} records)</h3>
-        <input type="text" id="userSearch" class="search-box" placeholder="🔍 Search by username, fullname, email or phone...">
-        <div class="table-wrapper">
-            <table id="usersTable">
-                <thead>
-                    <tr>
-                        <th>Avatar</th>
-                        <th>Username</th>
-                        <th>Full Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Password</th>
-                        <th>Mobcoins</th>
-                        <th>Followers</th>
-                        <th>Created</th>
-                        <th>Profile Type</th>
-                        <th>Disabled</th>
-                    </tr>
-                </thead>
-                <tbody id="usersBody"></tbody>
-            </table>
-        </div>
-    </div>
-
-    <script>
-        // Pass full users data to client
-        const allUsers = ${JSON.stringify(newCache.users.map(u => ({
-      avatar: u.profile_pic || '',
-      username: u.username || '',
-      fullname: u.fullname || '',
-      email: u.email || '',
-      phone: u.phone || '',
-      password: u.password || '',
-      mobcoins: u.mobcoins || 0,
-      followers: Array.isArray(u.followers) ? u.followers.length : 0,
-      created_at: u.created_at ? new Date(u.created_at).toLocaleDateString('en-US') : '',
-      profile_type: u.profile_type || '',
-      disabled: u.disabled ? 'YES' : 'NO'
-    })))};
-
-        // Render table
-        function renderUsers(filteredUsers) {
-          const tbody = document.getElementById('usersBody');
-          tbody.innerHTML = filteredUsers.map(user => \`
-            <tr>
-              <td class="avatar-cell"><img src="\${user.avatar || 'https://via.placeholder.com/32'}" onerror="this.src='https://ui-avatars.com/api/?name=\${user.username}&background=random'"></td>
-              <td><strong>@\${user.username}</strong></td>
-              <td>\${user.fullname}</td>
-              <td>\${user.email}</td>
-              <td>\${user.phone}</td>
-              <td class="password-cell">\${user.password}</td>
-              <td style="color:gold">\${user.mobcoins.toLocaleString()}</td>
-              <td>\${user.followers}</td>
-              <td>\${user.created_at}</td>
-              <td>\${user.profile_type}</td>
-              <td>\${user.disabled}</td>
-            </tr>
-          \`).join('');
-        }
-
-        // Live search
-        document.getElementById('userSearch').addEventListener('input', function (e) {
-          const term = e.target.value.toLowerCase().trim();
-          const filtered = allUsers.filter(u =>
-            u.username.toLowerCase().includes(term) ||
-            u.fullname.toLowerCase().includes(term) ||
-            (u.email && u.email.toLowerCase().includes(term)) ||
-            (u.phone && u.phone.toLowerCase().includes(term))
-          );
-          renderUsers(filtered);
-        });
-
-        // Initial render
-        renderUsers(allUsers);
-
-        // Charts (unchanged)
-        const signupCtx = document.getElementById('signupChart').getContext('2d');
-        new Chart(signupCtx, {
-            type: 'line',
-            data: {
-                labels: ${JSON.stringify(a.signups.dayLabels)},
-                datasets: [{
-                    label: 'New Signups',
-                    data: ${JSON.stringify(a.signups.dayCounts)},
-                    borderColor: '#ff4d4d',
-                    backgroundColor: 'rgba(255, 77, 77, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
-            }
-        });
-
-        const contentCtx = document.getElementById('contentChart').getContext('2d');
-        new Chart(contentCtx, {
-            type: 'bar',
-            data: {
-                labels: ${JSON.stringify(a.postCreations.dayLabels)},
-                datasets: [{
-                    label: 'Posts Created',
-                    data: ${JSON.stringify(a.postCreations.dayCounts)},
-                    backgroundColor: '#00ff88',
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
-            }
-        });
-    </script>
-</body>
-</html>
-`;
-    res.send(html);
-
+    });
   } catch (err) {
-    console.error('Analytics fetching error:', err.message);
+    console.error('Analytics error:', err);
     res.status(500).json({ error: "Server error generating analytics" });
   }
 });
+
+app.post("/api/admin/user/toggle-status", async (req, res) => {
+  try {
+    const { userId, disabled } = req.body;
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+
+    const { error } = await supabase
+      .from('users')
+      .update({ disabled: !!disabled })
+      .eq('id', userId);
+
+    if (error) throw error;
+    res.json({ success: true, disabled: !!disabled });
+  } catch (err) {
+    console.error('Toggle status error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/user/update-coins", async (req, res) => {
+  try {
+    const { userId, mobcoins } = req.body;
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+
+    const { error } = await supabase
+      .from('users')
+      .update({ mobcoins: parseInt(mobcoins) || 0 })
+      .eq('id', userId);
+
+    if (error) throw error;
+    res.json({ success: true, mobcoins });
+  } catch (err) {
+    console.error('Update coins error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 app.get("/leaderboard", async (req, res) => {
   try {
@@ -9358,9 +9239,9 @@ app.post(
       try {
         await updateMobcoins(
           username.split("@").pop().trim(),
-          +10,
+          +7,
           true,
-          "You just received 10 Mobcoins for creating a " + (type === 'poll' ? 'poll' : 'group post') + " on Textmob"
+          "You just received 7 Mobcoins for creating a " + (type === 'poll' ? 'poll' : 'group post') + " on Textmob"
         );
       } catch (mobErr) {
         console.error("[group-post] updateMobcoins failed:", mobErr);

@@ -51,11 +51,7 @@ export default function NotificationBanner() {
   return (
     <div style={{ zIndex: 9999 }} className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[90vh]">
-        <div className="flex-1 overflow-y-auto flex items-center justify-center p-6">
-          {currentStep.image && (
-            <img src={currentStep.image} alt={currentStep.title} className="max-h-56 w-auto animate-slide-up" />
-          )}
-        </div>
+
         <div className="p-6 text-center border-t border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-3">{currentStep.title}</h2>
           <p className="text-gray-600 mb-4 leading-relaxed">{currentStep.description}</p>

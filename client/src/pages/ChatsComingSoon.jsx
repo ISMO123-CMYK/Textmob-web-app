@@ -94,7 +94,7 @@ export default function LoudaComingSoon() {
     const handleMessage = (event) => {
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       const allowedOrigin = isLocal ? 'http://localhost:9000' : 'https://louda.web.app';
-      
+
       if (event.origin !== allowedOrigin && event.origin !== 'https://louda.web.app') return;
       const data = event.data;
       const shouldClose =
@@ -118,7 +118,7 @@ export default function LoudaComingSoon() {
 
   if (showIframe) {
     return (
-      <div style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 9999, background: '#000' }}>
+      <div style={{ position: 'fixed', inset: 0, height: '100%', zIndex: 9999, background: '#000' }}>
         <button
           type="button"
           onClick={() => {
@@ -129,7 +129,7 @@ export default function LoudaComingSoon() {
           }}
           style={{
             position: 'fixed',
-            top: 12,
+            bottom: 12,
             left: 12,
             zIndex: 10000,
             width: 34,
@@ -143,6 +143,7 @@ export default function LoudaComingSoon() {
             alignItems: 'center',
             justifyContent: 'center',
             padding: 0,
+            display: 'none'
           }}
           aria-label="Go back"
         >

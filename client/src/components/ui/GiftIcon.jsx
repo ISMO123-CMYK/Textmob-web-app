@@ -47,6 +47,7 @@ export function injectLiveStyles() {
     @keyframes tmBannerOut { from{opacity:1;transform:scale(1)}
                              to{opacity:0;transform:scale(.85)} }
     @keyframes tmCountUp   { from{transform:scale(.5);opacity:0} to{transform:scale(1);opacity:1} }
+    @keyframes tmSpin      { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
     .tm-live-dot     { animation: tmLiveDot 1.2s ease infinite; }
     .tm-msg-in       { animation: tmMsgIn .18s ease forwards; }
     .tm-confetti     { animation: tmConfetti var(--dur,2.4s) cubic-bezier(.2,.8,.4,1) forwards; pointer-events:none; }

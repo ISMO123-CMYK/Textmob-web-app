@@ -1,6 +1,16 @@
 [
   {
-    "key": "install-textmob",
+    "key": "mobcin-moetization",
+    "type": "feature",
+    "eyebrow": "Get Paid",
+    "title": "Monetization is officially LIVE!",
+    "body": "Turn your Mobcoins into real cash or airtime. Cash out once a week and get your alerts every Saturday.",
+    "primaryAction": "Monetize Now",
+    "href": "/wallet",
+    "accent": "emerald"
+  },
+  {
+    "key": "install-ap",
     "type": "install",
     "eyebrow": "Home screen access",
     "title": "Install Textmob",
@@ -10,7 +20,7 @@
     "accent": "blue"
   },
   {
-    "key": "live-video-streaming",
+    "key": "live-video-streamin",
     "type": "feature",
     "eyebrow": "Go live",
     "title": "Live video streaming is here",
