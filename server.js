@@ -5654,7 +5654,7 @@ app.post("/api/migrate-friends", async (req, res) => {
 
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, friends, following')
+      .select('id, friends, followers')
       .eq('username', username)
       .single();
 

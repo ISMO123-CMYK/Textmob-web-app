@@ -10,7 +10,6 @@ import { apiFetch } from '../../config/api';
 
 export default function AuthPage() {
   const [view, setView] = useState('login');
-  const [notifications, setNotifications] = useState([]);
   const [savedAccounts, setSavedAccounts] = useState([]);
   const [showManage, setShowManage] = useState(false);
 
@@ -26,15 +25,6 @@ export default function AuthPage() {
     loadAccounts();
     window.addEventListener('storage', loadAccounts);
     window.addEventListener('show-manage-accounts', () => setShowManage(true));
-
-    window.showNotification = ({ title, message, type = 'info', duration = 5000, afterClose }) => {
-      const id = Date.now() + Math.random();
-      setNotifications((prev) => [...prev, { id, title, message, type }]);
-      setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-        if (afterClose) afterClose();
-      }, duration);
-    };
 
     return () => {
       window.removeEventListener('storage', loadAccounts);
@@ -57,8 +47,15 @@ export default function AuthPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       localStorage.setItem('currentUser', data.user.username);
-      if (window.Lexum) window.Lexum.navigate('/');
-      else window.location.href = '/';
+      
+      // Reset feed state to prevent "failed to fetch" or stale posts from previous user
+      window.__feedState = {
+        activeTab: 'foryou',
+        foryou: { posts: [], page: 1, hasMore: true, scrollY: 0 },
+        following: { posts: [], page: 1, hasMore: true, scrollY: 0 }
+      };
+
+      window.location.href = '/';
     } catch (e) {
       window.showNotification({ title: 'Login Failed', message: e.message, type: 'error' });
     }
@@ -100,13 +97,6 @@ export default function AuthPage() {
             <a href="/about" className="text-blue-500 font-medium">Privacy Policy</a>
           </p>
         </div>
-      </div>
-
-      {/* Notification toasts */}
-      <div className="fixed top-4 right-4 flex flex-col gap-2" style={{ zIndex: 9999 }}>
-        {notifications.map((n) => (
-          <NotificationToast key={n.id} {...n} onClose={() => setNotifications((prev) => prev.filter((x) => x.id !== n.id))} />
-        ))}
       </div>
 
       <ManageAccountsModal show={showManage} accounts={savedAccounts} onLogin={autoLogin} onRemove={removeAccount} onClose={() => setShowManage(false)} />

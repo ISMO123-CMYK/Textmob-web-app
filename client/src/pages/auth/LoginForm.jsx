@@ -47,8 +47,15 @@ export default function LoginForm({
         }
       }
       localStorage.setItem('currentUser', data.user.username);
-      if (window.Lexum) window.Lexum.navigate('/');
-      else window.location.href = '/';
+      
+      // Reset feed state to prevent "failed to fetch" or stale posts from previous user
+      window.__feedState = {
+        activeTab: 'foryou',
+        foryou: { posts: [], page: 1, hasMore: true, scrollY: 0 },
+        following: { posts: [], page: 1, hasMore: true, scrollY: 0 }
+      };
+
+      window.location.href = '/';
     } catch {
       // ignore
     } finally {

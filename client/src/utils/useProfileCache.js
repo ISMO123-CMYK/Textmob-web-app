@@ -1,49 +1,28 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../config/api';
 
-// Profile cache – mirrors On, kn, Mn, An, jn from the minified bundle
-const profileCache = new Map();  // On
-const listeners = new Map();     // kn
+// In-memory cache registry for the current app session
+const profileCache = new Map();
+const listeners = new Map();
 const inflightRequests = {};
 
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
-
-function readFromLS(username) {
-  try {
-    let raw = localStorage.getItem(`__tmob_p_${username}`);
-    if (raw) {
-      let p = JSON.parse(raw);
-      if (p && p.fullname) return p;
-    }
-  } catch {}
-  return null;
-}
-
-function writeToLS(username, profile) {
-  try {
-    localStorage.setItem(`__tmob_p_${username}`, JSON.stringify(profile));
-  } catch {}
-}
+const DEFAULT_PIC = 'https://cloudinary.com';
 
 function getProfile(username) {
   if (!username || username === 'undefined') return null;
-  let cached = profileCache.get(username);
-  if (cached) return cached;
-  let ls = readFromLS(username);
-  if (ls) {
-    profileCache.set(username, ls);
-    return ls;
-  }
-  return null;
+  return profileCache.get(username) || null;
 }
 
 async function fetchProfile(username) {
   if (!username || username === 'undefined') return null;
+
+  // Return immediately if already cached in this session
   if (profileCache.has(username)) {
     let p = profileCache.get(username);
     notifyListeners(username, p);
     return p;
   }
+
   if (inflightRequests[username]) return inflightRequests[username];
 
   inflightRequests[username] = (async () => {
@@ -61,7 +40,6 @@ async function fetchProfile(username) {
         notifications: data.notifications || []
       };
       profileCache.set(username, profile);
-      writeToLS(username, profile);
       notifyListeners(username, profile);
       return profile;
     } catch {
@@ -72,7 +50,6 @@ async function fetchProfile(username) {
         notifications: []
       };
       profileCache.set(username, fallback);
-      writeToLS(username, fallback);
       notifyListeners(username, fallback);
       return fallback;
     } finally {
@@ -90,7 +67,7 @@ function notifyListeners(username, profile) {
   }
 }
 
-// Nn – hook to get a profile with live updates
+// Custom hook with live session caching updates
 export default function useProfileCache(username) {
   const [profile, setProfile] = useState(getProfile(username));
 
@@ -127,7 +104,6 @@ export default function useProfileCache(username) {
   };
 }
 
-// Pn – synchronous getter (no hook)
 export function getProfileSync(username) {
   return getProfile(username) || {
     fullname: username || 'Guest',
@@ -137,5 +113,4 @@ export function getProfileSync(username) {
   };
 }
 
-// Expose the cache and fetch for RichText
 export { profileCache, fetchProfile };

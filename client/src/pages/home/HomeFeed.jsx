@@ -514,7 +514,18 @@ export default function HomeFeed({ propPosts }) {
     return (
       <div className="p-6 text-center">
         <p className="text-sm text-red-500 mb-2">{error}</p>
-        <button onClick={() => { setError(''); setPage(1); }} className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">Try again</button>
+        <button 
+          onClick={() => { 
+            window.__feedState[activeTab] = { posts: [], page: 1, hasMore: true, scrollY: 0 };
+            setError(''); 
+            setPage(1); 
+            setPosts([]);
+            setLoading(true);
+          }} 
+          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          Try again
+        </button>
       </div>
     );
   }

@@ -111,6 +111,33 @@ export default function MenuContent() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  const handleClearCache = () => {
+    const currentUser = localStorage.getItem('currentUser');
+    const savedAccounts = localStorage.getItem('textmobSavedAccounts');
+    
+    localStorage.clear();
+    
+    if (currentUser) localStorage.setItem('currentUser', currentUser);
+    if (savedAccounts) localStorage.setItem('textmobSavedAccounts', savedAccounts);
+    
+    window.__feedState = {
+      activeTab: 'foryou',
+      foryou: { posts: [], page: 1, hasMore: true, scrollY: 0 },
+      following: { posts: [], page: 1, hasMore: true, scrollY: 0 }
+    };
+    
+    window.showNotification?.({
+      title: 'Cache Cleared',
+      message: 'App cache has been refreshed successfully.',
+      type: 'success'
+    });
+
+    // Optional: reload after a short delay to ensure everything is fresh
+    setTimeout(() => {
+        window.location.reload();
+    }, 1500);
+  };
+
   const sections = useMemo(
     () => [
       {
@@ -185,6 +212,17 @@ export default function MenuContent() {
             description: 'How the system works',
             Icon: NavIcons.Info,
             href: '/about',
+          },
+        ],
+      },
+      {
+        title: 'System',
+        items: [
+          {
+            label: 'Clear App Cache',
+            description: 'Refresh data and fix glitches',
+            Icon: NavIcons.Bolt,
+            onClick: handleClearCache,
           },
         ],
       },
