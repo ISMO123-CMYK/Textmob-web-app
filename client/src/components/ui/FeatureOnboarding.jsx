@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import features from '../../config/featureAnnouncements.json';
+import featuresData from '../../config/featureAnnouncements.json';
+
+const features = Array.isArray(featuresData) ? featuresData : featuresData.default || [];
 
 const VIEWED_KEY = 'textmob:viewed-feature-announcements';
 const OPEN_EVENT = 'textmob:open-feature-onboarding';

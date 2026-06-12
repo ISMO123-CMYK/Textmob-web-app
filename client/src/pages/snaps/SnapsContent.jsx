@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { apiFetch, API_BASE_URL } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import Lexum from '../../router/LexumRouter';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import { useSnapUpload } from '../../utils/SnapUploadContext';
 
 // Time formatter function fi
@@ -1355,10 +1356,18 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
                 fontSize: 14,
                 fontWeight: 800,
                 lineHeight: 1.2,
-                textShadow: '0 1px 3px rgba(0,0,0,.5)'
+                textShadow: '0 1px 3px rgba(0,0,0,.5)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
               }}
             >
               {profileInfo?.fullname || currentSnap?.username}
+              {currentSnap?.verified === true && (
+                <div className="flex-shrink-0 flex items-center justify-center p-0.5 rounded-full bg-blue-500/20 ml-1">
+                  <VerifiedBadge className="w-3.5 h-3.5 text-blue-400" />
+                </div>
+              )}
             </p>
             <p
               style={{
@@ -1830,10 +1839,17 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
                     fontWeight: 700,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
                   }}
                 >
                   @{snap.username}
+                  {(() => {
+                    console.log(`[Snap Badge Debug] Username: ${snap.username}, snap.verified: ${snap.verified}`);
+                    return snap.verified === true && <VerifiedBadge className="w-3 h-3 text-blue-400" />;
+                  })()}
                 </p>
                 <p
                   style={{

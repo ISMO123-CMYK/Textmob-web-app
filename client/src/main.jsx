@@ -67,6 +67,7 @@ Lexum.init({
     { path: '/topsearch', responsive: { mobile: TopSearchMobile, desktop: TopSearchDesktop } },
     { path: '/halloffame', responsive: { mobile: HallOfFameMobile, desktop: HallOfFameDesktop } },
     { path: '/live/:postId', responsive: { mobile: LiveViewMobile, desktop: LiveViewDesktop } },
+    { path: '/make-post/:quoteId', responsive: { mobile: MakePostMobile, desktop: MakePostDesktop } },
     { path: '/make-post', responsive: { mobile: MakePostMobile, desktop: MakePostDesktop } },
     { path: '/create-live', responsive: { mobile: CreateLiveMobile, desktop: CreateLiveDesktop } },
     { path: '/accountscenter', component: AccountsCenter },

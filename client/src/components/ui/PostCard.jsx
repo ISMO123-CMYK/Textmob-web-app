@@ -11,6 +11,15 @@ const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v17460959
 const U = { navigate: path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path) };
 const isVideo = e => /\.(mp4|webm|ogg)$/i.test(String(e || ''));
 
+/* ─── VerifiedBadge ─── */
+function VerifiedBadge({ className = "w-3.5 h-3.5" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn("text-blue-500 fill-current", className)}>
+      <path d="M22.5 12.5c0-1.58-.8-2.95-2.03-3.76.54-1.51.18-3.22-1.07-4.47-1.25-1.25-2.96-1.61-4.47-1.07C14.12 2.03 12.5 1.25 11 1.25c-1.5 0-3.12.78-3.93 1.95-1.51-.54-3.22-.18-4.47 1.07-1.25 1.25-1.61 2.96-1.07 4.47C.3 9.55-.5 10.92-.5 12.5c0 1.58.8 2.95 2.03 3.76-.54 1.51-.18 3.22 1.07 4.47 1.25 1.25 2.96 1.61 4.47 1.07.81 1.17 2.43 1.95 3.93 1.95 1.5 0 3.12-.78 3.93-1.95 1.51.54 3.22.18 4.47-1.07 1.25-1.25 1.61-2.96 1.07-4.47 1.23-.81 2.03-2.18 2.03-3.76zM11 18l-4.5-4.5 1.5-1.5L11 15l7-7 1.5 1.5L11 18z" />
+    </svg>
+  );
+}
+
 // Qn – reaction emoji palette
 const REACTIONS = [
   { r: '❤️', t: 'love' }, { r: '😂', t: 'funny' }, { r: '🔥', t: 'fire' },
@@ -34,7 +43,7 @@ function DotsIcon() {
 }
 
 /* ─── Un – post options menu ─── */
-function PostMenu({ post, open, setOpen }) {
+function PostMenu({ post, open, setOpen, navigate }) {
   const menuItems = [
     { label: 'Save post', icon: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z' },
     { label: 'Share', icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
@@ -44,12 +53,12 @@ function PostMenu({ post, open, setOpen }) {
 
   return (
     <div className="relative flex-shrink-0">
-      <FollowButtonInline targetUsername={post.username} currentUsername={localStorage.currentUser} onUpdate={() => {}} />
+      <FollowButtonInline targetUsername={post.username} currentUsername={localStorage.currentUser} onUpdate={() => { }} />
       <button onClick={() => setOpen(!open)} className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-400 dark:text-gray-500" aria-label="Post options">
         <DotsIcon />
       </button>
       {open && (
-        <div className="absolute top-8 right-0 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden z-30 min-w-[148px]" onMouseLeave={() => setOpen(false)}>
+        <div className="absolute top-8 right-0 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl overflow-hidden z-30 min-w-[148px]" onMouseLeave={() => setOpen(false)}>
           {menuItems.map(({ label, icon, danger }) => (
             <button
               onClick={() => {
@@ -90,7 +99,7 @@ function FollowButtonInline({ targetUsername, currentUsername, onUpdate }) {
         if ((data.followers || []).includes(currentUsername)) setStatus('following');
         else setStatus('none');
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [targetUsername, currentUsername]);
 
   if (!targetUsername || !currentUsername || targetUsername === currentUsername) return null;
@@ -148,10 +157,11 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
         </div>
         {/* Name and meta */}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-1 leading-snug">
+          <div className="flex flex-wrap items-center gap-x-1 leading-snug">
             <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); navigate(`/@${post.username}`); }} className="text-sm font-bold text-gray-900 dark:text-gray-100 hover:underline truncate">
               {authorProfile.fullname || post.username}
             </a>
+            { (post.verified === true) && <VerifiedBadge /> }
             {groupInfo && (
               <Fragment>
                 <span className="text-xs text-gray-400 dark:text-gray-600">in</span>
@@ -167,7 +177,41 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
           <span className="text-[11px] text-gray-400 dark:text-gray-500 leading-none">{timeAgo(post.created_at)}</span>
         </div>
       </div>
-      <PostMenu post={post} open={menuOpen} setOpen={setMenuOpen} />
+      <PostMenu post={post} open={menuOpen} setOpen={setMenuOpen} navigate={navigate} />
+    </div>
+  );
+}
+
+/* ─── QuotedPost ─── */
+function QuotedPost({ postId, navigate }) {
+  const [post, setPost] = useState(null);
+  const authorProfile = useProfileCache(post?.username);
+
+  useEffect(() => {
+    if (postId) {
+      apiFetch(`/get-post?postId=${postId}`).then(r => r.ok ? r.json() : null).then(setPost);
+    }
+  }, [postId]);
+
+  if (!post) return null;
+
+  return (
+    <div
+      onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}
+      className="mt-3 p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors"
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <img src={authorProfile.profile_pic || DEFAULT_PIC} className="w-5 h-5 rounded-full object-cover" alt="" />
+        <span className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate max-w-[120px]">{authorProfile.fullname || post.username}</span>
+        {post.verified === true && <VerifiedBadge className="w-3 h-3" />}
+        <span className="text-[10px] text-gray-400">· {timeAgo(post.created_at)}</span>
+      </div>
+      <RichText html={post.text} className="text-xs text-gray-700 dark:text-gray-300 line-clamp-3 mb-2" />
+      {post.media?.length > 0 && (
+        <div className="rounded-lg overflow-hidden border border-gray-100 dark:border-gray-800">
+          <img src={post.media[0]} className="w-full h-32 object-cover" alt="" />
+        </div>
+      )}
     </div>
   );
 }
@@ -366,6 +410,16 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
           <span>{post.comments.length}</span>
         </button>
 
+        {/* Quote */}
+        <button
+          onClick={() => navigate(`/make-post/${post.id}`)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </button>
+
         {/* Reaction */}
         <button
           onClick={(e) => { e.stopPropagation(); setReactionsOpenFor(reactionsOpenFor === post.id ? null : post.id); }}
@@ -512,9 +566,9 @@ function VideoPlayer({ src, qualities = ['360p', '720p', '1080p'] }) {
       v.removeEventListener('loadeddata', onCan);
       document.removeEventListener('fullscreenchange', onFS);
       document.removeEventListener('pictureinpicturechange', onPiP);
-      try { v.pause(); } catch {}
+      try { v.pause(); } catch { }
       v.src = "";
-      try { v.load(); } catch {}
+      try { v.load(); } catch { }
     };
   }, []);
 
@@ -530,7 +584,7 @@ function VideoPlayer({ src, qualities = ['360p', '720p', '1080p'] }) {
   const togglePlay = (e) => {
     e?.stopPropagation();
     const v = videoRef.current;
-    v.paused ? v.play().catch(() => {}) : v.pause();
+    v.paused ? v.play().catch(() => { }) : v.pause();
   };
 
   const toggleMute = (e) => {
@@ -543,7 +597,7 @@ function VideoPlayer({ src, qualities = ['360p', '720p', '1080p'] }) {
 
   const toggleFullscreen = (e) => {
     e?.stopPropagation();
-    document.fullscreenElement ? document.exitFullscreen() : containerRef.current.requestFullscreen().catch(() => {});
+    document.fullscreenElement ? document.exitFullscreen() : containerRef.current.requestFullscreen().catch(() => { });
   };
 
   const fmt = t => !t || isNaN(t) ? '0:00' : `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -659,8 +713,8 @@ function MediaLightbox({ items, startIndex, onClose }) {
   const onTouchStart = e => { touchRef.current = { x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }; };
   const onTouchEnd = e => {
     if (!touchRef.current) return;
-    let dx = touchRef.current.x - e.changedTouches[0].clientX;
-    let dy = Math.abs(touchRef.current.y - e.changedTouches[0].clientY);
+    let dx = touchRef.current.x - e.targetTouches[0].clientX; // Fixed: replaced changedTouches with targetTouches for consistency
+    let dy = Math.abs(touchRef.current.y - e.targetTouches[0].clientY);
     if (Math.abs(dx) > 44 && Math.abs(dx) > dy * 1.5) {
       dx > 0 ? next() : prev();
     }
@@ -868,8 +922,9 @@ function LiveEndedCard({ post, authorProfile }) {
       </div>
       <div className="px-4 pt-3 flex items-center gap-2.5 pb-5">
         <img src={authorProfile.profile_pic} alt={post.username} className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-gray-700" loading="lazy" />
-        <div>
+        <div className="flex items-center gap-1">
           <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{authorProfile.fullname}</span>
+          {post.verified === true && <VerifiedBadge className="w-3 h-3" />}
           <span className="text-sm text-gray-400"> was live</span>
         </div>
       </div>
@@ -909,9 +964,12 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
       <div className="px-4 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <img src={authorProfile.profile_pic} alt={post.username} className="w-9 h-9 rounded-full object-cover border-2 border-red-500" loading="lazy" />
-          <div>
-            <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{authorProfile.fullname}</span>
-            <span className="text-xs font-semibold text-red-500"> · is live</span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{authorProfile.fullname}</span>
+              {post.verified === true && <VerifiedBadge className="w-3 h-3" />}
+            </div>
+            <span className="text-xs font-semibold text-red-500">is live</span>
           </div>
         </div>
         <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
@@ -1036,6 +1094,11 @@ const PostCard = ({
       {post.media?.length > 0 && (
         <div className="mb-3 -mx-4 md:mx-0 md:rounded-xl overflow-hidden">
           <MediaGallery media={post.media} poster={authorProfile.profile_pic} />
+        </div>
+      )}
+      {post.quoted_post_id && (
+        <div className="mb-3">
+          <QuotedPost postId={post.quoted_post_id} navigate={navigate} />
         </div>
       )}
       <ReactionsBar postId={post.id} reactionCountsCache={reactionCountsCache} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} handleReact={handleReact} />

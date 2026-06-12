@@ -28,7 +28,7 @@ export default function Sidebar() {
       apiFetch(`/api/louda-unread?username=${user}`)
         .then(r => r.ok ? r.json() : { unreadCount: 0 })
         .then(data => setLoudaUnread(data.unreadCount || 0))
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchUnread();
@@ -48,8 +48,9 @@ export default function Sidebar() {
     { Icon: NavIcons.Home, label: 'Home', badge: null, to: '/' },
     { Icon: NavIcons.Snaps, label: 'Snaps', badge: null, to: '/snaps' },
     { Icon: NavIcons.Search, label: 'Discover', badge: null, to: '/topsearch' },
+    { Icon: NavIcons.Live, label: 'Go Live', badge: null, to: '/live' },
+
     { Icon: NavIcons.Messages, label: 'Louda', badge: loudaUnread || null, to: '/chats' },
-    { Icon: NavIcons.AiChat, label: 'Textmob AI', badge: null, to: '/ai' },
     { Icon: NavIcons.Leaderboard, label: 'Hall of Fame', badge: null, to: '/halloffame' },
     { Icon: NavIcons.Wallet, label: 'Wallet', badge: null, to: '/wallet' },
     { Icon: NavIcons.Dots, label: 'More', badge: null, to: '/menu' },

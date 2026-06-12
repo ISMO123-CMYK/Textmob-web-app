@@ -3,6 +3,7 @@ import { apiFetch } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import PostCard from '../../components/ui/PostCard';
 import useProfileCache from '../../utils/useProfileCache';
+import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
 function CommentItem({ cmt }) {
   const profile = useProfileCache(cmt.username);
@@ -17,7 +18,10 @@ function CommentItem({ cmt }) {
         loading="lazy"
       />
       <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-2xl max-w-[85%] cursor-pointer" onClick={() => navigate(`/@${cmt.username}`)}>
-        <p className="text-xs font-bold text-gray-900 dark:text-gray-100 leading-snug">{profile.fullname || cmt.username}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-xs font-bold text-gray-900 dark:text-gray-100 leading-snug">{profile.fullname || cmt.username}</p>
+          {(cmt.verified === true || profile.verified === true) && <VerifiedBadge className="w-3 h-3" />}
+        </div>
         <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug mt-0.5">{cmt.text}</p>
       </div>
     </div>

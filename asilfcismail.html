@@ -504,6 +504,7 @@
     <div class="tabs">
         <div class="tab active" onclick="switchTab('users')">User Management</div>
         <div class="tab" onclick="switchTab('payouts')">Payout Requests</div>
+        <div class="tab" onclick="switchTab('verification')">Verification Management</div>
         <div class="tab" onclick="switchTab('eligible')">Eligible for Withdrawal</div>
         <div class="tab" onclick="switchTab('halloffame')">Hall of Fame & Rankings</div>
     </div>
@@ -595,6 +596,27 @@
         </div>
     </div>
 
+    <!-- VERIFICATION SECTION -->
+    <div id="verification-section" class="section">
+        <div class="admin-table-container">
+            <h3>Pending Verification Requests</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Request Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="verificationBody">
+                        <!-- Verification requests will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- HALL OF FAME SECTION -->
     <div id="halloffame-section" class="section">
         <div class="ranking-grid">
@@ -650,12 +672,17 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
-            document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
-            document.getElementById(`${tab}-section`).classList.add('active');
+            const tabEl = document.querySelector(`.tab[onclick="switchTab('${tab}')"]`);
+            const sectionEl = document.getElementById(`${tab}-section`);
+
+            if (tabEl) tabEl.classList.add('active');
+            if (sectionEl) sectionEl.classList.add('active');
+            else console.error(`Section not found: ${tab}-section`);
 
             if (tab === 'payouts') fetchPayouts();
             if (tab === 'halloffame') renderHallOfFame();
             if (tab === 'eligible') renderEligible();
+            if (tab === 'verification') fetchVerificationRequests();
         }
 
         async function fetchData() {
@@ -1034,8 +1061,51 @@
             }
         }
 
+        async function updateVerification(id, status) {
+            if (!confirm(`Mark this verification request as ${status}?`)) return;
+            try {
+                const response = await fetch('/api/admin/verification-update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, status })
+                });
+                if (response.ok) {
+                    fetchVerificationRequests();
+                    alert('Verification status updated');
+                } else {
+                    alert('Action failed');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error updating status');
+            }
+        }
+
+        async function fetchVerificationRequests() {
+            try {
+                const response = await fetch('/api/admin/verification-requests');
+                if (!response.ok) throw new Error('Failed to fetch requests');
+                const requests = await response.json();
+                
+                const tbody = document.getElementById('verificationBody');
+                tbody.innerHTML = requests.map(req => `
+                    <tr>
+                        <td>@${req.users.username}</td>
+                        <td>${new Date(req.created_at).toLocaleString()}</td>
+                        <td>
+                            <button class="action-btn" onclick="updateVerification('${req.id}', 'ACCEPTED')">Accept</button>
+                            <button class="action-btn" onclick="updateVerification('${req.id}', 'REJECTED')" style="background:var(--danger)">Reject</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Error fetching verification requests:', err);
+            }
+        }
+
         // Initial fetch
         fetchData();
+        fetchVerificationRequests();
     </script>
 </body>
 

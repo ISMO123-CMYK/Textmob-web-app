@@ -5,24 +5,19 @@ const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
 const axios = require("axios");
 const socketIo = require("socket.io");
-const NodeMediaServer = require("node-media-server");
+// const NodeMediaServer = require("node-media-server");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("ffmpeg-static");
-const { PassThrough } = require("stream");
+// const { PassThrough } = require("stream");
 const Fuse = require("fuse.js");
 const path = require("path");
 const fs = require("fs").promises;
 const cors = require("cors");
+const fetch = require("node-fetch");
+const cloudinary = require("cloudinary").v2;
+const streamifier = require("streamifier");
 
-// ffmpeg-static exports the path string directly in recent versions
-ffmpeg.setFfmpegPath(ffmpegPath);
-const app = express();
-app.use(cors()); // Allow all origins
-const server = http.createServer(app); // attach raw HTTP server
-const io = socketIo(server);           // attach Socket.IO to the HTTP server
-const PORT = process.env.PORT || 5000;
 // Initialize Supabase client
-const onlineUsers = {};
 const supabaseUrl = "https://apnnyqmsyxuyapamnrqg.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwbm55cW1zeXh1eWFwYW1ucnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjA2ODgsImV4cCI6MjA1ODkzNjY4OH0.aVHtygox6NbLAvgGElkBcEFXG1QKIB8JeYNHBwBtU7Y";
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -35,7 +30,58 @@ const supabase2 = createClient(supabaseUr, supabaseKe);
 const loudaSupabaseUrl = 'https://ldepewastfyohswgtgbb.supabase.co';
 const loudaSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZXBld2FzdGZ5b2hzd2d0Z2JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5ODkwOTUsImV4cCI6MjA5MDU2NTA5NX0.57USwUSsJL1ik-RwxZgcV1cJLzr3TDxcRX7xbum0Bms';
 const loudaSupabase = createClient(loudaSupabaseUrl, loudaSupabaseKey);
-// --- Live Streaming Global State ---
+
+// Hourly worker to expire verification requests
+async function runVerificationCleanup() {
+  console.log('[WORKER] Checking for expired verifications...');
+  try {
+    const now = new Date().toISOString();
+    const { data: expiredRequests, error: fetchError } = await supabase
+      .from('verification_requests')
+      .select('user_id')
+      .lt('verified_until', now)
+      .eq('status', 'ACCEPTED');
+
+    if (fetchError) throw fetchError;
+    if (!expiredRequests || expiredRequests.length === 0) return;
+
+    const { error: updateReqError } = await supabase
+      .from('verification_requests')
+      .update({ status: 'EXPIRED', updated_at: now })
+      .lt('verified_until', now)
+      .eq('status', 'ACCEPTED');
+
+    if (updateReqError) throw updateReqError;
+
+    const userIds = expiredRequests.map(r => r.user_id);
+    const { error: updateUserError } = await supabase
+      .from('users')
+      .update({ verified: false })
+      .in('id', userIds);
+
+    if (updateUserError) throw updateUserError;
+
+    console.log(`[WORKER] Expired ${userIds.length} verifications.`);
+  } catch (err) {
+    console.error('[WORKER] Error cleaning verifications:', err);
+  }
+}
+
+// Run once on startup
+runVerificationCleanup();
+// Then run every hour
+setInterval(runVerificationCleanup, 60 * 60 * 1000); // 1 hour
+
+// ffmpeg-static exports the path string directly in recent versions
+ffmpeg.setFfmpegPath(ffmpegPath);
+const app = express();
+app.use(cors()); // Allow all origins
+const server = http.createServer(app); // attach raw HTTP server
+const io = socketIo(server);           // attach Socket.IO to the HTTP server
+const PORT = process.env.PORT || 5000;
+
+// Initialize Global State
+const onlineUsers = {};
 const liveSessions = new Map();
 const liveChunkBuffers = new Map();
 const liveRooms = globalThis.__liveRooms || (globalThis.__liveRooms = new Map());
@@ -323,9 +369,7 @@ app.get("/api/live-info/:postId", (req, res) => {
 
 const authorMobcoinsCache = new Map();
 
-const cloudinary = require("cloudinary").v2;
-const streamifier = require("streamifier");
-const fetch = require("node-fetch")
+// Duplicated imports removed
 
 // --- HLS Proxy Middleware ---
 // Redirects HLS requests from Express (port 5000) to NMS (port 8000)
@@ -1788,7 +1832,8 @@ app.get("/search", async (req, res) => {
         profile_pic,
         profile_type,
         friends,
-        followers
+        followers,
+        verified
       `);
 
     if (error) {
@@ -2229,7 +2274,7 @@ app.get("/profile/:username", async (req, res) => {
     const { username } = req.params;
     const { data: user, error } = await supabase
       .from("users")
-      .select("fullname, username,following, followers, friends, email, userType, profile_pic, biography, notifications, profile_type, notification_prefs") // REMOVED friends/followers/following lists to save RAM
+      .select("fullname, username,following, followers, friends, email, phone, userType, profile_pic, biography, notifications, profile_type, notification_prefs, verified") // Added phone
       .eq("username", username)
       .single();
 
@@ -2250,7 +2295,7 @@ app.get("/quick-profile/:username", async (req, res) => {
     const { username } = req.params;
     const { data: user, error } = await supabase
       .from("users")
-      .select("fullname, username, profile_pic") // REMOVED friends/followers/following lists to save RAM
+      .select("fullname, username, profile_pic, verified") // REMOVED friends/followers/following lists to save RAM
       .eq("username", username)
       .single();
 
@@ -3312,37 +3357,44 @@ app.get("/snaps-feed", async (req, res) => {
     const now = Date.now();
     const HOUR = 3600000;
 
-    // ── TIKTOK SNAP SCORER ──
-    const scored = snaps.map(snap => {
-      const ageHours = (now - new Date(snap.created_at).getTime()) / HOUR;
-      const likes = (snap.likes || []).length;
-      const comments = (snap.comments || []).length;
+    // ── ALIGNED ALGORITHM: POSTS & SNAPS ──
+    const scored = snaps.map(p => {
+      const ageMs = now - new Date(p.created_at).getTime();
+      const ageHours = Math.max(0.1, ageMs / HOUR);
+      const likes = (p.likes || []).length;
+      const comments = (p.comments || []).length;
+      const reactions = (p.reactions || []).length;
 
-      // 1. Social Affinity (Friends get a huge boost)
-      const isFollowing = userFollowing.has(snap.username);
-      const affinityMul = isFollowing ? 4.0 : 1.0;
+      const isFollowing = userFollowing.has(p.username);
+      const affinityMul = isFollowing ? 3.0 : 1.0;
 
-      // 2. Engagement Velocity (How fast is this snap blowing up?)
-      const engagement = (likes * 2) + (comments * 5); // Comments on snaps = high intent
-      const velocity = engagement / Math.pow(ageHours + 1, 1.5);
+      const halfLifeHours = isFollowing ? 12 : 6;
+      const freshness = Math.pow(0.5, ageHours / halfLifeHours);
 
-      // 3. Freshness (Snaps should die after 48 hours unless viral)
-      const freshness = Math.pow(0.5, ageHours / 24);
+      const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
+      const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
 
-      // 4. THE SEEN PENALTY (Critical Fix)
-      // Instead of an "Unseen Bonus", we use a "Seen Multiplier". 
-      // If seen, the score becomes 0.001. This pushes it to the bottom of the pile.
-      const seenPenalty = seen.has(String(snap.id)) ? 0.001 : 1.0;
+      let typeBonus = 1.0;
+      if (p.type === "live") typeBonus = 3.0;
+      if (p.media && p.media.length > 0) typeBonus = 1.5;
 
-      // 5. Self Penalty
-      const selfPenalty = snap.username === username ? 0.2 : 1.0;
+      // Penalize seen content to bottom
+      const seenPenalty = seen.has(String(p.id)) ? 0.00001 : 1.0;
+      const selfPenalty = p.username === username ? 0.1 : 1.0;
+
+      // Add their mobcoin investment influence
+      // Note: Snaps-feed needs access to userMobcoins, currently not fetched.
+      // Keeping it simple with 0 for now as per previous logic.
+      const userInfluence = 0.0;
 
       const score = (
         (freshness * 10) +
-        (velocity * 5)
+        (velocity * 5) +
+        (typeBonus * 2) +
+        (userInfluence * 0.05)
       ) * affinityMul * seenPenalty * selfPenalty;
 
-      return { ...snap, _score: score + (Math.random() * 0.5) };
+      return { ...p, _score: score + (Math.random() * 0.5) };
     });
 
     // Sort by best score
@@ -3350,6 +3402,21 @@ app.get("/snaps-feed", async (req, res) => {
 
     // Take the top 12 (The "Batch")
     const batch = scored.slice(0, limit).map(({ _score, ...snap }) => snap);
+
+    // Enrich batch with verified status
+    const snapUsernames = [...new Set(batch.map(s => s.username))];
+    if (snapUsernames.length > 0) {
+      const { data: authors } = await supabase
+        .from("users")
+        .select("username, verified")
+        .in("username", snapUsernames);
+
+      if (authors) {
+        const verifiedMap = {};
+        authors.forEach(u => verifiedMap[u.username] = u.verified || false);
+        batch.forEach(s => s.verified = verifiedMap[s.username] || false);
+      }
+    }
 
     // ONLY mark the 12 we actually sent as "Seen"
     batch.forEach(s => {
@@ -3994,7 +4061,7 @@ async function triggerAskifyReply(content, postId, parentType, parentUser) {
 // --- CREATE POST ---
 app.post("/create-post", upload.array("media", 10), async (req, res) => {
   try {
-    const { username, text, visib, activities } = req.body;
+    const { username, text, visib, activities, quoted_post_id } = req.body;
     let { options } = req.body;
 
     if (!username || !text) {
@@ -4085,7 +4152,8 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
         visib: visib,
         type: type,
         options: options,
-        activities: activities
+        activities: activities,
+        quoted_post_id: quoted_post_id
       }])
       .select("*")
       .single();
@@ -4271,8 +4339,6 @@ async function createLivePostInDB(opts) {
 async function updatePostAfterLive(postId, savedUrl) {
   try {
     console.log("[updatePostAfterLive] Start", { postId, savedUrl });
-
-    var updateObj = { type: "live_ended" };
 
     var updateObj = { type: "live_ended" };
 
@@ -5189,14 +5255,16 @@ app.get("/get-post", async (req, res) => {
     // Optionally, fetch user profile info for the post owner if not included already
     const { data: user, error: userError } = await supabase
       .from("users")
-      .select("profile_pic")
+      .select("profile_pic, verified")
       .eq("username", post.username)
       .single();
 
     if (!userError && user) {
       post.profile_pic = user.profile_pic;
+      post.verified = user.verified;
     } else {
       post.profile_pic = "https://via.placeholder.com/40";
+      post.verified = false;
     }
 
     res.json(post);
@@ -5577,6 +5645,40 @@ app.get("/api/user/payouts", async (req, res) => {
   }
 });
 
+
+// Migrate friends to followers
+app.post("/api/migrate-friends", async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, friends, following')
+      .eq('username', username)
+      .single();
+
+    if (userError || !user) return res.status(404).json({ error: "User not found" });
+
+    const friends = user.friends || [];
+    const currentFollowing = user.following || [];
+
+    // Deduplicate and combine
+    const newFollowing = [...new Set([...currentFollowing, ...friends])];
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ following: newFollowing })
+      .eq('id', user.id);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true, message: "Friends migrated to followers!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/redeem", async (req, res) => {
   try {
     const { userId, amount, type, details } = req.body; // userId is username
@@ -5675,6 +5777,143 @@ app.post("/api/redeem", async (req, res) => {
     res.json({ success: true, message });
   } catch (err) {
     console.error('Redemption error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: Get Pending Verification Requests
+app.get("/api/admin/verification-requests", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('verification_requests')
+      .select('id, created_at, users(username)')
+      .eq('status', 'PENDING');
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// User: Check verification status
+app.get("/api/verify-status", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const { data: request } = await supabase
+      .from('verification_requests')
+      .select('status')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    res.json({ status: request ? request.status : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// Admin: Update Verification Request
+app.post("/api/admin/verification-update", async (req, res) => {
+  try {
+    const { id, status } = req.body;
+    if (!id || !['ACCEPTED', 'REJECTED'].includes(status)) {
+      return res.status(400).json({ error: "Invalid request" });
+    }
+
+    // 1. Calculate expiration if accepted
+    const updates = { status, updated_at: new Date().toISOString() };
+    if (status === 'ACCEPTED') {
+      const oneMonthFromNow = new Date();
+      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+      updates.verified_until = oneMonthFromNow.toISOString();
+    }
+
+    // 2. Update verification_requests table
+    const { data: request, error: updateError } = await supabase
+      .from('verification_requests')
+      .update(updates)
+      .eq('id', id)
+      .select('user_id, users(username)')
+      .single();
+
+    if (updateError) throw updateError;
+
+    // 3. Notify user
+    if (status === 'ACCEPTED') {
+      await triggerNotification(request.users.username, 'verification', {
+        msg: "Congratulations! You have been verified.",
+        subject: "Verification Accepted! ✅",
+        html: `Hi @${request.users.username},<br><br>Congratulations! Your verification request has been accepted. You are now officially verified on Textmob!`,
+        link: "/accountscenter"
+      });
+    } else {
+      await triggerNotification(request.users.username, 'verification', {
+        msg: "Your verification request was rejected.",
+        subject: "Verification Update",
+        html: `Hi @${request.users.username},<br><br>Unfortunately, your verification request has been rejected. Please ensure you meet all criteria.`,
+        link: "/accountscenter"
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/verify-request", async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    // Find user
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, profile_type')
+      .eq('username', username)
+      .single();
+
+    if (userError || !user) return res.status(404).json({ error: "User not found" });
+
+    // Check if already requested or verified
+    const { data: existing, error: existingError } = await supabase
+      .from('verification_requests')
+      .select('id, status')
+      .eq('user_id', user.id)
+      .in('status', ['PENDING', 'ACCEPTED'])
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.status === 'ACCEPTED') return res.status(400).json({ error: "User is already verified" });
+      return res.status(400).json({ error: "Request already pending" });
+    }
+
+    // Insert request
+    const { error: insertError } = await supabase
+      .from('verification_requests')
+      .insert({
+        user_id: user.id,
+        status: 'PENDING',
+        created_at: new Date().toISOString()
+      });
+
+    if (insertError) throw insertError;
+
+    res.json({ success: true, message: "Request submitted! Admin will review your request." });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -5944,7 +6183,6 @@ app.post("/api/admin/user/update-coins", async (req, res) => {
 
 app.get("/leaderboard", async (req, res) => {
   try {
-    // ✅ DIRECT FETCH — NO CACHE ANYWHERE (as requested)
     const now = new Date();
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -5952,78 +6190,158 @@ app.get("/leaderboard", async (req, res) => {
     const users = await fetchAll(
       supabase,
       "users",
-      "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled, password"
+      "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, profile_type"
     );
 
     const posts = await fetchAll(
       supabase2,
       "Posts",
-      "id, username, type, likes, comments, created_at, text, media, reactions, text"
+      "id, username, type, likes, comments, created_at, text, media, reactions"
     );
 
     const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
 
-    // Reuse the exact same 7-day scoring logic from analytics
-    const posts7dMap = {};
-    const likes7dMap = {};
-    const comments7dMap = {};
+    // Trackers for Metrics
+    const userMetrics = {};
     const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
 
     recentPosts.forEach(p => {
-      if (p.username) {
-        let postScore = 0;
-        const hasMedia = p.media && p.media.length > 0;
-        const rawText = p.content || p.text || '';
-        const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
-        const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
+      if (!p.username) return;
 
-        if (hasMedia) postScore += 2;
-        if (wordCount > 3) postScore += 1;
-        else if (!hasMedia) postScore += 0.1;
+      // Initialize user tracker if it doesn't exist
+      if (!userMetrics[p.username]) {
+        userMetrics[p.username] = {
+          rawPostCount: 0,
+          effortPoints: 0,
+          likesCount: 0,
+          commentsCount: 0,
+          reactionsCount: 0,
+          activeDays: new Set(),
+          creatorReplies: 0,
+          topPost: null,
+          maxPostEngagementScore: -1
+        };
+      }
 
-        posts7dMap[p.username] = (posts7dMap[p.username] || 0) + postScore;
-        likes7dMap[p.username] = (likes7dMap[p.username] || 0) + (Array.isArray(p.likes) ? p.likes.length : 0);
-        comments7dMap[p.username] = (comments7dMap[p.username] || 0) + (Array.isArray(p.comments) ? p.comments.length : 0);
+      const meta = userMetrics[p.username];
+      meta.rawPostCount += 1;
+
+      // Track unique days worked (Consistency)
+      if (p.created_at) {
+        const dayString = new Date(p.created_at).toDateString();
+        meta.activeDays.add(dayString);
+      }
+
+      // Calculate Effort Points per post (The Grind)
+      const hasMedia = p.media && p.media.length > 0;
+      const rawText = p.content || p.text || '';
+      const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
+      const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
+
+      if (hasMedia) {
+        meta.effortPoints += 3;
+      } else if (wordCount > 15) {
+        meta.effortPoints += 2;
+      } else if (wordCount > 3) {
+        meta.effortPoints += 1;
+      } else {
+        meta.effortPoints += 0.1;
+      }
+
+      // Calculate localized engagement for this specific post to see if it's their "Featured Post"
+      const pLikes = Array.isArray(p.likes) ? p.likes.length : 0;
+      const pReactions = Array.isArray(p.reactions) ? p.reactions.length : 0;
+      const pComments = Array.isArray(p.comments) ? p.comments.length : 0;
+
+      const postEngagementScore = (pComments * 3) + ((pReactions || pLikes) * 0.5);
+
+      // Update best post if this one ranks higher in raw traction
+      if (postEngagementScore > meta.maxPostEngagementScore && rawText.trim().length > 0) {
+        meta.maxPostEngagementScore = postEngagementScore;
+        meta.topPost = {
+          id: p.id,
+          text: rawText,
+          engagement: `${pComments} comments, ${pReactions || pLikes} reactions`
+        };
+      }
+
+      // Track aggregate incoming crowd reactions
+      meta.likesCount += pLikes;
+      meta.reactionsCount += pReactions;
+
+      // Parse comments for community depth and creator responses
+      if (Array.isArray(p.comments)) {
+        meta.commentsCount += pComments;
+
+        p.comments.forEach(c => {
+          if (c.username === p.username) {
+            meta.creatorReplies += 1;
+          }
+        });
       }
     });
 
-    const reactions7dMap = {};
-    recentPosts.forEach(p => {
-      if (p.username) {
-        const reactionCount = Array.isArray(p.reactions) ? p.reactions.length : 0;
-        reactions7dMap[p.username] = (reactions7dMap[p.username] || 0) + reactionCount;
-      }
-    });
-
-    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai"];
+    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai", "bossprogrammer"];
 
     const users7dMetrics = users
       .filter(u => !excluded.includes(u.username))
       .map(u => {
-        const posts7d = posts7dMap[u.username] || 0;
-        const likes7d = likes7dMap[u.username] || 0;
-        const comments7d = comments7dMap[u.username] || 0;
-        const reactions7d = reactions7dMap[u.username] || 0;
-        const totalEngagement7d = posts7d + likes7d + comments7d;
-        const totalReactions = reactions7d > 0 ? reactions7d : likes7d;
+        const metrics = userMetrics[u.username] || {
+          rawPostCount: 0, effortPoints: 0, likesCount: 0, commentsCount: 0, reactionsCount: 0,
+          activeDays: new Set(), creatorReplies: 0, topPost: null
+        };
+
+        const totalReactions = metrics.reactionsCount > 0 ? metrics.reactionsCount : metrics.likesCount;
+
+        // 🌟 HARD WORK CALCULATIONS
+        const totalActiveDays = metrics.activeDays.size;
+        const consistencyMultiplier = 1 + (totalActiveDays * 0.1);
+        const finalEffortScore = (metrics.effortPoints + (metrics.creatorReplies * 1.5)) * consistencyMultiplier;
+
+        // 🌟 COMMUNITY VIRALITY SCORE
+        const finalEngagementScore = (metrics.commentsCount * 3.0) + (totalReactions * 0.5);
+
+        // Balance 40% Hard Work/Consistency and 60% Virality/Impact
+        const finalScore = (0.4 * finalEffortScore) + (0.6 * finalEngagementScore);
+        const finalScoreRounded = Math.round(finalScore * 10) / 10;
+
+        // 🌟 DYNAMIC GENERATION OF TRUE EVIDENCE WHYS AND HOWS
+        let whyReason = "Maintained an active presence and shared direct thoughts with the community.";
+        if (metrics.creatorReplies > 3 && metrics.commentsCount > 10) {
+          whyReason = `Drove intense conversation this week. They didn't just post—they actively anchored their own comment sections with ${metrics.creatorReplies} personal responses to community questions.`;
+        } else if (totalActiveDays >= 4 && metrics.rawPostCount >= 5) {
+          whyReason = `Earned this slot through absolute consistency. Posted across ${totalActiveDays} separate days this week, keeping the timeline supplied with high-effort content.`;
+        } else if (finalEngagementScore > finalEffortScore && metrics.commentsCount > 5) {
+          whyReason = `Sparked highly interactive discussions. The crowd gravitated heavily toward their thoughts, generating deep debate in the comment feeds.`;
+        } else if (metrics.effortPoints > 8) {
+          whyReason = `Brought heavy substance to Textmob this week through deep, long-form thoughts or highly engaging media shares that raised the collective baseline.`;
+        }
 
         return {
+          id: u.id,
           username: u.username,
           fullname: u.fullname || '',
           avatar: u.profile_pic || '',
-          posts7d,
-          likes7d,
-          comments7d,
-          reactions7d,
-          totalEngagement7d,
-          totalReactions,
-          score7d: Math.round((0.6 * totalEngagement7d + 0.2 * posts7d + 0.2 * totalReactions) * 10) / 10
+          score7d: finalScoreRounded,
+          evidence: {
+            why: whyReason,
+            metrics: [
+              { label: "Timeline Grind", value: `${metrics.rawPostCount} Posts over ${totalActiveDays} Days` },
+              { label: "Community Echo", value: `${metrics.commentsCount} Comments & ${totalReactions} Reactions` }
+            ],
+            topPost: metrics.topPost || {
+              id: null,
+              text: "Consistently interacting across various community channels.",
+              engagement: "Organic Traction"
+            }
+          }
         };
       });
 
-    // Sort and take top 5 (exactly what the old leaderboard used)
+    // Sort descending by score
     users7dMetrics.sort((a, b) => b.score7d - a.score7d);
 
+    // Keep top 5 with non-zero points
     const leaderboard = users7dMetrics
       .filter(u => u.score7d > 0)
       .slice(0, 5);
@@ -6039,7 +6357,6 @@ app.get("/leaderboard", async (req, res) => {
     res.status(500).json({ success: false, error: "Internal server error." });
   }
 });
-
 app.post("/connect", async (req, res) => {
   try {
     const { currentUsername, targetUsername } = req.body;
@@ -7578,6 +7895,21 @@ app.get("/get-posts", async (req, res) => {
     }
 
     const finalFeed = interleaveAI(diversified, aiPosts);
+
+    // Inject verified status
+    const usernames = [...new Set(finalFeed.map(p => p.username))];
+    if (usernames.length > 0) {
+      const { data: authors } = await supabase
+        .from("users")
+        .select("username, verified")
+        .in("username", usernames);
+      if (authors) {
+        const verifiedMap = {};
+        authors.forEach(u => verifiedMap[u.username] = u.verified || false);
+        finalFeed.forEach(p => p.verified = verifiedMap[p.username] || false);
+      }
+    }
+
     res.json(finalFeed);
 
   } catch (err) {
@@ -8427,29 +8759,33 @@ app.get("/account-stats", async (req, res) => {
   }
 });
 
-// ── POST /profile/:username/update-type ──────────────────────────────────────
-// Switches profile_type between Individual and Organisation
+// Switches profile_type between Individual and Organisation 
 app.post("/profile/:username/update-type", async (req, res) => {
   try {
     const { username } = req.params;
     const { profile_type } = req.body;
 
+    // Ensure parameters exist
     if (!username) return res.status(400).json({ error: "Username required" });
-    if (!profile_type || !["Individual", "Organisation"].includes(profile_type)) {
-      return res.status(400).json({ error: "profile_type must be Individual or Organisation" });
-    }
+    if (!profile_type) return res.status(400).json({ error: "Profile type required" });
+
+    // Correctly enforce allowed values
+    const finalType = ['Individual', 'Organisation'].includes(profile_type)
+      ? profile_type
+      : 'Individual';
 
     const { error } = await supabase
       .from("users")
-      .update({ profile_type })
-      .eq("username", username);
+      .update({ profile_type: finalType })
+      .eq("username", username)
+      .select(); // Optional: add select() to get the updated row back
 
     if (error) {
       console.error("/update-type DB error:", error);
       return res.status(500).json({ error: "Failed to update profile type" });
     }
 
-    res.json({ success: true, profile_type });
+    res.json({ success: true, profile_type: finalType });
   } catch (err) {
     console.error("/update-type error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -9456,7 +9792,7 @@ app.get("/t/wallet", async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from("users")
-      .select("mobcoins, fullname, username")
+      .select("mobcoins, fullname, username, profile_type")
       .eq("username", userId)
       .single();
 
@@ -9466,6 +9802,7 @@ app.get("/t/wallet", async (req, res) => {
       username: user.username,
       fullname: user.fullname,
       mobcoins: user.mobcoins,
+      profile_type: user.profile_type,
     });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch wallet" });

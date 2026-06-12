@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import NavIcons from '../../utils/navIcons';
 import { openFeatureOnboarding } from '../../components/ui/FeatureOnboarding';
 
 function MenuRow({ item, active, onClick }) {
   const base =
-    'group flex items-center gap-3 rounded-xl border px-3 py-3 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30';
+    'group flex items-center gap-3 rounded-xl border px-3 py-3 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 active:scale-[0.98]';
   const state = active
     ? 'border-blue-200 bg-blue-50/60 text-blue-700'
     : 'border-gray-200/80 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50';
@@ -21,8 +21,10 @@ function MenuRow({ item, active, onClick }) {
 
   const sharedContent = (
     <>
-      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${iconWrap}`}>
-        <item.Icon className="h-4.5 w-4.5" />
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${iconWrap}`}
+      >
+        <item.Icon className="h-4 w-4" />
       </div>
 
       <div className="min-w-0 flex-1">
@@ -51,13 +53,48 @@ function MenuRow({ item, active, onClick }) {
   }
 
   return (
-    <a
-      href={item.href}
-      aria-current={active ? 'page' : undefined}
-      className={`${base} ${state}`}
-    >
+    <a href={item.href} aria-current={active ? 'page' : undefined} className={`${base} ${state}`}>
       {sharedContent}
     </a>
+  );
+}
+
+function FeaturedCard({ username }) {
+  return (
+    <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-500">
+            Your next move
+          </p>
+          <h2 className="mt-1 text-base font-bold text-gray-900">Grow faster from here</h2>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">
+            {username
+              ? `@${username}, manage your profile, earnings, and account tools in one place.`
+              : 'Manage your profile, earnings, and account tools in one place.'}
+          </p>
+        </div>
+
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+          <NavIcons.Cog className="h-5 w-5" />
+        </div>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <a
+          href="/accountscenter"
+          className="inline-flex flex-1 items-center justify-center rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-700 active:scale-[0.98]"
+        >
+          Open Accounts Center
+        </a>
+        <a
+          href="/wallet"
+          className="inline-flex flex-1 items-center justify-center rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm font-bold text-blue-700 transition-all hover:bg-blue-50 active:scale-[0.98]"
+        >
+          View Wallet
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -68,35 +105,92 @@ export default function MenuContent() {
   useEffect(() => {
     setUsername(localStorage.getItem('currentUser') || '');
     setPath(window.location.pathname);
+
+    const onPopState = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const sections = [
-    {
-      title: 'Main',
-      items: [
-        { label: 'Profile', Icon: NavIcons.User, href: username ? `/@${username}` : '/profile' },
-        { label: 'Activity', Icon: NavIcons.Bell, href: '/activity' },
-        { label: 'Connections', Icon: NavIcons.UserGroup, href: '/connections' },
-        { label: 'Snaps', Icon: NavIcons.Camera, href: '/snaps' },
-        { label: 'Search', Icon: NavIcons.Search, href: '/topsearch' },
-      ],
-    },
-    {
-      title: 'Account',
-      items: [
-        { label: 'Wallet', Icon: NavIcons.Wallet, href: '/wallet' },
-        { label: 'Accounts Center', Icon: NavIcons.Cog, href: '/accountscenter' },
-      ],
-    },
-    {
-      title: 'About',
-      items: [
-        { label: "What’s New", Icon: NavIcons.Info, onClick: openFeatureOnboarding },
-        { label: 'Hall of Fame', Icon: NavIcons.Leaderboard, href: '/halloffame' },
-        { label: 'About Textmob', Icon: NavIcons.Info, href: '/about' },
-      ],
-    },
-  ];
+  const sections = useMemo(
+    () => [
+      {
+        title: 'Explore',
+        items: [
+          {
+            label: 'Your Profile',
+            description: 'See how people view you',
+            Icon: NavIcons.User,
+            href: username ? `/@${username}` : '/profile',
+          },
+          {
+            label: 'Activity',
+            description: 'Who noticed you today',
+            Icon: NavIcons.Bell,
+            href: '/activity',
+          },
+          {
+            label: 'Connections',
+            description: 'Your people, your reach',
+            Icon: NavIcons.UserGroup,
+            href: '/connections',
+          },
+          {
+            label: 'Snaps',
+            description: 'Short content. Fast attention',
+            Icon: NavIcons.Camera,
+            href: '/snaps',
+          },
+          {
+            label: 'Discover',
+            description: 'Find what is trending now',
+            Icon: NavIcons.Search,
+            href: '/topsearch',
+          },
+        ],
+      },
+      {
+        title: 'Money & Control',
+        items: [
+          {
+            label: 'Wallet',
+            description: 'Your Mobcoins, your power',
+            Icon: NavIcons.Wallet,
+            href: '/wallet',
+          },
+          {
+            label: 'Accounts Center',
+            description: 'Switch modes, manage identity',
+            Icon: NavIcons.Cog,
+            href: '/accountscenter',
+          },
+        ],
+      },
+      {
+        title: 'Boost & Status',
+        items: [
+          {
+            label: 'Hall of Fame',
+            description: 'Top users this week',
+            Icon: NavIcons.Leaderboard,
+            href: '/halloffame',
+          },
+          {
+            label: 'What’s New',
+            description: 'New features you should try',
+            Icon: NavIcons.Info,
+            onClick: openFeatureOnboarding,
+          },
+          {
+            label: 'About Textmob',
+            description: 'How the system works',
+            Icon: NavIcons.Info,
+            href: '/about',
+          },
+        ],
+      },
+    ],
+    [username]
+  );
 
   return (
     <div className="min-h-full bg-white text-gray-900">
@@ -112,12 +206,14 @@ export default function MenuContent() {
           </div>
 
           <div className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-500">
-            <NavIcons.User className="h-4.5 w-4.5" />
+            <NavIcons.User className="h-4 w-4" />
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-xl space-y-5 px-4 py-4 sm:px-6">
+        <FeaturedCard username={username} />
+
         <div className="rounded-2xl border border-gray-200/80 bg-gray-50/70 p-3">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700">
@@ -128,7 +224,7 @@ export default function MenuContent() {
                 {username ? `@${username}` : 'Your account'}
               </div>
               <div className="truncate text-xs text-gray-500">
-                Quick access to your sections
+                Everything that moves your account forward
               </div>
             </div>
           </div>
@@ -145,7 +241,11 @@ export default function MenuContent() {
                 <MenuRow
                   key={item.label}
                   item={item}
-                  active={item.href ? path === item.href || path.startsWith(item.href + '/') : false}
+                  active={
+                    item.href
+                      ? path === item.href || path.startsWith(item.href + '/')
+                      : false
+                  }
                   onClick={item.onClick}
                 />
               ))}
@@ -156,10 +256,10 @@ export default function MenuContent() {
         <div className="pt-1">
           <a
             href="/logout"
-            className="group flex items-center gap-3 rounded-xl border border-red-200/80 bg-red-50/60 px-3 py-3 transition-all duration-200 hover:border-red-300 hover:bg-red-100/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/20"
+            className="group flex items-center gap-3 rounded-xl border border-red-200/80 bg-red-50/60 px-3 py-3 transition-all duration-200 hover:border-red-300 hover:bg-red-100/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/20 active:scale-[0.98]"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 group-hover:bg-red-200">
-              <NavIcons.ArrowRightOnRect className="h-4.5 w-4.5" />
+              <NavIcons.ArrowRightOnRect className="h-4 w-4" />
             </div>
 
             <div className="min-w-0 flex-1">

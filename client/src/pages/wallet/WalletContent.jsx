@@ -13,6 +13,9 @@ export default function WalletContent() {
   const [walletMode, setWalletMode] = useState('balance'); // 'balance' or 'live'
   const [payouts, setPayouts] = useState([]);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
+  const [alertModal, setAlertModal] = useState({ open: false, title: '', message: '' });
+
+  const showAlert = (title, message) => setAlertModal({ open: true, title, message });
   const [redeemType, setRedeemType] = useState('CASH'); // 'CASH' or 'AIRTIME'
   const [redeemAmount, setRedeemAmount] = useState('');
   const [payoutDetails, setPayoutDetails] = useState({
@@ -40,9 +43,11 @@ export default function WalletContent() {
         .then(async ([walletRes, payoutsRes]) => {
           if (walletRes.ok) {
             const data = await walletRes.json();
+            console.log('Wallet API response:', data);
             setUser({
               fullname: data.fullname,
-              username: data.username
+              username: data.username,
+              isOrg: (data.profile_type || '').toLowerCase() === 'organisation'
             });
             setBalance(data.mobcoins || 0);
           }
@@ -80,7 +85,7 @@ export default function WalletContent() {
       return;
     }
 
-    const details = redeemType === 'CASH' 
+    const details = redeemType === 'CASH'
       ? { bank: payoutDetails.bank, account_no: payoutDetails.account_no, name: payoutDetails.name }
       : { network: payoutDetails.network, phone: payoutDetails.phone };
 
@@ -112,7 +117,7 @@ export default function WalletContent() {
       if (!res.ok) throw new Error(data.error || 'Redemption failed');
 
       setMessage(data.message);
-      
+
       // Refresh balance and payouts
       const [walletRes, payoutsRes] = await Promise.all([
         apiFetch(`/t/wallet?userId=${encodeURIComponent(currentUser)}`),
@@ -200,7 +205,7 @@ export default function WalletContent() {
         throw new Error(await res.text());
       }
       setMessage((await res.json()).message || 'Sent successfully!');
-      
+
       // Update balance
       const balanceRes = await apiFetch(`/t/wallet?userId=${encodeURIComponent(currentUser)}`);
       if (balanceRes.ok) {
@@ -217,7 +222,16 @@ export default function WalletContent() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
+        {alertModal.open && (
+          <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4" onClick={() => setAlertModal({ ...alertModal, open: false })}>
+            <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold mb-2">{alertModal.title}</h3>
+              <p className="text-sm text-gray-600 mb-6">{alertModal.message}</p>
+              <button onClick={() => setAlertModal({ ...alertModal, open: false })} className="w-full h-11 bg-blue-600 text-white rounded-xl font-bold">OK</button>
+            </div>
+          </div>
+        )}
         <div className="h-32 bg-gray-100 rounded-3xl animate-pulse" />
       </div>
     );
@@ -265,7 +279,7 @@ export default function WalletContent() {
             <p className="text-xs text-gray-400">{user.username ? `@${user.username}` : ''}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={() => setWalletMode(prev => prev === 'balance' ? 'live' : 'balance')}
               className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${walletMode === 'live' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-400'}`}
             >
@@ -313,19 +327,19 @@ export default function WalletContent() {
         </div>
 
         <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl">
-          <button 
+          <button
             onClick={() => setActiveTab('actions')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'actions' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
           >
             Send/Earn
           </button>
           <button 
-            onClick={() => setActiveTab('redeem')}
+            onClick={() => window.Lexum ? window.Lexum.navigate('/accountscenter') : window.location.href = '/accountscenter'}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'redeem' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
           >
             Redeem
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('history')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === 'history' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
           >
@@ -391,65 +405,72 @@ export default function WalletContent() {
         )}
 
         {activeTab === 'redeem' && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="p-5 rounded-2xl bg-blue-50 border border-blue-100">
-              <p className="text-sm font-bold text-blue-900 mb-2">How Redemption Works</p>
-              <ul className="space-y-2">
-                <li className="flex items-start gap-2 text-xs text-blue-700">
-                  <span className="font-bold">•</span>
-                  <span><strong>Rate:</strong> 1 Mobcoin = ₦0.10 (500 coins = ₦50).</span>
-                </li>
-                <li className="flex items-start gap-2 text-xs text-blue-700">
-                  <span className="font-bold">•</span>
-                  <span><strong>Minimum:</strong> You need at least 2,000 coins to redeem.</span>
-                </li>
-                <li className="flex items-start gap-2 text-xs text-blue-700">
-                  <span className="font-bold">•</span>
-                  <span><strong>Schedule:</strong> Payouts are processed every <strong>Saturday</strong>.</span>
-                </li>
-                <li className="flex items-start gap-2 text-xs text-blue-700">
-                  <span className="font-bold">•</span>
-                  <span><strong>Limit:</strong> You can only make <strong>one</strong> redemption request per week.</span>
-                </li>
-              </ul>
+          !user.isOrg ? (
+            <div className="p-6 text-center text-gray-500 bg-gray-50 rounded-2xl">
+              <p className="text-sm font-semibold mb-2">Upgrade to Professional</p>
+              <p className="text-xs">Personal accounts cannot redeem earnings. Please go to Edit Profile → Switch Mode to upgrade.</p>
             </div>
+          ) : (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="p-5 rounded-2xl bg-blue-50 border border-blue-100">
+                <p className="text-sm font-bold text-blue-900 mb-2">How Redemption Works</p>
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2 text-xs text-blue-700">
+                    <span className="font-bold">•</span>
+                    <span><strong>Rate:</strong> 1 Mobcoin = ₦0.10 (500 coins = ₦50).</span>
+                  </li>
+                  <li className="flex items-start gap-2 text-xs text-blue-700">
+                    <span className="font-bold">•</span>
+                    <span><strong>Minimum:</strong> You need at least 2,000 coins to redeem.</span>
+                  </li>
+                  <li className="flex items-start gap-2 text-xs text-blue-700">
+                    <span className="font-bold">•</span>
+                    <span><strong>Schedule:</strong> Payouts are processed every <strong>Saturday</strong>.</span>
+                  </li>
+                  <li className="flex items-start gap-2 text-xs text-blue-700">
+                    <span className="font-bold">•</span>
+                    <span><strong>Limit:</strong> You can only make <strong>one</strong> redemption request per week.</span>
+                  </li>
+                </ul>
+              </div>
 
-            <div className="space-y-2">
-              {redeemItems.map((item, i) => (
-                <button
-                  key={i}
-                  onClick={item.onClick}
-                  className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all text-left border border-gray-100"
-                >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${item.color}`}>
-                    {item.icon}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-base font-bold text-gray-900">{item.label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{item.sub}</p>
-                  </div>
-                  <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-300 fill-none stroke-current" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              <div className="space-y-2">
+                {redeemItems.map((item, i) => (
+                  <button
+                    key={i}
+                    onClick={item.onClick}
+                    className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all text-left border border-gray-100"
+                  >
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${item.color}`}>
+                      {item.icon}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-base font-bold text-gray-900">{item.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{item.sub}</p>
+                    </div>
+                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-300 fill-none stroke-current" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                disabled
+                className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl bg-gray-50/50 opacity-60 text-left border border-dashed border-gray-200"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-400">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                   </svg>
-                </button>
-              ))}
+                </div>
+                <div className="flex-1">
+                  <p className="text-base font-bold text-gray-400">Post Boost (Soon)</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Use coins to promote your posts</p>
+                </div>
+              </button>
             </div>
-            
-            <button
-              disabled
-              className="w-full flex items-center gap-4 px-5 py-5 rounded-2xl bg-gray-50/50 opacity-60 text-left border border-dashed border-gray-200"
-            >
-              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-400">
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-base font-bold text-gray-400">Post Boost (Soon)</p>
-                <p className="text-xs text-gray-400 mt-0.5">Use coins to promote your posts</p>
-              </div>
-            </button>
-          </div>
+          )
         )}
 
         {activeTab === 'history' && (
@@ -466,11 +487,10 @@ export default function WalletContent() {
                       <p className="text-sm font-bold text-gray-900">
                         {p.type === 'CASH' ? 'Bank Transfer' : `Airtime (${p.payout_details.network})`}
                       </p>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                        p.status === 'COMPLETED' ? 'bg-green-100 text-green-600' : 
-                        p.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 
-                        'bg-yellow-100 text-yellow-600'
-                      }`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${p.status === 'COMPLETED' ? 'bg-green-100 text-green-600' :
+                          p.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
+                            'bg-yellow-100 text-yellow-600'
+                        }`}>
                         {p.status}
                       </span>
                     </div>
@@ -498,8 +518,8 @@ export default function WalletContent() {
           <div>
             <p className="text-sm font-bold text-gray-900 mb-1">What are Mobcoins?</p>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Mobcoins are reward points earned by being active on Textmob. You can redeem them for 
-              <span className="font-semibold text-gray-800"> real money</span> or 
+              Mobcoins are reward points earned by being active on Textmob. You can redeem them for
+              <span className="font-semibold text-gray-800"> real money</span> or
               <span className="font-semibold text-gray-800"> airtime</span> once you reach the 2,000 coin threshold.
             </p>
           </div>
@@ -523,7 +543,7 @@ export default function WalletContent() {
                     </svg>
                   </button>
                 </div>
-                
+
                 <div className="p-4 bg-blue-50 rounded-2xl mb-5 text-center">
                   <p className="text-xs text-blue-500 font-bold uppercase tracking-wider mb-1">Estimated Value</p>
                   <p className="text-3xl font-black text-blue-600">₦{Number(redeemAmount * 0.1 || 0).toLocaleString()}</p>
@@ -549,7 +569,7 @@ export default function WalletContent() {
                         <input
                           type="text"
                           value={payoutDetails.bank}
-                          onChange={e => setPayoutDetails({...payoutDetails, bank: e.target.value})}
+                          onChange={e => setPayoutDetails({ ...payoutDetails, bank: e.target.value })}
                           placeholder="e.g. Opay, Kuda, Zenith..."
                           className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-200 transition-all text-gray-800"
                         />
@@ -559,7 +579,7 @@ export default function WalletContent() {
                         <input
                           type="text"
                           value={payoutDetails.account_no}
-                          onChange={e => setPayoutDetails({...payoutDetails, account_no: e.target.value})}
+                          onChange={e => setPayoutDetails({ ...payoutDetails, account_no: e.target.value })}
                           placeholder="10-digit number"
                           className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-200 transition-all text-gray-800"
                         />
@@ -569,7 +589,7 @@ export default function WalletContent() {
                         <input
                           type="text"
                           value={payoutDetails.name}
-                          onChange={e => setPayoutDetails({...payoutDetails, name: e.target.value})}
+                          onChange={e => setPayoutDetails({ ...payoutDetails, name: e.target.value })}
                           placeholder="Your full name as on bank"
                           className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-200 transition-all text-gray-800"
                         />
@@ -581,7 +601,7 @@ export default function WalletContent() {
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Network</label>
                         <select
                           value={payoutDetails.network}
-                          onChange={e => setPayoutDetails({...payoutDetails, network: e.target.value})}
+                          onChange={e => setPayoutDetails({ ...payoutDetails, network: e.target.value })}
                           className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-200 transition-all text-gray-800"
                         >
                           <option>MTN</option>
@@ -595,7 +615,7 @@ export default function WalletContent() {
                         <input
                           type="text"
                           value={payoutDetails.phone}
-                          onChange={e => setPayoutDetails({...payoutDetails, phone: e.target.value})}
+                          onChange={e => setPayoutDetails({ ...payoutDetails, phone: e.target.value })}
                           placeholder="080..."
                           className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-200 transition-all text-gray-800"
                         />

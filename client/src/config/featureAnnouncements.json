@@ -1,3 +1,4 @@
+
 [
   {
     "key": "mobcin-moetization",
@@ -38,5 +39,45 @@
     "primaryAction": "Open Messages",
     "href": "/chats",
     "accent": "violet"
+  },
+  {
+    "key": "verified-badge",
+    "type": "feature",
+    "eyebrow": "Get Verified",
+    "title": "Get your verified badge",
+    "body": "Stand out with a verified checkmark for just ₦500/month. Available once you enable Professional Mode and reach 50 posts.",
+    "primaryAction": "Get Verified",
+    "href": "/accountscentern",
+    "accent": "blue"
+  },
+  {
+    "key": "pro-mode-conversion",
+    "type": "feature",
+    "eyebrow": "Professional Mode",
+    "title": "Convert friends to followers",
+    "body": "Switch from Personal to Professional Mode seamlessly and automatically convert your existing friends into followers on the go.",
+    "primaryAction": "Switch to Pro",
+    "href": "/accountscenter",
+    "accent": "indigo"
+  },
+  {
+    "key": "repost-quote",
+    "type": "feature",
+    "eyebrow": "Timeline",
+    "title": "Reposting and quotes are here",
+    "body": "Share your favorite moments directly to your network or add your own commentary with Quote Posts.",
+    "primaryAction": "Try it now",
+    "href": "/",
+    "accent": "amber"
+  },
+  {
+    "key": "creator-insights",
+    "type": "feature",
+    "eyebrow": "Creator Tools",
+    "title": "Unlock deep profile insights",
+    "body": "Track your reach, see how your content is performing, and level up your growth with advanced creator tools.",
+    "primaryAction": "View Insights",
+    "href": "/accountscenter",
+    "accent": "rose"
   }
 ]
