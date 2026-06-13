@@ -9,6 +9,22 @@
     const isAuthPage = window.location.pathname.startsWith('/auth') || window.location.hash.startsWith('#/auth');
     if ((!user || user === "undefined") && !isAuthPage) {
       window.location.href = '/auth';
+    } else if (user && user !== "undefined" && !isAuthPage) {
+      // Background verification
+      (function() {
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+          ? 'http://localhost:5000' 
+          : 'https://textmob-provider-api-99ii.onrender.com';
+        fetch(API_URL + '/api/verify-user?username=' + encodeURIComponent(user))
+          .then(res => res.json())
+          .then(data => {
+            if (data.exists === false) {
+              localStorage.clear();
+              window.location.href = '/auth';
+            }
+          })
+          .catch(err => {}); // Fail silently
+      })();
     }
 
     // TextMob iframe script

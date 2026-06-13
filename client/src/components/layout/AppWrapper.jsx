@@ -20,6 +20,30 @@ export default function AppWrapper({ children }) {
     }
   }, [username]);
 
+  // Background verification to ensure currentUser still exists in database
+  useEffect(() => {
+    if (!username || username === 'undefined') return;
+
+    const verifyUser = async () => {
+      try {
+        const res = await apiFetch(`/api/verify-user?username=${encodeURIComponent(username)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.exists === false) {
+            console.warn(`User ${username} not found in database. Clearing local storage.`);
+            localStorage.clear();
+            window.location.href = '/auth';
+          }
+        }
+      } catch (err) {
+        // Silently handle error, maybe network issue
+        console.error('Error verifying user:', err);
+      }
+    };
+
+    verifyUser();
+  }, [username]);
+
   useEffect(() => {
     window.showNotification = ({ title, message, type = 'info', duration = 5000, afterClose }) => {
       const id = Date.now() + Math.random();

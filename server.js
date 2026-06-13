@@ -689,6 +689,30 @@ app.get("/api/turn-credentials", async (req, res) => {
     res.json({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
   }
 });
+// Verify if user exists in database
+app.get("/api/verify-user", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("username")
+      .eq("username", username)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[VERIFY-USER ERROR]", error);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    res.json({ exists: !!user });
+  } catch (err) {
+    console.error("[VERIFY-USER CRITICAL ERROR]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Login Endpoint (Modified to include phone)
 app.post("/login", async (req, res) => {
   try {
@@ -5668,7 +5692,7 @@ app.post("/api/migrate-friends", async (req, res) => {
 
     const { error: updateError } = await supabase
       .from('users')
-      .update({ following: newFollowing })
+      .update({ followers: newFollowing })
       .eq('id', user.id);
 
     if (updateError) throw updateError;
