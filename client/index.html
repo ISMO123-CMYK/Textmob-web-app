@@ -6,14 +6,11 @@
   <script>
     window.VITE_API_URL = "https://textmob-provider-api-99ii.onrender.com";
     const user = localStorage.getItem("currentUser");
-    const isAuthPage = window.location.pathname.startsWith('/auth') || window.location.hash.startsWith('#/auth');
-    if ((!user || user === "undefined") && !isAuthPage) {
-      window.location.href = '/auth';
-    } else if (user && user !== "undefined" && !isAuthPage) {
+    if (user && user !== "undefined") {
       // Background verification
-      (function() {
-        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-          ? 'http://localhost:5000' 
+      (function () {
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? 'http://localhost:5000'
           : 'https://textmob-provider-api-99ii.onrender.com';
         fetch(API_URL + '/api/verify-user?username=' + encodeURIComponent(user))
           .then(res => res.json())
@@ -23,7 +20,7 @@
               window.location.href = '/auth';
             }
           })
-          .catch(err => {}); // Fail silently
+          .catch(err => { }); // Fail silently
       })();
     }
 
@@ -90,6 +87,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="manifest" href="/manifest.json" />
+
+  <!-- Fonts: Space Grotesk (display) + Inter (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload"
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    as="style">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -113,39 +120,291 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
 
   <!-- SEO Meta -->
-  <meta name="title" content="Textmob – Africa's Social Network" />
+  <meta name="title" content="Textmob — Africa's #1 Social Network | Earn Real Money, Go Live, Connect" />
   <meta name="description"
-    content="Textmob is Africa's microblogging platform where every voice matters. Share thoughts, connect with like-minds, and join the conversation." />
+    content="Textmob is Africa's #1 microblogging platform. Post, go live, earn MobCoins convertible to real cash, message via Louda, watch Snaps, get verified with a blue tick, join groups, make voice calls — all in one app built for Africa by Ismail Gidado & Ibrahim Gidado." />
   <meta name="keywords"
-    content="Textmob, African social network, microblogging, Africa, connect, share, community, Nigerian social media, pan-african, social platform" />
-  <meta name="author" content="Textmob" />
-  <meta name="robots" content="index, follow" />
+    content="Textmob, African social network, microblogging Africa, earn money social media, MobCoins, live streaming Africa, Nigerian social media, pan-African platform, short form video Africa, get verified, blue tick, social media monetization, Snaps, Hall of Fame, Louda messaging, voice calls, groups, Textmob app, African Twitter alternative, Ismail Gidado, Ibrahim Gidado" />
+  <meta name="author" content="Textmob — Founded by Ismail Gidado & Ibrahim Gidado" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <link rel="canonical" href="https://textmob.web.app/" />
   <meta name="note"
-    content="Textmob (textmob.web.app) is not affiliated with TXTmob, TextMob SMS, or any SMS/text messaging service. Textmob is an African social network and microblogging platform." />
+    content="Textmob (textmob.web.app) is not affiliated with TXTmob, TextMob SMS, or any SMS/text messaging service. Textmob is an African social network and microblogging platform founded by Ismail Gidado and Ibrahim Gidado." />
+  <meta name="theme-color" content="#2563eb" />
 
   <!-- Open Graph -->
-  <meta property="og:title" content="Textmob – Africa's Social Network" />
+  <meta property="og:title" content="Textmob — Africa's #1 Social Network | Earn Real Money, Go Live, Connect" />
   <meta property="og:description"
-    content="Textmob is Africa's microblogging platform where every voice matters. Share thoughts, connect with like-minds, and join the conversation." />
+    content="Post your thoughts, go live, earn MobCoins you can convert to real cash, message via Louda, watch Snaps, get verified — all in one app built for Africa. Join Textmob today." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://textmob.web.app" />
+  <meta property="og:url" content="https://textmob.web.app/" />
   <meta property="og:site_name" content="Textmob" />
   <meta property="og:image"
     content="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
+  <meta property="og:locale" content="en_US" />
   <meta name="google-site-verification" content="1HK9t5P6Oum2egWt8HDZaeAcGQ7WHseZUxRDj3AUa1o" />
 
   <!-- Twitter Card -->
-  <meta name="twitter:title" content="Textmob – Africa's Social Network" />
+  <meta name="twitter:title" content="Textmob — Africa's #1 Social Network | Earn Real Money, Go Live, Connect" />
   <meta name="twitter:description"
-    content="Textmob is Africa's microblogging platform where every voice matters. Share thoughts, connect with like-minds, and join the conversation." />
+    content="Post, go live, earn MobCoins, message via Louda, watch Snaps, get verified — Africa's social network built by Africans." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@textmob" />
+  <meta name="twitter:creator" content="@textmob" />
   <meta name="twitter:image"
     content="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" />
 
-  <title>Textmob</title>
+  <title>Textmob — Africa's #1 Social Network | Earn Real Money, Go Live, Connect</title>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <!-- ══ JSON-LD Structured Data (Full SEO Schema) ══ -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://textmob.web.app/#organization",
+        "name": "Textmob",
+        "alternateName": ["TextMob", "Textmob Africa"],
+        "url": "https://textmob.web.app",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png",
+          "width": 512,
+          "height": 512
+        },
+        "description": "Textmob is Africa's #1 microblogging and social networking platform. Post, go live, earn MobCoins convertible to real cash, message via Louda, watch Snaps, get verified with a blue tick — all in one app built for Africa.",
+        "foundingDate": "2024",
+        "founder": [
+          {
+            "@type": "Person",
+            "@id": "https://textmob.web.app/#founder-ismail",
+            "name": "Ismail Gidado",
+            "jobTitle": "Co-Founder & Lead Developer",
+            "email": "gidadoismail24@gmail.com",
+            "knowsAbout": ["Web Development", "Software Engineering", "Full-Stack Development", "Firebase", "Node.js", "React"],
+            "areaServed": [{"@type": "Country", "name": "Nigeria"}],
+            "sameAs": [
+              "https://x.com/IToyin3446"
+            ],
+            "worksFor": { "@id": "https://textmob.web.app/#organization" }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://textmob.web.app/#founder-ibrahim",
+            "name": "Ibrahim Gidado",
+            "jobTitle": "Co-Founder & Product Lead",
+            "email": "sharpbrainspublishers@gmail.com",
+            "knowsAbout": ["Product Management", "Product Strategy", "User Experience", "Growth Marketing"],
+            "areaServed": [{"@type": "Country", "name": "Nigeria"}],
+            "sameAs": [],
+            "worksFor": { "@id": "https://textmob.web.app/#organization" }
+          }
+        ],
+        "sameAs": [
+          "https://x.com/IToyin3446",
+          "https://linkedin.com/company/textmob"
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "url": "https://textmob.web.app/about.html"
+        },
+        "knowsAbout": [
+          "Social Networking",
+          "Microblogging",
+          "Live Streaming",
+          "Digital Payments",
+          "Content Monetization",
+          "African Technology",
+          "Short-form Video",
+          "Real-time Messaging"
+        ]
+      },
+      {
+        "@type": "ProfessionalService",
+        "@id": "https://textmob.web.app/#service",
+        "name": "Textmob",
+        "url": "https://textmob.web.app",
+        "logo": "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png",
+        "image": "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png",
+        "description": "Africa's #1 microblogging platform and social network, enabling monetization via MobCoins, Louda messaging, Snaps, and livestreaming.",
+        "telephone": "+2348000000000",
+        "priceRange": "Free",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Lagos",
+          "addressRegion": "Lagos State",
+          "addressCountry": "NG"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": "6.5244",
+          "longitude": "3.3792"
+        },
+        "areaServed": [
+          {"@type": "City", "name": "Lagos"},
+          {"@type": "City", "name": "Abuja"},
+          {"@type": "City", "name": "Port Harcourt"},
+          {"@type": "City", "name": "Ibadan"},
+          {"@type": "Country", "name": "Nigeria"}
+        ],
+        "openingHoursSpecification": [{
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          "opens": "00:00",
+          "closes": "23:59"
+        }]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://textmob.web.app/#website",
+        "name": "Textmob",
+        "url": "https://textmob.web.app",
+        "description": "Africa's social network — post, go live, earn MobCoins, message via Louda, watch Snaps, get verified.",
+        "publisher": { "@id": "https://textmob.web.app/#organization" },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://textmob.web.app/search?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://textmob.web.app/#webapp",
+        "name": "Textmob",
+        "url": "https://textmob.web.app",
+        "applicationCategory": "SocialNetworkingApplication",
+        "operatingSystem": "Web, Android, iOS (PWA)",
+        "browserRequirements": "Requires JavaScript. Modern browser required.",
+        "description": "Africa's #1 social network — microblogging, live streaming, MobCoins monetization, Louda messaging, Snaps short videos, verification badges, voice calls, groups, and more.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock"
+        },
+        "creator": { "@id": "https://textmob.web.app/#organization" },
+        "featureList": [
+          "Microblogging — Post thoughts, images, and videos",
+          "Live Streaming — Go live and interact with your audience in real-time",
+          "MobCoins — Earn virtual coins convertible to real cash (NGN, USD)",
+          "Louda Messaging — End-to-end private messaging with voice notes",
+          "Snaps — TikTok-style short-form vertical video feed",
+          "Verification — Get a blue tick verified badge",
+          "Hall of Fame — Weekly leaderboard for top creators",
+          "Groups — Create and join interest-based communities",
+          "Voice Calls — Free in-app voice calling",
+          "Reactions — React to posts with emoji reactions",
+          "Dark Mode — Full dark mode support with system sync",
+          "Wallet — In-app wallet to track and withdraw MobCoins earnings",
+          "Profile Customization — Bios, profile pictures, banners",
+          "Bookmarks — Save posts for later",
+          "Notifications — Real-time push notifications"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "Textmob",
+        "applicationCategory": "SocialNetworkingApplication",
+        "operatingSystem": "Web, Android",
+        "url": "https://textmob.web.app",
+        "description": "Africa's social network — post, go live, earn MobCoins, message, watch Snaps, get verified.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@id": "https://textmob.web.app/#organization" }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://textmob.web.app/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Textmob?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Textmob is Africa's #1 microblogging and social networking platform. It lets you post thoughts, images, and videos, go live, earn MobCoins that convert to real cash, message friends via Louda, watch short-form Snaps videos, get verified with a blue tick, join groups, and make voice calls — all in one app built for Africa."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do MobCoins work on Textmob?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "MobCoins are Textmob's virtual currency. You earn them through engagement — receiving likes, reactions, and going live. Once you accumulate enough MobCoins, you can convert them to real money (NGN or USD) and withdraw to your bank account via the in-app Wallet. It's Textmob's way of rewarding creators for their content."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What are Snaps on Textmob?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Snaps is Textmob's TikTok-style short-form vertical video feed. Users can record, upload, and scroll through engaging short videos. It's a full-screen immersive video experience built right into the Textmob app."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I get verified on Textmob?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Textmob offers verification badges (blue tick) to authentic, notable accounts. You can apply for verification through the app once you meet the eligibility criteria. Verified accounts get a blue checkmark badge next to their name."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Who created Textmob?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Textmob was co-founded by Ismail Gidado and Ibrahim Gidado. They built the platform from the ground up to give Africa its own social network — a space where African voices are amplified and creators are rewarded."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Textmob free to use?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, Textmob is completely free to use. You can sign up, post, message, go live, watch Snaps, join groups, and earn MobCoins without paying anything. Premium features like verification badges may have separate requirements."
+            }
+          }
+        ]
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://textmob.web.app/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://textmob.web.app/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "About Textmob",
+            "item": "https://textmob.web.app/about.html"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Terms of Service",
+            "item": "https://textmob.web.app/terms.html"
+          },
+          {
+            "@type": "ListItem",
+            "position": 4,
+            "name": "Privacy Policy",
+            "item": "https://textmob.web.app/privacy.html"
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 
   <style>
     html,
@@ -362,6 +621,9 @@
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
     }
 
     h1,
@@ -370,10 +632,71 @@
     h4,
     h5,
     h6 {
-      font-family: 'Montserrat', 'Inter', sans-serif;
-      font-weight: 600;
-      line-height: 1.3;
+      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-weight: 700;
+      line-height: 1.15;
       margin-top: 0;
+      letter-spacing: -0.02em;
+    }
+
+    /* ═══ SILKY GLOBAL UX LAYER ═══════════════════════════════════════ */
+    /* Smooth cubic-bezier easing on all interactive elements */
+    *,
+    *::before,
+    *::after {
+      transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    [role="button"] {
+      transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Milky focus rings */
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #2563eb !important;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+      transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Silky page transitions */
+    #app>div {
+      animation: silkyFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes silkyFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Milky backdrop on modals/overlays */
+    .bg-black\/40 {
+      backdrop-filter: blur(8px) saturate(150%);
+      -webkit-backdrop-filter: blur(8px) saturate(150%);
+    }
+
+    /* Smooth image loading */
+    img {
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .scrollbar-thin {
@@ -539,11 +862,81 @@
 </head>
 
 <body class="bg-gray-100 text-gray-800">
-  <!-- SEO crawlers only -->
+  <!-- SEO: Crawler-visible content for bots that don't execute JavaScript -->
+  <noscript>
+    <div style="max-width:800px;margin:40px auto;padding:0 24px;font-family:Inter,sans-serif;color:#0f172a;">
+      <h1>Textmob — Africa's #1 Social Network</h1>
+      <p>Textmob is Africa's #1 microblogging and social networking platform, built by Africans for Africa. Founded by
+        <strong>Ismail Gidado</strong> and <strong>Ibrahim Gidado</strong>, Textmob empowers creators to share their
+        voice, build communities, and earn real money — all in one app.
+      </p>
+
+      <h2>Features</h2>
+      <ul>
+        <li><strong>Microblogging</strong> — Post thoughts, images, videos, and polls. Like, react, repost, and
+          bookmark.</li>
+        <li><strong>Live Streaming</strong> — Go live and interact with your audience in real-time. Viewers can gift
+          MobCoins.</li>
+        <li><strong>MobCoins &amp; Wallet</strong> — Earn virtual coins through engagement. Convert MobCoins to real
+          cash (NGN, USD) and withdraw via the in-app Wallet.</li>
+        <li><strong>Louda Messaging</strong> — Private messaging with voice notes, media sharing, and read receipts.
+        </li>
+        <li><strong>Snaps</strong> — TikTok-style short-form vertical video feed. Record, upload, and discover videos.
+        </li>
+        <li><strong>Verification</strong> — Get a blue tick verified badge to prove your identity and stand out.</li>
+        <li><strong>Hall of Fame</strong> — Weekly leaderboard celebrating the most active and engaging creators.</li>
+        <li><strong>Groups</strong> — Create and join interest-based communities to discuss topics you love.</li>
+        <li><strong>Voice Calls</strong> — Free in-app voice calling to stay connected.</li>
+        <li><strong>Dark Mode</strong> — Full dark mode with system sync, light, dark, and custom modes.</li>
+        <li><strong>Reactions</strong> — React to posts with a variety of emoji reactions.</li>
+        <li><strong>Bookmarks</strong> — Save posts for later reading.</li>
+        <li><strong>Notifications</strong> — Real-time push notifications for likes, follows, mentions, and messages.
+        </li>
+        <li><strong>Profile Customization</strong> — Set your bio, profile picture, banner, and display name.</li>
+      </ul>
+
+      <h2>Pages</h2>
+      <nav>
+        <ul>
+          <li><a href="https://textmob.web.app/">Home</a></li>
+          <li><a href="https://textmob.web.app/about.html">About Textmob</a></li>
+          <li><a href="https://textmob.web.app/terms.html">Terms of Service</a></li>
+          <li><a href="https://textmob.web.app/privacy.html">Privacy Policy</a></li>
+          <li><a href="https://textmob.web.app/auth">Sign Up / Login</a></li>
+        </ul>
+      </nav>
+
+      <h2>About the Founders</h2>
+      <p><strong>Ismail Gidado</strong> — Co-Founder &amp; Lead Developer. Built Textmob's full-stack architecture, from
+        the React frontend to the Node.js API and Firebase infrastructure.</p>
+      <p><strong>Ibrahim Gidado</strong> — Co-Founder. Drives product vision and strategy for Africa's social network.
+      </p>
+
+      <h2>Frequently Asked Questions</h2>
+      <h3>What is Textmob?</h3>
+      <p>Textmob is Africa's microblogging platform where every voice matters. Post, go live, earn MobCoins, message
+        friends, watch Snaps, and get verified — all in one app.</p>
+      <h3>How do MobCoins work?</h3>
+      <p>MobCoins are earned through engagement. Convert them to real money (NGN/USD) and withdraw to your bank account
+        via the in-app Wallet.</p>
+      <h3>Is Textmob free?</h3>
+      <p>Yes, Textmob is completely free to use. Sign up, post, message, go live, and earn without paying.</p>
+      <h3>Who created Textmob?</h3>
+      <p>Textmob was co-founded by Ismail Gidado and Ibrahim Gidado to give Africa its own social network.</p>
+    </div>
+  </noscript>
+  <!-- Hidden SEO content for crawlers that DO execute JS -->
   <div style="position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;" aria-hidden="true">
-    <h1>Textmob – Africa's Social Network</h1>
-    <p>Textmob is an African microblogging and social networking platform built for Africans to share thoughts, connect
-      with like-minded people, and amplify African voices across the continent and diaspora.</p>
+    <h1>Textmob — Africa's #1 Social Network | Earn Real Money, Go Live, Connect</h1>
+    <p>Textmob is Africa's #1 microblogging and social networking platform. Post, go live, earn MobCoins convertible to
+      real cash, message via Louda, watch Snaps, get verified with a blue tick, join groups, make voice calls — all in
+      one app built for Africa by Ismail Gidado and Ibrahim Gidado.</p>
+    <nav aria-label="Site pages">
+      <a href="/about.html">About Textmob</a>
+      <a href="/terms.html">Terms of Service</a>
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/auth">Sign Up</a>
+    </nav>
   </div>
 
   <div id="app"></div>
@@ -563,16 +956,16 @@
     })();
   </script>
   <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-JC2MD4Q2J0"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC2MD4Q2J0"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
 
-  gtag('config', 'G-JC2MD4Q2J0');
-</script> 
+    gtag('config', 'G-JC2MD4Q2J0');
+  </script>
   <script type="module" src="/src/main.jsx"></script>
-  
+
   <script>
     (function () {
       // Skip ALL video auto-pause logic on live stream pages (viewer + streamer)

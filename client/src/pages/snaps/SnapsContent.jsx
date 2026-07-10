@@ -4,6 +4,7 @@ import { apiFetch, API_BASE_URL } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import Lexum from '../../router/LexumRouter';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
+import GiftCoinsModal from '../../components/ui/GiftCoinsModal';
 import { useSnapUpload } from '../../utils/SnapUploadContext';
 
 // Time formatter function fi
@@ -19,6 +20,43 @@ function fi(e) {
   } else {
     return `${Math.floor(t / 86400)}d`;
   }
+}
+
+/* SnapText – truncated snap text with "See more" */
+function SnapText({ text }) {
+  var [expanded, setExpanded] = useState(false);
+  var LIMIT = 150;
+  var isLong = text && text.length > LIMIT;
+  var display = !expanded && isLong ? text.slice(0, LIMIT) + '…' : text;
+  return (
+    <>
+      <p
+        style={{
+          color: 'rgba(255,255,255,.9)',
+          fontSize: 13,
+          lineHeight: 1.5,
+          textShadow: '0 1px 3px rgba(0,0,0,.5)'
+        }}
+      >
+        {display}
+      </p>
+      {isLong && (
+        <button onClick={function (e) { e.stopPropagation(); setExpanded(!expanded); }} style={{
+          background: 'none',
+          border: 'none',
+          color: 'rgba(255,255,255,.7)',
+          fontSize: 12,
+          fontWeight: 600,
+          cursor: 'pointer',
+          padding: 0,
+          marginTop: 2,
+          textShadow: '0 1px 3px rgba(0,0,0,.5)'
+        }}>
+          {expanded ? 'Show less' : 'See more'}
+        </button>
+      )}
+    </>
+  );
 }
 
 // Color encoder function mi
@@ -210,38 +248,43 @@ function useMentions(value, inputRef) {
       return;
     }
     let selStart = inputRef.current.selectionStart || 0;
-    let atIdx = value.lastIndexOf('@', selStart - 1);
-    let hashIdx = value.lastIndexOf('#', selStart - 1);
-    let maxIdx = Math.max(atIdx, hashIdx);
-    if (maxIdx === -1) {
+    let before = value.slice(0, selStart);
+    let mentionMatch = before.match(/@([\w.]*)$/);
+    let hashMatch = before.match(/#([\w-]*)$/);
+
+    if (mentionMatch && mentionMatch[1].length >= 1) {
+      let q = mentionMatch[0];
+      let start = selStart - q.length;
+      setQueryInfo({ symbol: '@', start, end: selStart, query: q });
+      let timer = setTimeout(async () => {
+        try {
+          let res = await apiFetch(`/search-users?q=${encodeURIComponent(mentionMatch[1])}&limit=6`);
+          if (res.ok) {
+            let data = await res.json();
+            setSuggestions((Array.isArray(data) ? data : []).map(u => ({ type: 'user', ...u })));
+            setActiveIndex(0);
+          }
+        } catch {}
+      }, 100);
+      return () => clearTimeout(timer);
+    } else if (hashMatch && hashMatch[1].length >= 1) {
+      let q = hashMatch[0];
+      let start = selStart - q.length;
+      setQueryInfo({ symbol: '#', start, end: selStart, query: q });
+      let timer = setTimeout(async () => {
+        try {
+          let res = await apiFetch(`/search-suggest?query=${encodeURIComponent(q)}&currentUsername=${localStorage.currentUser || ''}`);
+          if (res.ok) {
+            setSuggestions((await res.json()) || []);
+            setActiveIndex(0);
+          }
+        } catch {}
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
       setSuggestions([]);
       setQueryInfo(null);
-      return;
     }
-    let textAfterSymbol = value.slice(maxIdx, selStart);
-    let charBeforeSymbol = value[maxIdx - 1];
-    let isStart = maxIdx === 0 || /\s/.test(charBeforeSymbol);
-    if (/\s/.test(textAfterSymbol) || !isStart) {
-      setSuggestions([]);
-      setQueryInfo(null);
-      return;
-    }
-    setQueryInfo({
-      symbol: value[maxIdx],
-      start: maxIdx,
-      end: selStart,
-      query: textAfterSymbol
-    });
-    let timer = setTimeout(async () => {
-      try {
-        let res = await apiFetch(`/search-suggest?query=${encodeURIComponent(textAfterSymbol)}&currentUsername=${localStorage.currentUser || ''}`);
-        if (res.ok) {
-          setSuggestions((await res.json()) || []);
-          setActiveIndex(0);
-        }
-      } catch {}
-    }, 100);
-    return () => clearTimeout(timer);
   }, [value]);
 
   return {
@@ -648,6 +691,103 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
 }
 
 // Comments Sheet Panel Component
+// Comment row component for TikTok-style comments
+function CommentRow({ comment, snapUsername }) {
+  let profile = Nn(comment.username);
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 10,
+        marginBottom: 16,
+        alignItems: 'flex-start',
+        cursor: 'pointer'
+      }}
+      onClick={() => Lexum.navigate(`/@${comment.username}`)}
+    >
+      {profile?.profile_pic ? (
+        <img
+          src={profile.profile_pic}
+          alt={comment.username}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            objectFit: 'cover',
+            flexShrink: 0
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            background: mi(comment.username),
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 11,
+            fontWeight: 800,
+            color: '#fff',
+            letterSpacing: '.5px'
+          }}
+        >
+          {(profile?.fullname || comment.username || '?').slice(0, 2).toUpperCase()}
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span
+            style={{
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 700
+            }}
+          >
+            {profile?.fullname || comment.username}
+          </span>
+          {comment.username === snapUsername && (
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 800,
+                color: '#2563eb',
+                background: 'rgba(37,99,235,.2)',
+                padding: '1px 5px',
+                borderRadius: 4,
+                letterSpacing: '.5px'
+              }}
+            >
+              CREATOR
+            </span>
+          )}
+          <span
+            style={{
+              color: 'rgba(255,255,255,.35)',
+              fontSize: 11,
+              marginLeft: 'auto'
+            }}
+          >
+            {fi(comment.createdAt)}
+          </span>
+        </div>
+        <p
+          style={{
+            color: 'rgba(255,255,255,.85)',
+            fontSize: 13,
+            marginTop: 3,
+            lineHeight: 1.45
+          }}
+        >
+          {comment.text}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function CommentsPanel({ snap, username, onClose, onAddComment }) {
   let [commentText, setCommentText] = useState('');
   let commentInputRef = useRef(null);
@@ -724,12 +864,12 @@ function CommentsPanel({ snap, username, onClose, onAddComment }) {
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex flex-col justify-end snap-fade"
+      className="fixed inset-0 z-[300] flex flex-col justify-end snap-fade md:items-center md:justify-center"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
-        className="relative z-10 flex flex-col snap-slide"
+        className="relative z-10 flex flex-col snap-slide md:rounded-2xl md:max-w-lg md:max-h-[70vh] md:w-full"
         style={{
           background: '#111',
           borderRadius: '20px 20px 0 0',
@@ -815,98 +955,13 @@ function CommentsPanel({ snap, username, onClose, onAddComment }) {
               No comments yet, be the first!
             </div>
           ) : (
-            comments.map((comment, index) => {
-              let userColor = mi(comment.username);
-              let initials = (comment.username || '?').slice(0, 2).toUpperCase();
-              return (
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 10,
-                    marginBottom: 16,
-                    alignItems: 'flex-start'
-                  }}
-                  key={index}
-                >
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      background: userColor,
-                      flexShrink: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: '#fff',
-                      letterSpacing: '.5px'
-                    }}
-                  >
-                    {initials}
-                  </div>
-                  <div
-                    style={{
-                      flex: 1,
-                      minWidth: 0
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'baseline',
-                        gap: 6
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: '#fff',
-                          fontSize: 12,
-                          fontWeight: 700
-                        }}
-                      >
-                        @{comment.username}
-                      </span>
-                      {comment.username === snap?.username && (
-                        <span
-                          style={{
-                            fontSize: 9,
-                            fontWeight: 800,
-                            color: '#2563eb',
-                            background: 'rgba(37,99,235,.2)',
-                            padding: '1px 5px',
-                            borderRadius: 4,
-                            letterSpacing: '.5px'
-                          }}
-                        >
-                          CREATOR
-                        </span>
-                      )}
-                      <span
-                        style={{
-                          color: 'rgba(255,255,255,.35)',
-                          fontSize: 11,
-                          marginLeft: 'auto'
-                        }}
-                      >
-                        {fi(comment.createdAt)}
-                      </span>
-                    </div>
-                    <p
-                      style={{
-                        color: 'rgba(255,255,255,.85)',
-                        fontSize: 13,
-                        marginTop: 3,
-                        lineHeight: 1.45
-                      }}
-                    >
-                      {comment.text}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
+            comments.map((comment, index) => (
+              <CommentRow
+                key={comment.id || index}
+                comment={comment}
+                snapUsername={snap?.username}
+              />
+            ))
           )}
         </div>
         <div
@@ -1023,7 +1078,7 @@ export function SnapPlayer({ snap, username, isActive, onLike, onProfileClick })
 }
 
 // Individual Snap Item Player
-function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComments, isFeed }) {
+function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComments, onGift, isFeed }) {
   let videoRef = useRef(null);
   let containerRef = useRef(null);
   let [currentSnap, setCurrentSnap] = useState(snap);
@@ -1385,22 +1440,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
             onUpdate={() => {}}
           />
         </div>
-        {currentSnap?.text && (
-          <p
-            style={{
-              color: 'rgba(255,255,255,.9)',
-              fontSize: 13,
-              lineHeight: 1.5,
-              textShadow: '0 1px 3px rgba(0,0,0,.5)',
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
-            }}
-          >
-            {currentSnap.text}
-          </p>
-        )}
+        {currentSnap?.text && <SnapText text={currentSnap.text} />}
       </div>
       <div
         className="absolute z-20 flex flex-col items-center gap-5"
@@ -1472,6 +1512,27 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
         <button
           onClick={e => {
             e.stopPropagation();
+            if (!username) { window.showAuthPrompt?.('Log in to send gifts'); return; }
+            onGift?.(currentSnap);
+          }}
+          className="flex flex-col items-center gap-1"
+          aria-label="Gift Mobcoins"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            style={{
+              width: 25,
+              height: 25,
+              fill: '#fff',
+              filter: 'drop-shadow(0 1px 4px rgba(0,0,0,.4))'
+            }}
+          >
+            <path d="M9.375 3a1.875 1.875 0 0 0 0 3.75h1.875v4.5H3.375A1.875 1.875 0 0 1 1.5 9.375v-.75c0-1.036.84-1.875 1.875-1.875h3.193A3.375 3.375 0 0 1 12 2.753a3.375 3.375 0 0 1 5.432 3.997h3.943c1.035 0 1.875.84 1.875 1.875v.75c0 1.036-.84 1.875-1.875 1.875H12.75v-4.5h1.875a1.875 1.875 0 1 0-1.875-1.875V6.75h-1.5V4.875C11.25 3.839 10.41 3 9.375 3ZM11.25 12.75H3v6.75a2.25 2.25 0 0 0 2.25 2.25h6v-9ZM12.75 12.75v9h6.75a2.25 2.25 0 0 0 2.25-2.25v-6.75h-9Z" />
+          </svg>
+        </button>
+        <button
+          onClick={e => {
+            e.stopPropagation();
             handleShareClick();
           }}
           className="flex flex-col items-center gap-1"
@@ -1526,9 +1587,15 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
 function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username, onLike, onCreateSnap, onLoadMore }) {
   let [s, c] = useState(startIndex);
   let [l, u] = useState(null);
+  let [giftTarget, setGiftTarget] = useState(null);
   let [d, f] = useState(initialSnaps);
   let p = useRef(null);
   let m = useRef({ y: 0, t: 0 });
+
+  function handleOpenGift(snapObj) {
+    if (!snapObj) return;
+    setGiftTarget(d.find(item => item.id === snapObj.id) || snapObj);
+  }
 
   useEffect(() => {
     f(initialSnaps);
@@ -1668,6 +1735,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
                     onLike={onLike}
                     onProfileClick={target => Lexum.navigate(`/@${target}`)}
                     onOpenComments={handleOpenComments}
+                    onGift={handleOpenGift}
                   />
                 ) : (
                   <div className="w-full h-full bg-black" />
@@ -1876,6 +1944,14 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
           onAddComment={handleAddComment}
         />
       )}
+      {giftTarget && (
+        <GiftCoinsModal
+          open={!!giftTarget}
+          onClose={() => setGiftTarget(null)}
+          recipientUsername={giftTarget.username}
+          postId={giftTarget.id}
+        />
+      )}
     </div>
   );
 }
@@ -1942,29 +2018,31 @@ export default function SnapsContent() {
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
-      apiFetch(`/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5`)
-        .then(res => res.ok ? res.json() : Promise.reject('Failed to load snaps'))
-        .then(data => {
-          let snapList = (data.snaps || data || []).map(snap => ({
-            ...snap,
-            likes: Array.isArray(snap.likes) ? snap.likes : [],
-            comments: Array.isArray(snap.comments) ? snap.comments : []
-          }));
-          setSnaps(prev => {
-            let prevIds = new Set(prev.map(s => s.id));
-            let newSnaps = snapList.filter(s => !prevIds.has(s.id));
-            return [...prev, ...newSnaps];
-          });
-        })
-        .catch(err => setErrorMsg(String(err)))
-        .finally(() => setLoading(false));
-    }
+    let url = currentUser
+      ? `/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5`
+      : `/snaps-feed?limit=5`;
+    apiFetch(url)
+      .then(res => res.ok ? res.json() : Promise.reject('Failed to load snaps'))
+      .then(data => {
+        let snapList = (data.snaps || data || []).map(snap => ({
+          ...snap,
+          likes: Array.isArray(snap.likes) ? snap.likes : [],
+          comments: Array.isArray(snap.comments) ? snap.comments : []
+        }));
+        setSnaps(prev => {
+          let prevIds = new Set(prev.map(s => s.id));
+          let newSnaps = snapList.filter(s => !prevIds.has(s.id));
+          return [...prev, ...newSnaps];
+        });
+      })
+      .catch(err => setErrorMsg(String(err)))
+      .finally(() => setLoading(false));
   }, [currentUser]);
 
   let handleLoadMore = async () => {
     try {
-      let res = await apiFetch(`/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5`);
+      let url = currentUser ? `/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5` : `/snaps-feed?limit=5`;
+      let res = await apiFetch(url);
       let data = await res.json();
       if (data.snaps) {
         setSnaps(prev => {
@@ -1979,6 +2057,7 @@ export default function SnapsContent() {
   };
 
   async function handleLike(snapId) {
+    if (!currentUser) { window.showAuthPrompt?.('Log in to like snaps'); return; }
     try {
       await apiFetch('/like-post', {
         method: 'POST',
@@ -2108,24 +2187,43 @@ export default function SnapsContent() {
             textAlign: 'center'
           }}
         >
-          Be the first to share a moment
+          {currentUser ? 'Be the first to share a moment' : 'Log in to see snaps from people you know'}
         </p>
-        <button
-          onClick={() => setIsCreatorOpen(true)}
-          style={{
-            marginTop: 8,
-            padding: '12px 28px',
-            borderRadius: 28,
-            background: '#2563eb',
-            color: '#fff',
-            fontSize: 13,
-            fontWeight: 800,
-            border: 'none',
-            cursor: 'pointer'
-          }}
-        >
-          ✦ Create First Snap
-        </button>
+        {currentUser ? (
+          <button
+            onClick={() => setIsCreatorOpen(true)}
+            style={{
+              marginTop: 8,
+              padding: '12px 28px',
+              borderRadius: 28,
+              background: '#2563eb',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 800,
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            ✦ Create First Snap
+          </button>
+        ) : (
+          <button
+            onClick={() => { window.Lexum?.navigate('/auth'); }}
+            style={{
+              marginTop: 8,
+              padding: '12px 28px',
+              borderRadius: 28,
+              background: '#2563eb',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 800,
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            Log in
+          </button>
+        )}
         <button
           onClick={() => window.history.back()}
           style={{
@@ -2157,7 +2255,7 @@ export default function SnapsContent() {
         onClose={() => window.history.back()}
         username={currentUser}
         onLike={handleLike}
-        onCreateSnap={() => setIsCreatorOpen(true)}
+        onCreateSnap={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to create snaps'); return; } setIsCreatorOpen(true); }}
         onLoadMore={handleLoadMore}
       />
       <NewSnapModal

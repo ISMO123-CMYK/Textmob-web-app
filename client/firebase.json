@@ -13,6 +13,13 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/about",
+        "destination": "/about.html",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
         "source": "**",

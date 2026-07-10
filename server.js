@@ -9,7 +9,6 @@ const socketIo = require("socket.io");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("ffmpeg-static");
 // const { PassThrough } = require("stream");
-const Fuse = require("fuse.js");
 const path = require("path");
 const fs = require("fs").promises;
 const cors = require("cors");
@@ -495,6 +494,9 @@ async function triggerNotification(recipient, type, options = {}) {
         read: false,
         link: options.link || "/",
         timestamp: new Date().toISOString(),
+        type: type,
+        sender: options.sender,
+        senderPic: options.senderPic,
       });
     }
 
@@ -548,7 +550,7 @@ function sendNotificationEmail(to, subject, message) {
 
             <tr>
               <td align="center" style="background:#fafafa; padding:20px 30px; font-size:13px; color:#777; line-height:1.6;">
-                <a href="https://textmob.web.app/about" style="color:#1E90FF; text-decoration:none; margin:0 10px;">About</a> | 
+                <a href="https://textmob.web.app/about.html" style="color:#1E90FF; text-decoration:none; margin:0 10px;">About</a> | 
                 © 2026 Textmob. All rights reserved.
               </td>
             </tr>
@@ -594,7 +596,7 @@ cloudinary.config({
 });
 
 app.use(express.json());
-async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin update") {
+async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin update", link = "/wallet", extraMsg = "") {
   const { data: user, error: userErr } = await supabase
     .from("users")
     .select("mobcoins, email, fullname, username")
@@ -619,8 +621,8 @@ async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin u
         : `You spent ${Math.abs(amount)} Mobcoins.`;
 
     triggerNotification(userId, 'mobcoins', {
-      msg: `${message} (${reason})`,
-      link: `/wallet`,
+      msg: extraMsg || `${message} (${reason})`,
+      link: link,
       subject: "💰 Mobcoin Activity",
       html: `
           <p style="font-size:16px; line-height:1.6; color:#333;">
@@ -630,7 +632,7 @@ async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin u
             There has been an update to your <strong style="color:#1E90FF;">Mobcoin</strong> balance:
           </p>
           <p style="font-size:16px; line-height:1.6; color:#333; background:#f4f7fb; padding:12px 16px; border-radius:8px;">
-            ${message}
+            ${extraMsg || message}
           </p>
           <p style="font-size:15px; line-height:1.6; color:#555;">
             <em>Reason:</em> ${reason}
@@ -1462,6 +1464,7 @@ app.post("/follow", async (req, res) => {
       triggerNotification(username, 'followers', {
         msg: `${currentUsername} started following you`,
         link: `/@${currentUsername}`,
+        sender: currentUsername,
         subject: "👤 New Follower on Textmob!",
         html: `
             <p style="font-size:16px; line-height:1.6; color:#333;">
@@ -1543,6 +1546,7 @@ app.post("/friend", async (req, res) => {
       triggerNotification(username, 'followers', {
         msg: `${currentUsername} added you as a friend`,
         link: `/@${currentUsername}`,
+        sender: currentUsername,
         subject: "🤝 New Friend on Textmob!",
         html: `
             <p style="font-size:16px; line-height:1.6; color:#333;">
@@ -1701,88 +1705,129 @@ app.get("/users/check-milestone", async (req, res) => {
   }
 });
 
-// Utility function to calculate Levenshtein Distance
-function levenshtein(str1, str2) {
-  const len1 = str1.length;
-  const len2 = str2.length;
-  const dp = Array(len1 + 1).fill().map(() => Array(len2 + 1).fill(0));
-
-  for (let i = 0; i <= len1; i++) dp[i][0] = i;
-  for (let j = 0; j <= len2; j++) dp[0][j] = j;
-
-  for (let i = 1; i <= len1; i++) {
-    for (let j = 1; j <= len2; j++) {
-      dp[i][j] = Math.min(
-        dp[i - 1][j] + 1,  // deletion
-        dp[i][j - 1] + 1,  // insertion
-        dp[i - 1][j - 1] + (str1[i - 1] === str2[j - 1] ? 0 : 1)  // substitution
-      );
-    }
-  }
-
-  return dp[len1][len2];
-}
-
-// Inverted Index Search Engine
-class InvertedIndex {
+// ─── SmartSearchEngine: token-by-token, key-by-key, AI-like search ───
+class SmartSearchEngine {
   constructor() {
-    this.index = {};
-    this.docs = [];
+    this.docs = [];             // { id, text, metadata }
+    this.tokenIndex = {};       // token -> Set<docId>
+    this.prefixIndex = {};      // 1-4 char prefix -> Set<docId>
   }
 
-  // Tokenize text (split words and convert to lowercase)
   tokenize(text) {
     return text.toLowerCase().split(/\W+/).filter(Boolean);
   }
 
-  // Index a document with its unique ID
-  indexDocument(docId, text) {
+  indexDocument(docId, text, metadata = {}) {
+    this.docs.push({ id: docId, text, metadata });
     const tokens = this.tokenize(text);
     tokens.forEach(token => {
-      if (!this.index[token]) this.index[token] = [];
-      if (!this.index[token].includes(docId)) this.index[token].push(docId);
+      if (!this.tokenIndex[token]) this.tokenIndex[token] = new Set();
+      this.tokenIndex[token].add(docId);
+      for (let i = 1; i <= Math.min(4, token.length); i++) {
+        const prefix = token.slice(0, i);
+        if (!this.prefixIndex[prefix]) this.prefixIndex[prefix] = new Set();
+        this.prefixIndex[prefix].add(docId);
+      }
     });
-    this.docs.push({ id: docId, text });
   }
 
-  // Perform a fuzzy search (with Levenshtein distance) and return relevant documents
-  search(query, fuzziness = 2) {
-    const queryTokens = this.tokenize(query);
-    let results = [];
+  // Score how well a document's text matches a single query token
+  scoreToken(docText, queryToken) {
+    const lowered = docText.toLowerCase();
+    const words = this.tokenize(lowered);
+    let best = 0;
 
-    // Look for documents that match the query
-    this.docs.forEach(doc => {
-      let score = 0;
-
-      queryTokens.forEach(token => {
-        let tokenMatch = false;
-
-        // Check if any token in the document is a fuzzy match
-        this.tokenize(doc.text).forEach(docToken => {
-          if (levenshtein(token, docToken) <= fuzziness) {
-            tokenMatch = true;
-            score += 1;  // Increment score based on matches
-          }
-        });
-
-        // If we find a match, add to results
-        if (tokenMatch) {
-          results.push({ docId: doc.id, score });
+    // Exact full text match
+    if (lowered === queryToken) return 100;
+    // Exact token match
+    if (words.includes(queryToken)) return 90;
+    // Starts with (on any word)
+    for (const w of words) {
+      if (w === queryToken) return 90;
+      if (w.startsWith(queryToken)) best = Math.max(best, 60);
+      if (w.includes(queryToken)) best = Math.max(best, 35);
+    }
+    // Contains in full text
+    if (lowered.includes(queryToken)) best = Math.max(best, 25);
+    // Character-by-character progressive match
+    for (let i = 2; i <= queryToken.length; i++) {
+      const partial = queryToken.slice(0, i);
+      for (const w of words) {
+        if (w.startsWith(partial)) {
+          best = Math.max(best, 10 + i * 2);
         }
-      });
-    });
+      }
+    }
+    return best;
+  }
 
-    // Sort results by score (highest first)
+  search(query) {
+    const queryTokens = this.tokenize(query);
+    if (!queryTokens.length) return [];
+
+    // Phase 1: Find candidate doc IDs using prefix/token index
+    const firstToken = queryTokens[0];
+    let candidates = new Set();
+
+    // Try exact token match first, then prefix
+    if (this.tokenIndex[firstToken]) {
+      candidates = new Set(this.tokenIndex[firstToken]);
+    } else {
+      // Find via prefix index
+      for (let len = Math.min(4, firstToken.length); len >= 1; len--) {
+        const prefix = firstToken.slice(0, len);
+        if (this.prefixIndex[prefix]) {
+          candidates = new Set(this.prefixIndex[prefix]);
+          break;
+        }
+      }
+    }
+
+    // If no candidates found via index, scan all docs
+    if (!candidates.size) {
+      this.docs.forEach(d => candidates.add(d.id));
+    }
+
+    // Phase 2: Score each candidate doc against all query tokens
+    const results = [];
+
+    for (const docId of candidates) {
+      const doc = this.docs.find(d => d.id === docId);
+      if (!doc) continue;
+
+      let totalScore = 0;
+      let matchedTokens = 0;
+      const docText = doc.text;
+
+      for (let ti = 0; ti < queryTokens.length; ti++) {
+        const token = queryTokens[ti];
+        const tokenWeight = 1.0 - (ti * 0.08); // earlier tokens weigh more
+        const tokenScore = this.scoreToken(docText, token);
+        if (tokenScore > 0) {
+          matchedTokens++;
+          totalScore += tokenScore * tokenWeight;
+        }
+      }
+
+      // Bonus if ALL query tokens matched
+      if (matchedTokens === queryTokens.length) {
+        totalScore *= 1.5;
+      }
+
+      if (totalScore > 0) {
+        results.push({ doc, score: Math.round(totalScore * 100) / 100 });
+      }
+    }
+
+    // Phase 3: Sort by score descending
     results.sort((a, b) => b.score - a.score);
-    return results.map(result => {
-      return { ...this.docs.find(doc => doc.id === result.docId), score: result.score };
-    });
+    return results;
   }
 }
 
-// Initialize inverted index instances
-const userSearchEngine = new InvertedIndex();
-const postSearchEngine = new InvertedIndex();
+// Search engine instances
+const userSearchEngine = new SmartSearchEngine();
+const postSearchEngine = new SmartSearchEngine();
 
 // Pre-populate user search engine
 async function indexUsers() {
@@ -1796,8 +1841,8 @@ async function indexUsers() {
   }
 
   data.forEach(user => {
-    const docText = `${user.username} ${user.fullname} ${user.biography || ''} ${user.profile_pic || ''}`;
-    userSearchEngine.indexDocument(user.id, docText);
+    const docText = `${user.username} ${user.fullname} ${user.biography || ''}`;
+    userSearchEngine.indexDocument(user.username, docText, { id: user.id, username: user.username, fullname: user.fullname, profile_pic: user.profile_pic, biography: user.biography });
   });
 }
 
@@ -1805,7 +1850,7 @@ async function indexUsers() {
 async function indexPosts() {
   const { data, error } = await supabase2
     .from('Posts')
-    .select('id, username, text, media, likes, comments, created_at, type');
+    .select('id, username, text, media, likes, comments, created_at, type, hashtags');
 
   if (error) {
     console.error("Error fetching posts:", error);
@@ -1813,8 +1858,8 @@ async function indexPosts() {
   }
 
   data.forEach(post => {
-    const docText = `${post.text || ''} ${post.username} ${post.hashtags ? post.hashtags.join(' ') : ''}`;
-    postSearchEngine.indexDocument(post.id, docText);
+    const docText = `${post.text || ''} ${post.username} ${Array.isArray(post.hashtags) ? post.hashtags.join(' ') : ''}`;
+    postSearchEngine.indexDocument(String(post.id), docText, { id: post.id, username: post.username, text: post.text, created_at: post.created_at, type: post.type });
   });
 }
 
@@ -1822,18 +1867,14 @@ async function indexPosts() {
 indexUsers();
 indexPosts();
 
-// Original /search route using Fuse.js for users only
+// ─── /search – user-only search (SmartSearchEngine) ───
 app.get("/search", async (req, res) => {
   try {
     const { query, currentUsername } = req.query;
-
     if (!query || !currentUsername) {
-      return res
-        .status(400)
-        .json({ error: "Both `query` and `currentUsername` are required" });
+      return res.status(400).json({ error: "Both `query` and `currentUsername` are required" });
     }
 
-    // Fetch your own relationships (friends + following)
     const { data: you, error: youErr } = await supabase
       .from("users")
       .select("friends, following")
@@ -1844,71 +1885,66 @@ app.get("/search", async (req, res) => {
       return res.status(404).json({ error: "Current user not found" });
     }
 
-    const yourFriends = you.friends || [];
-    const yourFollowing = you.following || [];
+    const yourFriends = new Set(you.friends || []);
+    const yourFollowing = new Set(you.following || []);
 
-    // Fetch all users
-    const { data, error } = await supabase
+    // Fetch all users for relation enrichment
+    const { data: users, error } = await supabase
       .from("users")
-      .select(`
-        username,
-        fullname,
-        profile_pic,
-        profile_type,
-        friends,
-        followers,
-        verified
-      `);
+      .select("username, fullname, profile_pic, profile_type, friends, followers, verified");
 
     if (error) {
-      console.error("Error fetching users:", error);
       return res.status(500).json({ error: "Error fetching users" });
     }
 
-    // Run Fuse.js fuzzy search on the full set
-    const fuse = new Fuse(data, {
-      keys: ["username", "fullname"],
-      threshold: 0.3,
-    });
-    const rawResults = fuse.search(query);
+    const userMap = {};
+    users.forEach(u => { userMap[u.username] = u; });
 
-    if (rawResults.length === 0) {
-      return res.status(200).json([]);  // no matches
-    }
+    // SmartSearchEngine results
+    const rawResults = userSearchEngine.search(query);
 
-    // Map each match to the minimal shape your frontend needs
-    const results = rawResults.map(r => {
-      const u = r.item;
-      const isOrg = u.profile_type.toLowerCase() === "organisation";
-      let relation;
+    const results = [];
+    const seen = new Set();
 
-      if (isOrg) {
-        relation = yourFollowing.includes(u.username)
-          ? "following"
-          : "not_following";
-      } else {
-        relation = yourFriends.includes(u.username)
-          ? "friended"
-          : "not_friended";
-      }
+    rawResults.forEach(r => {
+      const doc = r.doc;
+      const username = doc.metadata.username;
+      if (!username || seen.has(username)) return;
+      seen.add(username);
 
-      return {
+      const u = userMap[username];
+      if (!u) return;
+
+      const isOrg = (u.profile_type || "").toLowerCase() === "organisation";
+
+      // Apply relation/social boost to the engine score
+      let finalScore = r.score;
+      if (!isOrg && yourFriends.has(username)) finalScore *= 2;
+      if (isOrg && yourFollowing.has(username)) finalScore *= 1.5;
+      if (u.verified) finalScore *= 1.3;
+
+      results.push({
         type: "user",
         username: u.username,
         fullname: u.fullname,
         profile_pic: u.profile_pic,
         profile_type: isOrg ? "organisation" : "individual",
-        relation
-      };
+        relation: isOrg
+          ? (yourFollowing.has(u.username) ? "following" : "not_following")
+          : (yourFriends.has(u.username) ? "friended" : "not_friended"),
+        score: Math.round(finalScore)
+      });
     });
 
-    return res.json(results);
+    results.sort((a, b) => b.score - a.score);
+    res.json(results);
   } catch (err) {
     console.error("Search Error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
+// ─── /general/search – combined user + post search (SmartSearchEngine, no limits) ───
 app.get("/general/search", async (req, res) => {
   try {
     const { query, currentUsername } = req.query;
@@ -1916,10 +1952,6 @@ app.get("/general/search", async (req, res) => {
       return res.status(400).json({ error: "Both `query` and `currentUsername` are required" });
     }
 
-    const qLower = query.toLowerCase().trim();
-    const queryWords = qLower.split(/\s+/).filter(w => w.length > 0);
-
-    // --- Load current user's relationships ---
     const { data: you, error: youErr } = await supabase
       .from("users")
       .select("friends, following")
@@ -1930,211 +1962,91 @@ app.get("/general/search", async (req, res) => {
       return res.status(404).json({ error: "Current user not found" });
     }
 
-    function toNameSet(arr) {
-      if (!Array.isArray(arr)) return new Set();
-      const s = new Set();
-      for (let item of arr) {
-        if (typeof item === "string") s.add(item);
-        else if (item && item.username) s.add(item.username);
-        else if (item && (typeof item.id !== "undefined")) s.add(String(item.id));
-      }
-      return s;
-    }
+    const yourFriends = new Set(you.friends || []);
+    const yourFollowing = new Set(you.following || []);
 
-    const yourFriendsSet = toNameSet(you.friends);
-    const yourFollowingSet = toNameSet(you.following);
+    // Fetch users and posts for enrichment
+    const [{ data: users }, { data: posts }] = await Promise.all([
+      supabase.from("users").select("username, fullname, profile_pic, profile_type, verified"),
+      supabase2.from("Posts").select("id, username, text, media, likes, comments, created_at, type")
+    ]);
 
-    // --- Fetch all users and posts ---
-    const { data: users, error: userErr } = await supabase
-      .from("users")
-      .select("id, username, fullname, profile_pic, profile_type, friends, followers, biography");
+    const userMap = {};
+    (users || []).forEach(u => { userMap[u.username] = u; });
 
-    if (userErr || !users) return res.status(500).json({ error: "Error fetching users" });
+    const postMap = {};
+    (posts || []).forEach(p => { postMap[String(p.id)] = p; });
 
-    const { data: posts, error: postErr } = await supabase2
-      .from("Posts")
-      .select("id, username, text, media, likes, comments, created_at, type");
+    const qLower = query.toLowerCase().trim();
+    const now = Date.now();
 
-    if (postErr || !posts) return res.status(500).json({ error: "Error fetching posts" });
+    // Search users
+    const userResults = userSearchEngine.search(query);
+    const postResults = postSearchEngine.search(query);
 
-    // Fast lookups
-    const usersById = {};
-    const usersByUsername = {};
-    users.forEach(u => {
-      usersById[String(u.id)] = u;
-      if (u.username) usersByUsername[u.username] = u;
-    });
-
-    const postsById = {};
-    posts.forEach(p => postsById[String(p.id)] = p);
-
-    // --- Inverted Index results (keep them) ---
-    const rawUserInv = (userSearchEngine && userSearchEngine.search) ? userSearchEngine.search(query, 2) : [];
-    const rawPostInv = (postSearchEngine && postSearchEngine.search) ? postSearchEngine.search(query, 2) : [];
-
-    const maxUserInvScore = Math.max(...rawUserInv.map(d => d.score || 0), 1);
-    const maxPostInvScore = Math.max(...rawPostInv.map(d => d.score || 0), 1);
-
-    // --- Custom fuzzy scoring function ---
-    function customUserScore(user, queryWords, qLower) {
-      if (!user) return 0;
-
-      let score = 0;
-      const username = (user.username || "").toLowerCase();
-      const fullname = (user.fullname || "").toLowerCase();
-      const bio = (user.biography || "").toLowerCase();
-
-      // Exact username match = huge boost
-      if (username === qLower) return 1.5;
-
-      // Starts with username = strong
-      if (username.startsWith(qLower)) score += 0.8;
-      // Contains username
-      if (username.includes(qLower)) score += 0.6;
-
-      // Word-by-word partial matching
-      for (let word of queryWords) {
-        if (username.includes(word)) score += 0.3;
-        if (username.startsWith(word)) score += 0.4;
-        if (fullname.includes(word)) score += 0.25;
-        if (bio.includes(word)) score += 0.15;
-      }
-
-      // Relation boosts
-      const isOrg = (user.profile_type || "").toLowerCase().includes("org");
-      if (!isOrg && yourFriendsSet.has(user.username)) score += 0.25;
-      if (isOrg && yourFollowingSet.has(user.username)) score += 0.15;
-
-      return score;
-    }
-
-    function customPostScore(post, queryWords, qLower) {
-      if (!post) return 0;
-
-      let score = 0;
-      const text = (post.text || "").toLowerCase();
-      const username = (post.username || "").toLowerCase();
-
-      // Text contains full query
-      if (text.includes(qLower)) score += 0.7;
-
-      // Word matches in text
-      for (let word of queryWords) {
-        if (text.includes(word)) score += 0.25;
-        if (username.includes(word)) score += 0.15;
-      }
-
-      // Recent post boost
-      if (post.created_at) {
-        const ageDays = (Date.now() - new Date(post.created_at).getTime()) / (1000 * 60 * 60 * 24);
-        if (ageDays < 1) score += 0.1;
-        else if (ageDays < 7) score += 0.05;
-      }
-
-      return score;
-    }
-
-    // --- Collect all candidates ---
-    const candidates = [];
-
-    // From Inverted Index (keep the good fast results)
-    rawUserInv.forEach(doc => {
-      const idStr = String(doc.id);
-      const u = usersById[idStr] || usersByUsername[idStr];
-      if (u) {
-        candidates.push({
-          type: "user",
-          username: u.username,
-          fullname: u.fullname,
-          profile_pic: u.profile_pic,
-          profile_type: (u.profile_type || "").toLowerCase().includes("org") ? "organisation" : "individual",
-          relation: (u.profile_type || "").toLowerCase().includes("org")
-            ? (yourFollowingSet.has(u.username) ? "following" : "not_following")
-            : (yourFriendsSet.has(u.username) ? "friended" : "not_friended"),
-          score: (doc.score || 0) / maxUserInvScore + 0.3  // boost inverted a bit
-        });
-      }
-    });
-
-    rawPostInv.forEach(doc => {
-      const p = postsById[String(doc.id)];
-      if (p) {
-        candidates.push({
-          type: "post",
-          ...p,
-          post_type: p.type,
-          score: (doc.score || 0) / maxPostInvScore + 0.2
-        });
-      }
-    });
-
-    // Custom search on ALL users and posts (lightweight fallback + catch misses)
-    users.forEach(u => {
-      const custom = customUserScore(u, queryWords, qLower);
-      if (custom > 0.1) {  // only if somewhat relevant
-        candidates.push({
-          type: "user",
-          username: u.username,
-          fullname: u.fullname,
-          profile_pic: u.profile_pic,
-          profile_type: (u.profile_type || "").toLowerCase().includes("org") ? "organisation" : "individual",
-          relation: (u.profile_type || "").toLowerCase().includes("org")
-            ? (yourFollowingSet.has(u.username) ? "following" : "not_following")
-            : (yourFriendsSet.has(u.username) ? "friended" : "not_friended"),
-          score: custom
-        });
-      }
-    });
-
-    posts.forEach(p => {
-      const custom = customPostScore(p, queryWords, qLower);
-      if (custom > 0.1) {
-        candidates.push({
-          type: "post",
-          ...p,
-          post_type: p.type,
-          score: custom
-        });
-      }
-    });
-
-    // --- Dedupe & sort by score ---
-    const seen = new Set();
     const finalResults = [];
+    const seen = new Set();
 
-    candidates
-      .sort((a, b) => b.score - a.score)  // highest score first
-      .forEach(item => {
-        const key = item.type === "user" ? `user:${item.username}` : `post:${item.id}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          // Clean output
-          const clean = {
-            type: item.type,
-            ...(item.type === "user" ? {
-              username: item.username,
-              fullname: item.fullname,
-              profile_pic: item.profile_pic,
-              profile_type: item.profile_type,
-              relation: item.relation
-            } : {
-              id: item.id,
-              username: item.username,
-              text: item.text,
-              media: item.media || [],
-              likes: Array.isArray(item.likes) ? item.likes : [],
-              comments: Array.isArray(item.comments) ? item.comments : [],
-              created_at: item.created_at,
-              post_type: item.post_type
-            })
-          };
-          finalResults.push(clean);
-        }
+    userResults.forEach(r => {
+      const username = r.doc.metadata.username;
+      if (!username || seen.has(username)) return;
+      seen.add(username);
+
+      const u = userMap[username];
+      if (!u) return;
+
+      const isOrg = (u.profile_type || "").toLowerCase() === "organisation";
+      let score = r.score;
+      if (!isOrg && yourFriends.has(username)) score *= 2;
+      if (isOrg && yourFollowing.has(username)) score *= 1.5;
+      if (u.verified) score *= 1.3;
+
+      finalResults.push({
+        type: "user",
+        username: u.username,
+        fullname: u.fullname,
+        profile_pic: u.profile_pic,
+        profile_type: isOrg ? "organisation" : "individual",
+        relation: isOrg
+          ? (yourFollowing.has(u.username) ? "following" : "not_following")
+          : (yourFriends.has(u.username) ? "friended" : "not_friended"),
+        score: Math.round(score)
       });
+    });
 
-    // Limit to top 20
-    res.json(finalResults.slice(0, 20));
+    postResults.forEach(r => {
+      const postId = r.doc.id;
+      if (!postId || seen.has(`post:${postId}`)) return;
+      seen.add(`post:${postId}`);
 
+      const p = postMap[String(postId)];
+      if (!p) return;
+
+      let score = r.score;
+
+      // Recency boost
+      if (p.created_at) {
+        const ageDays = (now - new Date(p.created_at).getTime()) / 86400000;
+        if (ageDays < 1) score *= 1.5;
+        else if (ageDays < 7) score *= 1.2;
+      }
+
+      finalResults.push({
+        type: "post",
+        id: p.id,
+        username: p.username,
+        text: p.text,
+        media: p.media || [],
+        likes: Array.isArray(p.likes) ? p.likes : [],
+        comments: Array.isArray(p.comments) ? p.comments : [],
+        created_at: p.created_at,
+        post_type: p.type,
+        score: Math.round(score)
+      });
+    });
+
+    finalResults.sort((a, b) => b.score - a.score);
+    res.json(finalResults);
   } catch (err) {
     console.error("General Search Error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -3132,6 +3044,29 @@ app.post("/delete-notification", async (req, res) => {
   }
 });
 
+// Batch delete all notifications for a user
+app.post("/delete-all-notifications", async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Missing username" });
+
+    const { error } = await supabase
+      .from("users")
+      .update({ notifications: [] })
+      .eq("username", username);
+
+    if (error) {
+      console.error("Error in delete-all-notifications:", error);
+      return res.status(500).json({ error: "Failed to clear notifications" });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error in delete-all-notifications:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Mark a notification as read
 app.post("/mark-notification-read", async (req, res) => {
   try {
@@ -3211,6 +3146,8 @@ async function notifyConnectionsOnPost(username, postText, postId) {
       read: false,
       link: `/post/${postId}`,
       timestamp: new Date().toISOString(),
+      type: 'newPost',
+      sender: username,
     });
 
     // Email notification
@@ -3282,7 +3219,7 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
     );
 
     // Extract hashtags from caption
-    const hashtags = text.match(/#\w+/g) || [];
+    const hashtags = text.match(/#[\w-]+/g) || [];
 
     // Insert Snap into Supabase
     const { error: insertError, data } = await supabase2
@@ -3350,8 +3287,6 @@ app.get("/snaps-feed", async (req, res) => {
     const { username } = req.query;
     const limit = req.query.limit || 12; // 👈 We only send 12 high-quality snaps at a time
 
-    if (!username) return res.status(400).json({ error: "Username is required" });
-
     // Directly fetch recent snaps from DB up to 200 (since we removed cache)
     const { data: snapFeedPosts, error } = await supabase2
       .from("Posts")
@@ -3367,16 +3302,17 @@ app.get("/snaps-feed", async (req, res) => {
 
     const snaps = snapFeedPosts || [];
 
-    // Get the seen set for this user
-    if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
-    const seen = userSnapSeenMap.get(username);
-
-    // Fetch social graph for affinity (Snaps from friends are 10x more addictive)
+    // Seen set & social graph (only if user is logged in)
     let userFollowing = new Set();
-    try {
-      const { data: me } = await supabase.from("users").select("following").eq("username", username).single();
-      userFollowing = new Set(me?.following || []);
-    } catch { /* ignore */ }
+    let seen = new Set();
+    if (username) {
+      if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
+      seen = userSnapSeenMap.get(username);
+      try {
+        const { data: me } = await supabase.from("users").select("following").eq("username", username).single();
+        userFollowing = new Set(me?.following || []);
+      } catch { /* ignore */ }
+    }
 
     const now = Date.now();
     const HOUR = 3600000;
@@ -3489,7 +3425,6 @@ app.get('/search-suggest', async (req, res) => {
     const qClean = q.replace(/^[@#]/, '');
 
     if (isHashtag) {
-      // Very basic hashtag extraction from recent posts
       const { data: recentPosts } = await supabase2
         .from('Posts')
         .select('hashtags')
@@ -3516,24 +3451,48 @@ app.get('/search-suggest', async (req, res) => {
 
       results.push(...tags);
     } else {
-      // Find matching users dynamically
-      const { data: users, error } = await supabase
-        .from('users')
-        .select('username, fullname, profile_pic, profile_type')
-        .or(`username.ilike.%${qClean}%,fullname.ilike.%${qClean}%`)
-        .limit(isMention ? 9 : 4);
+      const searchQ = isMention ? qClean : q;
+      const rawResults = userSearchEngine.search(searchQ);
+      const seen = new Set();
 
-      if (!error && users) {
-        const sortedUsers = users
-          .filter(u => u.username !== currentUsername)
-          .map(u => ({ type: 'user', ...u }));
-        results.push(...sortedUsers);
-      }
+      rawResults.forEach(r => {
+        const u = r.doc.metadata;
+        const username = u.username;
+        if (!username || seen.has(username) || username === currentUsername) return;
+        seen.add(username);
+        results.push({ type: 'user', username: u.username, fullname: u.fullname, profile_pic: u.profile_pic });
+      });
     }
 
     res.json(results.slice(0, 9));
   } catch (err) {
     console.error('/search-suggest error:', err);
+    res.json([]);
+  }
+});
+
+// ─── /search-users – mention autocomplete for PostCard/PostContent ───
+app.get('/search-users', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim().toLowerCase();
+    const limit = parseInt(req.query.limit, 10) || 6;
+    if (!q) return res.json([]);
+
+    const rawResults = userSearchEngine.search(q);
+    const results = [];
+    const seen = new Set();
+
+    rawResults.forEach(r => {
+      const u = r.doc.metadata;
+      const username = u.username;
+      if (!username || seen.has(username)) return;
+      seen.add(username);
+      results.push({ username: u.username, fullname: u.fullname, profile_pic: u.profile_pic });
+    });
+
+    res.json(results.slice(0, limit));
+  } catch (err) {
+    console.error('/search-users error:', err);
     res.json([]);
   }
 });
@@ -3646,13 +3605,15 @@ async function triggerAIReply(content, mediaUrls, mediaTypes, postId, parentType
 
     // 2) Build system prompt and message context
     var systemPrompt = (
-      "You are TextmobAI — the official, trustworthy assistant inside Textmob.\n" +
+      "You are TextmobAI — a regular Textmob user who's always active and buzzin on the platform.\n" +
       "When mentioned, ALWAYS:\n" +
-      "- Read the post and any comment provided, then compose a short, useful reply (2-5 sentences).\n" +
-      "- Start by referencing what you are replying to (quote a short excerpt, up to 30 words), then answer the user's intent.\n" +
-      "- Mention the user who triggered you (prepend @username).\n" +
-      "- Be helpful, friendly, and do not produce political, sexual, or harmful content.\n" +
-      "- If the post contains an image, analyze it briefly and reference it if relevant.\n" +
+      "- Reply like a cool Textmobber — casual, fun, and straight to the point.\n" +
+      "- Keep it short and snappy (2-4 sentences max). No fluff, no over-explaining.\n" +
+      "- Start by quoting a short bit of what you're replying to, then give your take.\n" +
+      "- Mention the user who tagged you (prepend @username).\n" +
+      "- Be helpful but keep it real — talk like a friend, not a support bot.\n" +
+      "- If there's an image, say something about it briefly.\n" +
+      "- No political, sexual, or harmful content.\n" +
       "Return just the reply text.\n" +
       "Current time (Africa/Lagos): " + new Date().toLocaleString("en-US", { timeZone: "Africa/Lagos" }) + "\n"
     );
@@ -3787,7 +3748,9 @@ async function triggerAIReply(content, mediaUrls, mediaTypes, postId, parentType
         message: "@textmobai replied to you: \"" + replyText + "\"",
         read: false,
         link: "/post/" + postId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        type: 'textmobai',
+        sender: 'textmobai',
       };
 
       // addNotification may throw or return rejected promise; wrap in try/catch
@@ -4019,7 +3982,9 @@ async function triggerAskifyReply(content, postId, parentType, parentUser) {
         message: `@askify replied to you: "${replyText}"`,
         read: false,
         link: `/post/${postId}`,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        type: 'askify',
+        sender: 'askify',
       };
 
       try {
@@ -4129,7 +4094,7 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
 
     // Hashtags
     var hashtags = [];
-    var rawHashtags = text.match(/#\w+/g);
+    var rawHashtags = text.match(/#[\w-]+/g);
     if (rawHashtags && Array.isArray(rawHashtags)) {
       hashtags = rawHashtags;
     }
@@ -4228,13 +4193,6 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
           console.error("[create-post] Error emitting new-post:", e);
         }
 
-        // Notify connections (best-effort)
-        try {
-          await notifyConnectionsOnPost(username, text, data.id);
-        } catch (nErr) {
-          console.error("[create-post] notifyConnectionsOnPost failed:", nErr);
-        }
-
         // Prepare safe mediaTypes array to pass to triggerAIReply
         var safeMediaTypes = [];
         if (filesArray.length > 0) {
@@ -4247,19 +4205,19 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
           });
         }
 
-        // Loop mentions and notify each
+        // Trigger AI replies FIRST (before email notifications)
         for (var i = 0; i < mentions.length; i++) {
           var mentionedUser = mentions[i];
           if (mentionedUser && mentionedUser !== username) {
             triggerNotification(mentionedUser, 'mentions', {
               msg: `@${username} mentioned you in a post`,
               link: "/post/" + data.id,
+              sender: username,
               subject: `🏷️ @${username} mentioned you on Textmob!`,
               html: `<p><strong>@${username}</strong> just mentioned you in a post on <strong>Textmob</strong>.</p><p><a href="https://textmob.web.app/post/${data.id}">View Post</a></p>`
             });
           }
 
-          // If textmobai or askify is mentioned, safely trigger AI reply
           const lowerMentionedUser = mentionedUser?.toLowerCase();
           if (lowerMentionedUser === "textmobai") {
             triggerAIReply(text, mediaUrls, safeMediaTypes, data.id, "post").catch(e => console.error(e));
@@ -4267,6 +4225,11 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
             triggerAskifyReply(text, data.id, "post", username).catch(e => console.error(e));
           }
         }
+
+        // Notify connections (fire-and-forget, don't block AI)
+        notifyConnectionsOnPost(username, text, data.id).catch(function (nErr) {
+          console.error("[create-post] notifyConnectionsOnPost failed:", nErr);
+        });
 
         console.log("[create-post] backgroundWork completed for postId:", data.id);
       } catch (bgErr) {
@@ -4289,7 +4252,7 @@ async function createLivePostInDB(opts) {
       throw new Error("Missing required field: username");
     }
 
-    var hashtags = (text.match(/#\w+/g) || []);
+    var hashtags = (text.match(/#[\w-]+/g) || []);
     var rawMentions = (text.match(/@\w+/g) || []);
     var mentions = rawMentions.map(function (m) {
       return m.slice(1).replace(/[^a-zA-Z0-9_]/g, "");
@@ -4344,7 +4307,9 @@ async function createLivePostInDB(opts) {
             id: Date.now(),
             message: username + " mentioned you in a live post",
             read: false,
-            link: "/post/" + createdRow.id
+            link: "/post/" + createdRow.id,
+            type: 'mention',
+            sender: username,
           };
           await addNotification(mentionedUser, notification);
         }
@@ -5139,6 +5104,7 @@ app.post("/like-post", async (req, res) => {
       triggerNotification(post.username, type, {
         msg,
         link: `/post/${postId}`,
+        sender: username,
         subject: (post.type === 'event')
           ? `🔔 Someone is Interested in Your Event: ${post.title} | Textmob`
           : "🔔 New Like on Your Post | Textmob",
@@ -5224,6 +5190,7 @@ app.post("/react-post", async (req, res) => {
       triggerNotification(post.username, 'likes', {
         msg: `${username} reacted ${reaction} to your post`,
         link: `/post/${postId}`,
+        sender: username,
         subject: "💬 New Reaction on Your Post | Textmob",
         html: `
             <p style="font-size:16px; line-height:1.6; color:#333;">
@@ -5255,7 +5222,7 @@ app.post("/react-post", async (req, res) => {
 });
 
 app.get('/about', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'about.html'))
+  res.redirect(301, '/about.html');
 })
 // Endpoint to get a single post by ID
 app.get("/get-post", async (req, res) => {
@@ -5348,7 +5315,7 @@ app.put("/edit-post", async (req, res) => {
     const updateFields = {};
     if (content !== undefined) {
       updateFields.text = content;
-      updateFields.hashtags = content.match(/#\w+/g) || [];
+      updateFields.hashtags = content.match(/#[\w-]+/g) || [];
     }
     if (comments !== undefined) updateFields.comments = comments;
     if (likes !== undefined) updateFields.likes = likes;
@@ -5479,6 +5446,7 @@ app.post("/add-comment", async (req, res) => {
       triggerNotification(ownerUsername, "comments", {
         msg: `${commenterUsername} commented on your post: "${comment}"`,
         link: postLink,
+        sender: commenterUsername,
         subject: "💬 New Comment on Your Post | Textmob",
         html: `
           <p style="font-size:16px; line-height:1.6; color:#333;">
@@ -5520,6 +5488,7 @@ app.post("/add-comment", async (req, res) => {
         triggerNotification(mentionedUser, "mentions", {
           msg: `${commenterUsername} mentioned you in a comment`,
           link: postLink,
+          sender: commenterUsername,
           subject: `🏷️ @${commenterUsername} mentioned you in a comment!`,
           html: `
             <p><strong>@${commenterUsername}</strong> mentioned you in a comment on <strong>Textmob</strong>.</p>
@@ -5685,14 +5654,14 @@ app.post("/api/migrate-friends", async (req, res) => {
     if (userError || !user) return res.status(404).json({ error: "User not found" });
 
     const friends = user.friends || [];
-    const currentFollowing = user.following || [];
+    const currentFollowers = user.followers || [];
 
-    // Deduplicate and combine
-    const newFollowing = [...new Set([...currentFollowing, ...friends])];
+    // Migrate friends to followers (friends become followers for Professional accounts)
+    const newFollowers = [...new Set([...currentFollowers, ...friends])];
 
     const { error: updateError } = await supabase
       .from('users')
-      .update({ followers: newFollowing })
+      .update({ followers: newFollowers })
       .eq('id', user.id);
 
     if (updateError) throw updateError;
@@ -6433,6 +6402,8 @@ app.post("/connect", async (req, res) => {
           read: false,
           link: `/@${currentUsername}`,
           timestamp: new Date().toISOString(),
+          type: 'follow',
+          sender: currentUsername,
         });
 
       } else {
@@ -6447,6 +6418,8 @@ app.post("/connect", async (req, res) => {
           read: false,
           link: `/@${currentUsername}`,
           timestamp: new Date().toISOString(),
+          type: 'follow',
+          sender: currentUsername,
         });
 
         // Email Notification
@@ -6501,6 +6474,8 @@ app.post("/connect", async (req, res) => {
           read: false,
           link: `/@${currentUsername}`,
           timestamp: new Date().toISOString(),
+          type: 'connection',
+          sender: currentUsername,
         });
 
       } else {
@@ -6515,6 +6490,8 @@ app.post("/connect", async (req, res) => {
           read: false,
           link: `/@${currentUsername}`,
           timestamp: new Date().toISOString(),
+          type: 'connection',
+          sender: currentUsername,
         });
 
         // Email Notification
@@ -6792,10 +6769,7 @@ io.on('connection', socket => {
   });
 });
 
-// Your generateAIResponse function (unchanged)
-async function generateAIResponse(messages) {
-  let mediaUrl = false;
-  let mediaType = null;
+async function generateAIResponse(messages, mediaUrl, mediaType) {
   // Input validation
   if (!Array.isArray(messages)) {
     throw new Error("messages must be an array");
@@ -6820,103 +6794,85 @@ async function generateAIResponse(messages) {
   // Build system prompt (keeps your existing system prompt text and context)
   var currentTime = new Date().toLocaleString("en-US", { timeZone: "Africa/Lagos", weekday: "long", year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "numeric", hour12: true });
 
-  // fetch users & posts for context (same as you had)
-  var usersResult = await supabase.from("users").select("username, fullname, email, biography, phone, profile_type");
-  if (usersResult.error) throw usersResult.error;
-  var users = usersResult.data;
-
-  var postsResult = await supabase2.from("Posts").select("username, text, created_at").order("created_at", { ascending: false });
-  if (postsResult.error) throw postsResult.error;
-  var posts = postsResult.data;
-
-  // Build short contexts (non-blocking if empty)
-  var userCtx = "";
-  if (users && Array.isArray(users)) {
-    var userPieces = [];
-    for (var ui = 0; ui < users.length; ui++) {
-      var u = users[ui];
-      userPieces.push("• " + (u.fullname || "") + " (@" + (u.username || "") + ") — " + (u.profile_type || "") + "\n Email: " + (u.email || "—") + "\n Bio: " + (u.biography || "—") + "\n Phone: " + (u.phone || "—"));
-    }
-    userCtx = userPieces.join("\n\n");
-  }
-
-  var postCtx = "";
-  if (posts && Array.isArray(posts)) {
-    var postPieces = [];
-    for (var pi = 0; pi < posts.length; pi++) {
-      var p = posts[pi];
-      var postDate = "";
-      if (p && p.created_at) {
-        postDate = new Date(p.created_at).toLocaleString("en-US", { timeZone: "Africa/Lagos", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: true });
-      }
-      postPieces.push("• " + (p.text || "") + "...\n By: " + (p.username || "") + " on " + postDate);
-    }
-    postCtx = postPieces.join("\n\n");
-  }
-
   var systemPrompt = (
-    "You are TextmobAI, a helpful, knowledgeable, and honest assistant designed to assist users effectively within the Textmob platform. You respond to users with clarity, relevance, and respect. Your tone is warm, professional, and concise unless instructed otherwise.\n" +
-    "Your purpose is to assist users in solving problems, answering questions, generating content, and providing accurate, up-to-date information when possible. To achieve this, you will:\n" +
-    "Carefully assess the tone and context of user messages to understand their intent.\n" +
-    "Identify whether the user is asking a direct question, seeking detailed information, sharing thoughts or emotions, engaging in casual conversation, or requesting creative content.\n" +
-    "Based on the user's tone and intent, respond with:\n" +
-    "- Brief and direct answers for straightforward questions.\n" +
-    "- Detailed explanations and supporting information for more in-depth inquiries.\n" +
-    "- Empathetic and supportive responses for users sharing thoughts or emotions.\n" +
-    "- Engaging and creative content for casual conversations or specific requests.\n" +
-    "When interacting with users:\n" +
-    "Be calm, helpful, and direct when needed.\n" +
-    "Encourage independent thinking while remaining supportive.\n" +
-    "Prioritize facts, logic, and clear thinking.\n" +
-    "Use markdown, bullet points, emojis, or formatting when it helps make communication clearer.\n" +
-    "Guiding Principles:\n" +
-    "Maintain confidentiality and avoid generating or encouraging harmful, deceptive, or unethical content.\n" +
-    "If asked for restricted or dangerous content, decline respectfully and guide the user safely.\n" +
-    "If asked about your origins, say: \"I am TextmobAI, Your AI friend on textmob.\" you can tweak it further\n" +
-    "Pls if they asked you anything regarding Textmob, and you know that you dont know it, kindly tell them you dont know it, dont give false information\n" +
-    "The url of textmob is https://textmob.web.app\n" +
-    "DOnt like a social user, instead, act like a Professionally speaking AI Assistant, you're not for asking questions about textmob, You're just the AI Assistant integrated directly into Textmob\n" +
-    "By following these guidelines, you will provide effective and engaging responses to users within the Textmob platform.\n" +
-    "Current Time: " + currentTime + "\n" +
-    "Textmob Total Users is: " + (users && Array.isArray(users) ? users.length : 0) + "\n"
+    "You are TextmobAI — a regular on Textmob, always active and keeping it real. You talk like a cool Textmobber, not a robot.\n" +
+    "Keep your replies short, snappy, and interesting. No long paragraphs, no over-explaining. Be direct but friendly.\n" +
+    "When someone asks something, give them the info straight up. When they're chatting, match their vibe.\n" +
+    "If you don't know something, just say so — don't make stuff up.\n" +
+    "The url of Textmob is https://textmob.web.app\n" +
+    "If asked about your origins, say: \"I'm TextmobAI, your AI friend on Textmob.\"\n" +
+    "No political, sexual, or harmful content.\n" +
+    "Current Time: " + currentTime + "\n"
   ).trim();
 
   // Build finalMessages
   var finalMessages = [{ role: "system", content: systemPrompt }];
 
-  // Determine if this should be treated as an "image prompt"
-  var isImagePrompt = false;
-  if (mediaUrl && mediaType === "image") isImagePrompt = true;
+  // If it's a video, return early
+  if (mediaUrl && mediaType === "video") {
+    return "I can't view the video file, but I can help with any questions about the post.";
+  }
 
-  if (isImagePrompt) {
-    // Build image content block. Find last user text (string) in normalized history
-    var lastUserText = "";
-    for (var j = normalized.length - 1; j >= 0; j--) {
-      var mm = normalized[j];
-      if (mm && mm.role === "user" && typeof mm.content === "string" && mm.content.trim().length > 0) {
-        lastUserText = mm.content.trim();
-        break;
+  // If there's an image, describe it using the vision model first
+  var imageDescription = "";
+  if (mediaUrl && mediaType === "image") {
+    try {
+      var visionKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEY_2 || "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";
+      var visionHeaders = {
+        Authorization: "Bearer " + visionKey,
+        "Content-Type": "application/json"
+      };
+      var visionPayload = {
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image_url", image_url: { url: mediaUrl } },
+              { type: "text", text: "Describe this image in detail, including any people, objects, text, colors, and the overall scene." }
+            ]
+          }
+        ],
+        max_tokens: 1000
+      };
+      var visionRes = await axios.post("https://api.groq.com/openai/v1/chat/completions", visionPayload, { headers: visionHeaders, timeout: 30000 });
+      if (visionRes.data && visionRes.data.choices && visionRes.data.choices[0] && visionRes.data.choices[0].message && visionRes.data.choices[0].message.content) {
+        imageDescription = visionRes.data.choices[0].message.content;
       }
-    }
-    var imageContent = [];
-    imageContent.push({ type: "image_url", image_url: { url: mediaUrl } });
-    if (lastUserText && lastUserText.length > 0) {
-      imageContent.push({ type: "text", text: lastUserText });
-    } else {
-      imageContent.push({ type: "text", text: "Please analyze the image and provide a helpful short reply." });
-    }
-    finalMessages.push({ role: "user", content: imageContent });
-  } else {
-    // push normalized conversation history (only user/assistant) after system
-    for (var k = 0; k < normalized.length; k++) {
-      finalMessages.push(normalized[k]);
+    } catch (err) {
+      console.error("[generateAIResponse] image description failed:", err && err.message ? err.message : err);
     }
   }
 
-  // Select model
-  var selectedModel = isImagePrompt ? "meta-llama/llama-4-scout-17b-16e-instruct" : "openai/gpt-oss-20b";
+  // Inject image description as context if available
+  if (imageDescription) {
+    finalMessages.push({
+      role: "system",
+      content: "[Image Description from Vision Model]: " + imageDescription
+    });
+  }
 
-  // Retry loop with backoff
+  // push normalized conversation history after system context
+  for (var k = 0; k < normalized.length; k++) {
+    finalMessages.push(normalized[k]);
+  }
+
+  // Select model (vision model only used for image description above)
+  var selectedModel = "openai/gpt-oss-120b";
+
+  // Collect API keys for rotation
+  var apiKeys = [
+    process.env.GROQ_API_KEY,
+    process.env.GROQ_API_KEY_2,
+    process.env.GROQ_API_KEY_3,
+    process.env.GROQ_API_KEY_4,
+    process.env.GROQ_API_KEY_5
+  ].filter(Boolean);
+  if (apiKeys.length === 0) {
+    apiKeys.push("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");
+  }
+
+  // Retry loop with backoff and key rotation
   var maxTries = 10;
   var attempt = 0;
   var lastErr = null;
@@ -6927,11 +6883,36 @@ async function generateAIResponse(messages) {
         model: selectedModel,
         messages: finalMessages,
         temperature: 0.8,
-        max_tokens: 10000
+        max_tokens: 2000
       };
 
+      var payloadStr = JSON.stringify(payload);
+      var payloadBytes = Buffer.byteLength(payloadStr, 'utf-8');
+      console.log("[generateAIResponse] payload size:", payloadBytes, "bytes");
+      if (payloadBytes > 20000) {
+        console.warn("[generateAIResponse] Payload too large:", payloadBytes, "bytes — truncating conversation");
+        var truncated = [finalMessages[0]];
+        if (finalMessages.length > 1 && finalMessages[1] && finalMessages[1].role === "system") {
+          truncated.push(finalMessages[1]);
+        }
+        var msgs = [];
+        for (var fi = 0; fi < finalMessages.length; fi++) {
+          if (finalMessages[fi].role !== "system") msgs.push(finalMessages[fi]);
+        }
+        truncated = truncated.concat(msgs.slice(-5));
+        finalMessages = truncated;
+        payload.messages = finalMessages;
+        payloadStr = JSON.stringify(payload);
+        payloadBytes = Buffer.byteLength(payloadStr, 'utf-8');
+        console.log("[generateAIResponse] after truncation payload size:", payloadBytes, "bytes");
+        if (payloadBytes > 20000) {
+          throw new Error("Payload still too large after truncation: " + payloadBytes + " bytes (max 20000)");
+        }
+      }
+
+      var currentKey = apiKeys[(attempt - 1) % apiKeys.length];
       var headers = {
-        Authorization: "Bearer " + "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",
+        Authorization: "Bearer " + currentKey,
         "Content-Type": "application/json"
       };
 
@@ -7667,7 +7648,7 @@ app.get("/trending-hashtags", async (req, res) => {
     }
 
     const counts = {};
-    const hashtagRegex = /#([a-zA-Z0-9_]+)/g;
+    const hashtagRegex = /#([a-zA-Z0-9_-]+)/g;
 
     posts.forEach(p => {
       let tags = [];
@@ -7707,128 +7688,128 @@ app.get("/trending-hashtags", async (req, res) => {
 app.get("/get-posts", async (req, res) => {
   try {
     const { username, tab = "foryou", page = 1, seenIds = "" } = req.query;
-    if (!username) return res.status(400).json({ error: "Missing username parameter" });
     const limit = parseInt(req.query.limit, 10) || 10;
     const pg = parseInt(page, 10) || 1;
 
-    // Instead of hitting serverSeen memory (which leaks over time and causes sync issues),
-    // let's rely just on the dynamically requested feed without caching all posts.
-    // We'll directly construct the algorithm around latest N posts.
+    const isPublic = !username;
+    const POST_LIMIT = isPublic ? 500 : 300;
 
-    // Determine the user's social graph to customize the feed
+    // Determine the user's social graph
     let userFollowing = new Set();
     let userFriends = new Set();
     let blockedUsers = new Set();
-    try {
-      const { data: me } = await supabase
-        .from("users")
-        .select("following, friends, blocked_users")
-        .eq("username", username)
-        .single();
-      userFollowing = new Set(me?.following || []);
-      userFriends = new Set(me?.friends || []);
-      blockedUsers = new Set(me?.blocked_users || []);
-    } catch { /* non-fatal */ }
+    if (!isPublic) {
+      try {
+        const { data: me } = await supabase
+          .from("users")
+          .select("following, friends, blocked_users")
+          .eq("username", username)
+          .single();
+        userFollowing = new Set(me?.following || []);
+        userFriends = new Set(me?.friends || []);
+        blockedUsers = new Set(me?.blocked_users || []);
+      } catch { /* non-fatal */ }
+    }
+
+    const isColdStart = !isPublic && userFollowing.size === 0 && userFriends.size === 0;
 
     if (tab === "following") {
-      const followingsAndFriends = [...new Set([...userFollowing, ...userFriends])].filter(u => !blockedUsers.has(u));
-
-      if (followingsAndFriends.length === 0) {
-        return res.json([]);
+      if (!username || isColdStart) {
+        // Fall back to trending for logged-out or cold-start users
+        const { data: posts } = await supabase2
+          .from("Posts")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(POST_LIMIT);
+        if (!posts) return res.json([]);
+        const filtered = posts.filter(p => p && p.id && p.username && !(p.disabled === true));
+        const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
+        return res.json(filtered.filter(p => !clientSeenIds.has(String(p.id))).slice(0, limit));
       }
+      const followingsAndFriends = [...new Set([...userFollowing, ...userFriends])].filter(u => !blockedUsers.has(u));
+      if (followingsAndFriends.length === 0) return res.json([]);
 
-      // Fetch posts specifically from these users
       const { data: posts, error: postErr } = await supabase2
         .from("Posts")
         .select("*")
         .in("username", followingsAndFriends)
         .order("created_at", { ascending: false })
         .limit(200);
+      if (postErr || !posts) return res.json([]);
 
-      if (postErr || !posts) {
-        return res.json([]);
-      }
-
-      // Filter out group posts and disabled posts
       const filtered = posts.filter(p =>
         p && p.id && p.username &&
         !(p.type && p.type.toLowerCase().startsWith("group")) &&
         !(p.disabled === true)
       );
-
       const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
-
-      // Sort: unseen first, then newest first
       const sorted = filtered.sort((a, b) => {
         const aSeen = clientSeenIds.has(String(a.id)) ? 1 : 0;
         const bSeen = clientSeenIds.has(String(b.id)) ? 1 : 0;
         if (aSeen !== bSeen) return aSeen - bSeen;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
-
       const startIndex = (pg - 1) * limit;
       return res.json(sorted.slice(startIndex, startIndex + limit));
     }
 
-    // Tab is "foryou": Run profile query and global posts query in parallel
+    // Tab is "foryou": fetch posts
     let fetchedPosts = [];
-    let postsError = null;
-    try {
-      const [meResult, postsResult] = await Promise.all([
-        supabase
-          .from("users")
-          .select("following, friends, blocked_users")
-          .eq("username", username)
-          .single(),
-        supabase2
-          .from("Posts")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(300)
-      ]);
-
-      if (meResult.data) {
-        userFollowing = new Set(meResult.data.following || []);
-        userFriends = new Set(meResult.data.friends || []);
-        blockedUsers = new Set(meResult.data.blocked_users || []);
-      }
-      fetchedPosts = postsResult.data || [];
-      postsError = postsResult.error;
-    } catch (err) {
-      console.error("Parallel fetch failed, falling back to sequential:", err);
-      // Fallback
+    if (!isPublic) {
       try {
-        const { data: postsData, error: err } = await supabase2
-          .from("Posts")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(300);
-        fetchedPosts = postsData || [];
-        postsError = err;
-      } catch { }
+        const [meResult, postsResult] = await Promise.all([
+          supabase.from("users").select("following, friends, blocked_users").eq("username", username).single(),
+          supabase2.from("Posts").select("*").order("created_at", { ascending: false }).limit(POST_LIMIT)
+        ]);
+        if (meResult.data) {
+          userFollowing = new Set(meResult.data.following || []);
+          userFriends = new Set(meResult.data.friends || []);
+          blockedUsers = new Set(meResult.data.blocked_users || []);
+        }
+        fetchedPosts = postsResult.data || [];
+      } catch {
+        const { data } = await supabase2.from("Posts").select("*").order("created_at", { ascending: false }).limit(POST_LIMIT);
+        fetchedPosts = data || [];
+      }
+    } else {
+      const { data } = await supabase2.from("Posts").select("*").order("created_at", { ascending: false }).limit(POST_LIMIT);
+      fetchedPosts = data || [];
     }
 
-    if (postsError || !fetchedPosts) return res.json([]);
+    if (!fetchedPosts.length) return res.json([]);
 
-    // Filter out group posts, blocked users, and self if blocked
+    // Filter
     const eligible = fetchedPosts.filter(p =>
       p && p.id && p.username &&
       !p.group_id && !p.isGroupPost &&
       !blockedUsers.has(p.username) &&
       !(p.disabled === true)
     );
-
-    if (eligible.length === 0) return res.json([]);
+    if (!eligible.length) return res.json([]);
 
     const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
     const now = Date.now();
     const HOUR = 3600000;
-
-    // No database queries for mobcoins to save Supabase egress quota
     const userMobcoins = {};
 
+    // Fetch popularity data for cold-start users
+    let popularCreators = new Set();
+    let verifiedCreators = new Set();
+    if (isColdStart || isPublic) {
+      try {
+        const { data: authors } = await supabase
+          .from("users")
+          .select("username, verified, followers")
+          .in("username", [...new Set(eligible.map(p => p.username))]);
+        if (authors) {
+          authors.forEach(u => {
+            if (u.verified) verifiedCreators.add(u.username);
+            if (Array.isArray(u.followers) && u.followers.length > 20) popularCreators.add(u.username);
+          });
+        }
+      } catch {}
+    }
 
-    // TIKTOK Algorithm Scorers
     function scorePost(p) {
       const ageMs = now - new Date(p.created_at).getTime();
       const ageHours = Math.max(0.1, ageMs / HOUR);
@@ -7844,30 +7825,39 @@ app.get("/get-posts", async (req, res) => {
       const friendCommented = (p.comments || []).some(c => userFollowing.has(c?.username || c));
       const socialProof = (friendLiked ? 2.0 : 0) + (friendCommented ? 3.0 : 0);
 
-      const halfLifeHours = (isFriend || isFollowing) ? 12 : 3;
+      // Cold-start: longer half-life so good content lasts
+      const halfLifeHours = isColdStart || isPublic ? 12 : (isFriend || isFollowing ? 12 : 3);
       const freshness = Math.pow(0.5, ageHours / halfLifeHours);
 
       const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
       const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
 
+      // Cold-start: boost velocity weight for trending content
+      const velocityWeight = (isColdStart || isPublic) ? 8.0 : 3.0;
+
       let typeBonus = 1.0;
       if (p.type === "live") typeBonus = 3.0;
-      if (p.media && p.media.length > 0) typeBonus = 1.5;
-      if (p.type === "poll") typeBonus = 1.2;
+      if (p.media && p.media.length > 0) typeBonus = (isColdStart || isPublic) ? 2.5 : 1.5;
+      if (p.type === "poll") typeBonus = (isColdStart || isPublic) ? 2.0 : 1.2;
 
-      // Penalize seen content to bottom
       const isSeen = clientSeenIds.has(String(p.id));
       const seenPenalty = isSeen ? 0.00001 : 1.0;
-      const selfPenalty = p.username === username ? 0.1 : 1.0;
+      const selfPenalty = (p.username === username && !isPublic) ? 0.1 : 1.0;
 
-      // Add their mobcoin investment influence
+      // Cold-start: popularity boost for verified / popular creators
+      let popularityMul = 1.0;
+      if (isColdStart || isPublic) {
+        if (verifiedCreators.has(p.username)) popularityMul = 2.0;
+        else if (popularCreators.has(p.username)) popularityMul = 1.5;
+      }
+
       const userInfluence = (userMobcoins[p.username] || 0) * 0.05;
 
       const base = (
         (freshness * 5.0) +
-        (velocity * 3.0) +
+        (velocity * velocityWeight) +
         (socialProof * 2.0)
-      ) * affinityMul * typeBonus * seenPenalty * selfPenalty;
+      ) * affinityMul * typeBonus * seenPenalty * selfPenalty * popularityMul;
 
       return base + userInfluence + (Math.random() * 0.2);
     }
@@ -7902,6 +7892,32 @@ app.get("/get-posts", async (req, res) => {
       return result;
     }
 
+    // Cold-start: diversify more by allowing 4 per author instead of 2
+    const diversifyMaxPerUser = (isColdStart || isPublic) ? 4 : 2;
+    (function diversifyCustom() {
+      const result = [];
+      const skipped = [];
+      const userCount = new Map();
+      for (const post of humanPosts) {
+        if (result.length >= limit * 2) break;
+        const count = userCount.get(post.username) || 0;
+        if (count < diversifyMaxPerUser) {
+          result.push(post);
+          userCount.set(post.username, count + 1);
+        } else {
+          skipped.push(post);
+        }
+      }
+      if (result.length < limit * 2) {
+        for (const post of skipped) {
+          if (result.length >= limit * 2) break;
+          result.push(post);
+        }
+      }
+      humanPosts.length = 0;
+      humanPosts.push(...result);
+    })();
+
     const bestNextPosts = humanPosts.slice(0, limit * 2);
     const diversified = diversify(bestNextPosts, limit);
 
@@ -7920,7 +7936,6 @@ app.get("/get-posts", async (req, res) => {
 
     const finalFeed = interleaveAI(diversified, aiPosts);
 
-    // Inject verified status
     const usernames = [...new Set(finalFeed.map(p => p.username))];
     if (usernames.length > 0) {
       const { data: authors } = await supabase
@@ -8596,12 +8611,14 @@ app.post('/groups', async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
 
     // notify members for private/secret groups (if any were added on creation)
-    if ((type === 'private_visible' || type === 'secret') && members.length > 0) {
+      if ((type === 'private_visible' || type === 'secret') && members.length > 0) {
       const notification = {
         id: Date.now(),
         message: `You were added to the ${type} group "${name}" by ${username}.`,
         read: false,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        type: 'group',
+        sender: username,
       };
       for (var i = 0; i < members.length; i++) {
         const member = members[i];
@@ -8683,7 +8700,9 @@ app.post('/groups/:groupId/join', async (req, res) => {
       id: Date.now(),
       message: `${username} joined the group.`,
       read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      type: 'group',
+      sender: username,
     };
 
     for (var j = 0; j < admins.length; j++) {
@@ -8897,7 +8916,9 @@ app.post('/groups/:groupId/members', async (req, res) => {
       id: Date.now(),
       message: `You were added to the ${grp.type} group "${grp.name}" by ${username} as ${role}.`,
       read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      type: 'group',
+      sender: username,
     };
     await addNotification(newMember, notification);
 
@@ -8985,7 +9006,9 @@ app.post('/groups/:groupId/roles', async (req, res) => {
       id: Date.now(),
       message: `${username} assigned you ${role} role in the group.`,
       read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      type: 'group',
+      sender: username,
     };
     await addNotification(targetUser, notif);
     io.to(`user_${targetUser}`).emit('notification', notif);
@@ -9533,7 +9556,7 @@ app.post(
 
       // Hashtags
       var hashtags = [];
-      var rawHashtags = text.match(/#\w+/g);
+      var rawHashtags = text.match(/#[\w-]+/g);
       if (rawHashtags && Array.isArray(rawHashtags)) {
         hashtags = rawHashtags;
       }
@@ -9631,7 +9654,9 @@ app.post(
               message: username + " posted in " + grp.name,
               read: false,
               link: "/post/" + data.id,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              type: 'group',
+              sender: username,
             };
             try {
               await addNotification(member, notif);
@@ -9674,7 +9699,7 @@ app.post(
             }
           }
 
-          // Mentions notifications + TextmobAI trigger
+          // Mentions notifications + TextmobAI trigger (AI first, don't block on emails)
           var safeMediaTypes = [];
           var filesForTypes = req.files ? req.files : [];
           if (filesForTypes.length > 0) {
@@ -9683,6 +9708,17 @@ app.post(
             });
           }
 
+          // Fire AI reply immediately if needed
+          for (var j = 0; j < mentions.length; j++) {
+            var mentionedUser = mentions[j];
+            if (mentionedUser && typeof mentionedUser === "string" && mentionedUser.toLowerCase() === "textmobai") {
+              triggerAIReply(text, mediaUrls, safeMediaTypes, data.id, "post").catch(function (aiErr) {
+                console.error("[group-post] triggerAIReply failed:", aiErr);
+              });
+            }
+          }
+
+          // Then mention notifications (best-effort, don't await)
           for (var j = 0; j < mentions.length; j++) {
             var mentionedUser = mentions[j];
             try {
@@ -9691,23 +9727,13 @@ app.post(
                 message: username + " mentioned you in a post",
                 read: false,
                 link: "/post/" + data.id,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                type: 'mention',
+                sender: username,
               };
-              await addNotification(mentionedUser, notification);
+              addNotification(mentionedUser, notification).catch(function () {});
             } catch (addNotifErr2) {
               console.error("[group-post] addNotification failed for", mentionedUser, addNotifErr2);
-            }
-
-            try {
-              if (mentionedUser && typeof mentionedUser === "string" && mentionedUser.toLowerCase() === "textmobai") {
-                try {
-                  await triggerAIReply(text, mediaUrls, safeMediaTypes, data.id, "post");
-                } catch (aiErr) {
-                  console.error("[group-post] triggerAIReply failed:", aiErr);
-                }
-              }
-            } catch (detErr) {
-              console.error("[group-post] error checking mentionedUser:", detErr);
             }
           }
 
@@ -9765,16 +9791,16 @@ io.on('connection', function (socket) {
 
 // Route: POST /t/send-mobcoins
 app.post("/t/send-mobcoins", async (req, res) => {
-  const { fromId, toIds, amount } = req.body;
+  const { fromId, toIds, amount, postId } = req.body;
 
   if (!fromId || !toIds || !Array.isArray(toIds) || toIds.length === 0 || !amount || amount <= 0)
     return res.status(400).send("Invalid transfer data");
 
   try {
-    // Fetch sender's balance
+    // Fetch sender's balance and info
     const { data: sender, error: senderErr } = await supabase
       .from("users")
-      .select("mobcoins")
+      .select("mobcoins, fullname")
       .eq("username", fromId)
       .single();
 
@@ -9796,10 +9822,56 @@ app.post("/t/send-mobcoins", async (req, res) => {
     if (invalidRecipients.length > 0)
       return res.status(404).send(`Recipients not found: ${invalidRecipients.join(", ")}`);
 
+    // Fetch sender's profile pic for notification
+    const { data: senderProfile } = await supabase
+      .from("users")
+      .select("profile_pic")
+      .eq("username", fromId)
+      .single();
+    const senderPic = senderProfile?.profile_pic || null;
+
     // Proceed with bulk transfer
-    await updateMobcoins(fromId, -totalAmount, true, `You sent ${amount} to ${toIds.length} users`);
+    const senderName = sender.fullname || fromId;
+    const postLink = postId ? `/post/${postId}` : "/wallet";
+    const postUrl = postId ? `https://textmob.web.app/post/${postId}` : null;
+
+    await updateMobcoins(fromId, -totalAmount, true, `You sent ${amount} Mobcoins to ${toIds.length} users`, "/wallet");
+
     for (const toId of toIds) {
-      await updateMobcoins(toId, amount, true, `You received ${amount} from ${fromId}`);
+      if (postId) {
+        const extraMsg = `🎁 <strong>${senderName}</strong> gifted you <strong>${amount} Mobcoins</strong> on your post · <a href="${postUrl}" style="color:#2563eb;text-decoration:underline;">View post</a>`;
+        await updateMobcoins(toId, amount, false, `Gift from ${fromId} on post #${postId}`, postLink, extraMsg);
+        // Also send a rich notification with sender avatar
+        try {
+          const { data: recipientUser } = await supabase
+            .from("users")
+            .select("notifications")
+            .eq("username", toId)
+            .single();
+          if (recipientUser) {
+            const existingNotifs = Array.isArray(recipientUser.notifications) ? recipientUser.notifications : [];
+            const newNotif = {
+              id: Date.now() + Math.random(),
+              message: extraMsg,
+              read: false,
+              link: postLink,
+              timestamp: new Date().toISOString(),
+              type: 'mobcoins',
+              sender: fromId,
+              senderPic: senderPic
+            };
+            const updatedNotifications = existingNotifs.concat([newNotif]);
+            await supabase
+              .from("users")
+              .update({ notifications: updatedNotifications })
+              .eq("username", toId);
+          }
+        } catch (notifErr) {
+          console.error("[send-mobcoins] failed to add rich notification:", notifErr);
+        }
+      } else {
+        await updateMobcoins(toId, amount, true, `You received ${amount} from ${fromId}`);
+      }
     }
 
     return res.json({ success: true, message: `Mobcoins sent to ${toIds.length} recipients` });

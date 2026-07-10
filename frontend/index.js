@@ -15242,27 +15242,7 @@ function Lt() {
     e();
     window.addEventListener(`storage`, e);
     window.addEventListener(`show-manage-accounts`, () => s(true));
-    window.showNotification = ({
-      title: e,
-      message: t,
-      type: n = `info`,
-      duration: i = 5000,
-      afterClose: a
-    }) => {
-      let o = Date.now() + Math.random();
-      r(r => [...r, {
-        id: o,
-        title: e,
-        message: t,
-        type: n
-      }]);
-      setTimeout(() => {
-        r(e => e.filter(e => e.id !== o));
-        if (a) {
-          a();
-        }
-      }, i);
-    };
+    window.showNotification = () => {};
     return () => {
       window.removeEventListener(`storage`, e);
       window.removeEventListener(`show-manage-accounts`, () => s(true));
@@ -22396,67 +22376,7 @@ function Mr({
 function Nr({
   username: e
 }) {
-  let [t, n] = v.useState([]);
-  let r = v.useRef(null);
-  function i(e) {
-    n(t => t.filter(t => t.id !== e));
-  }
-  async function a() {
-    if (e) {
-      try {
-        let t = await J(`/get-notifications?username=${encodeURIComponent(e)}`);
-        if (!t.ok) {
-          return;
-        }
-        let r = await t.json();
-        let i = Tr();
-        let a = r.filter(e => !e.read && !i.has(e.id));
-        if (a.length === 0) {
-          return;
-        }
-        Er(a.map(e => e.id));
-        await Or();
-        a.sort((e, t) => new Date(t.timestamp) - new Date(e.timestamp)).slice(0, 3).forEach((e, t) => {
-          let r = `${e.id}_toast`;
-          setTimeout(() => {
-            n(t => t.some(e => e.id === r) ? t : [{
-              id: r,
-              notif: e
-            }, ...t].slice(0, 3));
-            if (t === 0) {
-              kr(`Textmob`, Ar(e.message).slice(0, 100), e.avatar, () => {
-                if (e.link && window.Lexum?.navigate) {
-                  U.navigate(e.link);
-                }
-              });
-            }
-          }, t * 400);
-        });
-      } catch {}
-    }
-  }
-  v.useEffect(() => {
-    if (e) {
-      J(`/get-notifications?username=${encodeURIComponent(e)}`).then(e => e.json()).then(e => {
-        Er(e.filter(e => e.read).map(e => e.id));
-        Er(e.map(e => e.id));
-      }).catch(() => {}).finally(() => {
-        r.current = setInterval(a, 30000);
-      });
-      return () => clearInterval(r.current);
-    }
-  }, [e]);
-  if (t.length === 0) {
-    return null;
-  } else {
-    const Component1867 = `div`;
-    const Component1868 = `div`;
-    return <Component1868 className={`fixed z-[200] bottom-20 left-0 right-0 flex flex-col items-center gap-2 px-4 pointer-events-none
-                 md:bottom-6 md:left-auto md:right-6 md:items-end md:w-[360px]`} aria-label={`Notifications`}>{t.map(({
-        id: e,
-        notif: t
-      }) => <Component1867 className={`w-full pointer-events-auto`} key={e}><Mr notif={t} onClose={() => i(e)} /></Component1867>)}</Component1868>;
-  }
+  return null;
 }
 function Pr() {
   let e = () => {

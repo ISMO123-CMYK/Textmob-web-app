@@ -15,6 +15,9 @@ export default function Sidebar() {
   const menuRef = useRef(null);
   const createMenuRef = useRef(null);
 
+  const currentUser = localStorage.getItem('currentUser');
+  const isLoggedIn = !!currentUser && currentUser !== 'undefined';
+
   useEffect(() => {
     const user = localStorage.getItem('currentUser');
     if (!user) return;
@@ -56,9 +59,36 @@ export default function Sidebar() {
     { Icon: NavIcons.Dots, label: 'More', badge: null, to: '/menu' },
   ];
 
+  // Guest CTA sidebar
+  if (!isLoggedIn) {
+    return (
+      <aside className="hidden md:flex flex-col h-screen sticky top-0 w-80 bg-white border-r border-gray-200">
+        <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mb-5">
+            <svg viewBox="0 0 24 24" className="w-8 h-8 text-blue-600 fill-none stroke-current" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+          <p className="text-lg font-bold text-gray-900 mb-2">Create a Textmob account</p>
+          <p className="text-sm text-gray-500 mb-6 leading-relaxed">Join Africa's fastest growing social network. Post, go live, earn real money, and connect with millions.</p>
+          <button
+            onClick={() => window.Lexum?.navigate('/auth')}
+            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition-all active:scale-[0.97]"
+          >
+            Create account
+          </button>
+          <p className="text-xs text-gray-400 mt-3">
+            Already have an account?{' '}
+            <button onClick={() => window.Lexum?.navigate('/auth')} className="text-blue-600 font-semibold hover:underline">Log in</button>
+          </p>
+        </div>
+      </aside>
+    );
+  }
+
   if (!profile || unread === null) {
     return (
-      <aside className={cn('hidden md:flex flex-col h-screen bg-white border-r border-gray-200 overflow-y-auto', collapsed ? 'w-20' : 'w-64')}>
+      <aside className={cn('hidden md:flex flex-col h-screen milky-glass border-r border-gray-200/50 overflow-y-auto', collapsed ? 'w-20' : 'w-64')}>
         <div className="p-4 space-y-3">
           <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
           {!collapsed && <>
@@ -80,7 +110,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className={cn('hidden md:flex flex-col h-screen bg-white border-r border-gray-200 overflow-y-auto sticky top-0 transition-[width] duration-300', collapsed ? 'w-20' : 'w-64')}>
+      <aside className={cn('hidden md:flex flex-col h-screen milky-glass border-r border-gray-200/50 overflow-y-auto sticky top-0 transition-[width] duration-300', collapsed ? 'w-20' : 'w-64')}>
         {/* Header */}
         <div className={cn('flex items-center px-4 pt-4 pb-2', collapsed ? 'justify-center' : 'justify-between')}>
           {!collapsed && <span className="text-sm font-bold text-gray-900 tracking-tight">Textmob</span>}
@@ -107,7 +137,11 @@ export default function Sidebar() {
           </button>
 
           {menuOpen && (
-            <div ref={menuRef} className="absolute left-2 right-2 top-[calc(100%-4px)] z-50 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg" role="menu">
+            <div
+              ref={menuRef}
+              className="absolute left-2 right-2 top-[calc(100%-4px)] z-50 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-2xl overflow-hidden shadow-xl"
+              role="menu"
+            >
               <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
                 <img src={pic} alt={name} className="w-8 h-8 rounded-full object-cover" />
                 <div className="min-w-0">
@@ -165,7 +199,10 @@ export default function Sidebar() {
           </button>
 
           {createMenuOpen && (
-            <div className={cn("absolute z-50 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl w-48 bottom-full mb-2", collapsed ? "left-2" : "left-3 right-3")}>
+            <div
+              className={cn("absolute z-50 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-2xl overflow-hidden shadow-2xl w-48 bottom-full mb-2", collapsed ? "left-2" : "left-3 right-3")}
+              style={{ animation: 'sheetSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
+            >
               <button
                 onClick={() => { setCreateMenuOpen(false); window.Lexum?.navigate('/make-post'); }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold border-b border-gray-100"
@@ -199,7 +236,15 @@ export default function Sidebar() {
             <div className="text-center space-y-1">
               <p className="text-[11px] font-semibold text-gray-400">Textmob © {new Date().getFullYear()}</p>
               <div className="flex justify-center gap-3">
-                {['About', 'Privacy', 'Terms'].map(t => <a href="/about" className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors" key={t}>{t}</a>)}
+                {[
+                  { label: 'About', href: '/about.html' },
+                  { label: 'Privacy', href: '/privacy.html' },
+                  { label: 'Terms', href: '/terms.html' }
+                ].map(l => (
+                  <a href={l.href} data-no-lexum="true" className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors" key={l.label}>
+                    {l.label}
+                  </a>
+                ))}
               </div>
             </div>
           )}

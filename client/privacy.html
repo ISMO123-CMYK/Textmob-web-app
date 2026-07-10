@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Textmob</title>
+  <meta name="description" content="Textmob Privacy Policy. Understand what data we collect, how we handle MobCoins payouts information, and our account data wiping guarantee.">
+  <link rel="canonical" href="https://textmob.web.app/privacy.html">
+  <link rel="icon" href="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png">
+  
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://textmob.web.app/#organization",
+        "name": "Textmob",
+        "url": "https://textmob.web.app",
+        "logo": "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://textmob.web.app/privacy.html#webpage",
+        "url": "https://textmob.web.app/privacy.html",
+        "name": "Privacy Policy — Textmob",
+        "isPartOf": { "@id": "https://textmob.web.app/#website" },
+        "description": "Textmob Privacy Policy. Understand what data we collect, how we handle MobCoins payouts information, and our account data wiping guarantee.",
+        "breadcrumb": { "@id": "https://textmob.web.app/#breadcrumb" },
+        "inLanguage": "en"
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://textmob.web.app/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://textmob.web.app/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Privacy Policy",
+            "item": "https://textmob.web.app/privacy.html"
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  
+  <!-- Fonts: Space Grotesk + Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --blue: #2563eb;
+      --blue-hover: #1d4ed8;
+      --ink: #0f172a;
+      --ink-secondary: #475569;
+      --ink-muted: #94a3b8;
+      --milk: #f8fafc;
+      --white: #ffffff;
+      --line: #e2e8f0;
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-body: 'Inter', -apple-system, sans-serif;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      color: var(--ink);
+      background: var(--milk);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { text-decoration: none; color: inherit; }
+    
+    /* ── Header ──────────────────────────────────────────────────────── */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(20px) saturate(190%);
+      -webkit-backdrop-filter: blur(20px) saturate(190%);
+      border-bottom: 1.5px solid var(--line);
+      height: 72px; display: flex; align-items: center;
+    }
+    .header-wrap {
+      width: 100%; max-width: 800px; margin: 0 auto; padding: 0 24px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .logo {
+      font-family: var(--font-display); font-size: 22px; font-weight: 700;
+      color: var(--blue); letter-spacing: -0.03em;
+    }
+    .btn-back {
+      font-family: var(--font-display); font-size: 13px; font-weight: 600;
+      padding: 8px 16px; border: 1.5px solid var(--line); border-radius: 8px;
+      transition: all 0.25s var(--ease-out);
+    }
+    .btn-back:hover { border-color: var(--blue); color: var(--blue); }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    main { max-width: 800px; margin: 120px auto 80px; padding: 0 24px; }
+    
+    /* ── Typography ──────────────────────────────────────────────────── */
+    h1 {
+      font-family: var(--font-display); font-size: clamp(32px, 5vw, 56px);
+      font-weight: 700; line-height: 1.1; letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+    .last-updated {
+      font-size: 13px; color: var(--ink-muted); margin-bottom: 48px;
+      font-family: var(--font-display); font-weight: 500;
+    }
+    h2 {
+      font-family: var(--font-display); font-size: 20px; font-weight: 700;
+      letter-spacing: -0.02em; margin: 40px 0 16px; padding-bottom: 8px;
+      border-bottom: 1.5px solid var(--line);
+    }
+    p { margin-bottom: 16px; color: var(--ink-secondary); font-size: 15px; }
+    ul, ol { margin-bottom: 20px; padding-left: 20px; color: var(--ink-secondary); font-size: 15px; }
+    li { margin-bottom: 8px; }
+
+    /* ── Highlight Box ───────────────────────────────────────────────── */
+    .box {
+      background: var(--white); border: 1.5px solid var(--line);
+      border-radius: 12px; padding: 20px; margin: 24px 0;
+    }
+    .box p:last-child { margin-bottom: 0; }
+    .box-title {
+      font-family: var(--font-display); font-size: 14px; font-weight: 700;
+      color: var(--blue); text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      border-t: 1.5px solid var(--line); padding: 40px 24px;
+      text-align: center; font-size: 12px; color: var(--ink-muted);
+      background: var(--white); border-top: 1.5px solid var(--line);
+    }
+    footer p { font-size: 12px; color: var(--ink-muted); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-wrap">
+      <a href="/" class="logo">textmob</a>
+      <a href="/" class="btn-back">Go to App</a>
+    </div>
+  </header>
+
+  <main>
+    <h1>Privacy Policy</h1>
+    <div class="last-updated">Last Updated: June 13, 2026</div>
+
+    <section>
+      <p>At Textmob, we take your privacy seriously. This Privacy Policy details the types of personal information we collect, how we use it, how we safeguard it, and the absolute control you have over your profile data.</p>
+      
+      <h2>1. Information We Collect</h2>
+      <p>We collect information to run and customize our services, process creator earnings, and improve community experience.</p>
+      <ul>
+        <li><strong>Profile Data</strong>: Username, display name (fullname), email address, phone number, profile photo, biography, and account type choice.</li>
+        <li><strong>Content Creation</strong>: Media uploads (photos, videos, Snaps, live stream parameters), posts, replies, reactions, polls, and instant messaging chats (DMs and group chats).</li>
+        <li><strong>Financial & Payout Data</strong>: Transaction logs relating to MobCoins monetization, verification invoice details, and mobile operator contacts (MTN, Airtel, Glo, 9mobile) or banking credentials required to process cash payouts.</li>
+      </ul>
+
+      <h2>2. How We Use Your Data</h2>
+      <p>Your data is processed to deliver a reliable social experience, specifically:</p>
+      <ul>
+        <li>Configuring and verifying your profile credentials.</li>
+        <li>Aggregating and serving feed content, Snaps, live feeds, and trending topics.</li>
+        <li>Tracking in-app activity to credit and calculate MobCoins rewards.</li>
+        <li>Processing verified blue tick monthly subscriptions.</li>
+        <li>Resolving payout transactions through mobile operators and payment partners.</li>
+      </ul>
+
+      <h2>3. Data Sharing & Security</h2>
+      <p>Textmob does not sell or trade your private information. We only share details with trusted third parties to process payment transactions (such as verifying a subscription or delivering an airtime payout). All communications with our servers are encrypted via HTTPS (SSL/TLS).</p>
+
+      <h2>4. Your Right to Delete (Wiping Your Data)</h2>
+      <div class="box">
+        <div class="box-title">Full Wiping Control Guarantee</div>
+        <p>Textmob believes in absolute data sovereignty. If you choose to leave the platform, we do not lock or cache your content indefinitely. <strong>Inside the Accounts Center, you can trigger our deactivation tools to instantly and permanently wipe all your profile details, publications, followers, coins, and transaction history from our active databases.</strong></p>
+      </div>
+
+      <h2>5. Cookies & Local Storage</h2>
+      <p>We use local storage keys (such as <code>currentUser</code> and saved session arrays) in your browser to keep you logged in and preserve active feed status. Cookies are used to optimize media deliveries and analytics.</p>
+
+      <h2>6. Children's Privacy</h2>
+      <p>Textmob is not designed to target or intentionally collect personal information from children under 13. If we discover that a user under 13 has registered without verified parental permission, we will terminate the account and purge their associated files immediately.</p>
+
+      <h2>7. Contact Us</h2>
+      <p>If you have any questions about this Privacy Policy, your monetization logs, or to request manual account updates, contact us at:</p>
+      <ul>
+        <li>Support: <a href="mailto:sharpbrainspublishers@gmail.com" style="color: var(--blue);">sharpbrainspublishers@gmail.com</a></li>
+        <li>Developer Team: <a href="mailto:gidadoismail24@gmail.com" style="color: var(--blue);">gidadoismail24@gmail.com</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Textmob. All rights reserved. Built for Africa, by Africa.</p>
+  </footer>
+
+</body>
+</html>

@@ -136,6 +136,7 @@ function SkeletonBlock() {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function AccountsCenter() {
+  useEffect(() => { if (!localStorage.currentUser) { window.Lexum ? window.Lexum.navigate('/auth') : window.location.href = '/auth'; } }, []);
   const [activeTab, setActiveTab] = useState('home');
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -1198,22 +1199,25 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
           tooltip: { backgroundColor: '#111827', titleColor: '#f9fafb', bodyColor: '#d1d5db', padding: 10, cornerRadius: 8, displayColors: true },
         },
       };
-      const scalesOpts = {
-        y: {
-          beginAtZero: true,
-          suggestedMax: 10000,
-          grid: { color: gridColor },
-          border: { display: false },
-          ticks: { color: '#9ca3af', callback: (value) => value >= 1000 ? (value / 1000) + 'k' : value }
-        },
-        x: { grid: { display: false }, ticks: { color: '#6b7280' } },
-      };
+      function makeScaleOpts(dataValues) {
+        const mx = Math.max(50, Math.ceil(Math.max(...dataValues, 0) / 50) * 50);
+        return {
+          y: {
+            beginAtZero: true,
+            suggestedMax: mx,
+            grid: { color: gridColor },
+            border: { display: false },
+            ticks: { color: '#9ca3af', callback: (value) => value >= 1000 ? (value / 1000) + 'k' : value }
+          },
+          x: { grid: { display: false }, ticks: { color: '#6b7280' } },
+        };
+      }
 
       if (chartRef1.current) {
         chartRef1.current._chartInst = new ChartClass(chartRef1.current, {
           type: 'bar',
           data: { labels: ['Likes', 'Comments', 'Poll Votes'], datasets: [{ data: [likesCount, commentsCount, votesCount], backgroundColor: [red, blue, orange], borderRadius: 6, borderSkipped: false }] },
-          options: { ...baseOpts, scales: scalesOpts },
+          options: { ...baseOpts, scales: makeScaleOpts([likesCount, commentsCount, votesCount]) },
         });
       }
       if (chartRef2.current) {
@@ -1235,14 +1239,14 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
         chartRef3.current._chartInst = new ChartClass(chartRef3.current, {
           type: 'line',
           data: { labels: monthLabels, datasets: [{ label: 'Posts', data: postsTrend, borderColor: blue, backgroundColor: 'rgba(59,130,246,.05)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 }, { label: 'Likes', data: likesTrend, borderColor: red, backgroundColor: 'rgba(239,68,68,.05)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 }] },
-          options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'top', labels: { color: '#6b7280', font: { size: 11 }, padding: 12, boxWidth: 10 } } }, scales: scalesOpts },
+          options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'top', labels: { color: '#6b7280', font: { size: 11 }, padding: 12, boxWidth: 10 } } }, scales: makeScaleOpts([...postsTrend, ...likesTrend]) },
         });
       }
       if (chartRef4.current && sortedMonths.length) {
         chartRef4.current._chartInst = new ChartClass(chartRef4.current, {
           type: 'bar',
           data: { labels: monthLabels, datasets: [{ label: 'Posts', data: postsTrend, backgroundColor: blue, borderRadius: 4, borderSkipped: false }, { label: 'Comments', data: commentsTrend, backgroundColor: green, borderRadius: 4, borderSkipped: false }] },
-          options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'top', labels: { color: '#6b7280', font: { size: 11 }, padding: 12, boxWidth: 10 } } }, scales: scalesOpts },
+          options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'top', labels: { color: '#6b7280', font: { size: 11 }, padding: 12, boxWidth: 10 } } }, scales: makeScaleOpts([...postsTrend, ...commentsTrend]) },
         });
       }
       if (chartRef5.current && Object.keys(contentMix).length > 1) {

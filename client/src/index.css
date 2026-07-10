@@ -48,4 +48,143 @@
   --radius-2xl: 24px;
   --radius-3xl: 32px;
   --radius-full: 9999px;
+
+  /* Font family overrides for compiled builds */
+  --font-sans: 'Space Grotesk', 'Outfit', 'Inter', sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
 }
+
+/* ═══ SILKY GLOBAL LAYER (Vite build) ═══════════════════════════════ */
+
+/* Easing custom properties */
+:root {
+  --ease-silky: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Font smoothing */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* All interactive elements get silky transitions */
+button, a, input, select, textarea, [role="button"] {
+  transition: background-color 0.2s var(--ease-silky),
+              color 0.2s var(--ease-silky),
+              border-color 0.2s var(--ease-silky),
+              opacity 0.2s var(--ease-silky),
+              transform 0.15s var(--ease-silky);
+}
+
+/* Milky focus rings */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  transition: border-color 0.25s var(--ease-silky),
+              box-shadow 0.25s var(--ease-silky);
+}
+
+/* Smooth image rendering */
+img {
+  transition: opacity 0.35s var(--ease-silky);
+}
+
+/* Milky backdrop blur on overlays */
+.bg-black\/40 {
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+}
+
+/* Interactive Text Effect: letter-spacing nudge + primary color shift */
+.interactive-text {
+  transition: all 0.5s var(--ease-silky);
+}
+.interactive-text:hover {
+  letter-spacing: 0.02em;
+  color: #2563eb !important;
+}
+
+/* Milky frosted panels */
+.milky-glass {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+.milky-glass-dark {
+  background: rgba(15, 23, 42, 0.7) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ═══ SNAPS NUCLEAR RESET ═══════════════════════════════════════════
+   Completely undo EVERY global silky/milky style inside .snaps-context.
+   The Snaps page behaves as if the silky layer does not exist.
+   ═══════════════════════════════════════════════════════════════════ */
+.snaps-context,
+.snaps-context *,
+.snaps-context *::before,
+.snaps-context *::after {
+  animation: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Re-enable ONLY the snaps' own animations (injected via #snap-styles) */
+.snaps-context .snap-heart   { animation: snapHeartBurst .9s cubic-bezier(.25,.46,.45,.94) forwards !important; }
+.snaps-context .snap-like-pop{ animation: snapLikePop .38s cubic-bezier(.34,1.56,.64,1) forwards !important; }
+.snaps-context .snap-cnt-pop { animation: snapCountPop .28s ease forwards !important; }
+.snaps-context .snap-slide   { animation: snapSlideUp .3s cubic-bezier(.32,.72,0,1) forwards !important; }
+.snaps-context .snap-fade    { animation: snapFadeIn .18s ease forwards !important; }
+.snaps-context .snap-pause-ic{ animation: snapPauseFade .7s ease forwards !important; }
+.snaps-context .snap-progress-ring {
+  transform-origin: center !important;
+  transform: rotate(-90deg) !important;
+}
+/* Undo interactive element transitions */
+.snaps-context button,
+.snaps-context a,
+.snaps-context input,
+.snaps-context select,
+.snaps-context textarea,
+.snaps-context [role="button"] {
+  transition: none !important;
+}
+/* Undo focus ring overrides */
+.snaps-context input:focus,
+.snaps-context select:focus,
+.snaps-context textarea:focus {
+  border-color: unset !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+/* Undo image ghost-fade */
+.snaps-context img {
+  transition: none !important;
+}
+/* Undo milky-glass if it ever appears inside snaps */
+.snaps-context .milky-glass,
+.snaps-context .milky-glass-dark {
+  background: unset !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: unset !important;
+}
+/* Undo interactive-text effects */
+.snaps-context .interactive-text {
+  transition: none !important;
+}
+.snaps-context .interactive-text:hover {
+  letter-spacing: normal !important;
+  color: inherit !important;
+}
+/* Undo page-enter animation on the route wrapper containing snaps */
+.route-page-wrapper.snaps-context {
+  animation: none !important;
+}
+

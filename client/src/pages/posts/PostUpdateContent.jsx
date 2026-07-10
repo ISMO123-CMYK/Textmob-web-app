@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../../config/api';
 
 export default function PostUpdateContent() {
+  useEffect(() => { if (!localStorage.currentUser) { window.Lexum ? window.Lexum.navigate('/auth') : window.location.href = '/auth'; } }, []);
   const [post, setPost] = useState(null);
   const [text, setText] = useState('');
   const [title, setTitle] = useState('');

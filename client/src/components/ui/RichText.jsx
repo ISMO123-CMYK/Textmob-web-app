@@ -54,7 +54,7 @@ export default function RichText({ html }) {
 
       // Replace #hashtags
       result = result.replace(
-        /#([a-zA-Z0-9_]+)/g,
+        /#([a-zA-Z0-9_-]+)/g,
         (match, tag) => `<a data-lexum href="/topsearch?q=${encodeURIComponent(tag)}" class="text-blue-500 font-semibold hover:underline">${match}</a>`
       );
 

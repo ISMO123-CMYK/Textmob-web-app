@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /about.html
+Allow: /terms.html
+Allow: /privacy.html
+Allow: /auth
+
+Disallow: /menu
+Disallow: /accountscenter
+Disallow: /logout
+Disallow: /chats
+Disallow: /wallet
+
+Sitemap: https://textmob.web.app/sitemap.xml

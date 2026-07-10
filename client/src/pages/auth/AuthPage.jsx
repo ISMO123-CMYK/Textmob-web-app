@@ -93,8 +93,8 @@ export default function AuthPage() {
 
           <p className="text-center text-[11px] text-gray-400 mt-4">
             By continuing, you agree to our{' '}
-            <a href="/about" className="text-blue-500 font-medium">Terms</a> and{' '}
-            <a href="/about" className="text-blue-500 font-medium">Privacy Policy</a>
+            <a href="/terms.html" data-no-lexum="true" className="text-blue-500 font-medium">Terms</a> and{' '}
+            <a href="/privacy.html" data-no-lexum="true" className="text-blue-500 font-medium">Privacy Policy</a>
           </p>
         </div>
       </div>

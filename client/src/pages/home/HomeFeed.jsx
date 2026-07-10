@@ -99,7 +99,7 @@ function computeReactionData(reactions, currentUser) {
 /* ─── _Component28 – HomeFeed ─── */
 export default function HomeFeed({ propPosts }) {
   const [user] = useState({ username: localStorage.currentUser });
-  const [activeTab, setActiveTab] = useState(window.__feedState?.activeTab || 'foryou');
+  const [activeTab, setActiveTab] = useState((window.__feedState?.activeTab === 'following' && !localStorage.currentUser) ? 'foryou' : (window.__feedState?.activeTab || 'foryou'));
   const [newPosts, setNewPosts] = useState([]);
   const [posts, setPosts] = useState(() => window.__feedState?.[activeTab]?.posts || []);
   const [page, setPage] = useState(() => window.__feedState?.[activeTab]?.page || 1);
@@ -154,6 +154,7 @@ export default function HomeFeed({ propPosts }) {
 
   // Tab switching
   function switchTab(tab) {
+    if (!isLoggedIn && tab === 'following') return;
     if (activeTab === tab) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -172,9 +173,12 @@ export default function HomeFeed({ propPosts }) {
   const { scrollDirection, isAtTop } = useScrollDirection();
   const tabHidden = scrollDirection === 'down' && !isAtTop;
 
+  const isLoggedIn = !!user.username;
+
   // Tab bar component
   function TabBar({ isMobile }) {
     if (propPosts) return null;
+    const tabs = isLoggedIn ? ['foryou', 'following'] : ['foryou'];
     return (
       <div className={cn(
         'z-[45] border-b border-gray-100 dark:border-gray-800 flex transition-all duration-300',
@@ -182,13 +186,13 @@ export default function HomeFeed({ propPosts }) {
           ? `block md:hidden sticky bg-white dark:bg-gray-900 ${tabHidden ? 'top-0' : 'top-[56px]'}`
           : 'hidden md:flex sticky top-[52px] bg-white dark:bg-gray-900 md:rounded-t-2xl backdrop-blur-md'
       )}>
-        {['foryou', 'following'].map(tab => (
+        {tabs.map(tab => (
           <button
             onClick={() => switchTab(tab)}
             className={cn('flex-1 py-3.5 text-sm font-bold text-center relative', activeTab === tab ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500')}
             key={tab}
           >
-            {tab === 'foryou' ? 'For you' : 'Friends'}
+            {tab === 'foryou' ? (isLoggedIn ? 'For you' : 'Trending') : 'Friends'}
             {activeTab === tab && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-blue-600 rounded-full block" />}
           </button>
         ))}
@@ -238,7 +242,7 @@ export default function HomeFeed({ propPosts }) {
 
   // Socket: new posts
   useEffect(() => {
-    if (!window.socket) return;
+    if (!window.socket || !isLoggedIn) return;
     let handler = p => {
       if (p.username !== user.username && !isGroupPost(p)) {
         setNewPosts(prev => [p, ...prev]);
@@ -289,6 +293,7 @@ export default function HomeFeed({ propPosts }) {
 
   // Poll vote handler
   async function handlePollVote(postId, optionId) {
+    if (!localStorage.currentUser) { window.showAuthPrompt?.('Log in to vote in polls'); return; }
     let post = posts.find(p => p.id === postId);
     if (!post || post.type !== 'poll') return;
     let currentUser = localStorage.currentUser;
@@ -314,6 +319,7 @@ export default function HomeFeed({ propPosts }) {
 
   // Like handler
   function handleLike(postId) {
+    if (!user.username) { window.showAuthPrompt?.('Log in to like posts'); return; }
     let username = user.username;
     let updater = prev => prev.map(p => {
       if (p.id !== postId) return p;
@@ -330,6 +336,7 @@ export default function HomeFeed({ propPosts }) {
 
   // Comment handler
   async function handleComment(postId, text) {
+    if (!user.username) { window.showAuthPrompt?.('Log in to comment'); return; }
     let trimmed = text.trim();
     if (trimmed) {
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: [...p.comments, { username: user.username, text: trimmed }] } : p));
@@ -345,6 +352,7 @@ export default function HomeFeed({ propPosts }) {
 
   // React handler
   function handleReact(postId, reaction, etext) {
+    if (!localStorage.currentUser) { window.showAuthPrompt?.('Log in to react'); return; }
     let currentUser = localStorage.currentUser;
     setPosts(prev => prev.map(p => {
       if (!p || p.id !== postId) return p;
@@ -410,9 +418,10 @@ export default function HomeFeed({ propPosts }) {
       setError('');
       try {
         let seen = getSeenParam();
+        let usernameParam = user.username ? `username=${encodeURIComponent(user.username)}` : '';
         let url = [
           `/get-posts`,
-          `?username=${encodeURIComponent(user.username)}`,
+          `?${usernameParam}`,
           `&tab=${activeTab}`,
           `&page=${pg}`,
           `&limit=10`,
@@ -465,9 +474,8 @@ export default function HomeFeed({ propPosts }) {
 
   // Fetch suggestions
   useEffect(() => {
-    if (sugFetched || propPosts || posts.length < 5) return;
+    if (sugFetched || propPosts || posts.length < 5 || !isLoggedIn) return;
     let username = localStorage.currentUser;
-    if (!username || username === 'undefined') return;
     let active = true;
     setSugFetched(true);
     apiFetch(`/get-suggestions-feed?username=${encodeURIComponent(username)}`)
@@ -493,7 +501,8 @@ export default function HomeFeed({ propPosts }) {
     if (pullDelta > 60) {
       setLoading(true);
       setPullDelta(40);
-      apiFetch(`/get-posts?username=${encodeURIComponent(user.username)}&tab=${activeTab}&page=1&limit=10`)
+      let refreshUserParam = user.username ? `username=${encodeURIComponent(user.username)}&` : '';
+      apiFetch(`/get-posts?${refreshUserParam}tab=${activeTab}&page=1&limit=10`)
         .then(r => r.json())
         .then(data => {
           let filtered = (Array.isArray(data) ? data : []).filter(p => !isGroupPost(p));

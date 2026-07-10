@@ -7,7 +7,7 @@ import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
 function CommentItem({ cmt }) {
   const profile = useProfileCache(cmt.username);
-  const navigate = path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path);
+  const ciGuest = !localStorage.currentUser;
 
   return (
     <div className="flex items-start gap-2">
@@ -17,7 +17,7 @@ function CommentItem({ cmt }) {
         className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100 dark:border-gray-800"
         loading="lazy"
       />
-      <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-2xl max-w-[85%] cursor-pointer" onClick={() => navigate(`/@${cmt.username}`)}>
+      <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-2xl max-w-[85%] cursor-pointer" onClick={() => { if (ciGuest) { window.showAuthPrompt?.('Create an account to view profiles'); return; } window.Lexum?.navigate(`/@${cmt.username}`); }}>
         <div className="flex items-center gap-1">
           <p className="text-xs font-bold text-gray-900 dark:text-gray-100 leading-snug">{profile.fullname || cmt.username}</p>
           {(cmt.verified === true || profile.verified === true) && <VerifiedBadge className="w-3 h-3" />}
@@ -43,7 +43,7 @@ function CommentInput({ onSubmit }) {
     const pos = el.selectionStart || 0;
     const before = text.slice(0, pos);
     const mentionMatch = before.match(/@([\w.]*)$/);
-    const hashMatch = before.match(/#([\w]*)$/);
+    const hashMatch = before.match(/#([\w-]*)$/);
 
     if (mentionMatch && mentionMatch[1].length >= 1) {
       const q = mentionMatch[1].toLowerCase();
@@ -263,6 +263,7 @@ export default function PostContent() {
 
   // Handlers
   const toggleLike = (id) => {
+    if (!localStorage.currentUser) { window.showAuthPrompt?.('Log in to like posts'); return; }
     let username = localStorage.currentUser;
     setPost(prev => {
       if (!prev || prev.id !== id) return prev;
@@ -280,6 +281,7 @@ export default function PostContent() {
   };
 
   const handleComment = async (id, text) => {
+    if (!localStorage.currentUser) { window.showAuthPrompt?.('Log in to comment'); return; }
     let trimmed = text.trim();
     if (!trimmed || !post) return;
     setPost(prev => ({
@@ -296,6 +298,7 @@ export default function PostContent() {
   };
 
   const handlePollVote = async (id, optionId) => {
+    if (!localStorage.currentUser) { window.showAuthPrompt?.('Log in to vote'); return; }
     if (!post || post.type !== 'poll') return;
     let currentUser = localStorage.currentUser;
     let prevVote = post.options.find(o => o.votes.includes(currentUser))?.id;
@@ -317,6 +320,7 @@ export default function PostContent() {
   };
 
   const handleReact = (id, reaction, etext) => {
+    if (!localStorage.currentUser) { window.showAuthPrompt?.('Log in to react'); return; }
     let currentUser = localStorage.currentUser;
     setPost(prev => {
       if (!prev || prev.id !== id) return prev;
@@ -385,9 +389,17 @@ export default function PostContent() {
         showCommentInput={false}
         showViewButton={false}
       />
-      <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800">
-        <CommentInput onSubmit={text => handleComment(post.id, text)} />
-      </div>
+      {localStorage.currentUser ? (
+        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800">
+          <CommentInput onSubmit={text => handleComment(post.id, text)} />
+        </div>
+      ) : (
+        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800">
+          <button onClick={() => window.showAuthPrompt?.('Log in to comment')} className="w-full text-left text-sm text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-full px-4 py-2 cursor-pointer">
+            Log in to comment
+          </button>
+        </div>
+      )}
       {post.comments && post.comments.length > 0 && (
         <div className="px-4 pb-6 space-y-4">
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 pt-2">Comments</p>

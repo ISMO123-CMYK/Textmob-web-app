@@ -5,6 +5,7 @@ import NavIcons from '../../utils/navIcons';
 export default function DesktopHeader({ activeTab, setActiveTab }) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const currentUser = localStorage.getItem('currentUser');
+  const isLoggedIn = !!currentUser && currentUser !== 'undefined';
 
   useEffect(() => {
     if (!currentUser) return;
@@ -30,7 +31,7 @@ export default function DesktopHeader({ activeTab, setActiveTab }) {
   }, [currentUser]);
 
   return (
-    <header className="p-3 sticky top-0 z-40 bg-white backdrop-blur-md border-b border-gray-200">
+    <header className="p-3 sticky top-0 z-40 milky-glass border-b border-gray-200/50">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <a href="/" data-lexum className="text-3xl font-black text-blue-600 hover:text-blue-700 transition-colors tracking-tighter">
@@ -70,35 +71,46 @@ export default function DesktopHeader({ activeTab, setActiveTab }) {
             </button>
           </a>
 
-          {/* Activity / Bell Notification Page */}
-          <a href="/activity" data-lexum className="relative group" title="Notifications">
-            <button className="p-3 rounded-full hover:bg-gray-100 active:scale-90 transition-all">
-              <NavIcons.Bell className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" />
-              {unreadNotifications > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1">
-                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                </span>
-              )}
-            </button>
-          </a>
+          {isLoggedIn ? (
+            <>
+              {/* Activity / Bell Notification Page */}
+              <a href="/activity" data-lexum className="relative group" title="Notifications">
+                <button className="p-3 rounded-full hover:bg-gray-100 active:scale-90 transition-all">
+                  <NavIcons.Bell className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1">
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                    </span>
+                  )}
+                </button>
+              </a>
 
-          {/* Refresh Page */}
-          <button 
-            onClick={() => window.location.reload()} 
-            className="p-3 rounded-full hover:bg-gray-100 active:scale-90 transition-all group"
-            title="Refresh"
-          >
-            <svg className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
+              {/* Refresh Page */}
+              <button 
+                onClick={() => window.location.reload()} 
+                className="p-3 rounded-full hover:bg-gray-100 active:scale-90 transition-all group"
+                title="Refresh"
+              >
+                <svg className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
 
-          {/* Compose Post */}
-          <a href="/make-post" data-lexum className="group" title="Compose">
-            <button className="p-3 rounded-full hover:bg-gray-100 active:scale-90 transition-all">
-              <NavIcons.Edit className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" />
+              {/* Compose Post */}
+              <a href="/make-post" data-lexum className="group" title="Compose">
+                <button className="p-3 rounded-full hover:bg-gray-100 active:scale-90 transition-all">
+                  <NavIcons.Edit className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" />
+                </button>
+              </a>
+            </>
+          ) : (
+            <button
+              onClick={() => window.Lexum?.navigate('/auth')}
+              className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all active:scale-[0.97] ml-2"
+            >
+              Log in
             </button>
-          </a>
+          )}
         </div>
       </div>
     </header>

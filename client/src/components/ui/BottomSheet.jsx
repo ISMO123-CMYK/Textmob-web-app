@@ -6,7 +6,7 @@ function CloseButton({ onClick }) {
       type="button"
       onClick={onClick}
       aria-label="Close"
-      className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:scale-95 transition-colors"
+      className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
     >
       <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
         <line x1="18" y1="6" x2="6" y2="18" />
@@ -17,7 +17,14 @@ function CloseButton({ onClick }) {
 }
 
 function Overlay({ onClose }) {
-  return <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} aria-hidden="true" />;
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 z-40"
+      onClick={onClose}
+      aria-hidden="true"
+      style={{ backdropFilter: 'blur(8px) saturate(150%)', WebkitBackdropFilter: 'blur(8px) saturate(150%)' }}
+    />
+  );
 }
 
 export default function BottomSheet({ open, onClose, title, children, wide }) {
@@ -45,3 +52,4 @@ export default function BottomSheet({ open, onClose, title, children, wide }) {
     </>
   );
 }
+

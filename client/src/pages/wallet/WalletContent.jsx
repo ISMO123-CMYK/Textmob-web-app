@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '../../config/api';
 
 export default function WalletContent() {
+  useEffect(() => { if (!localStorage.currentUser) { window.Lexum ? window.Lexum.navigate('/auth') : window.location.href = '/auth'; } }, []);
   const [balance, setBalance] = useState(0);
   const [user, setUser] = useState({});
   const [showBalance, setShowBalance] = useState(true);
@@ -33,6 +34,8 @@ export default function WalletContent() {
   const [modalMode, setModalMode] = useState('send'); // 'send' or 'gift'
 
   const currentUser = localStorage.getItem('currentUser') || '';
+  const modalTitle = modalMode === 'gift' ? 'Gift Mobcoins' : 'Send Mobcoins';
+  const buttonLabel = modalMode === 'gift' ? 'Send Gift' : 'Send Mobcoins';
 
   useEffect(() => {
     if (currentUser) {

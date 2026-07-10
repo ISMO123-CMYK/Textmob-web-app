@@ -178,12 +178,13 @@ const Lexum = (() => {
       { className: 'route-outlet-container w-full h-full' },
       Object.entries(mountedPages).map(([pathKey, page]) => {
         const isActive = pathKey === activePath;
+        const isSnaps = pathKey === '/snaps' || pathKey.includes('/snaps');
         return React.createElement(
           'div',
           {
             key: pathKey,
             style: { display: isActive ? 'block' : 'none' },
-            className: 'route-page-wrapper w-full h-full'
+            className: `route-page-wrapper w-full h-full ${isActive ? 'route-active' : ''} ${isSnaps ? 'snaps-context' : ''}`
           },
           React.createElement(page.component, {
             ...page.params,
@@ -254,6 +255,8 @@ const Lexum = (() => {
         if (
           href &&
           (href.startsWith('/') || href.startsWith('#')) &&
+          !href.endsWith('.html') &&
+          !href.includes('.html') &&
           !link.hasAttribute('download') &&
           link.getAttribute('target') !== '_blank' &&
           !link.hasAttribute('data-no-lexum')

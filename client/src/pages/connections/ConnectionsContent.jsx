@@ -38,6 +38,7 @@ function ConnectionRow({ item, name, full, following, handleFollow }) {
 }
 
 export default function ConnectionsContent() {
+  useEffect(() => { if (!localStorage.currentUser) { window.Lexum ? window.Lexum.navigate('/auth') : window.location.href = '/auth'; } }, []);
   const [tab, setTab] = useState('followers');
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);

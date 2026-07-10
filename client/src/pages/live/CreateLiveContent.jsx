@@ -204,6 +204,7 @@ function CameraFlipButton({ facing, onClick, className = '' }) {
 }
 
 export default function CreateLiveContent() {
+  useEffect(() => { if (!localStorage.currentUser) { window.Lexum ? window.Lexum.navigate('/auth') : window.location.href = '/auth'; } }, []);
   const [mode, setMode] = useState('camera');
   const [facing, setFacing] = useState('user');
   const [title, setTitle] = useState('');

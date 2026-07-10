@@ -12,6 +12,7 @@ import AutocompleteDropdown from '../../components/layout/AutocompleteDropdown';
 // Import fabric.js from CDN or global fabric variable
 
 export default function MakePostContent(props) {
+  useEffect(() => { if (!localStorage.currentUser) { window.Lexum ? window.Lexum.navigate('/auth') : window.location.href = '/auth'; } }, []);
   const onToggle = props?.onToggle;
 
   let [e, t] = useState(false);
@@ -82,49 +83,52 @@ export default function MakePostContent(props) {
     r(t);
 
     let n = window.getSelection();
-    if (!n || !n.focusNode) {
+    if (!n || !n.focusNode || !n.rangeCount) {
       return;
     }
 
-    let i = n.focusNode.textContent || ``;
-    let a = n.focusOffset;
-    let o = i.lastIndexOf(`@`, a - 1);
-    let s = i.lastIndexOf(`#`, a - 1);
-    let c = Math.max(o, s);
+    let range = n.getRangeAt(0);
+    let preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(e.currentTarget);
+    preCaretRange.setEnd(range.endContainer, range.endOffset);
+    let absOffset = preCaretRange.toString().length;
 
-    if (c === -1) {
+    let fullText = e.currentTarget.textContent || ``;
+    let before = fullText.slice(0, absOffset);
+    let mentionMatch = before.match(/@([\w.]*)$/);
+    let hashMatch = before.match(/#([\w-]*)$/);
+
+    if (mentionMatch && mentionMatch[1].length >= 1) {
+      let q = mentionMatch[0];
+      let start = absOffset - q.length;
+      Te({ symbol: '@', start, end: absOffset, query: q });
+      (async () => {
+        try {
+          let res = await apiFetch(`/search-users?q=${encodeURIComponent(mentionMatch[1])}&currentUsername=${localStorage.currentUser || ''}`);
+          if (res.ok) {
+            let data = await res.json();
+            xe((Array.isArray(data) ? data : []).map(u => ({ type: 'user', ...u })));
+            Ce(0);
+          }
+        } catch { }
+      })();
+    } else if (hashMatch && hashMatch[1].length >= 1) {
+      let q = hashMatch[0];
+      let start = absOffset - q.length;
+      Te({ symbol: '#', start, end: absOffset, query: q });
+      (async () => {
+        try {
+          let res = await apiFetch(`/search-suggest?query=${encodeURIComponent(q)}&currentUsername=${localStorage.currentUser || ''}`);
+          if (res.ok) {
+            xe((await res.json()) || []);
+            Ce(0);
+          }
+        } catch { }
+      })();
+    } else {
       xe([]);
       Te(null);
-      return;
     }
-
-    let l = i.slice(c, a);
-    if (/\s/.test(l) || (c > 0 && !/\s/.test(i[c - 1]))) {
-      xe([]);
-      Te(null);
-      return;
-    }
-
-    Te({
-      symbol: i[c],
-      start: c,
-      end: a,
-      node: n.focusNode,
-      query: l
-    });
-
-    (async () => {
-      try {
-        let e = await apiFetch(
-          `/search-suggest?query=${encodeURIComponent(l)}&currentUsername=${localStorage.currentUser || ``
-          }`
-        );
-        if (e.ok) {
-          xe((await e.json()) || []);
-          Ce(0);
-        }
-      } catch { }
-    })();
   };
 
   let je = (e) => {
@@ -133,26 +137,38 @@ export default function MakePostContent(props) {
     }
 
     let t = e.type === `user` ? `@${e.username}` : e.query;
-    let { node: n, start: i, end: a } = we;
-    let o = n.textContent;
+    let { start: i, end: a } = we;
+    let el = ge.current;
+    if (!el) return;
 
-    n.textContent = `${o.slice(0, i) + t} ${o.slice(a)}`;
+    let sel = window.getSelection();
+    let fullText = el.textContent || ``;
+    let newText = `${fullText.slice(0, i)}${t} ${fullText.slice(a)}`;
 
-    let s = document.createRange();
-    let c = window.getSelection();
-    let l = Math.min(i + t.length + 1, n.textContent.length);
+    // Replace content while preserving cursor
+    let childTextNodes = [];
+    let walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+    while (walker.nextNode()) childTextNodes.push(walker.currentNode);
 
-    try {
-      s.setStart(n, l);
-      s.collapse(true);
-      c.removeAllRanges();
-      c.addRange(s);
-    } catch (e) {
-      console.warn(`Failed reset range`, e);
-    }
+    el.textContent = newText;
 
     if (ge.current) {
       r(ge.current.innerHTML);
+    }
+
+    // Place cursor after inserted text
+    let cursorPos = i + t.length + 1;
+    let firstTextNode = el.firstChild;
+    if (firstTextNode && firstTextNode.nodeType === 3) {
+      try {
+        let range = document.createRange();
+        range.setStart(firstTextNode, Math.min(cursorPos, (firstTextNode.textContent || ``).length));
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (err) {
+        console.warn(`Failed reset range`, err);
+      }
     }
 
     xe([]);

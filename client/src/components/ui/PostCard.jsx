@@ -5,6 +5,7 @@ import useProfileCache from '../../utils/useProfileCache';
 import timeAgo from '../../utils/timeAgo';
 import RichText from './RichText';
 import { SnapPlayer } from '../../pages/snaps/SnapsContent';
+import GiftCoinsModal from './GiftCoinsModal';
 
 /* ─── constants ─── */
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
@@ -140,17 +141,19 @@ function FollowButtonInline({ targetUsername, currentUsername, onUpdate }) {
 function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen, navigate }) {
   let groupId = post.type?.startsWith('group-post-') ? post.type.replace('group-post-', '') : null;
   let groupInfo = groupId ? groupProfiles[groupId] : null;
+  const phGuest = !localStorage.currentUser;
+  const phNavigate = (path, msg) => { if (phGuest) { window.showAuthPrompt?.(msg || 'Create an account'); return; } navigate(path); };
 
   return (
     <div className="flex items-start justify-between mb-3">
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {/* Avatar */}
         <div className="relative flex-shrink-0">
-          <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); navigate(`/@${post.username}`); }}>
+          <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/@${post.username}`, 'Create an account to view profiles'); }}>
             <img src={authorProfile.profile_pic || `${DEFAULT_PIC}`} alt={authorProfile.fullname || post.username} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
           </a>
           {groupInfo && (
-            <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); navigate(`/group/${groupId}`); }} className="absolute -bottom-1 -right-1 block">
+            <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/group/${groupId}`, 'Create an account to view groups'); }} className="absolute -bottom-1 -right-1 block">
               <img src={groupInfo.profile_pic} alt={groupInfo.name} className="w-5 h-5 rounded-full object-cover border-2 border-white dark:border-gray-900" loading="lazy" />
             </a>
           )}
@@ -158,14 +161,14 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
         {/* Name and meta */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-1 leading-snug">
-            <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); navigate(`/@${post.username}`); }} className="text-sm font-bold text-gray-900 dark:text-gray-100 hover:underline truncate">
+            <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/@${post.username}`, 'Create an account to view profiles'); }} className="text-sm font-bold text-gray-900 dark:text-gray-100 hover:underline truncate">
               {authorProfile.fullname || post.username}
             </a>
             { (post.verified === true) && <VerifiedBadge /> }
             {groupInfo && (
               <Fragment>
                 <span className="text-xs text-gray-400 dark:text-gray-600">in</span>
-                <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); navigate(`/group/${groupId}`); }} className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/group/${groupId}`, 'Create an account to view groups'); }} className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
                   {groupInfo.name}
                 </a>
               </Fragment>
@@ -186,6 +189,7 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
 function QuotedPost({ postId, navigate }) {
   const [post, setPost] = useState(null);
   const authorProfile = useProfileCache(post?.username);
+  const qpGuest = !localStorage.currentUser;
 
   useEffect(() => {
     if (postId) {
@@ -197,7 +201,7 @@ function QuotedPost({ postId, navigate }) {
 
   return (
     <div
-      onClick={(e) => { e.stopPropagation(); navigate(`/post/${post.id}`); }}
+      onClick={(e) => { e.stopPropagation(); if (qpGuest) { window.showAuthPrompt?.('Create an account to view posts'); return; } navigate(`/post/${post.id}`); }}
       className="mt-3 p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors"
     >
       <div className="flex items-center gap-2 mb-2">
@@ -211,6 +215,26 @@ function QuotedPost({ postId, navigate }) {
         <div className="rounded-lg overflow-hidden border border-gray-100 dark:border-gray-800">
           <img src={post.media[0]} className="w-full h-32 object-cover" alt="" />
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── PostText – truncated text with "See more" ─── */
+function PostText({ text }) {
+  var [expanded, setExpanded] = useState(false);
+  var LIMIT = 200;
+  var isLong = text && text.length > LIMIT;
+  var display = !expanded && isLong ? text.slice(0, LIMIT) + '…' : text;
+  return (
+    <div className="mb-3">
+      <div className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+        <RichText html={display} />
+      </div>
+      {isLong && (
+        <button onClick={function (e) { e.stopPropagation(); setExpanded(!expanded); }} className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline mt-0.5">
+          {expanded ? 'Show less' : 'See more'}
+        </button>
       )}
     </div>
   );
@@ -241,8 +265,18 @@ function ReactionsBar({ postId, reactionCountsCache, reactionsOpenFor, setReacti
       {/* Reaction picker modal */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" onClick={() => setReactionsOpenFor(null)}>
-          <div className="absolute inset-0 bg-black/40" />
-          <div className="relative bg-white dark:bg-gray-900 rounded-t-2xl md:rounded-2xl w-full max-w-sm mx-auto p-4 pb-safe" onClick={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
+          <div
+            className="absolute inset-0 bg-black/40"
+            style={{
+              backdropFilter: 'blur(8px) saturate(150%)',
+              WebkitBackdropFilter: 'blur(8px) saturate(150%)'
+            }}
+          />
+          <div
+            className="relative bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl border border-gray-200/50 dark:border-gray-800/50 rounded-t-2xl md:rounded-2xl w-full max-w-sm mx-auto p-4 pb-safe shadow-2xl"
+            onClick={e => e.stopPropagation()}
+            onTouchMove={e => e.stopPropagation()}
+          >
             <div className="w-10 h-1 rounded-full bg-gray-200 dark:bg-gray-700 mx-auto mb-4 md:hidden" />
             <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">React to this post</p>
             <div className="grid grid-cols-5 gap-2">
@@ -313,7 +347,7 @@ function useMentions(value, inputRef) {
     const pos = el.selectionStart || 0;
     const before = value.slice(0, pos);
     const mentionMatch = before.match(/@([\w.]*)$/);
-    const hashMatch = before.match(/#([\w]*)$/);
+    const hashMatch = before.match(/#([\w-]*)$/);
 
     if (mentionMatch && mentionMatch[1].length >= 1) {
       const q = mentionMatch[1].toLowerCase();
@@ -344,12 +378,15 @@ function useMentions(value, inputRef) {
 }
 
 /* ─── Kn – action buttons (like, comment, view) ─── */
-function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate, reactionsOpenFor, setReactionsOpenFor }) {
+function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate, reactionsOpenFor, setReactionsOpenFor, authorProfile }) {
   const [showInput, setShowInput] = useState(false);
   const [text, setText] = useState('');
+  const [showGiftModal, setShowGiftModal] = useState(false);
   const liked = post.likes.includes(currentUser);
   const inputRef = useRef(null);
   const { suggestions, setSuggestions, activeIndex, setActiveIndex, queryInfo, setQueryInfo } = useMentions(text, inputRef);
+  const abGuest = !localStorage.currentUser;
+  const abNavigate = (path, msg) => { if (abGuest) { window.showAuthPrompt?.(msg || 'Create an account'); return; } navigate(path); };
 
   function selectSuggestion(item) {
     let replacement = item.type === 'user' ? `@${item.username}` : item.query;
@@ -387,7 +424,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
       <div className="flex items-center gap-1 -ml-3">
         {/* Like */}
         <button
-          onClick={() => handleLike(post.id)}
+          onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to like posts'); return; } handleLike(post.id); }}
           className={cn(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors',
             liked ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -401,7 +438,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
 
         {/* Comment */}
         <button
-          onClick={() => showCommentInput ? setShowInput(s => !s) : navigate(`/post/${post.id}`)}
+          onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to comment'); return; } showCommentInput ? setShowInput(s => !s) : navigate(`/post/${post.id}`); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
@@ -412,7 +449,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
 
         {/* Quote */}
         <button
-          onClick={() => navigate(`/make-post/${post.id}`)}
+          onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to quote posts'); return; } navigate(`/make-post/${post.id}`); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
@@ -420,9 +457,20 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
           </svg>
         </button>
 
+        {/* Gift Mobcoins */}
+        <button
+          onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to send gifts'); return; } setShowGiftModal(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="Gift Mobcoins"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" strokeWidth="0">
+            <path d="M9.375 3a1.875 1.875 0 0 0 0 3.75h1.875v4.5H3.375A1.875 1.875 0 0 1 1.5 9.375v-.75c0-1.036.84-1.875 1.875-1.875h3.193A3.375 3.375 0 0 1 12 2.753a3.375 3.375 0 0 1 5.432 3.997h3.943c1.035 0 1.875.84 1.875 1.875v.75c0 1.036-.84 1.875-1.875 1.875H12.75v-4.5h1.875a1.875 1.875 0 1 0-1.875-1.875V6.75h-1.5V4.875C11.25 3.839 10.41 3 9.375 3ZM11.25 12.75H3v6.75a2.25 2.25 0 0 0 2.25 2.25h6v-9ZM12.75 12.75v9h6.75a2.25 2.25 0 0 0 2.25-2.25v-6.75h-9Z" />
+          </svg>
+        </button>
+
         {/* Reaction */}
         <button
-          onClick={(e) => { e.stopPropagation(); setReactionsOpenFor(reactionsOpenFor === post.id ? null : post.id); }}
+          onClick={(e) => { e.stopPropagation(); if (!currentUser) { window.showAuthPrompt?.('Log in to react'); return; } setReactionsOpenFor(reactionsOpenFor === post.id ? null : post.id); }}
           className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           aria-label="React"
         >
@@ -434,7 +482,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
         {/* View */}
         {showViewButton && (
           <button
-            onClick={() => navigate(`/post/${post.id}`)}
+            onClick={() => abNavigate(`/post/${post.id}`, 'Create an account to view posts')}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="1.5">
@@ -446,8 +494,23 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
         )}
       </div>
 
+      {/* Gift Mobcoins Modal */}
+      <GiftCoinsModal
+        open={showGiftModal}
+        onClose={() => setShowGiftModal(false)}
+        recipientUsername={post.username}
+        recipientAvatar={authorProfile?.profile_pic}
+        recipientFullname={authorProfile?.fullname}
+        postId={post.id}
+      />
+
       {/* Comment input */}
-      {showCommentInput && showInput && (
+      {showCommentInput && showInput && !currentUser && (
+        <div className="mt-2 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 text-center text-xs text-gray-500 dark:text-gray-400 cursor-pointer" onClick={() => { setShowInput(false); window.showAuthPrompt?.('Log in to comment'); }}>
+          <span className="font-semibold text-blue-600 dark:text-blue-400">Log in</span> to leave a comment
+        </div>
+      )}
+      {showCommentInput && showInput && currentUser && (
         <div className="flex items-center gap-2 mt-2">
           <img src={localStorage.cached_profile_pic || `${DEFAULT_PIC}`} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
           <div className="flex-1 flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900 transition-all relative">
@@ -476,6 +539,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
 function PollContent({ post, handlePollVote }) {
   const currentUser = localStorage.currentUser;
   const totalVotes = post.options.reduce((acc, opt) => acc + opt.votes.length, 0);
+  const authGuard = () => { if (!currentUser) { window.showAuthPrompt?.('Log in to vote in polls'); return true; } return false; };
 
   return (
     <div className="space-y-2 mb-3">
@@ -484,7 +548,7 @@ function PollContent({ post, handlePollVote }) {
         let pct = totalVotes > 0 ? Math.round(opt.votes.length / totalVotes * 100) : 0;
         return (
           <button
-            onClick={() => handlePollVote(post.id, opt.id)}
+            onClick={() => { if (authGuard()) return; handlePollVote(post.id, opt.id); }}
             className="relative w-full text-left px-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors"
             key={opt.id}
           >
@@ -936,6 +1000,8 @@ function LiveEndedCard({ post, authorProfile }) {
 /* ─── Xn – live stream card ─── */
 function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
   const currentUser = localStorage.currentUser;
+  const lcGuest = !currentUser;
+  const lcNavigate = (path) => { if (lcGuest) { window.showAuthPrompt?.('Create an account to watch live'); return; } navigate(path); };
   const thumbnail = post.media?.[0] || authorProfile.profile_pic || '/assets/live-fallback.jpg';
   const viewers = liveCounts?.[String(post.id)] || 0;
   const liked = post.likes.includes(currentUser);
@@ -943,7 +1009,7 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
   return (
     <div className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 overflow-hidden pb-4">
       <div className="relative">
-        <a href={`/live/${encodeURIComponent(post.id)}`} onClick={e => { e.preventDefault(); U.navigate(`/live/${post.id}`); }} className="block">
+        <a href={`/live/${encodeURIComponent(post.id)}`} onClick={e => { e.preventDefault(); lcNavigate(`/live/${post.id}`); }} className="block">
           <img src={thumbnail} alt="Live stream" className="w-full h-56 object-cover" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
         </a>
@@ -958,7 +1024,7 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
             <p className="text-white text-sm font-bold truncate">{post.text || 'Live now'}</p>
             <p className="text-gray-300 text-xs">{timeAgo(post.created_at)}</p>
           </div>
-          <a onClick={e => { e.preventDefault(); localStorage.setItem('liveSt', post.username); navigate(`/live/${post.id}`); }} className="flex-shrink-0 px-3 py-1.5 bg-white/10 border border-white/30 backdrop-blur-sm text-white text-xs font-semibold rounded-full hover:bg-white/20 transition-colors" role="button">Watch →</a>
+          <a onClick={e => { e.preventDefault(); lcNavigate(`/live/${post.id}`); }} className="flex-shrink-0 px-3 py-1.5 bg-white/10 border border-white/30 backdrop-blur-sm text-white text-xs font-semibold rounded-full hover:bg-white/20 transition-colors" role="button">Watch →</a>
         </div>
       </div>
       <div className="px-4 pt-3 flex items-center justify-between">
@@ -979,7 +1045,7 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
             </svg>
             {post.likes.length}
           </button>
-          <button onClick={() => navigate(`/post/${post.id}`)} className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+          <button onClick={() => lcNavigate(`/post/${post.id}`)} className="flex items-center gap-1 hover:text-blue-500 transition-colors">
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
             </svg>
@@ -995,6 +1061,7 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
 function SnapEmbed({ post, currentUser, handleLike }) {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef(null);
+  const seGuest = !currentUser;
 
   useEffect(() => {
     const el = ref.current;
@@ -1007,7 +1074,7 @@ function SnapEmbed({ post, currentUser, handleLike }) {
   return (
     <div ref={ref} className="relative w-full border-b border-gray-100 dark:border-gray-800 bg-black overflow-hidden" style={{ height: '85vh', maxHeight: 700 }}>
       {SnapPlayer
-        ? <SnapPlayer snap={post} username={currentUser} isActive={isVisible} onLike={() => handleLike(post.id)} onProfileClick={u => U.navigate(`/@${u}`)} />
+        ? <SnapPlayer snap={post} username={currentUser} isActive={isVisible} onLike={() => handleLike(post.id)} onProfileClick={u => { if (seGuest) { window.showAuthPrompt?.('Create an account to view profiles'); return; } U.navigate(`/@${u}`); }} />
         : (
           <div className="w-full h-full flex items-center justify-center text-white">
             <p className="text-sm">Snap content</p>
@@ -1062,7 +1129,12 @@ const PostCard = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const authorProfile = useProfileCache(post.username);
   const currentUser = localStorage.currentUser;
+  const isGuest = !currentUser;
   const navigate = onNavigate || (path => U.navigate(path));
+  const authNavigate = (path, msg) => {
+    if (isGuest) { window.showAuthPrompt?.(msg || 'Create an account to interact'); return; }
+    navigate(path);
+  };
 
   // Snap type
   if (post.type === 'snap') {
@@ -1085,11 +1157,7 @@ const PostCard = ({
   return (
     <div className="bg-white dark:bg-gray-900 px-4 pt-4 pb-4">
       <PostHeader post={post} authorProfile={authorProfile} groupProfiles={groupProfiles} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} />
-      {post.text && (
-        <div className="text-sm leading-relaxed text-gray-800 dark:text-gray-200 mb-3 whitespace-pre-wrap">
-          <RichText html={post.text} />
-        </div>
-      )}
+      {post.text && <PostText text={post.text} />}
       {post.type === 'poll' && post.options && <PollContent post={post} handlePollVote={handlePollVote} />}
       {post.media?.length > 0 && (
         <div className="mb-3 -mx-4 md:mx-0 md:rounded-xl overflow-hidden">
@@ -1102,7 +1170,7 @@ const PostCard = ({
         </div>
       )}
       <ReactionsBar postId={post.id} reactionCountsCache={reactionCountsCache} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} handleReact={handleReact} />
-      <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} />
+      <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} authorProfile={authorProfile} />
       <div className="h-2 bg-gray-50 dark:bg-gray-800/50 -mx-4 mt-4" />
     </div>
   );
