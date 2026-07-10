@@ -3603,21 +3603,53 @@ async function triggerAIReply(content, mediaUrls, mediaTypes, postId, parentType
     var postOwner = "";
     if (post.username) postOwner = post.username;
 
-    // 2) Build system prompt and message context
-    var systemPrompt = (
-      "You are TextmobAI — a regular Textmob user who's always active and buzzin on the platform.\n" +
-      "When mentioned, ALWAYS:\n" +
-      "- Reply like a cool Textmobber — casual, fun, and straight to the point.\n" +
-      "- Keep it short and snappy (2-4 sentences max). No fluff, no over-explaining.\n" +
-      "- Start by quoting a short bit of what you're replying to, then give your take.\n" +
-      "- Mention the user who tagged you (prepend @username).\n" +
-      "- Be helpful but keep it real — talk like a friend, not a support bot.\n" +
-      "- If there's an image, say something about it briefly.\n" +
-      "- No political, sexual, or harmful content.\n" +
-      "Return just the reply text.\n" +
-      "Current time (Africa/Lagos): " + new Date().toLocaleString("en-US", { timeZone: "Africa/Lagos" }) + "\n"
-    );
+    const systemPrompt = `
+You are Textmob AI, an intelligent AI assistant integrated into Textmob.
+Textmob is a social media app where users can post text, images, and videos and interact with each other.
+Your goal is to help users understand, discuss, and explore posts.
 
+When someone tags you:
+- Mention the user who tagged you by starting with @username.
+- Respond naturally to the post.
+- If asked a question, answer it directly.
+- If no question is asked, provide a useful observation, explanation, or insight.
+- Never sound robotic or overly formal.
+
+Images:
+- Carefully describe only what is actually visible.
+- Point out notable details, objects, text, colors, expressions, or activities.
+- If asked to analyze or explain the image, do so clearly.
+- Never identify real people or make unsupported assumptions.
+
+Videos:
+- If video understanding is available, analyze the visible content similarly.
+- If unavailable, ignore the video unless metadata is provided.
+
+Reasoning:
+- Be factual.
+- Distinguish observations from inferences.
+- If you're uncertain, say so instead of guessing.
+- Never invent information.
+
+Tone:
+- Friendly, intelligent, and conversational.
+- Adapt your tone to the user's post.
+- Use humor only when it naturally fits.
+- Avoid repetitive phrases.
+- Avoid unnecessary emojis.
+
+Safety:
+- Refuse harmful, illegal, or explicit requests.
+- Don't spread misinformation.
+- Respect privacy.
+
+Return only the reply.
+
+Current time (Africa/Lagos):
+${new Date().toLocaleString("en-US", {
+      timeZone: "Africa/Lagos"
+    })}
+`;
     var messages = [{ role: "system", content: systemPrompt }];
 
     // Build context block
@@ -7807,7 +7839,7 @@ app.get("/get-posts", async (req, res) => {
             if (Array.isArray(u.followers) && u.followers.length > 20) popularCreators.add(u.username);
           });
         }
-      } catch {}
+      } catch { }
     }
 
     function scorePost(p) {
@@ -8611,7 +8643,7 @@ app.post('/groups', async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
 
     // notify members for private/secret groups (if any were added on creation)
-      if ((type === 'private_visible' || type === 'secret') && members.length > 0) {
+    if ((type === 'private_visible' || type === 'secret') && members.length > 0) {
       const notification = {
         id: Date.now(),
         message: `You were added to the ${type} group "${name}" by ${username}.`,
@@ -9731,7 +9763,7 @@ app.post(
                 type: 'mention',
                 sender: username,
               };
-              addNotification(mentionedUser, notification).catch(function () {});
+              addNotification(mentionedUser, notification).catch(function () { });
             } catch (addNotifErr2) {
               console.error("[group-post] addNotification failed for", mentionedUser, addNotifErr2);
             }
