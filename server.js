@@ -87,6 +87,395 @@ const liveRooms = globalThis.__liveRooms || (globalThis.__liveRooms = new Map())
 const socketJoins = globalThis.__socketJoins || (globalThis.__socketJoins = new Map());
 const TMP_DIR = path.join(process.cwd(), "tmp-live");
 
+// ---- TATU: in-memory activity tracking store ----
+const tatuSessions = new Map(); // key: `${username}|${sessionStart}` -> { username, date, firstSeen, lastSeen, totalSeconds }
+const tatuEvents = []; // { username, event, metadata, timestamp }
+const tatuCurrentSession = {}; // username -> session key (for heartbeats)
+const tatuDeviceMap = new Map(); // username -> latest device info
+const tatuLocationMap = new Map(); // username -> { country, region, timezone, ip }
+const TATU_MAX_EVENTS = 50000;
+
+const TZ_COUNTRY_MAP = {
+  'Africa/Lagos': 'Nigeria', 'Africa/Accra': 'Ghana', 'Africa/Nairobi': 'Kenya',
+  'Africa/Cairo': 'Egypt', 'Africa/Johannesburg': 'South Africa', 'Africa/Casablanca': 'Morocco',
+  'Africa/Algiers': 'Algeria', 'Africa/Tunis': 'Tunisia', 'Africa/Khartoum': 'Sudan',
+  'Africa/Addis_Ababa': 'Ethiopia', 'Africa/Dar_es_Salaam': 'Tanzania', 'Africa/Dakar': 'Senegal',
+  'America/New_York': 'United States', 'America/Chicago': 'United States', 'America/Denver': 'United States',
+  'America/Los_Angeles': 'United States', 'America/Phoenix': 'United States', 'America/Anchorage': 'United States',
+  'America/Toronto': 'Canada', 'America/Vancouver': 'Canada', 'America/Montreal': 'Canada',
+  'America/Mexico_City': 'Mexico', 'America/Sao_Paulo': 'Brazil', 'America/Buenos_Aires': 'Argentina',
+  'America/Bogota': 'Colombia', 'America/Santiago': 'Chile', 'America/Lima': 'Peru',
+  'Europe/London': 'United Kingdom', 'Europe/Paris': 'France', 'Europe/Berlin': 'Germany',
+  'Europe/Madrid': 'Spain', 'Europe/Rome': 'Italy', 'Europe/Amsterdam': 'Netherlands',
+  'Europe/Brussels': 'Belgium', 'Europe/Stockholm': 'Sweden', 'Europe/Oslo': 'Norway',
+  'Europe/Copenhagen': 'Denmark', 'Europe/Zurich': 'Switzerland', 'Europe/Moscow': 'Russia',
+  'Europe/Istanbul': 'Turkey', 'Europe/Athens': 'Greece', 'Europe/Lisbon': 'Portugal',
+  'Europe/Dublin': 'Ireland', 'Europe/Warsaw': 'Poland', 'Europe/Prague': 'Czech Republic',
+  'Europe/Kyiv': 'Ukraine', 'Europe/Bucharest': 'Romania', 'Europe/Vienna': 'Austria',
+  'Europe/Budapest': 'Hungary', 'Europe/Helsinki': 'Finland',
+  'Asia/Tokyo': 'Japan', 'Asia/Shanghai': 'China', 'Asia/Beijing': 'China',
+  'Asia/Hong_Kong': 'Hong Kong', 'Asia/Seoul': 'South Korea', 'Asia/Kolkata': 'India',
+  'Asia/Mumbai': 'India', 'Asia/Delhi': 'India', 'Asia/Bangkok': 'Thailand',
+  'Asia/Singapore': 'Singapore', 'Asia/Kuala_Lumpur': 'Malaysia', 'Asia/Jakarta': 'Indonesia',
+  'Asia/Manila': 'Philippines', 'Asia/Ho_Chi_Minh': 'Vietnam', 'Asia/Taipei': 'Taiwan',
+  'Asia/Dubai': 'UAE', 'Asia/Riyadh': 'Saudi Arabia', 'Asia/Tehran': 'Iran',
+  'Asia/Baghdad': 'Iraq', 'Asia/Tel_Aviv': 'Israel', 'Asia/Beirut': 'Lebanon',
+  'Asia/Amman': 'Jordan', 'Asia/Kuwait': 'Kuwait', 'Asia/Doha': 'Qatar',
+  'Asia/Muscat': 'Oman', 'Asia/Bahrain': 'Bahrain',
+  'Australia/Sydney': 'Australia', 'Australia/Melbourne': 'Australia', 'Australia/Perth': 'Australia',
+  'Australia/Brisbane': 'Australia', 'Australia/Adelaide': 'Australia',
+  'Pacific/Auckland': 'New Zealand', 'Pacific/Honolulu': 'United States',
+  'UTC': 'Unknown', 'GMT': 'United Kingdom'
+};
+
+function inferLocation(tz) {
+  if (!tz) return { country: 'Unknown', timezone: tz || 'Unknown' };
+  const country = TZ_COUNTRY_MAP[tz] || 'Other';
+  const region = tz.split('/')[1]?.replace(/_/g, ' ') || '';
+  return { country, region, timezone: tz };
+}
+
+let tatuSessionSeq = 0;
+const tatuPageViewCounts = {}; // path -> count
+
+function tatuPageView(path) {
+  const clean = path.split('?')[0].split('#')[0] || '/';
+  tatuPageViewCounts[clean] = (tatuPageViewCounts[clean] || 0) + 1;
+}
+
+app.post("/tatu", express.json(), (req, res) => {
+  try {
+    const { username, event, metadata } = req.body || {};
+    if (!event) return res.status(400).json({ error: "event is required" });
+
+    const now = new Date();
+    const ts = now.toISOString();
+
+    if (username) {
+      if (event === "app_open") {
+        const key = `${username}|${++tatuSessionSeq}|${now.getTime()}`;
+        tatuSessions.set(key, { username, date: ts.slice(0, 10), firstSeen: ts, lastSeen: ts, totalSeconds: 0, sessionId: key });
+        tatuCurrentSession[username] = key;
+        if (metadata?.device) {
+          tatuDeviceMap.set(username, metadata.device);
+          tatuLocationMap.set(username, {
+            ...inferLocation(metadata.device.timezone),
+            ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'Unknown'
+          });
+        }
+        if (metadata?.path) tatuPageView(metadata.path);
+      } else if (event === "page_view" && metadata?.path) {
+        tatuPageView(metadata.path);
+      } else if (event === "heartbeat" && tatuCurrentSession[username]) {
+        const s = tatuSessions.get(tatuCurrentSession[username]);
+        if (s) s.lastSeen = ts;
+      } else if (event === "app_close" && tatuCurrentSession[username]) {
+        const s = tatuSessions.get(tatuCurrentSession[username]);
+        if (s) {
+          s.lastSeen = ts;
+          if (metadata?.elapsedSeconds) s.totalSeconds += Math.floor(metadata.elapsedSeconds);
+        }
+        delete tatuCurrentSession[username];
+      }
+    }
+
+    tatuEvents.push({ username: username || null, event, metadata: metadata || {}, timestamp: ts });
+    if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2));
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("/tatu error:", e);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+// GET /tatu — HTML dashboard or ?json=1 for raw data
+app.get("/tatu", (req, res) => {
+  const nowMs = Date.now();
+  let dau = 0, wau = 0, mau = 0;
+  const todaysUsers = new Set();
+
+  // Aggregate per-user stats from sessions
+  const userStats = {};
+  const todaysSessions = [];
+  let totalSessionsAll = 0;
+
+  for (const s of tatuSessions.values()) {
+    totalSessionsAll++;
+    const lastMs = new Date(s.lastSeen).getTime();
+    const dayDiff = (nowMs - lastMs) / 86400000;
+    if (dayDiff < 1) { dau++; todaysUsers.add(s.username); }
+    if (dayDiff < 7) wau++;
+    if (dayDiff < 30) mau++;
+
+    if (!userStats[s.username]) userStats[s.username] = { sessions: 0, totalSeconds: 0, firstSeen: s.firstSeen, lastSeen: s.lastSeen };
+    userStats[s.username].sessions++;
+    userStats[s.username].totalSeconds += s.totalSeconds || 0;
+    if (s.firstSeen < userStats[s.username].firstSeen) userStats[s.username].firstSeen = s.firstSeen;
+    if (s.lastSeen > userStats[s.username].lastSeen) userStats[s.username].lastSeen = s.lastSeen;
+
+    // Add ongoing session's live time
+    if (tatuCurrentSession[s.username] === s.sessionId) {
+      const liveSec = Math.floor((nowMs - new Date(s.firstSeen).getTime()) / 1000);
+      userStats[s.username].totalSeconds += liveSec - s.totalSeconds;
+    }
+
+    if (s.date === new Date().toISOString().slice(0, 10)) todaysSessions.push(s);
+  }
+
+  // Page view stats (from tracked count)
+  const topPaths = Object.entries(tatuPageViewCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  // Device breakdown
+  const deviceCounts = { desktop: 0, mobile: 0, tablet: 0 };
+  const browserCounts = {};
+  const osCounts = {};
+  tatuDeviceMap.forEach(d => {
+    if (d.deviceType) deviceCounts[d.deviceType] = (deviceCounts[d.deviceType] || 0) + 1;
+    if (d.browser) browserCounts[d.browser] = (browserCounts[d.browser] || 0) + 1;
+    if (d.os) osCounts[d.os] = (osCounts[d.os] || 0) + 1;
+  });
+
+  // Location breakdown
+  const locationCounts = {};
+  tatuLocationMap.forEach(l => {
+    const c = l.country || 'Unknown';
+    locationCounts[c] = (locationCounts[c] || 0) + 1;
+  });
+  const topLocations = Object.entries(locationCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  // Engagement stats
+  const engagementStats = { likes: 0, comments: 0, poll_votes: 0, post_views: 0, post_creates: 0, follows: 0 };
+  tatuEvents.forEach(e => {
+    if (e.event === 'post_like') engagementStats.likes++;
+    else if (e.event === 'post_comment') engagementStats.comments++;
+    else if (e.event === 'poll_vote') engagementStats.poll_votes++;
+    else if (e.event === 'post_view') engagementStats.post_views++;
+    else if (e.event === 'post_create') engagementStats.post_creates++;
+    else if (e.event === 'follow') engagementStats.follows++;
+  });
+
+  if (req.query.json) {
+    return res.json({
+      dau, wau, mau, activeUsers: [...todaysUsers], totalEvents: tatuEvents.length,
+      totalSessions: totalSessionsAll, userStats, recentEvents: tatuEvents.slice(-50).reverse(),
+      topPaths, devices: deviceCounts, browsers: browserCounts, os: osCounts,
+      locations: topLocations, engagement: engagementStats
+    });
+  }
+
+  function fmtTime(iso) { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+  function fmtDuration(sec) {
+    if (!sec || sec < 0) return '0s';
+    const h = Math.floor(sec / 3600); const m = Math.floor((sec % 3600) / 60); const s = Math.floor(sec % 60);
+    return (h ? h + 'h ' : '') + (m ? m + 'm ' : '') + s + 's';
+  }
+
+  // Build per-user sessions list (sessions nested under user)
+  const usersSorted = Object.entries(userStats).sort((a, b) => b[1].totalSeconds - a[1].totalSeconds);
+
+  let usersHtml = '';
+  for (const [uname, stats] of usersSorted) {
+    const dev = tatuDeviceMap.get(uname);
+    const loc = tatuLocationMap.get(uname);
+    const userSessions = [...tatuSessions.values()].filter(s => s.username === uname).sort((a, b) => new Date(b.firstSeen) - new Date(a.firstSeen));
+    const userEvents = tatuEvents.filter(e => e.username === uname);
+    const userPageViews = userEvents.filter(e => e.event === 'page_view');
+    const pageViewCount = userPageViews.length;
+
+    let sessionsHtml = '';
+    for (const s of userSessions) {
+      const live = tatuCurrentSession[uname] === s.sessionId;
+      const dur = live ? Math.floor((nowMs - new Date(s.firstSeen).getTime()) / 1000) : s.totalSeconds;
+      const sessionEvents = userEvents.filter(e => {
+        const et = new Date(e.timestamp).getTime();
+        const st = new Date(s.firstSeen).getTime();
+        const end = new Date(s.lastSeen).getTime();
+        return et >= st && et <= end + 60000;
+      });
+
+      let evtsHtml = '';
+      for (const e of sessionEvents) {
+        const meta = e.metadata && Object.keys(e.metadata).length ? JSON.stringify(e.metadata).slice(0, 100) : '';
+        evtsHtml += `<div class="evt-row">
+          <span class="evt-time">${fmtTime(e.timestamp)}</span>
+          <span class="tag tag-${e.event}">${e.event}</span>
+          <span class="evt-meta">${meta}</span>
+        </div>`;
+      }
+
+      sessionsHtml += `<details class="session-details">
+        <summary class="session-summary">
+          <span>${fmtTime(s.firstSeen)}</span>
+          <span class="dur">${fmtDuration(dur)}</span>
+          ${live ? '<span class="live-dot"></span>' : ''}
+          <span class="evt-count">${sessionEvents.length} events</span>
+        </summary>
+        <div class="session-events">
+          ${evtsHtml || '<div class="empty">No events in this session</div>'}
+        </div>
+      </details>`;
+    }
+
+    const isLive = !!tatuCurrentSession[uname];
+    const totalDur = fmtDuration(stats.totalSeconds);
+    const deviceStr = dev ? `${dev.deviceType || '—'} · ${dev.browser || '—'} · ${dev.os || '—'}` : '—';
+    const modelStr = dev?.model || '—';
+    const screenStr = dev?.screen || '—';
+    const locStr = loc ? `${loc.country}${loc.region ? ', ' + loc.region : ''}` : '—';
+
+    usersHtml += `<details class="user-card">
+      <summary class="user-summary">
+        <span class="user-name">@${uname} ${isLive ? '<span class="live-dot"></span>' : ''}</span>
+        <span class="user-stat">${stats.sessions} sessions</span>
+        <span class="user-stat">${totalDur}</span>
+        <span class="user-stat">${pageViewCount} pages</span>
+      </summary>
+      <div class="user-details">
+        <div class="info-grid">
+          <div><span class="il">Device</span><span class="iv">${deviceStr}</span></div>
+          <div><span class="il">Model</span><span class="iv">${modelStr}</span></div>
+          <div><span class="il">Screen</span><span class="iv">${screenStr}</span></div>
+          <div><span class="il">Location</span><span class="iv">${locStr}</span></div>
+        </div>
+        <div class="session-list">
+          ${sessionsHtml}
+        </div>
+      </div>
+    </details>`;
+  }
+  if (!usersHtml) usersHtml = '<div class="empty">No users yet</div>';
+
+  const pathHtml = topPaths.map(([p, c]) => {
+    const label = p === '/' ? 'Home' : p.replace('/snaps', 'Snaps').replace('/activity', 'Activity').replace('/connections', 'Connections').replace('/wallet', 'Wallet').replace('/menu', 'Menu').replace('/make-post', 'Post').replace('/@', 'Profile');
+    return `<div class="path-row"><span>${label}</span><span class="num">${c}</span></div>`;
+  }).join('') || '<div class="empty">No page views yet</div>';
+
+  const devHtml = Object.entries(deviceCounts).filter(([, c]) => c > 0).map(([k, c]) =>
+    `<span class="chip">${k}: ${c}</span>`
+  ).join('') || '<span class="chip">—</span>';
+  const browserHtml = Object.entries(browserCounts).filter(([, c]) => c > 0).map(([k, c]) =>
+    `<span class="chip">${k}: ${c}</span>`
+  ).join('') || '';
+  const osHtml = Object.entries(osCounts).filter(([, c]) => c > 0).map(([k, c]) =>
+    `<span class="chip">${k}: ${c}</span>`
+  ).join('') || '';
+  const locHtml = topLocations.map(([c, n]) =>
+    `<span class="chip">${c}: ${n}</span>`
+  ).join('') || '';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tatu</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#0f0f13; color:#e4e4e7; font-size:14px; }
+  .wrap { max-width:640px; margin:0 auto; padding:12px; }
+  .header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px; margin-bottom:16px; }
+  .header h1 { font-size:22px; font-weight:700; }
+  .header .sub { color:#52525b; font-size:11px; }
+  .cards { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .card { background:#18181f; border-radius:10px; padding:10px 14px; flex:1; min-width:70px; border:1px solid #27272a; }
+  .card .n { font-size:22px; font-weight:700; color:#60a5fa; line-height:1.2; }
+  .card .l { font-size:10px; color:#71717a; text-transform:uppercase; letter-spacing:.3px; margin-top:2px; }
+  .chips { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; }
+  .chip { background:#18181f; border:1px solid #27272a; border-radius:20px; padding:3px 10px; font-size:11px; color:#a1a1aa; }
+  .eng-row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .eng-item { background:#18181f; border-radius:8px; padding:8px 12px; flex:1; min-width:60px; border:1px solid #1f1f28; text-align:center; }
+  .eng-item .n { font-size:18px; font-weight:700; color:#60a5fa; }
+  .eng-item .l { font-size:10px; color:#71717a; }
+  .path-row { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:#18181f; border-radius:6px; margin-bottom:3px; font-size:13px; border:1px solid #1f1f28; }
+  .path-row .num { color:#60a5fa; font-weight:600; }
+
+  /* User card (collapsible) */
+  .user-card { margin-bottom:8px; border-radius:10px; border:1px solid #27272a; background:#18181f; overflow:hidden; }
+  .user-summary { display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; list-style:none; font-size:13px; }
+  .user-summary::-webkit-details-marker { display:none; }
+  .user-summary::before { content:'▶'; color:#52525b; font-size:10px; transition:transform .15s; }
+  details[open] > .user-summary::before { transform:rotate(90deg); }
+  .user-name { font-weight:600; min-width:80px; display:flex; align-items:center; gap:4px; }
+  .user-stat { color:#71717a; font-size:11px; }
+  .user-details { border-top:1px solid #27272a; padding:10px 12px; }
+  .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px; }
+  .info-grid > div { display:flex; gap:4px; }
+  .il { color:#52525b; font-size:11px; min-width:48px; }
+  .iv { color:#d4d4d8; font-size:11px; }
+
+  /* Session (collapsible inside user) */
+  .session-list { display:flex; flex-direction:column; gap:4px; }
+  .session-details { border-radius:6px; border:1px solid #1f1f28; background:#14141c; overflow:hidden; }
+  .session-summary { display:flex; align-items:center; gap:8px; padding:7px 10px; cursor:pointer; list-style:none; font-size:12px; }
+  .session-summary::-webkit-details-marker { display:none; }
+  .session-summary::before { content:'▸'; color:#52525b; font-size:10px; transition:transform .15s; }
+  details[open] > .session-summary::before { transform:rotate(90deg); }
+  .session-summary .dur { color:#a1a1aa; min-width:50px; }
+  .session-summary .evt-count { color:#52525b; font-size:10px; margin-left:auto; }
+  .session-events { border-top:1px solid #1f1f28; padding:4px 0; }
+  .live-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#22c55e; animation:pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+  /* Event rows */
+  .evt-row { display:flex; align-items:center; gap:6px; padding:4px 10px; font-size:11px; border-bottom:1px solid #15151e; }
+  .evt-row:last-child { border-bottom:none; }
+  .evt-time { color:#52525b; min-width:40px; font-size:10px; }
+  .tag { padding:1px 6px; border-radius:4px; font-size:10px; font-weight:600; white-space:nowrap; }
+  .tag-app_open { background:#064e3b; color:#6ee7b7; }
+  .tag-app_close { background:#451a03; color:#fdba74; }
+  .tag-heartbeat { background:#1e3a5f; color:#93c5fd; }
+  .tag-page_view { background:#3b0764; color:#d8b4fe; }
+  .tag-scroll_depth { background:#1c1917; color:#a8a29e; }
+  .tag-post_view { background:#064e3b; color:#6ee7b7; }
+  .tag-post_like { background:#4c0519; color:#fda4af; }
+  .tag-post_comment { background:#14532d; color:#86efac; }
+  .tag-post_react { background:#4a044e; color:#d8b4fe; }
+  .tag-poll_vote { background:#1e3a5f; color:#93c5fd; }
+  .tag-post_create { background:#451a03; color:#fdba74; }
+  .tag-follow { background:#0f766e; color:#5eead4; }
+  .tag-profile_view { background:#1c1917; color:#a8a29e; }
+  .tag-snap_view { background:#3b0764; color:#e9d5ff; }
+  .evt-meta { color:#3f3f46; font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; text-align:right; max-width:140px; }
+  .empty { text-align:center; color:#3f3f46; padding:12px; font-size:12px; }
+  .footer { text-align:center; color:#27272a; font-size:10px; margin-top:20px; padding-bottom:16px; }
+</style></head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Tatu</h1>
+    <div class="sub">${tatuEvents.length} events · ${totalSessionsAll} sessions · ${tatuDeviceMap.size} users</div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="n">${dau}</div><div class="l">Active today</div></div>
+    <div class="card"><div class="n">${wau}</div><div class="l">This week</div></div>
+    <div class="card"><div class="n">${mau}</div><div class="l">This month</div></div>
+  </div>
+
+  <div class="chips">
+    <span class="chip">Devices: ${Object.values(deviceCounts).reduce((a, b) => a + b, 0) || 0}</span>
+    ${devHtml}${browserHtml}${osHtml}${locHtml}
+  </div>
+
+  <div class="eng-row">
+    <div class="eng-item"><div class="n">${engagementStats.post_views}</div><div class="l">Post views</div></div>
+    <div class="eng-item"><div class="n">${engagementStats.likes}</div><div class="l">Likes</div></div>
+    <div class="eng-item"><div class="n">${engagementStats.comments + engagementStats.poll_votes}</div><div class="l">Comments</div></div>
+    <div class="eng-item"><div class="n">${engagementStats.follows}</div><div class="l">Follows</div></div>
+  </div>
+
+  <div class="section-title" style="font-size:12px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px;">Top pages</div>
+  <div style="margin-bottom:12px;">${pathHtml}</div>
+
+  <div class="section-title" style="font-size:12px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 8px;">Users</div>
+  ${usersHtml}
+
+  <p class="footer">Tatu · data resets on restart · refreshes every 10s</p>
+</div>
+<script>setTimeout(function(){ location.reload(); }, 10000);</script>
+</body></html>`;
+  res.set('Content-Type', 'text/html');
+  res.send(html);
+});
+
 app.get('/api/louda-unread', async (req, res) => {
   try {
     const { username } = req.query;
@@ -510,57 +899,59 @@ async function triggerNotification(recipient, type, options = {}) {
 }
 
 function sendNotificationEmail(to, subject, message) {
-  const html = `
-  <body style="margin:0; padding:0; background:#f4f7fb; font-family:'Inter', Arial, sans-serif; color:#333;">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f4f7fb; padding:20px 0;">
-      <tr>
-        <td align="center">
-          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px; background:#ffffff; border-radius:16px; overflow:hidden;">
-            <tr>
-              <td align="center" style="background:#1E90FF; padding:30px;">
-                <h1 style="margin:0; font-size:28px; font-weight:800; color:#fff; font-family:'Poppins', Arial, sans-serif;">
-                  Textmob
-                </h1>
-                <p style="margin:8px 0 0; font-size:16px; color:#eaf4ff;">Stay connected. Stay social.</p>
-              </td>
-            </tr>
-
-            <tr>
-              <td style="padding:40px 30px; text-align:center;">
-                <p style="font-size:20px; color:#1E90FF; font-weight:600; margin:0 0 20px;">
-                  ${message}
-                </p>
-                <p style="font-size:16px; line-height:1.5; color:#555; margin:0;">
-                  Thanks for being part of <strong style="color:#1E90FF;">Textmob</strong>.<br>
-                  Let’s keep the conversation alive 🚀
-                </p>
-              </td>
-            </tr>
-
-            <tr>
-              <td align="center" style="padding:20px 30px 40px;">
-                <a href="https://textmob.web.app" 
-                   style="background:#1E90FF; color:#fff; padding:14px 36px; border-radius:12px; 
-                          text-decoration:none; font-weight:600; font-size:16px; 
-                          display:inline-block;">
-                  Open Textmob
-                </a>
-              </td>
-            </tr>
-
-            <tr>
-              <td align="center" style="background:#fafafa; padding:20px 30px; font-size:13px; color:#777; line-height:1.6;">
-                <a href="https://textmob.web.app/about.html" style="color:#1E90FF; text-decoration:none; margin:0 10px;">About</a> | 
-                © 2026 Textmob. All rights reserved.
-              </td>
-            </tr>
-
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-  `;
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Textmob</title></head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;">
+          <tr>
+            <td align="center" style="padding:32px 24px 8px;">
+              <h1 style="margin:0;font-size:22px;font-weight:700;color:#2563eb;letter-spacing:-0.3px;">textmob</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 16px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td style="border-bottom:1px solid #e5e7eb;height:1px;line-height:1px;font-size:1px;">&nbsp;</td></tr></table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 24px 24px;font-size:15px;line-height:1.6;color:#0f172a;">
+              ${message}
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 24px 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                    <a href="https://textmob.web.app" style="display:inline-block;padding:12px 32px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Open Textmob</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 24px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td style="border-bottom:1px solid #e5e7eb;height:1px;line-height:1px;font-size:1px;">&nbsp;</td></tr></table>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 24px 32px;font-size:12px;color:#9ca3af;line-height:1.5;">
+              <a href="https://textmob.web.app/settings/notifications" style="color:#2563eb;text-decoration:none;font-weight:500;">Notification Settings</a>
+              <span style="color:#d1d5db;margin:0 8px;">|</span>
+              Textmob &middot; Lagos, Nigeria<br>
+              &copy; 2026 Textmob. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 
   const mailOptions = {
     from: `"Textmob" <${process.env.SMTP_USER || "sharpbrainspublishers@gmail.com"}>`,
@@ -623,20 +1014,12 @@ async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin u
     triggerNotification(userId, 'mobcoins', {
       msg: extraMsg || `${message} (${reason})`,
       link: link,
-      subject: "💰 Mobcoin Activity",
+      subject: "Mobcoin Activity",
       html: `
-          <p style="font-size:16px; line-height:1.6; color:#333;">
-            Hi <strong>${user.fullname || user.username}</strong>,
-          </p>
-          <p style="font-size:16px; line-height:1.6; color:#333;">
-            There has been an update to your <strong style="color:#1E90FF;">Mobcoin</strong> balance:
-          </p>
-          <p style="font-size:16px; line-height:1.6; color:#333; background:#f4f7fb; padding:12px 16px; border-radius:8px;">
-            ${extraMsg || message}
-          </p>
-          <p style="font-size:15px; line-height:1.6; color:#555;">
-            <em>Reason:</em> ${reason}
-          </p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi <strong>${user.fullname || user.username}</strong>,</p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">There has been an update to your Mobcoin balance:</p>
+          <p style="margin:0 0 16px;padding:12px 16px;background-color:#f8fafc;border-radius:8px;font-size:14px;line-height:1.6;color:#0f172a;">${extraMsg || message}</p>
+          <p style="margin:0;font-size:13px;line-height:1.5;color:#64748b;"><em>Reason:</em> ${reason}</p>
           `
     });
   }
@@ -752,20 +1135,15 @@ app.post("/login", async (req, res) => {
 
     console.log(`[LOGIN SUCCESS] User: "${user.username}"`);
 
-    // Fire-and-forget email notification (safe for both sync and async functions)
     Promise.resolve(
       sendNotificationEmail(
         user.email,
-        "🔔 New Login Detected on Textmob",
+        "New Login Detected on Textmob",
         `
-      <p style="font-size:16px; line-height:1.6; color:#333;">
-        Hi <strong>${user.fullname || user.username}</strong>,
-      </p>
-      <p style="font-size:16px; line-height:1.6; color:#333;">
-        We noticed a new login to your <strong style="color:#1E90FF;">Textmob</strong> account.  
-      </p>
-      <p style="font-size:15px; line-height:1.6; color:#555; margin:16px 0;">
-        If this was <strong>you</strong>, no action is needed.  
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi <strong>${user.fullname || user.username}</strong>,</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">We noticed a new login to your Textmob account.</p>
+      <p style="margin:0;padding:16px;background-color:#f8fafc;border-radius:8px;font-size:14px;line-height:1.6;color:#64748b;">
+        If this was <strong>you</strong>, no action is needed.<br>
         If this was <strong>not you</strong>, please secure your account immediately.
       </p>
     `
@@ -813,16 +1191,39 @@ app.post("/forgot-password", async (req, res) => {
 
     // Send email with reset code
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: `"Textmob" <${process.env.SMTP_USER || "sharpbrainspublishers@gmail.com"}>`,
       to: user.email,
-      subject: "🔔 Textmob Password Reset Request",
-      html: `
-        <p>Hi ${user.fullname},</p>
-        <p>We received a request to reset your Textmob password. Your verification code is:</p>
-        <h2>${resetCode}</h2>
-        <p>This code is valid for 15 minutes. If you didn't request this, please ignore this email or contact gidadoismail24@gmail.com.</p>
-        <p>Best regards,<br>Textmob Team</p>
-      `
+      subject: "Password Reset Request — Textmob",
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Password Reset — Textmob</title></head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;">
+        <tr><td align="center" style="padding:32px 24px 8px;">
+          <h1 style="margin:0;font-size:22px;font-weight:700;color:#2563eb;letter-spacing:-0.3px;">textmob</h1>
+        </td></tr>
+        <tr><td style="padding:0 24px 16px;"><table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td style="border-bottom:1px solid #e5e7eb;height:1px;line-height:1px;font-size:1px;">&nbsp;</td></tr></table></td></tr>
+        <tr><td style="padding:8px 24px 24px;font-size:15px;line-height:1.6;color:#0f172a;">
+          <p style="margin:0 0 16px;">Hi ${user.fullname},</p>
+          <p style="margin:0 0 16px;">We received a request to reset your Textmob password. Your verification code is:</p>
+          <p style="margin:0 0 16px;font-size:32px;font-weight:700;color:#2563eb;letter-spacing:4px;text-align:center;">${resetCode}</p>
+          <p style="margin:0 0 16px;padding:12px;background-color:#f8fafc;border-radius:8px;font-size:13px;color:#64748b;">This code is valid for 15 minutes. If you didn't request this, please ignore this email.</p>
+          <p style="margin:0;color:#64748b;font-size:14px;">Best regards,<br>Textmob Team</p>
+        </td></tr>
+        <tr><td style="padding:0 24px 24px;"><table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td style="border-bottom:1px solid #e5e7eb;height:1px;line-height:1px;font-size:1px;">&nbsp;</td></tr></table></td></tr>
+        <tr><td align="center" style="padding:0 24px 32px;font-size:12px;color:#9ca3af;line-height:1.5;">
+          <a href="https://textmob.web.app/settings/notifications" style="color:#2563eb;text-decoration:none;font-weight:500;">Notification Settings</a>
+          <span style="color:#d1d5db;margin:0 8px;">|</span>
+          Textmob &middot; Lagos, Nigeria<br>
+          &copy; 2026 Textmob. All rights reserved.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
     };
 
     await transporter.sendMail(mailOptions);
@@ -899,14 +1300,37 @@ app.post("/reset-password", async (req, res) => {
       .single();
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: `"Textmob" <${process.env.SMTP_USER || "sharpbrainspublishers@gmail.com"}>`,
       to: user.email,
-      subject: "🔔 Textmob Password Reset Successful",
-      html: `
-        <p>Hi ${user.fullname},</p>
-        <p>Your Textmob password has been successfully reset. If this wasn't you, please contact gidadoismail24@gmail.com immediately.</p>
-        <p>Best regards,<br>Textmob Team</p>
-      `
+      subject: "Password Reset Successful — Textmob",
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Password Reset — Textmob</title></head>
+<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:12px;">
+        <tr><td align="center" style="padding:32px 24px 8px;">
+          <h1 style="margin:0;font-size:22px;font-weight:700;color:#2563eb;letter-spacing:-0.3px;">textmob</h1>
+        </td></tr>
+        <tr><td style="padding:0 24px 16px;"><table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td style="border-bottom:1px solid #e5e7eb;height:1px;line-height:1px;font-size:1px;">&nbsp;</td></tr></table></td></tr>
+        <tr><td style="padding:8px 24px 24px;font-size:15px;line-height:1.6;color:#0f172a;">
+          <p style="margin:0 0 16px;">Hi ${user.fullname},</p>
+          <p style="margin:0 0 16px;">Your Textmob password has been successfully reset.</p>
+          <p style="margin:0;padding:12px;background-color:#f8fafc;border-radius:8px;font-size:13px;color:#64748b;">If this wasn't you, please contact us immediately at gidadoismail24@gmail.com.</p>
+        </td></tr>
+        <tr><td style="padding:0 24px 24px;"><table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr><td style="border-bottom:1px solid #e5e7eb;height:1px;line-height:1px;font-size:1px;">&nbsp;</td></tr></table></td></tr>
+        <tr><td align="center" style="padding:0 24px 32px;font-size:12px;color:#9ca3af;line-height:1.5;">
+          <a href="https://textmob.web.app/settings/notifications" style="color:#2563eb;text-decoration:none;font-weight:500;">Notification Settings</a>
+          <span style="color:#d1d5db;margin:0 8px;">|</span>
+          Textmob &middot; Lagos, Nigeria<br>
+          &copy; 2026 Textmob. All rights reserved.
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
     });
 
     res.json({ message: "Password reset successful" });
@@ -1465,15 +1889,10 @@ app.post("/follow", async (req, res) => {
         msg: `${currentUsername} started following you`,
         link: `/@${currentUsername}`,
         sender: currentUsername,
-        subject: "👤 New Follower on Textmob!",
+        subject: "New Follower on Textmob",
         html: `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${username},
-            </p>
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>@${currentUsername}</strong> is now following you on 
-              <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${username},</p>
+            <p style="margin:0;font-size:15px;line-height:1.6;color:#0f172a;"><strong>@${currentUsername}</strong> is now following you on Textmob.</p>
           `
       });
     }
@@ -1481,6 +1900,7 @@ app.post("/follow", async (req, res) => {
     const status = action === "follow" ? "following" : "not_following";
     const label = action === "follow" ? "Following" : "Follow";
 
+    try { if (action === "follow") { tatuEvents.push({ username: currentUsername, event: "follow", metadata: { target: username, type: "org" }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } } catch (_) {}
     res.json({ status, label, profileType });
   } catch (err) {
     console.error("/follow error:", err);
@@ -1547,15 +1967,10 @@ app.post("/friend", async (req, res) => {
         msg: `${currentUsername} added you as a friend`,
         link: `/@${currentUsername}`,
         sender: currentUsername,
-        subject: "🤝 New Friend on Textmob!",
+        subject: "New Friend on Textmob",
         html: `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${username},
-            </p>
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>@${currentUsername}</strong> added you as a friend on 
-              <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${username},</p>
+            <p style="margin:0;font-size:15px;line-height:1.6;color:#0f172a;"><strong>@${currentUsername}</strong> added you as a friend on Textmob.</p>
           `
       });
     }
@@ -1642,23 +2057,12 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
       ]);
     await sendNotificationEmail(
       email,
-      "🔔 Welcome to Textmob!",
+      "Welcome to Textmob!",
       `
-      <p style="font-size:16px; line-height:1.6; color:#333;">
-        Hi <strong>${fullName}</strong>,
-      </p>
-      <p style="font-size:16px; line-height:1.6; color:#333;">
-        Welcome to <strong style="color:#1E90FF;">Textmob</strong> — your new space to connect, share, and grow with friends, family, and communities around the world. 🎉  
-      </p>
-      <p style="font-size:16px; line-height:1.6; color:#333;">
-        Your email will serve as your central hub for updates and notifications, keeping you informed about everything that matters to you.  
-      </p>
-      <p style="font-size:16px; line-height:1.6; color:#333;">
-        If you did not sign up for Textmob, please report this immediately by contacting us at <a href="mailto:gidadoismail24@gmail.com" style="color:#1E90FF; text-decoration:none;">gidadoismail24@gmail.com</a>.  
-      </p>
-      <p style="font-size:16px; line-height:1.6; color:#333; margin-top:20px;">
-        We’re excited to have you onboard — let’s build connections that last! 🚀  
-      </p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi <strong>${fullName}</strong>,</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Welcome to Textmob — your space to connect, share, and grow with friends and communities around the world.</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Your email will keep you updated on everything that matters to you on Textmob.</p>
+      <p style="margin:0;padding:12px;background-color:#f8fafc;border-radius:8px;font-size:13px;color:#64748b;">If you did not sign up for Textmob, please contact us at <a href="mailto:gidadoismail24@gmail.com" style="color:#2563eb;text-decoration:underline;">gidadoismail24@gmail.com</a>.</p>
       `
     );
 
@@ -3154,29 +3558,17 @@ async function notifyConnectionsOnPost(username, postText, postId) {
     if (connUser && connUser.email) {
       await sendNotificationEmail(
         connUser.email,
-        `${user.fullname || username} just posted on Textmob!`,
+        `${user.fullname || username} posted on Textmob`,
         `
-        <p style="font-size:16px; line-height:1.6; color:#333;">
-          <strong>${user.fullname || username}</strong> just shared something new on 
-          <strong style="color:#1E90FF;">Textmob</strong> 🎉
-        </p>
-      
-        <blockquote style="font-size:15px; line-height:1.6; color:#555; border-left:4px solid #1E90FF; padding-left:12px; margin:16px 0;">
-          ${postText.length > 180 ? postText.slice(0, 180) + "..." : postText}
-        </blockquote>
-      
-        <p style="font-size:16px; margin:20px 0; text-align:center;">
-          <a href="https://textmob.web.app/post/${postId}" 
-             style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                    text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-            👀 View Post
-          </a>
-        </p>
-      
-        <p style="font-size:14px; line-height:1.6; color:#777; margin-top:20px; text-align:center;">
-          Stay connected — don’t miss updates from your friends and the people you follow on 
-          <strong style="color:#1E90FF;">Textmob</strong>.
-        </p>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${user.fullname || username}</strong> just shared something new on Textmob.</p>
+        <div style="margin:0 0 16px;padding:12px 16px;background-color:#f8fafc;border-left:3px solid #2563eb;border-radius:8px;font-size:14px;line-height:1.5;color:#334155;">${postText.length > 180 ? postText.slice(0, 180) + "..." : postText}</div>
+        <table role="presentation" cellpadding="0" cellspacing="0">
+          <tr>
+            <td align="center" style="background-color:#2563eb;border-radius:8px;">
+              <a href="https://textmob.web.app/post/${postId}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Post</a>
+            </td>
+          </tr>
+        </table>
         `
       );
     }
@@ -3262,6 +3654,7 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
 
 const userSnapSeenMap = new Map();
 const snapFeedSessionMap = new Map();
+const userPostSeenMap = new Map(); // username -> Set<postId> for /get-posts
 
 // Unique ID generator for Snap Feed
 function generateSnapSessionId() {
@@ -3284,7 +3677,7 @@ function shuffleSnapsArray(array) {
 // Snap caching and intervals removed to fetch directly from DB
 app.get("/snaps-feed", async (req, res) => {
   try {
-    const { username } = req.query;
+    const { username, seenIds: rawSeenIds } = req.query;
     const limit = req.query.limit || 12; // 👈 We only send 12 high-quality snaps at a time
 
     // Directly fetch recent snaps from DB up to 200 (since we removed cache)
@@ -3305,9 +3698,14 @@ app.get("/snaps-feed", async (req, res) => {
     // Seen set & social graph (only if user is logged in)
     let userFollowing = new Set();
     let seen = new Set();
+    // Merge client-provided seenIds with server-side seen map
+    if (rawSeenIds) {
+      rawSeenIds.split(',').filter(Boolean).forEach(id => seen.add(id));
+    }
     if (username) {
       if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
-      seen = userSnapSeenMap.get(username);
+      // Merge server-side seen into the set too
+      userSnapSeenMap.get(username).forEach(id => seen.add(id));
       try {
         const { data: me } = await supabase.from("users").select("following").eq("username", username).single();
         userFollowing = new Set(me?.following || []);
@@ -3382,6 +3780,12 @@ app.get("/snaps-feed", async (req, res) => {
     batch.forEach(s => {
       seen.add(String(s.id));
     });
+
+    // Sync back to server-side map for the user
+    if (username && userSnapSeenMap.has(username)) {
+      const serverSeen = userSnapSeenMap.get(username);
+      seen.forEach(id => serverSeen.add(id));
+    }
 
     // Memory Cleanup: Keep seen history to 1000 items
     if (seen.size > 1000) {
@@ -3805,37 +4209,24 @@ ${new Date().toLocaleString("en-US", {
       } else if (userData && userData.email) {
         try {
           var emailBody = `
-          <p style="font-size:16px; line-height:1.6; color:#333;">
-            Hi ${userData.fullname || parentUser},
-          </p>
-        
-          <p style="font-size:15px; color:#333; margin-bottom:12px;">
-            <strong style="color:#1E90FF;">@textmobai</strong> replied to your post:
-          </p>
-        
-          <div style="background:#f3f4f6; padding:12px 16px; border-radius:16px; max-width:90%; margin:0 auto;">
-            <div style="font-size:14px; font-weight:600; color:#111;">@textmobai</div>
-            <div style="font-size:14px; color:#333; line-height:1.5; margin-top:4px;">
-              ${replyText}
-            </div>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${userData.fullname || parentUser},</p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>@textmobai</strong> replied to your post:</p>
+          <div style="margin:0 0 16px;padding:12px 16px;background-color:#f8fafc;border-radius:8px;">
+            <div style="font-size:13px;font-weight:600;color:#2563eb;margin-bottom:4px;">@textmobai</div>
+            <div style="font-size:14px;line-height:1.5;color:#0f172a;">${replyText}</div>
           </div>
-        
-          <p style="font-size:15px; margin:20px 0; text-align:center;">
-            <a href="https://textmob.web.app/post/${postId}" 
-               style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                      text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-              💬 View Reply
-            </a>
-          </p>
-        
-          <p style="font-size:13px; line-height:1.6; color:#777; margin-top:20px; text-align:center;">
-            Keep the conversation going on <strong style="color:#1E90FF;">Textmob</strong>.
-          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                <a href="https://textmob.web.app/post/${postId}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Reply</a>
+              </td>
+            </tr>
+          </table>
         `;
 
           await sendNotificationEmail(
             userData.email,
-            "🤖 TextmobAI Replied to You!",
+            "TextmobAI Replied to You",
             emailBody
           );
 
@@ -4037,32 +4428,23 @@ async function triggerAskifyReply(content, postId, parentType, parentUser) {
       } else if (userData && userData.email) {
         try {
           const emailBody = `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${userData.fullname || parentUser},
-            </p>
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong style="color:#1E90FF;">@askify</strong> replied to your post:
-            </p>
-            <div style="background:#f3f4f6; padding:12px 16px; border-radius:16px; max-width:90%; margin:0 auto;">
-              <div style="font-size:14px; font-weight:600; color:#111;">@askify</div>
-              <div style="font-size:14px; color:#333; line-height:1.5; margin-top:4px;">
-                ${replyText}
-              </div>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${userData.fullname || parentUser},</p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>@askify</strong> replied to your post:</p>
+            <div style="margin:0 0 16px;padding:12px 16px;background-color:#f8fafc;border-radius:8px;">
+              <div style="font-size:13px;font-weight:600;color:#2563eb;margin-bottom:4px;">@askify</div>
+              <div style="font-size:14px;line-height:1.5;color:#0f172a;">${replyText}</div>
             </div>
-            <p style="font-size:15px; margin:20px 0; text-align:center;">
-              <a href="https://textmob.web.app/post/${postId}" 
-                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                💬 View Reply
-              </a>
-            </p>
-            <p style="font-size:13px; line-height:1.6; color:#777; margin-top:20px; text-align:center;">
-              Keep the conversation going on <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                  <a href="https://textmob.web.app/post/${postId}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Reply</a>
+                </td>
+              </tr>
+            </table>
           `;
           await sendNotificationEmail(
             userData.email,
-            "🤖 Askify Replied to You!",
+            "Askify Replied to You",
             emailBody
           );
         } catch (emailErr) {
@@ -4203,6 +4585,7 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
     (async function backgroundWork() {
       try {
         console.log("[create-post] starting backgroundWork for postId:", data.id);
+        try { tatuEvents.push({ username: username, event: "post_create", metadata: { postId: data.id, type: data.type }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } catch (_) {}
 
         // EMIT REAL-TIME NEW POST TO ALL CONNECTED CLIENTS
         try {
@@ -4245,8 +4628,8 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
               msg: `@${username} mentioned you in a post`,
               link: "/post/" + data.id,
               sender: username,
-              subject: `🏷️ @${username} mentioned you on Textmob!`,
-              html: `<p><strong>@${username}</strong> just mentioned you in a post on <strong>Textmob</strong>.</p><p><a href="https://textmob.web.app/post/${data.id}">View Post</a></p>`
+              subject: `@${username} mentioned you on Textmob`,
+              html: `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${mentionedUser},</p><p style="margin:0;font-size:15px;line-height:1.6;color:#0f172a;"><strong>@${username}</strong> just mentioned you in a post on Textmob.</p>`
             });
           }
 
@@ -4316,21 +4699,21 @@ async function createLivePostInDB(opts) {
 
     var createdRow = insertRes.data;
 
-    // Background tasks (non-blocking)
-    setTimeout(async () => {
-      // Award Mobcoins (best-effort)
-      try {
-        await updateMobcoins(
-          username.split("@").pop().trimEnd(),
-          10,
-          true,
-          "You just received 10 Mobcoins for starting a live on Textmob"
-        );
-      } catch (e) {
-        console.error("createLivePostInDB mobcoin error:", e);
-      }
+      // Background tasks (non-blocking)
+      setTimeout(async () => {
+        // Award Mobcoins (best-effort)
+        try {
+          await updateMobcoins(
+            username.split("@").pop().trimEnd(),
+            10,
+            true,
+            "You just received 10 Mobcoins for starting a live on Textmob"
+          );
+        } catch (e) {
+          console.error("createLivePostInDB mobcoin error:", e);
+        }
 
-      // Background notifications
+        // Background notifications
       try {
         await notifyConnectionsOnPost(username, text, createdRow.id);
         for (var i = 0; i < mentions.length; i++) {
@@ -5138,23 +5521,18 @@ app.post("/like-post", async (req, res) => {
         link: `/post/${postId}`,
         sender: username,
         subject: (post.type === 'event')
-          ? `🔔 Someone is Interested in Your Event: ${post.title} | Textmob`
-          : "🔔 New Like on Your Post | Textmob",
+          ? `${username} is interested in your event`
+          : `New like from ${username}`,
         html: `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${post.username},
-            </p>
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>${username}</strong> just ${action} your ${post.type === 'event' ? 'event' : 'post'} on 
-              <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
-            <p style="font-size:15px; margin:20px 0; text-align:center;">
-              <a href="https://textmob.web.app/post/${postId}" 
-                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                View ${post.type === 'event' ? 'Event' : 'Post'}
-              </a>
-            </p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${post.username},</p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${username}</strong> ${action} your ${post.type === 'event' ? 'event' : 'post'} on Textmob.</p>
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                  <a href="https://textmob.web.app/post/${postId}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View ${post.type === 'event' ? 'Event' : 'Post'}</a>
+                </td>
+              </tr>
+            </table>
           `
       });
     }
@@ -5220,26 +5598,21 @@ app.post("/react-post", async (req, res) => {
     // Notifications (if not reacting to own post)
     if (username !== post.username && action === "added") {
       triggerNotification(post.username, 'likes', {
-        msg: `${username} reacted ${reaction} to your post`,
+        msg: `${username} reacted to your post with ${reaction}`,
         link: `/post/${postId}`,
         sender: username,
-        subject: "💬 New Reaction on Your Post | Textmob",
+        subject: `New reaction from ${username}`,
         html: `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${post.username},
-            </p>
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>${username}</strong> reacted <span style="font-size:20px;">${reaction}</span> to your post on 
-              <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
-            <p style="font-size:15px; margin:20px 0; text-align:center;">
-              <a href="https://textmob.web.app/post/${postId}" 
-                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                View Post
-              </a>
-            </p>
-          `
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${post.username},</p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${username}</strong> reacted to your post with ${reaction} on Textmob.</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                <a href="https://textmob.web.app/post/${postId}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Post</a>
+              </td>
+            </tr>
+          </table>
+        `
       });
     }
     res.json({
@@ -5479,25 +5852,21 @@ app.post("/add-comment", async (req, res) => {
         msg: `${commenterUsername} commented on your post: "${comment}"`,
         link: postLink,
         sender: commenterUsername,
-        subject: "💬 New Comment on Your Post | Textmob",
+        subject: `New comment from ${commenterUsername}`,
         html: `
-          <p style="font-size:16px; line-height:1.6; color:#333;">
-            Hi ${ownerUsername},
-          </p>
-          <p style="font-size:15px; color:#333; margin-bottom:12px;">
-            <strong>${commenterUsername}</strong> just commented on your post:
-          </p>
-          <div style="background:#f3f4f6; padding:12px 16px; border-radius:16px; font-size:14px; color:#111;">
-            <div style="font-weight:600;">${commenterUsername}</div>
-            <div style="margin-top:4px;">${comment}</div>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${ownerUsername},</p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${commenterUsername}</strong> commented on your post:</p>
+          <div style="margin:0 0 16px;padding:12px 16px;background-color:#f8fafc;border-radius:8px;">
+            <div style="font-size:13px;font-weight:600;color:#2563eb;margin-bottom:4px;">${commenterUsername}</div>
+            <div style="font-size:14px;line-height:1.5;color:#0f172a;">${comment}</div>
           </div>
-          <p style="font-size:15px; margin:20px 0; text-align:center;">
-            <a href="https://textmob.web.app${postLink}"
-               style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px;
-                      text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-              💬 View Post
-            </a>
-          </p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                <a href="https://textmob.web.app${postLink}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Post</a>
+              </td>
+            </tr>
+          </table>
         `,
       });
     }
@@ -5521,10 +5890,10 @@ app.post("/add-comment", async (req, res) => {
           msg: `${commenterUsername} mentioned you in a comment`,
           link: postLink,
           sender: commenterUsername,
-          subject: `🏷️ @${commenterUsername} mentioned you in a comment!`,
+          subject: `@${commenterUsername} mentioned you in a comment`,
           html: `
-            <p><strong>@${commenterUsername}</strong> mentioned you in a comment on <strong>Textmob</strong>.</p>
-            <p><a href="https://textmob.web.app${postLink}">View Comment</a></p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${mentionedUser},</p>
+            <p style="margin:0;font-size:15px;line-height:1.6;color:#0f172a;"><strong>@${commenterUsername}</strong> mentioned you in a comment on Textmob.</p>
           `,
         });
       }
@@ -5631,7 +6000,7 @@ app.post("/api/admin/payout/update", async (req, res) => {
         ? `Your redemption of ${payout.coin_amount} Mobcoins (₦${payout.naira_value}) has been processed successfully!`
         : `Your redemption request for ${payout.coin_amount} Mobcoins has been rejected. Please contact support.`;
 
-      const subject = status === 'COMPLETED' ? "Redemption Successful! 🎉" : "Redemption Update";
+      const subject = status === 'COMPLETED' ? "Redemption Successful" : "Redemption Update";
 
       await triggerNotification(user.username, 'mobcoins', {
         msg: msg,
@@ -6454,35 +6823,22 @@ app.post("/connect", async (req, res) => {
           sender: currentUsername,
         });
 
-        // Email Notification
         if (targetUser.email) {
           await sendNotificationEmail(
             targetUser.email,
-            `👥 ${currentUsername} Followed You on Textmob!`,
+            `${currentUsername} followed your page`,
             `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${targetUser.fullname || targetUser.username},
-            </p>
-          
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>${currentUsername}</strong> just followed your company’s page on 
-              <strong style="color:#1E90FF;">Textmob</strong>. 🎉
-            </p>
-          
-            <p style="font-size:15px; margin:20px 0; text-align:center;">
-              <a href="https://textmob.web.app/@${currentUsername}" 
-                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                👀 View Profile
-              </a>
-            </p>
-          
-            <p style="font-size:13px; color:#777; text-align:center; margin-top:20px;">
-              Stay connected and grow your audience on <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${targetUser.fullname || targetUser.username},</p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${currentUsername}</strong> just followed your page on Textmob.</p>
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                  <a href="https://textmob.web.app/@${currentUsername}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Profile</a>
+                </td>
+              </tr>
+            </table>
             `
           );
-
         }
       }
 
@@ -6526,35 +6882,22 @@ app.post("/connect", async (req, res) => {
           sender: currentUsername,
         });
 
-        // Email Notification
         if (targetUser.email) {
           await sendNotificationEmail(
             targetUser.email,
-            `🤝 ${currentUsername} Added You as a Friend on Textmob!`,
+            `${currentUsername} added you as a friend`,
             `
-            <p style="font-size:16px; line-height:1.6; color:#333;">
-              Hi ${targetUser.fullname || targetUser.username},
-            </p>
-          
-            <p style="font-size:15px; color:#333; margin-bottom:12px;">
-              <strong>${currentUsername}</strong> just added you as a friend on 
-              <strong style="color:#1E90FF;">Textmob</strong>. 🎉
-            </p>
-          
-            <p style="font-size:15px; margin:20px 0; text-align:center;">
-              <a href="https://textmob.web.app/@${currentUsername}" 
-                 style="background:#1E90FF; color:#fff; padding:12px 28px; border-radius:8px; 
-                        text-decoration:none; font-weight:600; font-size:15px; display:inline-block;">
-                🤝 View Profile
-              </a>
-            </p>
-          
-            <p style="font-size:13px; color:#777; text-align:center; margin-top:20px;">
-              Start building stronger connections on <strong style="color:#1E90FF;">Textmob</strong>.
-            </p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${targetUser.fullname || targetUser.username},</p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${currentUsername}</strong> added you as a friend on Textmob.</p>
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                  <a href="https://textmob.web.app/@${currentUsername}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Profile</a>
+                </td>
+              </tr>
+            </table>
             `
           );
-
         }
       }
 
@@ -7756,7 +8099,41 @@ app.get("/get-posts", async (req, res) => {
         if (!posts) return res.json([]);
         const filtered = posts.filter(p => p && p.id && p.username && !(p.disabled === true));
         const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
-        return res.json(filtered.filter(p => !clientSeenIds.has(String(p.id))).slice(0, limit));
+        // Merge server-side seen posts
+        if (username) {
+          if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set());
+          userPostSeenMap.get(username).forEach(id => clientSeenIds.add(id));
+        }
+        const now = Date.now();
+        const HOUR = 3600000;
+        const scored = filtered.map(p => {
+          const ageMs = now - new Date(p.created_at).getTime();
+          const ageHours = Math.max(0.1, ageMs / HOUR);
+          const likes = (p.likes || []).length;
+          const comments = (p.comments || []).length;
+          const reactions = (p.reactions || []).length;
+          const freshness = Math.pow(0.5, ageHours / 12);
+          const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
+          const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
+          let typeBonus = 1.0;
+          if (p.media && p.media.length > 0) typeBonus = 2.0;
+          const seenPenalty = clientSeenIds.has(String(p.id)) ? 0.00001 : 1.0;
+          const score = (freshness * 10 + velocity * 5 + typeBonus * 2) * seenPenalty;
+          return { ...p, _score: score + (Math.random() * 0.5) };
+        });
+        scored.sort((a, b) => b._score - a._score);
+        const sliced = scored.slice(0, limit).map(({ _score, ...p }) => p);
+        if (username) {
+          const serverSet = userPostSeenMap.get(username);
+          if (serverSet) {
+            sliced.forEach(p => serverSet.add(String(p.id)));
+            if (serverSet.size > 2000) {
+              const iter = serverSet.keys();
+              for (let i = 0; i < 500; i++) serverSet.delete(iter.next().value);
+            }
+          }
+        }
+        return res.json(sliced);
       }
       const followingsAndFriends = [...new Set([...userFollowing, ...userFriends])].filter(u => !blockedUsers.has(u));
       if (followingsAndFriends.length === 0) return res.json([]);
@@ -7775,14 +8152,63 @@ app.get("/get-posts", async (req, res) => {
         !(p.disabled === true)
       );
       const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
-      const sorted = filtered.sort((a, b) => {
-        const aSeen = clientSeenIds.has(String(a.id)) ? 1 : 0;
-        const bSeen = clientSeenIds.has(String(b.id)) ? 1 : 0;
-        if (aSeen !== bSeen) return aSeen - bSeen;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      // Merge server-side seen posts
+      if (username) {
+        if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set());
+        userPostSeenMap.get(username).forEach(id => clientSeenIds.add(id));
+      }
+      const now = Date.now();
+      const HOUR = 3600000;
+      const scored = filtered.map(p => {
+        const ageMs = now - new Date(p.created_at).getTime();
+        const ageHours = Math.max(0.1, ageMs / HOUR);
+        const likes = (p.likes || []).length;
+        const comments = (p.comments || []).length;
+        const reactions = (p.reactions || []).length;
+
+        const isFriend = userFriends.has(p.username);
+        const isFollowing = userFollowing.has(p.username);
+        const affinityMul = isFriend ? 4.0 : isFollowing ? 2.5 : 1.0;
+
+        const halfLifeHours = isFriend || isFollowing ? 24 : 12;
+        const freshness = Math.pow(0.5, ageHours / halfLifeHours);
+
+        const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
+        const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
+
+        let typeBonus = 1.0;
+        if (p.type === "live") typeBonus = 3.0;
+        if (p.media && p.media.length > 0) typeBonus = 1.5;
+        if (p.type === "poll") typeBonus = 1.2;
+
+        const isSeen = clientSeenIds.has(String(p.id));
+        const seenPenalty = isSeen ? 0.00001 : 1.0;
+        const selfPenalty = p.username === username ? 0.1 : 1.0;
+        const hasLiked = (p.likes || []).includes(username);
+        const likedBoost = hasLiked ? 1.0 : 2.0;
+
+        const score = (
+          (freshness * 12) +
+          (velocity * 4) +
+          (typeBonus * 2)
+        ) * affinityMul * seenPenalty * selfPenalty * likedBoost;
+
+        return { ...p, _score: score + (Math.random() * 0.3) };
       });
+      scored.sort((a, b) => b._score - a._score);
       const startIndex = (pg - 1) * limit;
-      return res.json(sorted.slice(startIndex, startIndex + limit));
+      const final = scored.slice(startIndex, startIndex + limit).map(({ _score, ...p }) => p);
+      if (username) {
+        const serverSet = userPostSeenMap.get(username);
+        if (serverSet) {
+          final.forEach(p => serverSet.add(String(p.id)));
+          if (serverSet.size > 2000) {
+            const iter = serverSet.keys();
+            for (let i = 0; i < 500; i++) serverSet.delete(iter.next().value);
+          }
+        }
+      }
+      return res.json(final);
     }
 
     // Tab is "foryou": fetch posts
@@ -7820,6 +8246,11 @@ app.get("/get-posts", async (req, res) => {
     if (!eligible.length) return res.json([]);
 
     const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
+    // Merge server-side seen posts
+    if (username && !isPublic) {
+      if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set());
+      userPostSeenMap.get(username).forEach(id => clientSeenIds.add(id));
+    }
     const now = Date.now();
     const HOUR = 3600000;
     const userMobcoins = {};
@@ -7875,6 +8306,8 @@ app.get("/get-posts", async (req, res) => {
       const isSeen = clientSeenIds.has(String(p.id));
       const seenPenalty = isSeen ? 0.00001 : 1.0;
       const selfPenalty = (p.username === username && !isPublic) ? 0.1 : 1.0;
+      const hasLiked = (p.likes || []).includes(username);
+      const likedBoost = hasLiked ? 1.0 : 2.0;
 
       // Cold-start: popularity boost for verified / popular creators
       let popularityMul = 1.0;
@@ -7886,10 +8319,10 @@ app.get("/get-posts", async (req, res) => {
       const userInfluence = (userMobcoins[p.username] || 0) * 0.05;
 
       const base = (
-        (freshness * 5.0) +
+        (freshness * 10.0) +
         (velocity * velocityWeight) +
         (socialProof * 2.0)
-      ) * affinityMul * typeBonus * seenPenalty * selfPenalty * popularityMul;
+      ) * affinityMul * typeBonus * seenPenalty * selfPenalty * popularityMul * likedBoost;
 
       return base + userInfluence + (Math.random() * 0.2);
     }
@@ -7978,6 +8411,17 @@ app.get("/get-posts", async (req, res) => {
         const verifiedMap = {};
         authors.forEach(u => verifiedMap[u.username] = u.verified || false);
         finalFeed.forEach(p => p.verified = verifiedMap[p.username] || false);
+      }
+    }
+
+    if (username && !isPublic) {
+      const serverSet = userPostSeenMap.get(username);
+      if (serverSet) {
+        finalFeed.forEach(p => serverSet.add(String(p.id)));
+        if (serverSet.size > 2000) {
+          const iter = serverSet.keys();
+          for (let i = 0; i < 500; i++) serverSet.delete(iter.next().value);
+        }
       }
     }
 
@@ -8665,15 +9109,19 @@ app.post('/groups', async (req, res) => {
         if (user && user.email) {
           await sendNotificationEmail(
             user.email,
-            `🎉 You’ve been added to ${name}!`,
+            `You've been added to ${name}`,
             `
-              <h2>Welcome to ${name}</h2>
-              <p><strong>${username}</strong> just added you to the ${type} group <em>"${name}"</em>.</p>
-              <p>This is your space to share, connect, and be part of something exciting.</p>
-              <p><a href="https://textmob.web.app/group/${encodeURIComponent(name)}" style="color:#4F46E5; text-decoration:none; font-weight:bold;">Go to Group →</a></p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi there,</p>
+            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${username}</strong> added you to the ${type} group <strong>"${name}"</strong>.</p>
+            <table role="presentation" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                  <a href="https://textmob.web.app/group/${encodeURIComponent(name)}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Open Group</a>
+                </td>
+              </tr>
+            </table>
             `
           );
-
         }
 
         io.to(`user_${member}`).emit('notification', notification);
@@ -8963,22 +9411,17 @@ app.post('/groups/:groupId/members', async (req, res) => {
     if (user && user.email) {
       await sendNotificationEmail(
         user.email,
-        `🎉 You've Been Added to ${grp.name}!`,
+        `You've been added to ${grp.name}`,
         `
-          <h2>Welcome to <span style="color:#3b82f6;">${grp.name}</span></h2>
-          <p>Hi ${user.fullname || user.username},</p>
-          <p>${notification.message}</p>
-          <p style="margin-top: 16px;">
-            <a href="https://textmob.web.app/group/${encodeURIComponent(grp.name)}" 
-               style="background:#3b82f6;color:#fff;padding:10px 18px;border-radius:6px;
-                      text-decoration:none;font-weight:500;display:inline-block;">
-              Open Group →
-            </a>
-          </p>
-          <p style="margin-top: 24px; font-size: 14px; color: #555;">
-            You're receiving this email because you’re part of the Textmob community.  
-            Stay connected, share moments, and enjoy meaningful conversations.  
-          </p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${user.fullname || user.username},</p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">${notification.message}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                <a href="https://textmob.web.app/group/${encodeURIComponent(grp.name)}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Open Group</a>
+              </td>
+            </tr>
+          </table>
         `
       );
 
@@ -9701,22 +10144,18 @@ app.post(
               if (user && user.payload && user.payload.opt_email && user.email) {
                 await sendNotificationEmail(
                   user.email,
-                  `📝 New Post in ${grp.name}`,
+                  `New post in ${grp.name}`,
                   `
-                  <h2>New Activity in <span style="color:#3b82f6;">${grp.name}</span></h2>
-                  <p>Hi ${user.fullname || user.username},</p>
-                  <p>${notif.message}</p>
-                  <p style="margin-top: 16px;">
-                    <a href="https://textmob.web.app/group/${encodeURIComponent(grp.name)}" 
-                       style="background:#3b82f6;color:#fff;padding:10px 18px;border-radius:6px;
-                              text-decoration:none;font-weight:500;display:inline-block;">
-                      View Group →
-                    </a>
-                  </p>
-                  <p style="margin-top: 24px; font-size: 14px; color: #555;">
-                    Stay in the loop with Textmob—where your community connects, shares, and grows together.  
-                  </p>
-                `
+                  <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${user.fullname || user.username},</p>
+                  <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">${notif.message}</p>
+                  <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                        <a href="https://textmob.web.app/group/${encodeURIComponent(grp.name)}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Group</a>
+                      </td>
+                    </tr>
+                  </table>
+                  `
                 );
 
               }
@@ -10025,6 +10464,338 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'newindex.html'));
 });
 
+// ─── WEEKLY RECAP SYSTEM ────────────────────────────────────────────────
+// Uses only raw DB queries. Skips users with zero activity (no posts + no engagement).
+// If user engaged with others' posts, sends an engagement-focused recap.
+
+const recapWeekSent = new Map();
+
+function getWeekKey(date = new Date()) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+}
+
+async function gatherWeeklyActivity(username) {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [{ data: newPosts }, { data: allUserPosts }, { data: recentPosts }, { data: user }] = await Promise.all([
+    supabase2.from("Posts").select("id, text, likes, comments, created_at, type, media").eq("username", username).gte("created_at", weekAgo).order("created_at", { ascending: false }),
+    supabase2.from("Posts").select("id, text, likes, comments, created_at").eq("username", username),
+    supabase2.from("Posts").select("id, username, text, likes, comments, created_at").gte("created_at", weekAgo).order("created_at", { ascending: false }),
+    supabase.from("users").select("fullname, email").eq("username", username).single()
+  ]);
+
+  if (!user || !user.email) return null;
+
+  // Comments received on user's own posts this week
+  const commentsReceived = [];
+  for (const post of allUserPosts || []) {
+    if (post.comments && Array.isArray(post.comments)) {
+      for (const c of post.comments) {
+        if (c.timestamp && c.timestamp >= weekAgo && c.username !== username) {
+          commentsReceived.push({ postId: post.id, postText: post.text, ...c });
+        }
+      }
+    }
+  }
+
+  // Engagement: comments user made on OTHER people's posts this week
+  const commentsGiven = [];
+  for (const post of recentPosts || []) {
+    if (post.username === username) continue;
+    if (post.comments && Array.isArray(post.comments)) {
+      for (const c of post.comments) {
+        if (c.timestamp && c.timestamp >= weekAgo && c.username === username) {
+          commentsGiven.push({ postId: post.id, postText: post.text, onPostBy: post.username, ...c });
+        }
+      }
+    }
+  }
+
+  // Engagement: likes user gave on posts created this week
+  let likesGiven = 0;
+  for (const post of recentPosts || []) {
+    if (post.username === username) continue;
+    if (post.likes && Array.isArray(post.likes) && post.likes.includes(username)) {
+      likesGiven++;
+    }
+  }
+
+  let likesOnNewPosts = 0;
+  let mostLikedPost = null;
+  for (const p of newPosts || []) {
+    const likeCount = (p.likes || []).length;
+    likesOnNewPosts += likeCount;
+    if (!mostLikedPost || likeCount > ((mostLikedPost.likes || []).length)) mostLikedPost = p;
+  }
+
+  return {
+    postsCreated: newPosts || [],
+    commentsReceived,
+    commentsGiven,
+    likesGiven,
+    user,
+    totals: {
+      postCount: (newPosts || []).length,
+      likesOnNewPosts,
+      commentsCount: commentsReceived.length,
+      commentsGiven: commentsGiven.length,
+      likesGiven,
+    },
+    mostLikedPost
+  };
+}
+
+async function generateRecapAI(activity) {
+  const { postsCreated, commentsReceived, commentsGiven, likesGiven, totals, mostLikedPost, user } = activity;
+  const name = user?.fullname || 'there';
+
+  // Truly inactive — skip by returning null
+  if (totals.postCount === 0 && totals.commentsCount === 0 && totals.likesOnNewPosts === 0 && totals.commentsGiven === 0 && totals.likesGiven === 0) {
+    return null;
+  }
+
+  // Only outgoing engagement, no posts
+  const onlyEngagement = totals.postCount === 0 && totals.commentsCount === 0 && totals.likesOnNewPosts === 0 && (totals.commentsGiven > 0 || totals.likesGiven > 0);
+
+  const parts = [`Fullname: ${name}`];
+  if (totals.postCount > 0) {
+    parts.push(`Posts created this week: ${totals.postCount}`);
+    for (const p of postsCreated.slice(0, 3)) {
+      parts.push(`- "${(p.text || '').slice(0, 100)}" (${(p.likes || []).length} likes, ${(p.comments || []).length} comments)`);
+    }
+  }
+  if (totals.likesOnNewPosts > 0) parts.push(`Total likes received on new posts: ${totals.likesOnNewPosts}`);
+  if (totals.commentsCount > 0) {
+    parts.push(`Comments received: ${totals.commentsCount}`);
+    for (const c of commentsReceived.slice(0, 3)) {
+      parts.push(`- @${c.username}: "${(c.text || '').slice(0, 80)}"`);
+    }
+  }
+  if (totals.likesGiven > 0) parts.push(`Likes given to others this week: ${totals.likesGiven}`);
+  if (totals.commentsGiven > 0) {
+    parts.push(`Comments you left on others' posts: ${totals.commentsGiven}`);
+    for (const c of commentsGiven.slice(0, 3)) {
+      parts.push(`- on @${c.onPostBy}'s post: "${(c.text || '').slice(0, 80)}"`);
+    }
+  }
+  if (mostLikedPost?.text) {
+    parts.push(`Most liked post: "${mostLikedPost.text.slice(0, 120)}" with ${(mostLikedPost.likes || []).length} likes`);
+  }
+
+  let systemPrompt;
+  if (onlyEngagement) {
+    systemPrompt = `You are Textmob's weekly recap assistant. This user didn't post this week but was active engaging with others' content. Write a warm, friendly 2-3 sentence summary acknowledging their engagement and encouraging them to share their own thoughts too. Keep it encouraging. No emojis except one at the end. Sign off with "— Textmob"`;
+  } else {
+    systemPrompt = `You are Textmob's weekly recap assistant. Write a warm, friendly 2-4 sentence summary of the user's week on Textmob based on their stats. Keep it natural and encouraging. No emojis except one at the end. Sign off with "— Textmob"`;
+  }
+
+  const apiKeys = [process.env.GROQ_API_KEY, process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY_3].filter(Boolean);
+  if (apiKeys.length === 0) apiKeys.push("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");
+
+  for (let attempt = 0; attempt < apiKeys.length; attempt++) {
+    // Jitter to desync parallel workers
+    await new Promise(r => setTimeout(r, 100 + Math.random() * 400));
+    try {
+      const aiRes = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
+        model: "openai/gpt-oss-120b",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Here's the user's weekly stats:\n${parts.join('\n')}\n\nWrite a short, friendly recap.` }
+        ],
+        temperature: 0.8,
+        max_tokens: 500
+      }, {
+        headers: { Authorization: `Bearer ${apiKeys[attempt]}`, "Content-Type": "application/json" },
+        timeout: 30000
+      });
+
+      if (aiRes?.data?.choices?.[0]?.message?.content) {
+        return aiRes.data.choices[0].message.content.trim();
+      }
+    } catch (err) {
+      if (err?.response?.status === 429 && attempt < apiKeys.length - 1) {
+        console.log(`[WeeklyRecap] Key ${attempt + 1} rate-limited, waiting 1s then trying next...`);
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+      console.error(`[WeeklyRecap] AI failed for ${name} (key ${attempt + 1}):`, err?.message);
+    }
+  }
+
+  if (onlyEngagement) {
+    return `Hey ${name}, you were active on Textmob this week — you gave ${totals.likesGiven} like(s) and left ${totals.commentsGiven} comment(s). We'd love to see what you have to share too. — Textmob`;
+  }
+  return `Hey ${name}, here's your weekly Textmob recap! You created ${totals.postCount} post(s) and got ${totals.likesOnNewPosts} like(s) and ${totals.commentsCount} comment(s). Keep being awesome. — Textmob`;
+}
+
+async function sendWeeklyRecapEmail(username) {
+  try {
+    const activity = await gatherWeeklyActivity(username);
+    if (!activity || !activity.user || !activity.user.email) return;
+
+    const weekKey = getWeekKey();
+    if (recapWeekSent.get(username) === weekKey) return;
+
+    const recapText = await generateRecapAI(activity);
+    if (!recapText) {
+      console.log(`[WeeklyRecap] Skipping ${username} — no activity this week`);
+      return;
+    }
+
+    const stats = activity.totals;
+
+    const subject = `Your week on Textmob — ${weekKey}`;
+
+    const plainText = `Hi ${activity.user.fullname || 'there'},
+
+${recapText}
+
+Your activity this week:
+${stats.postCount > 0 ? `- ${stats.postCount} post(s) created` : ''}
+${stats.likesOnNewPosts > 0 ? `- ${stats.likesOnNewPosts} like(s) received` : ''}
+${stats.commentsCount > 0 ? `- ${stats.commentsCount} comment(s) received` : ''}
+${stats.likesGiven > 0 ? `- ${stats.likesGiven} post(s) liked` : ''}
+${stats.commentsGiven > 0 ? `- ${stats.commentsGiven} reply/comment(s) left` : ''}
+
+Open Textmob: https://textmob.web.app
+
+Notification Settings: https://textmob.web.app/settings/notifications
+
+Textmob, 42 Marina Street, Lagos Island, Lagos, Nigeria`;
+
+    let badgeCells = '';
+    if (stats.postCount > 0) badgeCells += `<td style="padding:4px 8px 4px 0;"><span style="display:inline-block;background:#eff6ff;color:#2563eb;padding:4px 12px;border-radius:16px;font-size:13px;font-weight:600;">${stats.postCount} post(s)</span></td>`;
+    if (stats.likesOnNewPosts > 0) badgeCells += `<td style="padding:4px 8px;"><span style="display:inline-block;background:#fdf2f8;color:#db2777;padding:4px 12px;border-radius:16px;font-size:13px;font-weight:600;">${stats.likesOnNewPosts} like(s)</span></td>`;
+    if (stats.commentsCount > 0) badgeCells += `<td style="padding:4px 8px;"><span style="display:inline-block;background:#ecfdf5;color:#059669;padding:4px 12px;border-radius:16px;font-size:13px;font-weight:600;">${stats.commentsCount} comment(s)</span></td>`;
+    if (stats.likesGiven > 0) badgeCells += `<td style="padding:4px 8px;"><span style="display:inline-block;background:#fef3c7;color:#d97706;padding:4px 12px;border-radius:16px;font-size:13px;font-weight:600;">${stats.likesGiven} liked</span></td>`;
+    if (stats.commentsGiven > 0) badgeCells += `<td style="padding:4px 0 4px 8px;"><span style="display:inline-block;background:#ede9fe;color:#7c3aed;padding:4px 12px;border-radius:16px;font-size:13px;font-weight:600;">${stats.commentsGiven} replied</span></td>`;
+    const statsBlock = badgeCells ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:20px;background:#f8fafc;border-radius:8px;"><tr><td style="padding:16px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr>${badgeCells}</tr></table></td></tr></table>` : '';
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Inter,Arial,Helvetica,sans-serif;color:#0f172a;">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc;padding:24px 0;">
+<tr><td align="center">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;">
+<tr><td align="center" style="padding:28px 24px 0;">
+<img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" alt="Textmob" width="40" height="40" style="display:block;margin:0 auto 12px;border-radius:8px;">
+<h1 style="margin:0;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;">Your week on Textmob</h1>
+<p style="margin:4px 0 0;font-size:14px;color:#64748b;">${weekKey}</p>
+</td></tr>
+<tr><td style="padding:24px;">
+<p style="font-size:16px;line-height:1.7;color:#0f172a;margin:0;white-space:pre-wrap;">${recapText}</p>
+${statsBlock}
+</td></tr>
+<tr><td align="center" style="padding:0 24px 28px;">
+<a href="https://textmob.web.app" style="background:#2563eb;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;display:inline-block;">Open Textmob</a>
+</td></tr>
+<tr><td style="background:#f8fafc;border-top:1px solid #e5e7eb;padding:16px 24px;">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+<tr><td align="center" style="font-size:12px;color:#94a3b8;line-height:1.5;">
+<a href="https://textmob.web.app/settings/notifications" style="color:#2563eb;text-decoration:none;">Notification Settings</a>
+<p style="margin:8px 0 0;font-size:11px;color:#94a3b8;">Textmob, 42 Marina Street, Lagos Island, Lagos, Nigeria</p>
+<p style="margin:4px 0 0;font-size:11px;color:#94a3b8;">&copy; 2026 Textmob. All rights reserved.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+    await transporter.sendMail({
+      from: `"Textmob" <${process.env.SMTP_USER || "sharpbrainspublishers@gmail.com"}>`,
+      to: activity.user.email,
+      subject,
+      text: plainText,
+      html,
+      headers: { 'List-Unsubscribe': '<https://textmob.web.app/settings/notifications>' }
+    });
+
+    recapWeekSent.set(username, weekKey);
+    console.log(`[WeeklyRecap] Recap sent to ${username} (${activity.user.email})`);
+  } catch (err) {
+    console.error(`[WeeklyRecap] Error for ${username}:`, err?.message);
+  }
+}
+
+async function processAllWeeklyRecaps() {
+  console.log('[WeeklyRecap] Starting weekly recap cycle...');
+  const weekKey = getWeekKey();
+  let sent = 0, skipped = 0, noEmail = 0;
+
+  try {
+    const { data: users, error } = await supabase
+      .from("users")
+      .select("username, email, fullname");
+
+    if (error || !users) {
+      console.error('[WeeklyRecap] Failed to fetch users:', error);
+      return;
+    }
+
+    for (const user of users) {
+      if (!user.email) { noEmail++; continue; }
+      if (recapWeekSent.get(user.username) === weekKey) { skipped++; continue; }
+      await sendWeeklyRecapEmail(user.username);
+      sent++;
+      // Rate limit: 10 users per second to avoid overwhelming the email server
+      if (sent % 10 === 0) await new Promise(r => setTimeout(r, 1000));
+    }
+
+    console.log(`[WeeklyRecap] Cycle complete: ${sent} sent, ${skipped} skipped (already sent), ${noEmail} no email`);
+  } catch (err) {
+    console.error('[WeeklyRecap] Cycle error:', err?.message);
+  }
+}
+
+// Schedule: check every hour if it's Monday (or time to send)
+const WEEKLY_RECAP_CHECK_INTERVAL = 60 * 60 * 1000; // 1 hour
+setInterval(() => {
+  const now = new Date();
+  // Send on Monday between 9-10 AM (server time)
+  if (now.getDay() === 1 && now.getHours() === 9) {
+    processAllWeeklyRecaps();
+  }
+}, WEEKLY_RECAP_CHECK_INTERVAL);
+// Also run once on startup (in case of restart on a Monday)
+if (new Date().getDay() === 1 && new Date().getHours() >= 8 && new Date().getHours() <= 12) {
+  setTimeout(processAllWeeklyRecaps, 30000); // 30s delay to let server warm up
+}
+
+// Manual trigger endpoint (admin only)
+app.post("/admin/trigger-weekly-recap", express.json(), async (req, res) => {
+  try {
+    const { key, username } = req.body || {};
+    if (key !== 'secret_admin_key') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    if (username) {
+      await sendWeeklyRecapEmail(username);
+      return res.json({ ok: true, message: `Recap sent to ${username}` });
+    }
+    // Fire and forget full cycle
+    processAllWeeklyRecaps();
+    res.json({ ok: true, message: 'Weekly recap cycle started for all users' });
+  } catch (err) {
+    res.status(500).json({ error: err?.message });
+  }
+});
+
+// Status endpoint
+app.get("/api/weekly-recap-status", (req, res) => {
+  res.json({
+    weekKey: getWeekKey(),
+    usersSent: recapWeekSent.size,
+  });
+});
+
 function getLocalIP() {
   const os = require('os');
   const interfaces = os.networkInterfaces();
@@ -10037,7 +10808,11 @@ function getLocalIP() {
   }
   return 'localhost';
 }
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { gatherWeeklyActivity, generateRecapAI, sendWeeklyRecapEmail, getWeekKey, recapWeekSent, processAllWeeklyRecaps, transporter };
 

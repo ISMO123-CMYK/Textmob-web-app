@@ -13,7 +13,6 @@ export default function ActivityContent({ onClose }) {
   
   const originalListRef = useRef([]);
   const dropdownRefs = useRef({});
-  const markReadDone = useRef(false);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -54,25 +53,6 @@ export default function ActivityContent({ onClose }) {
     }));
   }
 
-  // Mark notifications as read
-  async function markAllAsRead(list) {
-    if (markReadDone.current) return;
-    markReadDone.current = true;
-    const unread = list.filter(e => !e.read);
-    for (let t of unread) {
-      try {
-        await apiFetch('/mark-notification-read', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: currentUser,
-            notificationId: t.id
-          })
-        });
-      } catch {}
-    }
-  }
-
   // Load notifications
   async function loadNotifications() {
     try {
@@ -85,7 +65,6 @@ export default function ActivityContent({ onClose }) {
       originalListRef.current = processed;
       setNotifications(processed);
       setError(null);
-      markAllAsRead(processed);
     } catch (err) {
       setError(err.message || 'Network error');
     } finally {
@@ -106,14 +85,30 @@ export default function ActivityContent({ onClose }) {
     originalListRef.current = updated;
     setNotifications([...updated]);
     
-    apiFetch('/delete-notification', {
+      apiFetch('/delete-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: currentUser,
+            notificationId: id
+          })
+        }).catch(() => {});
+  }
+
+  function markAsRead(id) {
+    if (!id) return;
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    apiFetch('/mark-notification-read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: currentUser,
-        notificationId: id
-      })
+      body: JSON.stringify({ username: currentUser, notificationId: id })
     }).catch(() => {});
+  }
+
+  function navigateAndMark(item) {
+    if (!item.link) return;
+    if (!item.read) markAsRead(item.id);
+    window.Lexum?.navigate(item.link);
   }
 
   // Clear all notifications (batch delete + live reload)
@@ -328,7 +323,7 @@ export default function ActivityContent({ onClose }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 border-b border-gray-100 transition-colors text-left font-semibold"
                 onClick={() => {
                   setOpenMenuId(null);
-                  window.Lexum?.navigate(item.link);
+                  navigateAndMark(item);
                 }}
               >
                 <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2">
@@ -389,11 +384,7 @@ export default function ActivityContent({ onClose }) {
         className={`relative flex items-start gap-3 px-4 py-3.5 border-b border-gray-100 active:bg-gray-50/50 transition-colors cursor-pointer ${
           item.read ? '' : 'border-l-2 border-l-blue-500 pl-3.5'
         } ${!item.read && info.bg ? info.bg : ''}`}
-        onClick={() => {
-          if (item.link) {
-            window.Lexum?.navigate(item.link);
-          }
-        }}
+        onClick={() => navigateAndMark(item)}
       >
         <div className="relative flex-shrink-0">
           <img src={item.avatar} alt={item.sender || 'user'} className={`w-10 h-10 rounded-full object-cover ${info.ring}`} />
@@ -411,7 +402,7 @@ export default function ActivityContent({ onClose }) {
             {showChip && (
               <a
                 href={item.link}
-                onClick={e => { e.stopPropagation(); window.Lexum?.navigate(item.link); }}
+                onClick={e => { e.stopPropagation(); navigateAndMark(item); }}
                 className="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 px-2 py-0.5 rounded-full transition-colors"
               >
                 View post →

@@ -12,8 +12,28 @@ export default function Sidebar() {
   const [loudaUnread, setLoudaUnread] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
+  const [savedAccounts, setSavedAccounts] = useState([]);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const menuRef = useRef(null);
   const createMenuRef = useRef(null);
+
+  useEffect(() => {
+    setSavedAccounts(JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]').map(a => ({ ...a, username: a.username?.toLowerCase() })));
+  }, []);
+
+  async function switchAccount(username, password) {
+    try {
+      const res = await apiFetch('/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { window.showNotification?.({ title:'Login Failed', message: data.error, type:'error' }); return; }
+      localStorage.setItem('currentUser', data.user.username);
+      window.__feedState = { activeTab:'foryou', foryou:{posts:[],page:1,hasMore:true,scrollY:0}, following:{posts:[],page:1,hasMore:true,scrollY:0} };
+      window.location.href = '/';
+    } catch(e) { window.showNotification?.({ title:'Error', message:e.message, type:'error' }); }
+  }
 
   const currentUser = localStorage.getItem('currentUser');
   const isLoggedIn = !!currentUser && currentUser !== 'undefined';
@@ -142,25 +162,52 @@ export default function Sidebar() {
               className="absolute left-2 right-2 top-[calc(100%-4px)] z-50 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-2xl overflow-hidden shadow-xl"
               role="menu"
             >
-              <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
-                <img src={pic} alt={name} className="w-8 h-8 rounded-full object-cover" />
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-gray-900 truncate">{name}</p>
-                  <p className="text-[11px] text-gray-400 truncate">@{username}</p>
+              {showAccountSwitcher ? (
+                <>
+                  <div className="border-b border-gray-100">
+                    <button onClick={() => setShowAccountSwitcher(false)} className="flex items-center gap-2 w-full px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                      <span className="font-semibold">Switch account</span>
+                    </button>
+                  </div>
+                  {savedAccounts.map(acc => (
+                    <button key={acc.username} onClick={() => switchAccount(acc.username, acc.password)} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">{acc.username.slice(0,2).toUpperCase()}</div>
+                      <span className="font-semibold flex-1 text-left">@{acc.username}</span>
+                      <span className="text-blue-600 text-xs font-bold">Switch</span>
+                    </button>
+                  ))}
+                  {savedAccounts.length === 0 && <p className="px-4 py-3 text-xs text-gray-400">No saved accounts</p>}
+                </>
+              ) : (
+              <>
+                <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                  <img src={pic} alt={name} className="w-8 h-8 rounded-full object-cover" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-gray-900 truncate">{name}</p>
+                    <p className="text-[11px] text-gray-400 truncate">@{username}</p>
+                  </div>
                 </div>
-              </div>
-              {profileMenuItems.map(({ label, to, icon }) => (
-                <a href={to} data-lexum={true} role="menuitem" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => setMenuOpen(false)} key={label}>
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current text-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
-                  {label}
-                </a>
-              ))}
-              <div className="border-t border-gray-200">
-                <button role="menuitem" onClick={() => { localStorage.removeItem('currentUser'); window.Lexum?.navigate('/auth'); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors">
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                  Log out
-                </button>
-              </div>
+                {profileMenuItems.map(({ label, to, icon }) => (
+                  <a href={to} data-lexum={true} role="menuitem" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => setMenuOpen(false)} key={label}>
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current text-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
+                    {label}
+                  </a>
+                ))}
+                <div className="border-t border-gray-100">
+                  <button role="menuitem" onClick={() => { setShowAccountSwitcher(true); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current text-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    Switch account
+                  </button>
+                </div>
+                <div className="border-t border-gray-200">
+                  <button role="menuitem" onClick={() => { localStorage.removeItem('currentUser'); window.Lexum?.navigate('/auth'); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                    Log out
+                  </button>
+                </div>
+              </>
+              )}
             </div>
           )}
         </div>

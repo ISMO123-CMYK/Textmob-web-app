@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Textmob",
+    "slug": "textmob",
+    "scheme": "textmob",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#f8fafc",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.textmob.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.textmob.app",
+      "predictiveBackGestureEnabled": false,
+      "edgeToEdgeEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-video",
+      "expo-dev-client",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Textmob needs camera access to let you go live.",
+          "microphonePermission": "Textmob needs microphone access for your live stream audio."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "69628b48-5c85-4bc1-8c7f-98144a9d7079"
+      }
+    }
+  }
+}

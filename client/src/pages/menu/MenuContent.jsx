@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import NavIcons from '../../utils/navIcons';
 import { openFeatureOnboarding } from '../../components/ui/FeatureOnboarding';
+import { apiFetch } from '../../config/api';
 
 function MenuRow({ item, active, onClick }) {
   const base =
@@ -101,24 +102,42 @@ function FeaturedCard({ username }) {
 export default function MenuContent() {
   const [username, setUsername] = useState('');
   const [path, setPath] = useState('');
+  const [savedAccounts, setSavedAccounts] = useState([]);
 
   useEffect(() => {
     setUsername(localStorage.getItem('currentUser') || '');
     setPath(window.location.pathname);
+    setSavedAccounts(JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]').map(a => ({ ...a, username: a.username?.toLowerCase() })));
 
     const onPopState = () => setPath(window.location.pathname);
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  async function switchAccount(username, password) {
+    try {
+      const res = await apiFetch('/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { window.showNotification?.({ title:'Login Failed', message: data.error, type:'error' }); return; }
+      localStorage.setItem('currentUser', data.user.username);
+      window.__feedState = { activeTab:'foryou', foryou:{posts:[],page:1,hasMore:true,scrollY:0}, following:{posts:[],page:1,hasMore:true,scrollY:0} };
+      window.location.href = '/';
+    } catch(e) { window.showNotification?.({ title:'Error', message:e.message, type:'error' }); }
+  }
+
   const handleClearCache = () => {
     const currentUser = localStorage.getItem('currentUser');
     const savedAccounts = localStorage.getItem('textmobSavedAccounts');
+    const viewedIds = localStorage.getItem('__tmob_viewed_ids');
     
     localStorage.clear();
     
     if (currentUser) localStorage.setItem('currentUser', currentUser);
     if (savedAccounts) localStorage.setItem('textmobSavedAccounts', savedAccounts);
+    if (viewedIds) localStorage.setItem('__tmob_viewed_ids', viewedIds);
     
     window.__feedState = {
       activeTab: 'foryou',
@@ -290,6 +309,30 @@ export default function MenuContent() {
             </div>
           </section>
         ))}
+
+        {savedAccounts.length > 0 && (
+          <section className="space-y-2">
+            <div className="px-1 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400">
+              Accounts
+            </div>
+            <div className="space-y-1">
+              {savedAccounts.map(acc => (
+                <button key={acc.username} onClick={() => switchAccount(acc.username, acc.password)}
+                  className="w-full flex items-center gap-3 rounded-xl border border-gray-200/80 bg-white px-3 py-3 transition-all duration-200 hover:bg-gray-50 active:scale-[0.98] text-left"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-xs">
+                    {acc.username.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-gray-900">@{acc.username}</div>
+                    <div className="text-xs text-blue-500 font-semibold">Tap to switch</div>
+                  </div>
+                  <NavIcons.ArrowRightOnRect className="h-4 w-4 text-gray-300" />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="pt-1">
           <a

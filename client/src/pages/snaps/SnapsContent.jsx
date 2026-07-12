@@ -1584,13 +1584,18 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
 }
 
 // Snaps vertical carousel component
-function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username, onLike, onCreateSnap, onLoadMore }) {
+function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username, onLike, onCreateSnap, onLoadMore, onSnapViewed }) {
   let [s, c] = useState(startIndex);
   let [l, u] = useState(null);
   let [giftTarget, setGiftTarget] = useState(null);
   let [d, f] = useState(initialSnaps);
   let p = useRef(null);
   let m = useRef({ y: 0, t: 0 });
+
+  function handleIndexChange(newIndex) {
+    c(newIndex);
+    if (d[newIndex]) onSnapViewed?.([d[newIndex].id]);
+  }
 
   function handleOpenGift(snapObj) {
     if (!snapObj) return;
@@ -1611,9 +1616,9 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
     let keyHandler = e => {
       if (!l) {
         if (e.key === 'ArrowDown' && s < d.length - 1) {
-          c(idx => idx + 1);
+          handleIndexChange(s + 1);
         } else if (e.key === 'ArrowUp' && s > 0) {
-          c(idx => idx - 1);
+          handleIndexChange(s - 1);
         } else if (e.key === 'Escape') {
           onClose?.();
         }
@@ -1634,9 +1639,9 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
       if (!(now - lastWheelTime < 550)) {
         lastWheelTime = now;
         if (e.deltaY > 0 && s < d.length - 1) {
-          c(idx => idx + 1);
+          handleIndexChange(s + 1);
         } else if (e.deltaY < 0 && s > 0) {
-          c(idx => idx - 1);
+          handleIndexChange(s - 1);
         }
       }
     };
@@ -1659,9 +1664,9 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
     let velocity = Math.abs(deltaY) / Math.max(1, Date.now() - m.current.t);
     if (Math.abs(deltaY) > 55 || velocity > 0.4) {
       if (deltaY > 0 && s < d.length - 1) {
-        c(idx => idx + 1);
+        handleIndexChange(s + 1);
       } else if (deltaY < 0 && s > 0) {
-        c(idx => idx - 1);
+        handleIndexChange(s - 1);
       }
     }
   }
@@ -1853,7 +1858,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
               }}
               onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
               onMouseLeave={e => (e.currentTarget.style.opacity = '.55')}
-              onClick={() => c(s + 1 + index)}
+              onClick={() => handleIndexChange(s + 1 + index)}
               key={snap.id}
             >
               <div
@@ -1964,6 +1969,18 @@ export default function SnapsContent() {
   let [isCreatorOpen, setIsCreatorOpen] = useState(false);
   let currentUser = localStorage.getItem('currentUser') || '';
 
+  // Seen-posts tracking (localStorage)
+  const SEEN_KEY = '__tmob_viewed_ids';
+  function getSeenIds() {
+    try { let e = localStorage.getItem(SEEN_KEY); return new Set(e ? JSON.parse(e) : []); } catch { return new Set(); }
+  }
+  function markSeen(ids) {
+    try { let s = getSeenIds(); ids.forEach(id => s.add(String(id))); let arr = Array.from(s); localStorage.setItem(SEEN_KEY, JSON.stringify(arr.slice(-1000))); } catch {}
+  }
+  function getSeenParam() {
+    try { return Array.from(getSeenIds()).join(','); } catch { return ''; }
+  }
+
   // Inject CSS styles for animations
   useEffect(() => {
     if (document.getElementById('snap-styles')) return;
@@ -2018,9 +2035,10 @@ export default function SnapsContent() {
   }, []);
 
   useEffect(() => {
+    let seen = getSeenParam();
     let url = currentUser
-      ? `/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5`
-      : `/snaps-feed?limit=5`;
+      ? `/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5${seen ? '&seenIds=' + encodeURIComponent(seen) : ''}`
+      : `/snaps-feed?limit=5${seen ? '&seenIds=' + encodeURIComponent(seen) : ''}`;
     apiFetch(url)
       .then(res => res.ok ? res.json() : Promise.reject('Failed to load snaps'))
       .then(data => {
@@ -2041,7 +2059,10 @@ export default function SnapsContent() {
 
   let handleLoadMore = async () => {
     try {
-      let url = currentUser ? `/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5` : `/snaps-feed?limit=5`;
+      let seen = getSeenParam();
+      let url = currentUser
+        ? `/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5${seen ? '&seenIds=' + encodeURIComponent(seen) : ''}`
+        : `/snaps-feed?limit=5${seen ? '&seenIds=' + encodeURIComponent(seen) : ''}`;
       let res = await apiFetch(url);
       let data = await res.json();
       if (data.snaps) {
@@ -2083,6 +2104,10 @@ export default function SnapsContent() {
         ...prev
       ]);
     }
+  }
+
+  function handleSnapViewed(ids) {
+    markSeen(ids);
   }
 
   if (loading) {
@@ -2257,6 +2282,7 @@ export default function SnapsContent() {
         onLike={handleLike}
         onCreateSnap={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to create snaps'); return; } setIsCreatorOpen(true); }}
         onLoadMore={handleLoadMore}
+        onSnapViewed={handleSnapViewed}
       />
       <NewSnapModal
         isOpen={isCreatorOpen}
