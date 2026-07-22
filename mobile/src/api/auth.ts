@@ -79,10 +79,4 @@ export async function getAccountStatsAPI(username: string) {
   return apiGet<{ mobcoins: number; rank: number | null }>(`/account-stats?username=${encodeURIComponent(username)}`);
 }
 
-export async function getVerifyStatusAPI(username: string) {
-  return apiGet<{ status: string; verified_until?: string }>(`/api/verify-status?username=${encodeURIComponent(username)}`);
-}
 
-export async function submitVerifyRequestAPI(username: string) {
-  return apiPost<{ ok: boolean }>('/api/verify-request', { username });
-}

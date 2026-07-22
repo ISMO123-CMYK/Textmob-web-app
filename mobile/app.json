@@ -1,49 +1,32 @@
 {
   "expo": {
     "name": "Textmob",
-    "slug": "textmob",
-    "scheme": "textmob",
+    "slug": "Textmob",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "backgroundColor": "#f8fafc",
-      "resizeMode": "contain"
+      "image": "./assets/splash.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#09090b"
     },
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.textmob.app"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#09090b"
       },
-      "package": "com.textmob.app",
-      "predictiveBackGestureEnabled": false,
-      "edgeToEdgeEnabled": false
+      "package": "com.bossprogrammer20.mobile"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-secure-store",
-      "expo-video",
-      "expo-dev-client",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Textmob needs camera access to let you go live.",
-          "microphonePermission": "Textmob needs microphone access for your live stream audio."
-        }
-      ]
-    ],
     "extra": {
       "eas": {
-        "projectId": "69628b48-5c85-4bc1-8c7f-98144a9d7079"
+        "projectId": "cd3ed21d-7bd6-4b73-b893-1fbc3a9b67de"
       }
     }
   }

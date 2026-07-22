@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import NotificationBanner from './NotificationBanner';
 import { SnapUploadProvider } from '../../utils/SnapUploadContext';
+import { apiFetch } from '../../config/api';
 import { fetchProfile } from '../../utils/useProfileCache';
 import AuthPromptModal from '../ui/AuthPromptModal';
 

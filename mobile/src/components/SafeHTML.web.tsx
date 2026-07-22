@@ -2,6 +2,73 @@ import React from 'react';
 import sanitizeHtml from 'sanitize-html';
 import { useTheme } from '../context/ThemeContext';
 
+function convertMarkdown(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+  let inUl = false;
+  let inOl = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    const bqMatch = line.match(/^>\s?(.*)/);
+    if (bqMatch) {
+      flushLists();
+      result.push(`<blockquote>${bqMatch[1]}</blockquote>`);
+      continue;
+    }
+
+    if (/^---+$/.test(line.trim())) {
+      flushLists();
+      result.push('<hr />');
+      continue;
+    }
+
+    const hMatch = line.match(/^(#{1,3})\s+(.*)/);
+    if (hMatch) {
+      flushLists();
+      result.push(`<h${hMatch[1].length + 1}>${hMatch[2]}</h${hMatch[1].length + 1}>`);
+      continue;
+    }
+
+    const ulMatch = line.match(/^[-*+]\s+(.*)/);
+    if (ulMatch) {
+      if (!inUl) { flushLists(); inUl = true; result.push('<ul>'); }
+      result.push(`<li>${ulMatch[1]}</li>`);
+      continue;
+    }
+
+    const olMatch = line.match(/^\d+\.\s+(.*)/);
+    if (olMatch) {
+      if (!inOl) { flushLists(); inOl = true; result.push('<ol>'); }
+      result.push(`<li>${olMatch[1]}</li>`);
+      continue;
+    }
+
+    flushLists();
+    result.push(line);
+  }
+
+  flushLists();
+
+  function flushLists() {
+    if (inUl) { result.push('</ul>'); inUl = false; }
+    if (inOl) { result.push('</ol>'); inOl = false; }
+  }
+
+  let s = result.join('\n');
+
+  s = s
+    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/~~(.+?)~~/g, '<s>$1</s>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  return s;
+}
+
 export default function SafeHTML({
   text,
   style,
@@ -18,9 +85,10 @@ export default function SafeHTML({
   let processed = text;
 
   if (!isHTML) {
-    processed = text
+    processed = convertMarkdown(processed);
+    processed = processed
       .replace(/[ \t]+$/gm, '')
-      .replace(/\n{3,}/g, '\n\n') // cap runs of blank lines so they don't blow up spacing
+      .replace(/\n{3,}/g, '\n\n')
       .replace(/(?:\r\n|\r|\n)/g, '<br />')
       .replace(
         /(^|\s)(@[\w.-]+)/g,
@@ -52,6 +120,11 @@ export default function SafeHTML({
       'ol',
       'li',
       'blockquote',
+      'h2', 'h3', 'h4',
+      'hr',
+      's',
+      'code',
+      'pre',
     ],
     allowedAttributes: {
       a: ['href', 'target', 'rel', 'style'],
@@ -75,8 +148,9 @@ export default function SafeHTML({
     : style || {};
 
   return (
-    <div>
-      <span>{text}</span>
-    </div>
+    <div
+      style={flattenedStyle}
+      dangerouslySetInnerHTML={{ __html: processed }}
+    />
   );
 }

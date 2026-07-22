@@ -22,6 +22,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<any>(null);
   const listenersRef = useRef<Map<string, Set<Function>>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
+  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -30,12 +31,17 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       const io = Io(API_BASE_URL, {
         transports: ['websocket', 'polling'],
         reconnection: true,
-        reconnectionAttempts: Infinity,
+        reconnectionAttempts: 10,
         reconnectionDelay: 2000,
+        reconnectionDelayMax: 30000,
       });
 
       io.on('connect', () => {
-        if (mounted) setIsConnected(true);
+        if (mounted) {
+          setIsConnected(true);
+          socketRef.current = io;
+          forceUpdate(n => n + 1);
+        }
       });
 
       io.on('disconnect', () => {
@@ -61,6 +67,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      listenersRef.current.clear();
       if (socketRef.current) {
         socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
@@ -70,7 +77,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const emit = useCallback((event: string, data?: any, callback?: Function) => {
-    if (socketRef.current) {
+    if (socketRef.current?.connected) {
       if (callback) {
         socketRef.current.emit(event, data, callback);
       } else {

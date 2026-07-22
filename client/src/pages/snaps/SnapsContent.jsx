@@ -476,8 +476,8 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
 
   function handleVideoFile(file) {
     if (file) {
-      if (file.size > 41943040) {
-        setErrorMsg('Video must be under 40 MB');
+      if (file.size > 104857600) {
+        setErrorMsg('Video must be under 100 MB');
         return;
       }
       if (!file.type.startsWith('video/')) {
@@ -1723,7 +1723,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
           onTouchEnd={handleTouchEnd}
         >
           <div
-            className="absolute inset-0 transition-transform duration-[280ms] ease-out"
+            className="absolute inset-0 transition-transform duration-[200ms] cubic-bezier(.22,.68,0,1)"
             style={{ transform: `translateY(-${s * 100}vh)` }}
           >
             {d.map((snap, index) => (
@@ -1964,6 +1964,8 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
 // Main exported SnapsContent Component
 export default function SnapsContent() {
   let [snaps, setSnaps] = useState([]);
+  let [snapPage, setSnapPage] = useState(1);
+  let [hasMoreSnaps, setHasMoreSnaps] = useState(true);
   let [loading, setLoading] = useState(true);
   let [errorMsg, setErrorMsg] = useState('');
   let [isCreatorOpen, setIsCreatorOpen] = useState(false);
@@ -1989,19 +1991,25 @@ export default function SnapsContent() {
     style.textContent = `
       @keyframes snapHeartBurst {
         0%   { opacity:1; transform:translate(-50%,-50%) scale(.3) rotate(-15deg); }
-        35%  { opacity:1; transform:translate(-50%,-65%) scale(1.35) rotate(6deg); }
-        65%  { opacity:.9; transform:translate(-50%,-85%) scale(1.1) rotate(-2deg); }
-        100% { opacity:0; transform:translate(-50%,-115%) scale(.85); }
+        25%  { opacity:1; transform:translate(-50%,-60%) scale(1.4) rotate(8deg); }
+        50%  { opacity:.9; transform:translate(-50%,-80%) scale(1.15) rotate(-3deg); }
+        100% { opacity:0; transform:translate(-50%,-120%) scale(.8) rotate(2deg); }
+      }
+      @keyframes snapHeartFloat {
+        0%   { opacity:0; transform:translateY(0) scale(0) rotate(0deg); }
+        15%  { opacity:1; transform:translateY(-10px) scale(1.1) rotate(-8deg); }
+        50%  { opacity:1; transform:translateY(-30px) scale(1) rotate(5deg); }
+        100% { opacity:0; transform:translateY(-60px) scale(.6) rotate(15deg); }
       }
       @keyframes snapLikePop {
         0%   { transform:scale(1); }
-        35%  { transform:scale(1.5); }
-        65%  { transform:scale(.88); }
+        30%  { transform:scale(1.6); }
+        60%  { transform:scale(.85); }
         100% { transform:scale(1); }
       }
       @keyframes snapCountPop {
         0%   { transform:translateY(0) scale(1); }
-        45%  { transform:translateY(-5px) scale(1.25); }
+        40%  { transform:translateY(-6px) scale(1.3); }
         100% { transform:translateY(0) scale(1); }
       }
       @keyframes snapSlideUp {
@@ -2014,35 +2022,52 @@ export default function SnapsContent() {
       }
       @keyframes snapPauseFade {
         0%   { opacity:1; transform:scale(1); }
-        70%  { opacity:.8; transform:scale(1.08); }
-        100% { opacity:0; transform:scale(1.15); }
+        60%  { opacity:.8; transform:scale(1.1); }
+        100% { opacity:0; transform:scale(1.2); }
       }
-      .snap-heart   { animation: snapHeartBurst .9s cubic-bezier(.25,.46,.45,.94) forwards; }
-      .snap-like-pop{ animation: snapLikePop .38s cubic-bezier(.34,1.56,.64,1) forwards; }
-      .snap-cnt-pop { animation: snapCountPop .28s ease forwards; }
-      .snap-slide   { animation: snapSlideUp .3s cubic-bezier(.32,.72,0,1) forwards; }
-      .snap-fade    { animation: snapFadeIn .18s ease forwards; }
-      .snap-pause-ic{ animation: snapPauseFade .7s ease forwards; }
+      @keyframes snapSlideIn {
+        from { opacity:0.3; transform:translateY(15px) scale(0.97); }
+        to   { opacity:1; transform:translateY(0) scale(1); }
+      }
+      .snap-heart    { animation: snapHeartBurst .75s cubic-bezier(.22,.68,0,1) forwards; }
+      .snap-heart-fl { animation: snapHeartFloat .6s cubic-bezier(.25,.46,.45,.94) forwards; }
+      .snap-like-pop { animation: snapLikePop .3s cubic-bezier(.34,1.56,.64,1) forwards; }
+      .snap-cnt-pop  { animation: snapCountPop .22s ease forwards; }
+      .snap-slide    { animation: snapSlideUp .28s cubic-bezier(.32,.72,0,1) forwards; }
+      .snap-fade     { animation: snapFadeIn .15s ease forwards; }
+      .snap-pause-ic { animation: snapPauseFade .6s ease forwards; }
+      .snap-slide-in { animation: snapSlideIn .2s cubic-bezier(.22,.68,0,1) forwards; }
       .snap-noscroll::-webkit-scrollbar { display:none; }
       .snap-noscroll { -ms-overflow-style:none; scrollbar-width:none; }
       .snap-progress-ring {
         transform-origin:center;
         transform:rotate(-90deg);
-        transition:stroke-dashoffset .1s linear;
+        transition:stroke-dashoffset .08s linear;
       }
     `;
     document.head.appendChild(style);
   }, []);
 
   useEffect(() => {
-    let seen = getSeenParam();
-    let url = currentUser
-      ? `/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5${seen ? '&seenIds=' + encodeURIComponent(seen) : ''}`
-      : `/snaps-feed?limit=5${seen ? '&seenIds=' + encodeURIComponent(seen) : ''}`;
-    apiFetch(url)
-      .then(res => res.ok ? res.json() : Promise.reject('Failed to load snaps'))
-      .then(data => {
-        let snapList = (data.snaps || data || []).map(snap => ({
+    loadSnaps(1);
+  }, [currentUser]);
+
+  async function loadSnaps(pg) {
+    try {
+      let seen = getSeenParam();
+      let res = await apiFetch('/snaps-feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: currentUser || undefined,
+          page: pg,
+          limit: 5,
+          seenIds: seen || undefined,
+        }),
+      });
+      let data = await res.json();
+      if (data.snaps) {
+        let snapList = data.snaps.map(snap => ({
           ...snap,
           likes: Array.isArray(snap.likes) ? snap.likes : [],
           comments: Array.isArray(snap.comments) ? snap.comments : []
@@ -2050,35 +2075,26 @@ export default function SnapsContent() {
         setSnaps(prev => {
           let prevIds = new Set(prev.map(s => s.id));
           let newSnaps = snapList.filter(s => !prevIds.has(s.id));
-          return [...prev, ...newSnaps];
+          return pg === 1 ? newSnaps : [...prev, ...newSnaps];
         });
-      })
-      .catch(err => setErrorMsg(String(err)))
-      .finally(() => setLoading(false));
-  }, [currentUser]);
-
-  let handleLoadMore = async () => {
-    try {
-      let seen = getSeenParam();
-      let url = currentUser
-        ? `/snaps-feed?username=${encodeURIComponent(currentUser)}&limit=5${seen ? '&seenIds=' + encodeURIComponent(seen) : ''}`
-        : `/snaps-feed?limit=5${seen ? '&seenIds=' + encodeURIComponent(seen) : ''}`;
-      let res = await apiFetch(url);
-      let data = await res.json();
-      if (data.snaps) {
-        setSnaps(prev => {
-          let prevIds = new Set(prev.map(s => s.id));
-          let newSnaps = data.snaps.filter(s => !prevIds.has(s.id));
-          return [...prev, ...newSnaps];
-        });
+        setHasMoreSnaps(data.hasMore !== false);
+        setSnapPage(pg);
       }
     } catch (err) {
-      console.error('Load more failed', err);
+      setErrorMsg(String(err));
+    } finally {
+      setLoading(false);
     }
+  }
+
+  let handleLoadMore = async () => {
+    if (!hasMoreSnaps || loading) return;
+    await loadSnaps(snapPage + 1);
   };
 
   async function handleLike(snapId) {
     if (!currentUser) { window.showAuthPrompt?.('Log in to like snaps'); return; }
+    let snapBefore = currentSnap?.likes ? [...currentSnap.likes] : [];
     try {
       await apiFetch('/like-post', {
         method: 'POST',
@@ -2090,7 +2106,9 @@ export default function SnapsContent() {
           username: currentUser
         })
       });
-    } catch {}
+    } catch {
+      setCurrentSnap(prev => prev?.id === snapId ? { ...prev, likes: snapBefore } : prev);
+    }
   }
 
   function handlePosted(newSnap) {

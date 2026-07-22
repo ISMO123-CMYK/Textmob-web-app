@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, SafeAreaView, Image, Alert,
+  ActivityIndicator, Image, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { getFollowersAPI, getFollowingAPI, followUserAPI, unfollowUserAPI, getSuggestionsFeedAPI } from '../../api/users';
+import { getFollowersAPI, getFollowingAPI, followAPI, friendAPI, getFollowStatusAPI, getSuggestionsFeedAPI } from '../../api/users';
 
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 
@@ -38,16 +39,24 @@ export default function ConnectionsScreen({ route, navigation }: { route: any; n
 
   const toggleFollow = async (user: string) => {
     if (!username) { Alert.alert('Sign in', 'Log in to follow users'); return; }
-    const isFollowing = following.some((f: any) => f.username === user);
     try {
-      if (isFollowing) {
-        await unfollowUserAPI(username, user);
-        setFollowing(prev => prev.filter((f: any) => f.username !== user));
+      const statusRes = await getFollowStatusAPI(username, user);
+      if (!statusRes.ok) return;
+      const isOrg = statusRes.data?.profileType !== 'individual';
+      const isConnected = statusRes.data?.status === 'following' || statusRes.data?.status === 'friended';
+
+      if (isConnected) {
+        const api = isOrg ? followAPI : friendAPI;
+        await api(user, username, isOrg ? 'unfollow' : 'unfriend');
+        setFollowing(prev => prev.filter((f: any) => (typeof f === 'string' ? f : f.username) !== user));
       } else {
-        await followUserAPI(username, user);
+        const api = isOrg ? followAPI : friendAPI;
+        await api(user, username, isOrg ? 'follow' : 'friend');
         setFollowing(prev => [...prev, { username: user }]);
       }
-    } catch {}
+    } catch (err) {
+      console.error('toggleFollow error:', err);
+    }
   };
 
   const renderUser = (user: any, showFollow = true) => {

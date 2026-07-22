@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, SafeAreaView, Dimensions, Image, Modal,
+  ActivityIndicator, Dimensions, Image, Modal,
   TextInput, Alert, Share, RefreshControl,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useIsFocused } from '@react-navigation/native';
 import { getFeedPostsAPI, likePostAPI, reactPostAPI, addCommentAPI, getSnapsFeedAPI, Post } from '../../api/posts';
 import { getFollowStatusAPI, followAPI, friendAPI } from '../../api/users';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadFile } from '../../api/client';
+import { apiPost, uploadFile, API_BASE_URL } from '../../api/client';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
 import useProfileCache from '../../hooks/useProfileCache';
 import { timeAgo } from '../../utils/format';
@@ -49,6 +50,9 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
         player.pause();
       }
     } catch {}
+    return () => {
+      try { player.pause(); } catch {}
+    };
   }, [isActive, player]);
 
   const [seekIndicator, setSeekIndicator] = useState<'forward' | 'backward' | null>(null);
@@ -278,7 +282,7 @@ function SnapItemView({ item, isActive, username, containerHeight, muted, expand
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={styles.snapFullname}>{profile?.fullname || item.username}</Text>
               {item.verified === true && (
-                <View style={styles.miniVerified}>
+            <View style={styles.commentVerifiedBadge}>
                   <Ionicons name="checkmark" size={10} color="#fff" />
                 </View>
               )}
@@ -325,7 +329,7 @@ function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUser
             </View>
           )}
           {profile?.verified && (
-            <View style={styles.miniVerified}>
+            <View style={styles.commentVerifiedBadge}>
               <Ionicons name="checkmark" size={8} color="#fff" />
             </View>
           )}
@@ -373,23 +377,38 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
     if (ids.length) markSeen(ids);
   });
 
-  useEffect(() => { loadSnaps(); }, []);
+  const [snapPage, setSnapPage] = useState(1);
+  const [hasMoreSnaps, setHasMoreSnaps] = useState(true);
 
-  const loadSnaps = async () => {
-    setLoading(true);
+  useEffect(() => { loadSnaps(1); }, []);
+
+  const loadSnaps = async (pg: number = 1, append: boolean = false) => {
+    if (!append) setLoading(true);
     const seen = getSeenParam();
-    const res = await getSnapsFeedAPI(username || undefined, 20, seen || undefined);
+    const res = await getSnapsFeedAPI(username || undefined, 20, seen || undefined, pg);
     if (res.ok && res.data) {
       const snapList = Array.isArray(res.data) ? res.data : (res.data.snaps || []);
-      setSnaps(snapList);
+      setSnaps(prev => append ? [...prev, ...snapList] : snapList);
+      setHasMoreSnaps(res.data.hasMore !== false);
+      setSnapPage(pg);
     }
     setLoading(false);
+  };
+
+  const loadMoreSnaps = () => {
+    if (!loading && hasMoreSnaps) loadSnaps(snapPage + 1, true);
   };
 
   const handleLike = async (postId: string | number) => {
     if (!username) { Alert.alert('Sign in', 'Log in to like'); return; }
     setSnaps(prev => prev.map(p => p.id === postId ? { ...p, likes: p.likes?.includes(username) ? p.likes.filter(u => u !== username) : [...(p.likes || []), username] } : p));
     await likePostAPI(String(postId), username).catch(() => { });
+  };
+
+  const handleNegativeSignal = (postId: string, signalType: string, contentType: string) => {
+    if (!username) return;
+    setSnaps(prev => prev.filter(p => String(p.id) !== String(postId)));
+    apiPost('/negative-signal', { username, postId, signalType, contentType }).catch(() => {});
   };
 
   const handleReact = async (postId: string | number, emoji: string) => {
@@ -427,15 +446,15 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
   };
 
 
-  const uriToFile = async (asset: any): Promise<File> => {
-    const response = await fetch(asset.uri);
-    const blob = await response.blob();
-    return new File([blob], asset.fileName || `snap_${Date.now()}.mp4`, { type: asset.type || 'video/mp4' });
-  };
+  const getUploadAsset = (asset: any) => ({
+    uri: asset.uri,
+    name: asset.fileName || `snap_${Date.now()}.mp4`,
+    type: asset.type || 'video/mp4',
+  });
 
   const checkVideoSize = (asset: any) => {
     if (asset.fileSize && asset.fileSize > MAX_SNAP_VIDEO_BYTES) {
-      Alert.alert('File too large', 'Video must be under 20 MB');
+      Alert.alert('File too large', 'Video must be under 100 MB');
       return false;
     }
     return true;
@@ -468,12 +487,12 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const MAX_SNAP_VIDEO_BYTES = 20 * 1024 * 1024;
+  const MAX_SNAP_VIDEO_BYTES = 100 * 1024 * 1024;
 
   const handleCreateSnap = async () => {
     if (!selectedVideo || !username) return;
     if (selectedVideo.fileSize && selectedVideo.fileSize > MAX_SNAP_VIDEO_BYTES) {
-      Alert.alert('File too large', 'Video must be under 20 MB');
+      Alert.alert('File too large', 'Video must be under 100 MB');
       return;
     }
     setShowCreateModal(false);
@@ -483,8 +502,8 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
       const fd = new FormData();
       fd.append('username', username);
       fd.append('text', caption.trim() || ' ');
-      const file = await uriToFile(selectedVideo);
-      fd.append('media', file);
+      // Use React Native native FormData (append {uri, name, type} instead of File)
+      fd.append('media', getUploadAsset(selectedVideo) as any);
       await uploadFile('/create-snap', fd, (p) => setUploadProgress(p));
       setSelectedVideo(null);
       setCaption('');
@@ -497,14 +516,15 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const s = makeStyles(colors, isDark);
+  const isFocused = useIsFocused();
+  const s = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
-  const SnapItem = ({ item, isActive }: { item: Post; isActive: boolean }) => {
+  const renderItem = useCallback(({ item, index }: { item: Post; index: number }) => {
     const expanded = expandedText[item.id];
     return (
       <SnapItemView
         item={item}
-        isActive={isActive}
+        isActive={isFocused && index === activeIndex}
         username={username}
         containerHeight={containerHeight}
         muted={muted}
@@ -518,11 +538,7 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
         onShare={() => handleShare(item)}
       />
     );
-  };
-
-  const renderItem = useCallback(({ item, index }: { item: Post; index: number }) => (
-    <SnapItem item={item} isActive={index === activeIndex} />
-  ), [activeIndex, muted]);
+  }, [activeIndex, isFocused, muted, username, containerHeight, expandedText, handleLike, handleShare]);
 
   if (loading) {
     return (
@@ -564,7 +580,9 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
         onViewableItemsChanged={viewabilityConfigCallbackRef.current}
         viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
         getItemLayout={(_, index) => ({ length: containerHeight, offset: containerHeight * index, index })}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadSnaps} tintColor="#fff" />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => loadSnaps(1)} tintColor="#fff" />}
+        onEndReached={loadMoreSnaps}
+        onEndReachedThreshold={2}
         ListEmptyComponent={
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: containerHeight * 0.4 }}>
             <Text style={{ color: '#fff', fontSize: 16 }}>No snaps yet</Text>
@@ -742,7 +760,7 @@ const styles = StyleSheet.create({
   commentFullname: { fontSize: 12, fontWeight: '700' },
   creatorBadge: { backgroundColor: 'rgba(37,99,235,.2)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   creatorBadgeText: { fontSize: 9, fontWeight: '800', color: '#2563eb', letterSpacing: 0.5 },
-  miniVerified: { backgroundColor: '#1d9bf0', borderRadius: 8, width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
+  commentVerifiedBadge: { backgroundColor: '#1d9bf0', borderRadius: 8, width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
   commentTime: { fontSize: 11, color: 'rgba(255,255,255,.35)', marginLeft: 'auto' },
   commentText: { fontSize: 13, marginTop: 3, lineHeight: 17 },
   commentInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderTopWidth: StyleSheet.hairlineWidth },

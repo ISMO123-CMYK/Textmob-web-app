@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  View, Text, Image, TouchableOpacity, StyleSheet,
+  View, Text, Image, TouchableOpacity, StyleSheet, AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -31,6 +31,7 @@ export default function MobileHeader({
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const { on, off } = useSocket();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appStateRef = useRef(AppState.currentState);
 
   const fetchUnreadCount = useCallback(async () => {
     if (!username) return;
@@ -42,15 +43,26 @@ export default function MobileHeader({
     } catch {}
   }, [username]);
 
-  // Initial fetch + poll every 6s
+  // Initial fetch + poll every 30s (was 6s)
   useEffect(() => {
     if (!username) return;
     fetchUnreadCount();
-    intervalRef.current = setInterval(fetchUnreadCount, 6000);
+    intervalRef.current = setInterval(fetchUnreadCount, 30000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [username, fetchUnreadCount]);
+
+  // Pause polling when app is backgrounded
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (appStateRef.current.match(/inactive|background/) && state === 'active') {
+        fetchUnreadCount();
+      }
+      appStateRef.current = state;
+    });
+    return () => sub.remove();
+  }, [fetchUnreadCount]);
 
   // Live socket updates
   useEffect(() => {
@@ -66,7 +78,7 @@ export default function MobileHeader({
     };
   }, [username, on, off, fetchUnreadCount]);
 
-  const s = makeStyles(colors, isDark);
+  const s = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
   return (
     <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, StyleSheet, Text, TouchableOpacity, Modal, SafeAreaView } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 
 import HomeScreen from '../screens/home/HomeScreen';
@@ -13,24 +14,30 @@ const Tab = createBottomTabNavigator();
 
 export default function MainTabs({ navigation }: { navigation: any }) {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const [showCreate, setShowCreate] = useState(false);
+
+  const screenOptions = useMemo(() => ({
+    headerShown: false,
+    tabBarActiveTintColor: '#2563eb',
+    tabBarInactiveTintColor: colors.textSecondary,
+    tabBarStyle: {
+      backgroundColor: colors.card,
+      borderTopColor: colors.border,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      height: 56 + insets.bottom,
+      paddingBottom: insets.bottom + 4,
+      paddingTop: 0,
+    },
+    tabBarItemStyle: {
+      paddingTop: 0,
+      paddingBottom: 0,
+    },
+  }), [colors, insets.bottom]);
 
   return (
     <>
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: '#2563eb',
-          tabBarInactiveTintColor: colors.textSecondary,
-          tabBarStyle: {
-            backgroundColor: colors.card,
-            borderTopColor: colors.border,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            height: 60,
-            paddingBottom: 8,
-            paddingTop: 4,
-          },
-        }}
+      <Tab.Navigator screenOptions={screenOptions}
       >
         <Tab.Screen
           name="Home"
@@ -108,15 +115,15 @@ export default function MainTabs({ navigation }: { navigation: any }) {
         animationType="slide"
         onRequestClose={() => setShowCreate(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={() => setShowCreate(false)}
         >
           <View style={[styles.sheetContent, { backgroundColor: colors.card }]}>
             <View style={styles.sheetHandle} />
             <Text style={[styles.sheetTitle, { color: colors.textSecondary }]}>CREATE</Text>
-            
+
             <View style={styles.optionsWrap}>
               <TouchableOpacity
                 style={[styles.optionBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}

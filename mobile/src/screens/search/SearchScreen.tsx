@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  TextInput, SafeAreaView, Image, ActivityIndicator, Alert,
+  TextInput, Image, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { searchUsersAPI, searchSuggestAPI, getSuggestionsFeedAPI, followUserAPI, unfollowUserAPI, UserProfile, SuggestedUser } from '../../api/users';
+import { searchUsersAPI, searchSuggestAPI, getSuggestionsFeedAPI, followAPI, friendAPI, getFollowStatusAPI, searchGeneralAPI, UserProfile, SuggestedUser } from '../../api/users';
+import { Post } from '../../api/posts';
 import { apiPost } from '../../api/client';
 import { storage, KEYS } from '../../utils/storage';
 import { useNavigation } from '@react-navigation/native';
+import { timeAgo } from '../../utils/format';
 
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 const SUGGESTIONS_STORAGE_KEY = 'search_history';
@@ -44,6 +47,7 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
+  const [postsResults, setPostsResults] = useState<Post[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -126,22 +130,37 @@ export default function SearchScreen() {
     setSearched(true);
     setShowDropdown(false);
     setLoadingResults(true);
-    searchUsersAPI(trimmed, 20, username || undefined).then(r => {
-      if (r.ok && r.data) setSearchResults(Array.isArray(r.data) ? r.data : []);
-      else setSearchResults([]);
-      setLoadingResults(false);
-    }).catch(() => { setSearchResults([]); setLoadingResults(false); });
+    setActiveTab('people');
+    const [usersRes, generalRes] = await Promise.all([
+      searchUsersAPI(trimmed, 20, username || undefined),
+      searchGeneralAPI(trimmed, username || undefined),
+    ]);
+    if (usersRes.ok && usersRes.data) setSearchResults(Array.isArray(usersRes.data) ? usersRes.data : []);
+    else setSearchResults([]);
+    if (generalRes.ok && generalRes.data) setPostsResults(Array.isArray(generalRes.data) ? generalRes.data.filter((r: any) => r.type !== 'user') : []);
+    else setPostsResults([]);
+    setLoadingResults(false);
   }, [username, saveHistory]);
 
   const handleFollow = async (targetUsername: string) => {
     if (!username) { Alert.alert('Sign in', 'Log in to follow users'); return; }
-    const isFollowing = following.includes(targetUsername);
-    if (isFollowing) {
-      setFollowing(prev => prev.filter(u => u !== targetUsername));
-      await unfollowUserAPI(username, targetUsername).catch(() => {});
-    } else {
-      setFollowing(prev => [...prev, targetUsername]);
-      await followUserAPI(username, targetUsername).catch(() => {});
+    try {
+      const statusRes = await getFollowStatusAPI(username, targetUsername);
+      if (!statusRes.ok) return;
+      const isOrg = statusRes.data?.profileType !== 'individual';
+      const isConnected = statusRes.data?.status === 'following' || statusRes.data?.status === 'friended';
+
+      if (isConnected) {
+        const api = isOrg ? followAPI : friendAPI;
+        await api(targetUsername, username, isOrg ? 'unfollow' : 'unfriend');
+        setFollowing(prev => prev.filter(u => u !== targetUsername));
+      } else {
+        const api = isOrg ? followAPI : friendAPI;
+        await api(targetUsername, username, isOrg ? 'follow' : 'friend');
+        setFollowing(prev => [...prev, targetUsername]);
+      }
+    } catch (err) {
+      console.error('handleFollow error:', err);
     }
   };
 
@@ -202,11 +221,23 @@ export default function SearchScreen() {
     );
   };
 
+  const renderPost = ({ item }: { item: Post }) => (
+    <TouchableOpacity style={s.postRow} onPress={() => navigation.navigate('PostDetail', { postId: item.id })}>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.postText, { color: colors.textPrimary }]} numberOfLines={2}>{item.text}</Text>
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+          <Text style={[s.postMeta, { color: colors.textSecondary }]}>@{item.username}</Text>
+          {item.created_at && <Text style={[s.postMeta, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   const s = makeStyles(colors, isDark);
   const showExplore = !focused && !query.trim() && history.length === 0;
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
       <View style={[s.headerBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
@@ -264,10 +295,13 @@ export default function SearchScreen() {
             <TouchableOpacity style={[s.tab, activeTab === 'people' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('people')}>
               <Text style={[s.tabText, { color: activeTab === 'people' ? '#2563eb' : colors.textSecondary }]}>People ({searchResults.length})</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={[s.tab, activeTab === 'posts' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('posts')}>
+              <Text style={[s.tabText, { color: activeTab === 'posts' ? '#2563eb' : colors.textSecondary }]}>Posts ({postsResults.length})</Text>
+            </TouchableOpacity>
           </View>
           {loadingResults ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-          ) : (
+          ) : activeTab === 'people' ? (
             <FlatList
               data={searchResults}
               renderItem={renderUser}
@@ -278,6 +312,20 @@ export default function SearchScreen() {
                 <View style={s.emptyState}>
                   <Ionicons name="search-outline" size={40} color={colors.textSecondary} />
                   <Text style={[s.emptyLabel, { color: colors.textSecondary }]}>No users found</Text>
+                </View>
+              }
+            />
+          ) : (
+            <FlatList
+              data={postsResults}
+              renderItem={renderPost}
+              keyExtractor={(item) => String(item.id)}
+              contentContainerStyle={s.listContent}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
+                <View style={s.emptyState}>
+                  <Ionicons name="document-text-outline" size={40} color={colors.textSecondary} />
+                  <Text style={[s.emptyLabel, { color: colors.textSecondary }]}>No posts found</Text>
                 </View>
               }
             />
@@ -387,4 +435,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   exploreFollowText: { fontSize: 11, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingTop: 60 },
   emptyLabel: { fontSize: 14, marginTop: 8 },
+  postRow: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  postText: { fontSize: 14, lineHeight: 20 },
+  postMeta: { fontSize: 12 },
 });

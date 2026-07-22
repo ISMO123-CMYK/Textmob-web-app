@@ -80,6 +80,8 @@ const io = socketIo(server);           // attach Socket.IO to the HTTP server
 const PORT = process.env.PORT || 5000;
 
 // Initialize Global State
+const MemoryDB = require('./server/cache/MemoryDB');
+const memoryDb = new MemoryDB(supabase, supabase2);
 const onlineUsers = {};
 const liveSessions = new Map();
 const liveChunkBuffers = new Map();
@@ -655,7 +657,7 @@ function cleanupDeadStream(state, res) {
 
 app.post(
   "/api/live-chunk-upload/:postId",
-  express.raw({ type: "*/*", limit: "50mb" }),
+  express.raw({ type: "*/*", limit: "100mb" }),
   (req, res) => {
     try {
       const { postId } = req.params;
@@ -1030,6 +1032,7 @@ async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin u
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi/;
     const ext = path.extname(file.originalname).toLowerCase();
@@ -1054,26 +1057,6 @@ const cleanExpiredCodes = () => {
 };
 
 // --- TURN Server Credentials (Metered.live) ---
-app.get("/api/turn-credentials", async (req, res) => {
-  try {
-    const METERED_SECRET = process.env.METERED_SECRET || "48g6aAx6fyU5JdRdhqkQgiBJ7zc"; // Using a placeholder or existing secret if found
-    const METERED_ID = process.env.METERED_ID || "textmob"; // Default ID
-
-    // We use a simple fetch to Metered.live API.
-    // If you haven't set these env vars, it will return a fallback or error.
-    const url = `https://${METERED_ID}.metered.live/api/v1/turn/credentials?secret=${METERED_SECRET}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      // Fallback to static STUN if Metered fails or isn't configured
-      return res.json({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-    }
-    const data = await response.json();
-    res.json(data);
-  } catch (error) {
-    console.error("TURN credentials error:", error.message);
-    res.json({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-  }
-});
 // Verify if user exists in database
 app.get("/api/verify-user", async (req, res) => {
   try {
@@ -1842,7 +1825,8 @@ app.post("/follow", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     if (username === currentUsername)
       return res.status(400).json({ error: "Cannot follow yourself" });
-    if (!["follow", "unfollow"].includes(action))
+    let normAction = action === "friend" ? "follow" : action === "unfriend" ? "unfollow" : action;
+    if (!["follow", "unfollow"].includes(normAction))
       return res.status(400).json({ error: "Invalid action. Use follow or unfollow" });
 
     // ── fetch both users ──────────────────────────────────
@@ -1863,7 +1847,7 @@ app.post("/follow", async (req, res) => {
     let targetFollowers = Array.isArray(target.followers) ? [...target.followers] : [];
     let actorFollowing = Array.isArray(actor.following) ? [...actor.following] : [];
 
-    if (action === "follow") {
+    if (normAction === "follow") {
       // idempotent — only add if not already present
       if (!targetFollowers.includes(currentUsername)) targetFollowers.push(currentUsername);
       if (!actorFollowing.includes(username)) actorFollowing.push(username);
@@ -1884,7 +1868,13 @@ app.post("/follow", async (req, res) => {
       return res.status(500).json({ error: "Failed to update follow state" });
     }
 
-    if (action === "follow") {
+    // Update memoryDB for both users
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { followers: targetFollowers });
+      memoryDb.updateUser(currentUsername, { following: actorFollowing });
+    }
+
+    if (normAction === "follow") {
       triggerNotification(username, 'followers', {
         msg: `${currentUsername} started following you`,
         link: `/@${currentUsername}`,
@@ -1897,10 +1887,10 @@ app.post("/follow", async (req, res) => {
       });
     }
 
-    const status = action === "follow" ? "following" : "not_following";
-    const label = action === "follow" ? "Following" : "Follow";
+    const status = normAction === "follow" ? "following" : "not_following";
+    const label = normAction === "follow" ? "Following" : "Follow";
 
-    try { if (action === "follow") { tatuEvents.push({ username: currentUsername, event: "follow", metadata: { target: username, type: "org" }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } } catch (_) {}
+    try { if (normAction === "follow") { tatuEvents.push({ username: currentUsername, event: "follow", metadata: { target: username, type: "org" }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } } catch (_) {}
     res.json({ status, label, profileType });
   } catch (err) {
     console.error("/follow error:", err);
@@ -1920,7 +1910,8 @@ app.post("/friend", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     if (username === currentUsername)
       return res.status(400).json({ error: "Cannot friend yourself" });
-    if (!["friend", "unfriend"].includes(action))
+    let normAction = action === "follow" ? "friend" : action === "unfollow" ? "unfriend" : action;
+    if (!["friend", "unfriend"].includes(normAction))
       return res.status(400).json({ error: "Invalid action. Use friend or unfriend" });
 
     // ── fetch both users ──────────────────────────────────
@@ -1941,7 +1932,7 @@ app.post("/friend", async (req, res) => {
     let targetFriends = Array.isArray(target.friends) ? [...target.friends] : [];
     let actorFriends = Array.isArray(actor.friends) ? [...actor.friends] : [];
 
-    if (action === "friend") {
+    if (normAction === "friend") {
       // idempotent — only add if not already present
       if (!targetFriends.includes(currentUsername)) targetFriends.push(currentUsername);
       if (!actorFriends.includes(username)) actorFriends.push(username);
@@ -1962,7 +1953,13 @@ app.post("/friend", async (req, res) => {
       return res.status(500).json({ error: "Failed to update friend state" });
     }
 
-    if (action === "friend") {
+    // Update memoryDB for both users
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { friends: targetFriends });
+      memoryDb.updateUser(currentUsername, { friends: actorFriends });
+    }
+
+    if (normAction === "friend") {
       triggerNotification(username, 'followers', {
         msg: `${currentUsername} added you as a friend`,
         link: `/@${currentUsername}`,
@@ -1975,8 +1972,8 @@ app.post("/friend", async (req, res) => {
       });
     }
 
-    const status = action === "friend" ? "friended" : "not_friended";
-    const label = action === "friend" ? "Friends" : "Add Friend";
+    const status = normAction === "friend" ? "friended" : "not_friended";
+    const label = normAction === "friend" ? "Friends" : "Add Friend";
 
     res.json({ status, label, profileType });
   } catch (err) {
@@ -1998,6 +1995,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
       biography,
       profile_type,
       disabled,
+      categories,
     } = req.body;
 
     if (!fullName || !username || !password || !profile_type) {
@@ -2045,6 +2043,12 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
           biography: biography || "Biography not set",
           profile_type: profile_type || "Individual",
           disabled: false,
+          categories: Array.isArray(categories) ? categories.filter(c => POST_CATEGORIES.includes(c)) : [],
+          feed_prefs: {
+            contentTypeWeights: {},
+            mutedCreators: [],
+            exploreThreshold: 0.3
+          },
           notification_prefs: {
             likes: { inApp: true, email: true },
             comments: { inApp: true, email: true },
@@ -2070,6 +2074,38 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
       console.error("Error inserting user:", insertError);
       return res.status(500).json({ error: "Failed to create account" });
     }
+
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      const cleanUsername = username.split('@').pop().trimEnd();
+      const newUser = {
+        fullname: fullName ? fullName.trimEnd() : "Anonymous",
+        username: cleanUsername,
+        email: email ? email.trimEnd() : "noemail@gmail.com",
+        phone: phone ? phone.trimEnd() : "nophone",
+        password,
+        profile_pic: profilePicUrl || "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg",
+        followers: [],
+        following: ["textmobofficial", "textmobai"],
+        friends: [],
+        notifications: [],
+        biography: biography || "Biography not set",
+        profile_type: profile_type || "Individual",
+        disabled: false,
+        categories: Array.isArray(categories) ? categories.filter(c => POST_CATEGORIES.includes(c)) : [],
+        feed_prefs: { contentTypeWeights: {}, categoryWeights: {}, mutedCreators: [], exploreThreshold: 0.3 },
+        notification_prefs: {
+          likes: { inApp: true, email: true },
+          comments: { inApp: true, email: true },
+          mentions: { inApp: true, email: true },
+          followers: { inApp: true, email: true },
+          messages: { inApp: true, email: true },
+          mobcoins: { inApp: true, email: true }
+        },
+      };
+      memoryDb.users.push(newUser);
+    }
+
     await updateMobcoins(username.split('@').pop().trimEnd(), +30, true, `You Just Received 30 Mobcoins As a new User on Textmob`);
     res.json({ message: "Signup successful! You can now log in." });
   } catch (error) {
@@ -2077,38 +2113,6 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// GET all users + check milestone for celebrations
-app.get("/users/check-milestone", async (req, res) => {
-  try {
-    const { data: users, error } = await supabase
-      .from("users")
-      .select("id, fullname, username, created_at")
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      return res.status(500).json({ error: "Failed to fetch users" });
-    }
-
-    const totalUsers = users.length;
-
-    // Calculate if milestone celebration should trigger
-    const milestone = totalUsers % 100 === 0 && totalUsers !== 0;
-
-    // Record milestone timestamp to avoid duplicate celebrations
-    // You could store it in a separate table, but for simplicity, we return the flag
-    res.json({
-      users,
-      totalUsers,
-      showCelebration: milestone,
-      // optional: keep timestamp to let frontend display for 7 days
-      celebrationTimestamp: milestone ? new Date() : null,
-    });
-  } catch (err) {
-    console.error("Error fetching users:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 // ─── SmartSearchEngine: token-by-token, key-by-key, AI-like search ───
 class SmartSearchEngine {
   constructor() {
@@ -2457,25 +2461,6 @@ app.get("/general/search", async (req, res) => {
   }
 });
 
-app.get("/users", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, username, fullname, profile_pic, profile_type, friends, followers, biography");
-
-    if (error) {
-      console.error("Error fetching users:", error);
-      return res.status(500).json({ error: "Error fetching users" });
-    }
-
-    return res.json(data);
-  } catch (err) {
-    console.error("Users route error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -2519,71 +2504,6 @@ async function getCloudinaryUsage() {
     });
   });
 }
-app.get('/admin-dashboard', async (req, res) => {
-  // Simple authentication via query parameter
-  const adminKey = req.query.key;
-  if (adminKey !== 'secret_admin_key') { // Replace with a secure key in production
-    return res.status(403).send('Unauthorized');
-  }
-
-  // Fetch data with error handling
-  let userCount;
-  try {
-    userCount = await getUserCount();
-  } catch {
-    userCount = 'N/A';
-  }
-
-  let postCount;
-  try {
-    postCount = await getPostCount();
-  } catch {
-    postCount = 'N/A';
-  }
-
-  let groupCount;
-  try {
-    groupCount = await getGroupCount();
-  } catch {
-    groupCount = 'N/A';
-  }
-
-  let onlineCount = Object.keys(onlineUsers).length;
-
-  let cloudinaryUsage;
-  try {
-    cloudinaryUsage = await getCloudinaryUsage();
-  } catch {
-    cloudinaryUsage = { storage: 'N/A', assets: 'N/A' };
-  }
-
-  const lastUpdated = new Date().toISOString();
-
-  // Render static HTML
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Admin Dashboard</title>
-    </head>
-    <body>
-      <h1>Admin Dashboard</h1>
-      <p><b>Total Users:</b> ${userCount}</p>
-      <p><b>Total Posts:</b> ${postCount}</p>
-      <p><b>Total Groups:</b> ${groupCount}</p>
-      <p><b>Online Users:</b> ${onlineCount}</p>
-      <p><b>Cloudinary Storage Used:</b> ${cloudinaryUsage.storage} GB</p>
-      <p><b>Cloudinary Assets:</b> ${cloudinaryUsage.assets}</p>
-      <p><b>Last Updated:</b> ${lastUpdated}</p>
-      <p><a href="/admin-dashboard?key=${adminKey}">Refresh</a></p>
-    </body>
-    </html>
-  `;
-
-  // Prevent caching of sensitive data
-  res.set('Cache-Control', 'no-store');
-  res.send(html);
-});
 // --- NEW: Lightweight Profile Pic Endpoint ---
 // This fetches ONLY the image string, saving massive bandwidth
 app.get("/profile-pic/:username", async (req, res) => {
@@ -2612,41 +2532,29 @@ app.get("/profile-pic/:username", async (req, res) => {
 app.get("/profile/:username", async (req, res) => {
   try {
     const { username } = req.params;
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("fullname, username,following, followers, friends, email, phone, userType, profile_pic, biography, notifications, profile_type, notification_prefs, verified") // Added phone
-      .eq("username", username)
-      .single();
+    const [userRes, countRes] = await Promise.all([
+      supabase
+        .from("users")
+        .select("fullname, username,following, followers, friends, email, phone, userType, profile_pic, biography, notifications, profile_type, notification_prefs, feed_prefs, verified")
+        .eq("username", username)
+        .single(),
+      supabase2
+        .from("Posts")
+        .select("id", { count: "exact", head: true })
+        .eq("username", username),
+    ]);
+
+    const { data: user, error } = userRes;
 
     if (error || !user) {
       return res.json({
         profile_pic: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg',
         notifications: [],
+        post_count: 0,
         error: "User not found"
       });
     }
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-app.get("/quick-profile/:username", async (req, res) => {
-  try {
-    const { username } = req.params;
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("fullname, username, profile_pic, verified") // REMOVED friends/followers/following lists to save RAM
-      .eq("username", username)
-      .single();
-
-    if (error || !user) {
-      return res.json({
-        profile_pic: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg',
-        notifications: [],
-        error: "User not found"
-      });
-    }
-    res.json(user);
+    res.json({ ...user, post_count: countRes.count || 0 });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -2729,6 +2637,12 @@ app.post(
         .eq("username", username);
 
       if (updateError) throw updateError;
+
+      // Update memoryDB
+      if (memoryDb && memoryDb.isReady) {
+        memoryDb.updateUser(username, updatedFields);
+      }
+
       res.json({ message: "Profile updated successfully", updatedFields });
 
     } catch (error) {
@@ -2738,54 +2652,6 @@ app.post(
   }
 );
 
-app.get("/notifications", async (req, res) => {
-  try {
-    const { username } = req.query;
-    if (!username) {
-      return res.status(400).json({ error: "Username is required" });
-    }
-
-    // 1️⃣ Fetch user's notifications
-    const { data: user, error: fetchError } = await supabase
-      .from("users")
-      .select("notifications")
-      .eq("username", username)
-      .single();
-
-    if (fetchError) {
-      console.error("Error fetching notifications:", fetchError);
-      return res.status(500).json({ error: "Failed to fetch notifications" });
-    }
-
-    const unread = (user.notifications || [])
-    // 3️⃣ Return unread ones
-    res.json({ unread });
-  } catch (err) {
-    console.error("Error in get-notifications:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-app.get("/notifications-count", async (req, res) => {
-  try {
-    const { username } = req.query;
-    if (!username) return res.status(400).json({ error: "Username required" });
-
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("notifications")
-      .eq("username", username)
-      .single();
-
-    if (error) throw error;
-
-    // Filter unread and return only the length
-    const unreadCount = (user.notifications || []).filter(n => !n.read).length;
-
-    res.json({ count: unreadCount });
-  } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 // ---- notifications-server.js (append or paste into your existing server file) ----
 // Requires: an existing `app` (Express) and `supabase` client in scope.
 // No external uuid library used. IDs are generated with Date.now + Math.random.
@@ -2889,6 +2755,11 @@ app.post("/register-token", async (req, res) => {
       return res.status(500).json({ error: "failed to save token" });
     }
 
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { userType: JSON.stringify(nextDevices) });
+    }
+
     return res.json({ ok: true });
   } catch (e) {
     console.error("register-token err:", e);
@@ -2966,6 +2837,11 @@ async function addNotification(recipientUsername, notification) {
 
     if (updateError) {
       console.error("Error updating notifications:", updateError);
+    }
+
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(recipientUsername, { notifications: updatedNotifications });
     }
 
     // parse devices from userType (stringified)
@@ -3132,229 +3008,7 @@ setInterval(async () => {
   }
 }, 86400000);
 
-app.get("/feed-sparks", async (req, res) => {
-  try {
-    const { username } = req.query;
-    if (!username) return res.status(400).json({ error: "Username is required" });
-
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("friends, following, followers")
-      .eq("username", username)
-      .single();
-
-    if (userError || !user) {
-      console.error("User not found or error fetching user:", userError);
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const allTargets = [...([`${username}`]), ...(user.friends || []), ...(user.following || [])];
-    console.log("All Targets:", allTargets);
-
-    if (allTargets.length === 0) return res.json([]);
-
-    const now = new Date().toISOString();
-    console.log("Current time (now):", now);
-
-    const { data, error } = await supabase
-      .from("Sparks")
-      .select("*")
-      .in("username", allTargets)
-      .gt("expires_at", now)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Feed Sparks Error:", error);
-      return res.status(500).json({ error: "Failed to fetch sparks feed" });
-    }
-
-    if (!data || data.length === 0) {
-      console.log("No sparks found for targets:", allTargets);
-      return res.json([]);
-    }
-
-    res.json(data);
-  } catch (error) {
-    console.error("Feed Sparks Catch:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-let userCache = []; // In-memory cache for all user profiles
-
-// Function to fetch and cache all user profiles
-async function refreshUserCache() {
-  try {
-    const { data: users, error } = await supabase
-      .from("users")
-      .select("username,fullname,profile_pic");
-
-    if (error) {
-      console.error("Error refreshing user cache:", error, new Date().toISOString());
-      return;
-    }
-
-    userCache = users; // Update cache
-    console.log("User cache refreshed:", users.length, "users", new Date().toISOString());
-  } catch (err) {
-    console.error("Error in refreshUserCache:", err, new Date().toISOString());
-  }
-}
-
-// // Initial cache refresh (fire-and-forget)
-// setImmediate(() => {
-//   refreshUserCache().catch(err => {
-//     console.error("Error in initial cache refresh:", err, new Date().toISOString());
-//   });
-// });
-
-// // Schedule periodic cache refresh every 30 seconds (fire-and-forget)
-// setInterval(() => {
-//   refreshUserCache().catch(err => {
-//     console.error("Error in periodic cache refresh:", err, new Date().toISOString());
-//   });
-// }, 10000);
-
-app.get("/feed-contacts-with-meta", async (req, res) => {
-  try {
-    const { username } = req.query;
-    if (!username) return res.status(400).json({ error: "Username is required" });
-
-    let usernamesToFetch;
-
-    // Handle special accounts
-    if (["textmobai", "textmobofficial", "askify"].includes(username)) {
-      usernamesToFetch = ["textmobofficial", "textmobai", "askify"];
-      if (userCache.length > 0) {
-        usernamesToFetch.push(...userCache.map(u => u.username));
-      } else {
-        const { data: allUsers, error: allError } = await supabase
-          .from("users")
-          .select("username");
-        if (allError) {
-          console.error("Error fetching all users:", allError);
-          return res.status(500).json({ error: "Failed to fetch all users" });
-        }
-        usernamesToFetch.push(...allUsers.map(u => u.username));
-      }
-    } else {
-      // Regular users
-      const { data: user, error: userError } = await supabase
-        .from("users")
-        .select("friends,followers,following")
-        .eq("username", username)
-        .single();
-
-      if (userError || !user) {
-        console.error("User not found:", userError);
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      usernamesToFetch = [
-        username,
-        "textmobofficial",
-        "textmobai",
-        "askify",
-        ...(user.friends || []),
-        ...(user.followers || []),
-        ...(user.following || [])
-      ];
-    }
-
-    // Deduplicate
-    const uniqueUsernames = [...new Set(usernamesToFetch)];
-
-    // Fetch profiles from cache
-    let profiles;
-    if (userCache.length > 0) {
-      profiles = userCache.filter(user => uniqueUsernames.includes(user.username));
-    } else {
-      const { data: dbProfiles, error: profileError } = await supabase
-        .from("users")
-        .select("username,fullname,profile_pic")
-        .in("username", uniqueUsernames);
-
-      if (profileError) {
-        console.error("Error fetching profiles:", profileError);
-        return res.status(500).json({ error: "Failed to fetch profiles" });
-      }
-      profiles = dbProfiles;
-    }
-
-    // NEW: Fetch last messages and unread counts for ALL contacts in ONE query
-    const metadata = {};
-
-    // Use chat_id for faster queries (from your background job)
-    const chatIds = uniqueUsernames
-      .filter(u => u !== username)
-      .map(u => normalizeChatId(username, u));
-
-    // Fetch last messages using chat_id (much faster!)
-    const { data: lastMessages, error: msgError } = await supabase
-      .from("Messages")
-      .select("sender,receiver,chat_id,message,timestamp,type,media_url,media_type,status,read")
-      .in("chat_id", chatIds)
-      .order("timestamp", { ascending: false });
-
-    if (msgError) {
-      console.error("Error fetching last messages:", msgError);
-    }
-
-    // Group messages by chat_id and get the first (most recent) one
-    const lastMsgByChat = {};
-    if (lastMessages) {
-      lastMessages.forEach(msg => {
-        if (!lastMsgByChat[msg.chat_id]) {
-          lastMsgByChat[msg.chat_id] = msg;
-        }
-      });
-    }
-
-    // Fetch unread counts in ONE query
-    const { data: unreadMessages, error: unreadError } = await supabase
-      .from("Messages")
-      .select("receiver,chat_id")
-      .eq("receiver", username)
-      .eq("read", false)
-      .in("chat_id", chatIds);
-
-    if (unreadError) {
-      console.error("Error fetching unread counts:", unreadError);
-    }
-
-    // Count unreads per chat
-    const unreadByChat = {};
-    if (unreadMessages) {
-      unreadMessages.forEach(msg => {
-        unreadByChat[msg.chat_id] = (unreadByChat[msg.chat_id] || 0) + 1;
-      });
-    }
-
-    // Build metadata for each contact
-    uniqueUsernames.forEach(contactUsername => {
-      if (contactUsername === username) return; // Skip self
-
-      const chatId = normalizeChatId(username, contactUsername);
-
-      metadata[contactUsername] = {
-        lastMsg: lastMsgByChat[chatId] || null,
-        unreadCount: unreadByChat[chatId] || 0
-      };
-    });
-
-    // Return combined data
-    return res.json({
-      contacts: profiles,
-      metadata: metadata
-    });
-
-  } catch (error) {
-    console.error("Feed Contacts With Meta Error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Helper function (add at top of file if not already there)
+// Helper function (used by legacy chat endpoints)
 function normalizeChatId(a, b) {
   var sa = String(a || '');
   var sb = String(b || '');
@@ -3441,6 +3095,11 @@ app.post("/delete-notification", async (req, res) => {
       return res.status(500).json({ error: "Failed to delete notification" });
     }
 
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { notifications: updatedNotifications });
+    }
+
     res.json({ message: "Notification deleted successfully" });
   } catch (error) {
     console.error("Error in delete-notification:", error);
@@ -3462,6 +3121,11 @@ app.post("/delete-all-notifications", async (req, res) => {
     if (error) {
       console.error("Error in delete-all-notifications:", error);
       return res.status(500).json({ error: "Failed to clear notifications" });
+    }
+
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { notifications: [] });
     }
 
     res.json({ success: true });
@@ -3503,6 +3167,11 @@ app.post("/mark-notification-read", async (req, res) => {
       .eq("username", username);
     if (updateError) {
       return res.status(500).json({ error: "Failed to update notifications" });
+    }
+
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { notifications: updatedNotifications });
     }
 
     res.json({ message: "Notification marked as read" });
@@ -3592,8 +3261,8 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
 
     // Validate media size before upload
     for (const file of req.files) {
-      if (file.size > 20 * 1024 * 1024) {
-        return res.status(400).json({ error: "Each file must be under 20MB" });
+      if (file.size > 100 * 1024 * 1024) {
+        return res.status(400).json({ error: "Each file must be under 100MB" });
       }
     }
 
@@ -3636,6 +3305,11 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
       return res.status(500).json({ error: "Failed to create snap" });
     }
 
+    // Update memoryDB immediately
+    if (memoryDb && memoryDb.isReady && data) {
+      memoryDb.upsertPost(data);
+    }
+
     // Notify followers (same as post)
     await notifyConnectionsOnPost(username, text, data.id);
     await updateMobcoins(
@@ -3652,9 +3326,17 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
   }
 });
 
-const userSnapSeenMap = new Map();
-const snapFeedSessionMap = new Map();
-const userPostSeenMap = new Map(); // username -> Set<postId> for /get-posts
+let userSnapSeenMap = new Map();
+let snapFeedSessionMap = new Map();
+let userPostSeenMap = new Map(); // username -> Set<postId> for /get-posts
+
+// Restore seen maps from persisted cache on startup
+if (memoryDb) {
+  const savedPostMap = memoryDb.userPostSeenMap;
+  if (savedPostMap && savedPostMap.size > 0) userPostSeenMap = savedPostMap;
+  const savedSnapMap = memoryDb.userSnapSeenMap;
+  if (savedSnapMap && savedSnapMap.size > 0) userSnapSeenMap = savedSnapMap;
+}
 
 // Unique ID generator for Snap Feed
 function generateSnapSessionId() {
@@ -3675,12 +3357,13 @@ function shuffleSnapsArray(array) {
 }
 
 // Snap caching and intervals removed to fetch directly from DB
-app.get("/snaps-feed", async (req, res) => {
+app.post("/snaps-feed", express.json(), async (req, res) => {
   try {
-    const { username, seenIds: rawSeenIds } = req.query;
-    const limit = req.query.limit || 12; // 👈 We only send 12 high-quality snaps at a time
+    const params = req.body;
+    const { username, seenIds: rawSeenIds } = params;
+    const limit = parseInt(params.limit, 10) || 12;
+    const page = parseInt(params.page, 10) || 1;
 
-    // Directly fetch recent snaps from DB up to 200 (since we removed cache)
     const { data: snapFeedPosts, error } = await supabase2
       .from("Posts")
       .select("*")
@@ -3695,16 +3378,13 @@ app.get("/snaps-feed", async (req, res) => {
 
     const snaps = snapFeedPosts || [];
 
-    // Seen set & social graph (only if user is logged in)
     let userFollowing = new Set();
     let seen = new Set();
-    // Merge client-provided seenIds with server-side seen map
     if (rawSeenIds) {
       rawSeenIds.split(',').filter(Boolean).forEach(id => seen.add(id));
     }
     if (username) {
       if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
-      // Merge server-side seen into the set too
       userSnapSeenMap.get(username).forEach(id => seen.add(id));
       try {
         const { data: me } = await supabase.from("users").select("following").eq("username", username).single();
@@ -3715,7 +3395,6 @@ app.get("/snaps-feed", async (req, res) => {
     const now = Date.now();
     const HOUR = 3600000;
 
-    // ── ALIGNED ALGORITHM: POSTS & SNAPS ──
     const scored = snaps.map(p => {
       const ageMs = now - new Date(p.created_at).getTime();
       const ageHours = Math.max(0.1, ageMs / HOUR);
@@ -3736,13 +3415,8 @@ app.get("/snaps-feed", async (req, res) => {
       if (p.type === "live") typeBonus = 3.0;
       if (p.media && p.media.length > 0) typeBonus = 1.5;
 
-      // Penalize seen content to bottom
       const seenPenalty = seen.has(String(p.id)) ? 0.00001 : 1.0;
       const selfPenalty = p.username === username ? 0.1 : 1.0;
-
-      // Add their mobcoin investment influence
-      // Note: Snaps-feed needs access to userMobcoins, currently not fetched.
-      // Keeping it simple with 0 for now as per previous logic.
       const userInfluence = 0.0;
 
       const score = (
@@ -3755,13 +3429,38 @@ app.get("/snaps-feed", async (req, res) => {
       return { ...p, _score: score + (Math.random() * 0.5) };
     });
 
-    // Sort by best score
     scored.sort((a, b) => b._score - a._score);
 
-    // Take the top 12 (The "Batch")
-    const batch = scored.slice(0, limit).map(({ _score, ...snap }) => snap);
+    // Diversify: max 2 per author per batch
+    function diversifySnaps(scoredSnaps, targetCount) {
+      const result = [];
+      const skipped = [];
+      const userCount = new Map();
+      for (const snap of scoredSnaps) {
+        if (result.length >= targetCount) break;
+        const count = userCount.get(snap.username) || 0;
+        if (count < 2) {
+          result.push(snap);
+          userCount.set(snap.username, count + 1);
+        } else {
+          skipped.push(snap);
+        }
+      }
+      if (result.length < targetCount) {
+        for (const snap of skipped) {
+          if (result.length >= targetCount) break;
+          result.push(snap);
+        }
+      }
+      return result;
+    }
 
-    // Enrich batch with verified status
+    // Paginate: use page to slice the scored array, then diversify
+    const startIdx = (page - 1) * limit * 2;
+    const pagePool = scored.slice(startIdx, startIdx + limit * 2);
+    const diversified = diversifySnaps(pagePool, limit);
+    const batch = diversified.map(({ _score, ...snap }) => snap);
+
     const snapUsernames = [...new Set(batch.map(s => s.username))];
     if (snapUsernames.length > 0) {
       const { data: authors } = await supabase
@@ -3776,24 +3475,19 @@ app.get("/snaps-feed", async (req, res) => {
       }
     }
 
-    // ONLY mark the 12 we actually sent as "Seen"
-    batch.forEach(s => {
-      seen.add(String(s.id));
-    });
+    batch.forEach(s => { seen.add(String(s.id)); });
 
-    // Sync back to server-side map for the user
     if (username && userSnapSeenMap.has(username)) {
       const serverSeen = userSnapSeenMap.get(username);
       seen.forEach(id => serverSeen.add(id));
     }
 
-    // Memory Cleanup: Keep seen history to 1000 items
     if (seen.size > 1000) {
       const iter = seen.keys();
       for (let i = 0; i < 200; i++) seen.delete(iter.next().value);
     }
 
-    res.json({ snaps: batch });
+    res.json({ snaps: batch, page, hasMore: batch.length >= limit });
 
   } catch (err) {
     console.error("Snap Feed Error:", err);
@@ -3900,69 +3594,149 @@ app.get('/search-users', async (req, res) => {
     res.json([]);
   }
 });
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /generate-image
-// Generates an image using Gemini's imagen model and returns it as a PNG blob.
-//
-// Request body:  { prompt: string }
-// Response:      image/png binary  (or JSON { error } on failure)
-app.post("/generate-image", async (req, res) => {
-  const prompt = req.body?.prompt?.trim();
+// ─── Shared Groq API Helper ──────────────────────────────────────────────
+const GROQ_KEYS = [
+  process.env.GROQ_API_KEY,
+  process.env.GROQ_API_KEY_2,
+  process.env.GROQ_API_KEY_3,
+  "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"
+].filter(Boolean);
 
-  if (!prompt) {
-    console.error("[generate-image] Missing prompt");
-    return res.status(400).json({ error: "prompt is required" });
-  }
+const Groq = require('groq-sdk');
+let groqKeyIndex = 0;
+function getGroqClient() {
+  const apiKey = GROQ_KEYS[groqKeyIndex];
+  groqKeyIndex = (groqKeyIndex + 1) % GROQ_KEYS.length;
+  return new Groq({ apiKey });
+}
 
-  const apiKey = 'AIzaSyAiGxu2rodailKd-6BgaK7qTUsqMfu2kkg';
-  if (!apiKey) {
-    console.error("[generate-image] API key is missing");
-    return res.status(500).json({ error: "Server misconfigured" });
+async function groqChat(messages, options = {}) {
+  const { model = "llama-3.3-70b-versatile", temperature = 0.3, max_tokens = 1024 } = options;
+  for (let attempt = 0; attempt < GROQ_KEYS.length; attempt++) {
+    await new Promise(r => setTimeout(r, 100 + Math.random() * 200));
+    try {
+      const client = getGroqClient();
+      const res = await client.chat.completions.create({ model, messages, temperature, max_tokens });
+      if (res?.choices?.[0]?.message?.content) {
+        return res.choices[0].message.content.trim();
+      }
+    } catch (err) {
+      if (err?.status === 429 && attempt < GROQ_KEYS.length - 1) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+      if (attempt === GROQ_KEYS.length - 1) console.error('[Groq] All keys failed:', err?.message);
+    }
   }
+  return null;
+}
+
+// ─── Post Moderation ─────────────────────────────────────────────────────
+const POST_CATEGORIES = ['music', 'sports', 'gaming', 'news', 'education', 'entertainment', 'technology', 'fashion', 'art', 'food', 'travel', 'lifestyle', 'comedy', 'science', 'business', 'health', 'other'];
+
+async function analyzePost(text, mediaUrls, currentPostId) {
+  let spamScore = 0, baitScore = 0, duplicateOf = null;
+  if (!text) return { spamScore, baitScore, duplicateOf };
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-image-preview",
-      contents: prompt,
-    });
-
-    if (!response || !response.candidates || response.candidates.length === 0) {
-      console.error("[generate-image] No candidates returned from Gemini API");
-      return res.status(502).json({ error: "No image data returned" });
-    }
-
-    let imgBuffer = null;
-    let mimeType = "image/png";
-
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        imgBuffer = Buffer.from(part.inlineData.data, "base64");
-        mimeType = part.inlineData.mimeType || "image/png";
-        break;
+    // Duplicate detection: check word overlap with recent posts
+    if (text.length > 20) {
+      const { data: recent } = await supabase2
+        .from('Posts')
+        .select('id, text')
+        .limit(100)
+        .order('created_at', { ascending: false });
+      if (recent) {
+        const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        for (const r of recent) {
+          if (currentPostId && String(r.id) === String(currentPostId)) continue;
+          if (!r.text) continue;
+          const rWords = r.text.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+          const overlap = words.filter(w => rWords.includes(w)).length;
+          const ratio = overlap / Math.max(words.length, rWords.length);
+          if (ratio > 0.85) { duplicateOf = String(r.id); break; }
+        }
       }
     }
 
-    if (!imgBuffer) {
-      console.error("[generate-image] No image data found in response parts:", JSON.stringify(response, null, 2));
-      return res.status(502).json({ error: "No image data returned from model" });
+    // Simple keyword-based spam/bait heuristics
+    const lower = text.toLowerCase();
+    const spamPatterns = [/buy now/i, /click here/i, /free money/i, /earn \d+k/i, /sign up/i, /follow for follow/i];
+    for (const p of spamPatterns) { if (p.test(lower)) spamScore = Math.max(spamScore, 0.5); }
+    const baitPatterns = [/like if/i, /share if/i, /comment.*tag/i, /ignore if/i, /only.*will understand/i];
+    for (const p of baitPatterns) { if (p.test(lower)) baitScore = Math.max(baitScore, 0.5); }
+  } catch (err) {
+    console.error('[analyzePost] Error:', err?.message);
+  }
+
+  return { spamScore, baitScore, duplicateOf };
+}
+
+// ─── Hall of Fame AI Curation ────────────────────────────────────────────
+const HOF_CACHE_KEY = 'hof_curated';
+const HOF_CACHE_TTL = 3600000; // 1 hour
+
+async function curateHallOfFame() {
+  try {
+    const { data: posts } = await supabase2
+      .from('Posts')
+      .select('id, username, text, media, likes, comments, reactions, created_at, type, category, categories')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (!posts || posts.length === 0) return [];
+
+    const scored = posts.map(p => ({
+      ...p,
+      likesCount: (p.likes || []).length,
+      commentsCount: (p.comments || []).length,
+      reactionsCount: (p.reactions || []).length,
+    }));
+
+    // Use Groq to filter spam/bait and rank top posts
+    const candidates = scored.filter(p => p.likesCount + p.commentsCount + p.reactionsCount > 5);
+    const topCandidates = candidates.sort((a, b) =>
+      (b.likesCount + b.commentsCount * 3 + b.reactionsCount * 1.5) -
+      (a.likesCount + a.commentsCount * 3 + a.reactionsCount * 1.5)
+    ).slice(0, 50);
+
+    const postSummaries = topCandidates.map(p =>
+      `[${p.id}] by @${p.username} | ${p.likesCount} likes, ${p.commentsCount} comments | "${(p.text || '').slice(0, 100)}"`
+    ).join('\n');
+
+    const prompt = `From these 50 candidate posts, select the top 15 that deserve to be in the "Hall of Fame" on Textmob.
+    Criteria: high-quality, authentic, not spam/engagement-bait, original content, meaningful engagement.
+    Return a JSON array of post IDs ordered by quality (best first): [id1, id2, ...id15]
+
+Candidates:
+${postSummaries}`;
+
+    const aiRes = await groqChat([
+      { role: 'system', content: 'You are a content curator for a social platform. Return ONLY a valid JSON array of post IDs.' },
+      { role: 'user', content: prompt }
+    ], { temperature: 0.2, max_tokens: 1024 });
+
+    if (aiRes) {
+      try {
+        const ids = JSON.parse(aiRes);
+        if (Array.isArray(ids)) {
+          const curated = ids.map(id => topCandidates.find(p => String(p.id) === String(id))).filter(Boolean);
+          if (curated.length > 0) return curated;
+        }
+      } catch {}
     }
 
-    res.set({
-      "Content-Type": mimeType,
-      "Content-Length": String(imgBuffer.length),
-    });
-
-    return res.send(imgBuffer);
+    // Fallback: return top 15 by engagement (filtered)
+    return topCandidates.slice(0, 15);
   } catch (err) {
-    console.error("[generate-image] Gemini API error:", err);
-    return res.status(500).json({
-      error: 'Image Generation is in progress, and were yet to launch it, Stay tuned',
-    });
+    console.error('[curateHallOfFame] Error:', err?.message);
+    return [];
   }
-});
+}
 
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // --- AI Reply Helper ---
 /**
  * triggerAIReply
@@ -4464,12 +4238,25 @@ async function triggerAskifyReply(content, postId, parentType, parentUser) {
 // --- CREATE POST ---
 app.post("/create-post", upload.array("media", 10), async (req, res) => {
   try {
-    const { username, text, visib, activities, quoted_post_id } = req.body;
+    const { username, text, visib, activities, quoted_post_id, category, categories } = req.body;
     let { options } = req.body;
 
     if (!username || !text) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+
+    // Support both single `category` (legacy) and `categories` array (JSON string from FormData)
+    let userCategories = [];
+    if (categories) {
+      try {
+        const parsed = typeof categories === 'string' ? JSON.parse(categories) : categories;
+        if (Array.isArray(parsed)) userCategories = parsed.filter(c => POST_CATEGORIES.includes(c));
+      } catch {}
+    }
+    if (userCategories.length === 0 && category) {
+      if (POST_CATEGORIES.includes(category)) userCategories = [category];
+    }
+    if (userCategories.length === 0) userCategories = ['other'];
 
     // Validate media files: either up to 10 images or 1 video, but not both
     const filesArray = req.files ? req.files : [];
@@ -4484,6 +4271,11 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
       }
       if (filesArray.length > 10) {
         return res.status(400).json({ error: "Maximum 10 images or 1 video allowed" });
+      }
+      for (const file of filesArray) {
+        if (file.size > 100 * 1024 * 1024) {
+          return res.status(400).json({ error: "Each file must be under 100MB" });
+        }
       }
     }
 
@@ -4556,7 +4348,8 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
         type: type,
         options: options,
         activities: activities,
-        quoted_post_id: quoted_post_id
+        quoted_post_id: quoted_post_id,
+        categories: userCategories
       }])
       .select("*")
       .single();
@@ -4564,6 +4357,11 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
     if (insertError) {
       console.error("[create-post] Error creating post:", insertError);
       return res.status(500).json({ error: "Failed to create post" });
+    }
+
+    // Update memoryDB immediately
+    if (memoryDb && memoryDb.isReady && data) {
+      memoryDb.upsertPost(data);
     }
 
     // Award Mobcoins (best-effort)
@@ -4645,6 +4443,26 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
         notifyConnectionsOnPost(username, text, data.id).catch(function (nErr) {
           console.error("[create-post] notifyConnectionsOnPost failed:", nErr);
         });
+
+        // ─── Post Analysis (spam, bait, duplicate detection) ───
+        (async () => {
+          try {
+            const analysis = await analyzePost(text, mediaUrls, data.id);
+            const updates = {};
+            if (analysis.spamScore > 0) updates.spam_score = analysis.spamScore;
+            if (analysis.baitScore > 0) updates.bait_score = analysis.baitScore;
+            if (analysis.duplicateOf) updates.duplicate_of = String(analysis.duplicateOf);
+            if (Object.keys(updates).length > 0) {
+              await supabase2.from('Posts').update(updates).eq('id', data.id);
+              if (memoryDb && memoryDb.isReady) {
+                const cp = memoryDb.findPost(data.id);
+                if (cp) Object.assign(cp, updates);
+              }
+            }
+          } catch (postErr) {
+            console.error('[create-post] Post analysis failed:', postErr?.message);
+          }
+        })();
 
         console.log("[create-post] backgroundWork completed for postId:", data.id);
       } catch (bgErr) {
@@ -5341,8 +5159,6 @@ io.on("connection", function (socket) {
         }
 
         if (s.host === socket.id) {
-          // If the host disconnects, don't kill the room immediately.
-          // The monitor (heartbeat check) will handle it if they don't reconnect.
           console.log(`Host socket ${socket.id} disconnected from post ${postId}. Waiting for pulse...`);
         } else {
           s.viewers.delete(socket.id);
@@ -5361,115 +5177,6 @@ io.on("connection", function (socket) {
   });
 }); // end io.on("connection")
 
-// ---------------------- FRONTEND EVENTS SUMMARY -----------------------------
-// Broadcaster:
-//   socket.emit("startLive", { postId?, username, text?, visib? }, ack)
-//   // After MediaRecorder chunk: socket.emit("recChunk", { postId, seq?, chunk: arrayBuffer }, ack)
-//   socket.emit("endLive", { postId, save: true|false }, ack)
-//
-// Viewer:
-//   socket.emit("getLiveUrl", postId, ack) // returns { url: "live:postId", count }
-//   socket.emit("joinLive", { postId }, ack)
-//   socket.emit("leaveLive", { postId }, ack)
-//
-// Server -> Clients (broadcasts):
-//   "liveStarted"  // { postId, username }
-//   "viewerCountUpdate" // { postId, count }
-//   "liveEnded" // { postId }
-// ---------------------------------------------------------------------------
-
-
-
-app.post("/vote-poll-option", async (req, res) => {
-  const { postId, optionId, username } = req.body;
-
-  if (!postId || !optionId || !username) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
-  try {
-    // Fetch post from Supabase
-    const { data: post, error } = await supabase2
-      .from("Posts")
-      .select("id, type, options")
-      .eq("id", postId)
-      .single();
-
-    if (error || !post || post.type !== "poll") {
-      return res.status(404).json({ error: "Poll not found" });
-    }
-
-    const updatedOptions = post.options.map(option => {
-      // Remove this user's vote from all options
-      const newVotes = option.votes.filter(v => v !== username);
-
-      // If this is the voted option, and user wasn't already there, add them
-      if (option.id === optionId) {
-        const alreadyVoted = option.votes.includes(username);
-        if (!alreadyVoted) {
-          newVotes.push(username);
-        }
-      }
-
-      return { ...option, votes: newVotes };
-    });
-
-    // Update the post's options
-    const { error: updateErr } = await supabase2
-      .from("Posts")
-      .update({ options: updatedOptions })
-      .eq("id", postId);
-
-    if (updateErr) {
-      console.error("Poll update error:", updateErr);
-      return res.status(500).json({ error: "Failed to update poll" });
-    }
-
-    res.json({ message: "Vote updated successfully", options: updatedOptions });
-  } catch (e) {
-    console.error("Vote Error:", e);
-    res.status(500).json({ error: "Something went wrong" });
-  }
-});
-
-app.get("/posts-by-hashtag", async (req, res) => {
-  try {
-    const { hashtag } = req.query;
-    if (!hashtag) {
-      return res.status(400).json({ error: "Hashtag is required" });
-    }
-    // Step 1: Loosely match all posts containing any hashtag
-    const { data, error } = await supabase2
-      .from("Posts")
-      .select("*")
-      .ilike("text", `%#${hashtag}%`);
-
-    if (error) {
-      console.error("Error fetching posts by hashtag:", error);
-      return res.status(500).json({ error: "Failed to fetch posts" });
-    }
-
-    // Step 2: Strict match using regex
-    const regex = new RegExp(`(^|\\s)#${hashtag}(\\s|$|[^\\w])`, "i");
-    const filtered = data.filter(post => regex.test(post.text));
-
-    if (filtered.length === 0) {
-      return res.json({ message: "No posts found for this exact hashtag" });
-    }
-
-    res.json({ posts: filtered });
-
-  } catch (error) {
-    console.error("Error in posts/hashtag endpoint:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Old Trending Removed
-
-
-app.use(express.static("public"));
-
 app.post("/like-post", async (req, res) => {
   try {
     const { postId, username } = req.body;
@@ -5477,7 +5184,7 @@ app.post("/like-post", async (req, res) => {
       return res.status(400).json({ error: "Post ID and username are required" });
     }
 
-    // Fetch the post (must contain the post owner's username)
+    // Fetch the post owner and type for notifications
     const { data: post, error: fetchError } = await supabase2
       .from("Posts")
       .select("likes, username, type, title")
@@ -5488,25 +5195,48 @@ app.post("/like-post", async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    let updatedLikes = post.likes || [];
+    // Retry loop: read-modify-write with conflict detection (max 3 attempts)
     let action;
+    let success = false;
+    let updatedLikes = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: freshPost } = await supabase2
+        .from("Posts")
+        .select("likes")
+        .eq("id", postId)
+        .single();
 
-    if (updatedLikes.includes(username)) {
-      updatedLikes = updatedLikes.filter(user => user !== username);
-      action = "unliked";
-    } else {
-      updatedLikes.push(username);
-      action = "liked";
+      if (!freshPost) break;
+
+      const currentLikes = freshPost.likes || [];
+      if (currentLikes.includes(username)) {
+        action = "unliked";
+        updatedLikes = currentLikes.filter(u => u !== username);
+        const { error: upErr } = await supabase2
+          .from("Posts")
+          .update({ likes: updatedLikes })
+          .eq("id", postId);
+        if (!upErr) { success = true; break; }
+      } else {
+        action = "liked";
+        updatedLikes = [...currentLikes, username];
+        const { error: upErr } = await supabase2
+          .from("Posts")
+          .update({ likes: updatedLikes })
+          .eq("id", postId);
+        if (!upErr) { success = true; break; }
+      }
+    }
+    if (!success) {
+      console.error("Failed to update likes after retries");
+      return res.status(500).json({ error: "Failed to update likes" });
     }
 
-    const { error: updateError } = await supabase2
-      .from("Posts")
-      .update({ likes: updatedLikes })
-      .eq("id", postId);
-
-    if (updateError) {
-      console.error("Error updating likes:", updateError);
-      return res.status(500).json({ error: "Failed to update likes" });
+    if (memoryDb && memoryDb.isReady) {
+      const cachedP = memoryDb.findPost(postId);
+      if (cachedP) {
+        cachedP.likes = updatedLikes;
+      }
     }
 
     // Send notification only if it's a like and not the post owner's own like
@@ -5542,6 +5272,7 @@ app.post("/like-post", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 app.post("/react-post", async (req, res) => {
   try {
     const { postId, username, reaction, etext } = req.body;
@@ -5593,6 +5324,14 @@ app.post("/react-post", async (req, res) => {
     if (updateError) {
       console.error("Error updating reactions:", updateError);
       return res.status(500).json({ error: "Failed to update reactions" });
+    }
+
+    // Update memoryDB immediately
+    if (memoryDb && memoryDb.isReady) {
+      const cachedP = memoryDb.findPost(postId);
+      if (cachedP) {
+        cachedP.reactions = updatedReactions;
+      }
     }
 
     // Notifications (if not reacting to own post)
@@ -5735,6 +5474,14 @@ app.put("/edit-post", async (req, res) => {
       return res.status(500).json({ error: "Failed to edit post" });
     }
 
+    // Update memoryDB immediately
+    if (memoryDb && memoryDb.isReady) {
+      const cachedP = memoryDb.findPost(postId);
+      if (cachedP) {
+        Object.assign(cachedP, updateFields);
+      }
+    }
+
     res.json({ message: "Post updated successfully", data });
   } catch (error) {
     console.error("Edit Post Error:", error);
@@ -5769,6 +5516,11 @@ app.delete("/delete-post", async (req, res) => {
       .delete()
       .eq("id", postId);
     if (deleteErr) throw deleteErr;
+
+    // Remove from memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.posts = memoryDb.posts.filter(p => String(p.id) !== String(postId));
+    }
 
     res.json({ message: "Post deleted successfully" });
 
@@ -5827,6 +5579,14 @@ app.post("/add-comment", async (req, res) => {
     if (updateError) {
       console.error("[add-comment] Error updating comments:", updateError);
       return res.status(500).json({ error: "Failed to add comment" });
+    }
+
+    // Update memoryDB immediately
+    if (memoryDb && memoryDb.isReady) {
+      const cachedP = memoryDb.findPost(postId);
+      if (cachedP) {
+        cachedP.comments = updatedComments;
+      }
     }
 
     const postLink = `/post/${postId}`;
@@ -5916,13 +5676,6 @@ app.post("/add-comment", async (req, res) => {
 
 // Inside your server.js (or wherever you set up routes)
 
-app.get("/ai/daily-post", async (req, res) => {
-
-  console.log("✅ TextmobAI daily post created!");
-  return res.json({ success: true });
-});
-
-
 // Helper function to bypass the 1000 row limit
 async function fetchAll(client, table, selectQuery, orderByColumn = 'created_at') {
   let allData = [];
@@ -5955,67 +5708,6 @@ async function fetchAll(client, table, selectQuery, orderByColumn = 'created_at'
 // REDEMPTION SYSTEM
 // -------------------------------------------------------------
 
-app.get("/api/admin/payouts", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('redemption_queue')
-      .select('*, users(username, fullname, profile_pic)')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    console.error('Admin payouts error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/admin/payout/update", async (req, res) => {
-  try {
-    const { id, status } = req.body;
-    if (!id || !status) return res.status(400).json({ error: "ID and status required" });
-
-    const { data: payout, error: fetchError } = await supabase
-      .from('redemption_queue')
-      .select('*, users(username, email, fullname)')
-      .eq('id', id)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    const { error: updateError } = await supabase
-      .from('redemption_queue')
-      .update({
-        status,
-        processed_at: new Date().toISOString()
-      })
-      .eq('id', id);
-
-    if (updateError) throw updateError;
-
-    // Send notification to user
-    const user = payout.users;
-    if (user && user.username) {
-      const msg = status === 'COMPLETED'
-        ? `Your redemption of ${payout.coin_amount} Mobcoins (₦${payout.naira_value}) has been processed successfully!`
-        : `Your redemption request for ${payout.coin_amount} Mobcoins has been rejected. Please contact support.`;
-
-      const subject = status === 'COMPLETED' ? "Redemption Successful" : "Redemption Update";
-
-      await triggerNotification(user.username, 'mobcoins', {
-        msg: msg,
-        subject: subject,
-        html: msg,
-        link: "/wallet"
-      });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Update payout error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
 app.get("/api/user/payouts", async (req, res) => {
   try {
     const { userId } = req.query; // This is a username
@@ -6175,423 +5867,57 @@ app.post("/api/redeem", async (req, res) => {
   }
 });
 
-// Admin: Get Pending Verification Requests
-app.get("/api/admin/verification-requests", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('verification_requests')
-      .select('id, created_at, users(username)')
-      .eq('status', 'PENDING');
-
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// User: Check verification status
-app.get("/api/verify-status", async (req, res) => {
-  try {
-    const { username } = req.query;
-    if (!username) return res.status(400).json({ error: "Username required" });
-
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    const { data: request } = await supabase
-      .from('verification_requests')
-      .select('status')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    res.json({ status: request ? request.status : null });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-// Admin: Update Verification Request
-app.post("/api/admin/verification-update", async (req, res) => {
-  try {
-    const { id, status } = req.body;
-    if (!id || !['ACCEPTED', 'REJECTED'].includes(status)) {
-      return res.status(400).json({ error: "Invalid request" });
-    }
-
-    // 1. Calculate expiration if accepted
-    const updates = { status, updated_at: new Date().toISOString() };
-    if (status === 'ACCEPTED') {
-      const oneMonthFromNow = new Date();
-      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-      updates.verified_until = oneMonthFromNow.toISOString();
-    }
-
-    // 2. Update verification_requests table
-    const { data: request, error: updateError } = await supabase
-      .from('verification_requests')
-      .update(updates)
-      .eq('id', id)
-      .select('user_id, users(username)')
-      .single();
-
-    if (updateError) throw updateError;
-
-    // 3. Notify user
-    if (status === 'ACCEPTED') {
-      await triggerNotification(request.users.username, 'verification', {
-        msg: "Congratulations! You have been verified.",
-        subject: "Verification Accepted! ✅",
-        html: `Hi @${request.users.username},<br><br>Congratulations! Your verification request has been accepted. You are now officially verified on Textmob!`,
-        link: "/accountscenter"
-      });
-    } else {
-      await triggerNotification(request.users.username, 'verification', {
-        msg: "Your verification request was rejected.",
-        subject: "Verification Update",
-        html: `Hi @${request.users.username},<br><br>Unfortunately, your verification request has been rejected. Please ensure you meet all criteria.`,
-        link: "/accountscenter"
-      });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/verify-request", async (req, res) => {
-  try {
-    const { username } = req.body;
-    if (!username) return res.status(400).json({ error: "Username required" });
-
-    // Find user
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, profile_type')
-      .eq('username', username)
-      .single();
-
-    if (userError || !user) return res.status(404).json({ error: "User not found" });
-
-    // Check if already requested or verified
-    const { data: existing, error: existingError } = await supabase
-      .from('verification_requests')
-      .select('id, status')
-      .eq('user_id', user.id)
-      .in('status', ['PENDING', 'ACCEPTED'])
-      .maybeSingle();
-
-    if (existing) {
-      if (existing.status === 'ACCEPTED') return res.status(400).json({ error: "User is already verified" });
-      return res.status(400).json({ error: "Request already pending" });
-    }
-
-    // Insert request
-    const { error: insertError } = await supabase
-      .from('verification_requests')
-      .insert({
-        user_id: user.id,
-        status: 'PENDING',
-        created_at: new Date().toISOString()
-      });
-
-    if (insertError) throw insertError;
-
-    res.json({ success: true, message: "Request submitted! Admin will review your request." });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-// -------------------------------------------------------------
-
-app.get("/asilfcismail", (req, res) => {
-  res.sendFile(path.join(__dirname, "asilfcismail.html"));
-});
-
-app.get("/api/asilfcismail/data", async (req, res) => {
-  try {
-    const now = new Date();
-
-    const users = await fetchAll(
-      supabase,
-      "users",
-      "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled, password"
-    );
-
-    const posts = await fetchAll(
-      supabase2,
-      "Posts",
-      "id, username, type, likes, comments, created_at, text, media, reactions, text"
-    );
-
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
-
-    // ANALYTICS LOGIC
-    const hourLabels = Array.from({ length: 24 }, (_, i) => `${23 - i} hours ago`);
-    const hourCounts = Array(24).fill(0);
-    const dayLabels = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (6 - i));
-      return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    });
-    const dayCounts = Array(7).fill(0);
-    const weekLabels = Array.from({ length: 4 }, (_, i) => i < 3 ? `${3 - i} weeks ago` : 'This Week');
-    const weekCounts = Array(4).fill(0);
-    const monthLabels = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() - (11 - i));
-      return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    });
-    const monthCounts = Array(12).fill(0);
-
-    users.forEach(u => {
-      if (!u.created_at) return;
-      const d = new Date(u.created_at);
-      const diffMs = now - d;
-      const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-      if (diffH < 24) hourCounts[23 - diffH]++;
-      const diffD = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      if (diffD < 7) dayCounts[6 - diffD]++;
-      const diffW = Math.floor(diffD / 7);
-      if (diffW < 4) weekCounts[3 - diffW]++;
-      const diffM = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
-      if (diffM < 12) monthCounts[11 - diffM]++;
-    });
-
-    const postHourLabels = Array.from({ length: 24 }, (_, i) => `${23 - i} hours ago`);
-    const postHourCounts = Array(24).fill(0);
-    const postDayLabels = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (6 - i));
-      return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    });
-    const postDayCounts = Array(7).fill(0);
-    const postWeekLabels = Array.from({ length: 4 }, (_, i) => i < 3 ? `${3 - i} weeks ago` : 'This Week');
-    const postWeekCounts = Array(4).fill(0);
-    const postMonthLabels = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(now);
-      d.setMonth(d.getMonth() - (11 - i));
-      return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-    });
-    const postMonthCounts = Array(12).fill(0);
-
-    posts.forEach(p => {
-      if (!p.created_at) return;
-      const d = new Date(p.created_at);
-      const diffMs = now - d;
-      const diffH = Math.floor(diffMs / (1000 * 60 * 60));
-      if (diffH < 24) postHourCounts[23 - diffH]++;
-      const diffD = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      if (diffD < 7) postDayCounts[6 - diffD]++;
-      const diffW = Math.floor(diffD / 7);
-      if (diffW < 4) postWeekCounts[3 - diffW]++;
-      const diffM = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
-      if (diffM < 12) postMonthCounts[11 - diffM]++;
-    });
-
-    const postMap = {};
-    posts.forEach(p => {
-      if (p.username) postMap[p.username] = (postMap[p.username] || 0) + 1;
-    });
-
-    const posts7dMap = {};
-    const likes7dMap = {};
-    const comments7dMap = {};
-    const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
-
-    recentPosts.forEach(p => {
-      if (p.username) {
-        let postScore = 0;
-        const hasMedia = p.media && p.media.length > 0;
-        const rawText = p.content || p.text || '';
-        const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
-        const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
-
-        if (hasMedia) postScore += 2;
-        if (wordCount > 3) postScore += 1;
-        else if (!hasMedia) postScore += 0.1;
-
-        posts7dMap[p.username] = (posts7dMap[p.username] || 0) + postScore;
-        likes7dMap[p.username] = (likes7dMap[p.username] || 0) + (Array.isArray(p.likes) ? p.likes.length : 0);
-        comments7dMap[p.username] = (comments7dMap[p.username] || 0) + (Array.isArray(p.comments) ? p.comments.length : 0);
-      }
-    });
-
-    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai"];
-    const rankedUsers = users
-      .filter(u => !excluded.includes(u.username))
-      .map(u => {
-        const followers = Array.isArray(u.followers) ? u.followers.length : 0;
-        const coins = u.mobcoins || 0;
-        const postCount = postMap[u.username] || 0;
-        const score = followers + postCount + Math.floor(coins / 50);
-        return {
-          id: u.id,
-          username: u.username,
-          fullname: u.fullname || '',
-          avatar: u.profile_pic,
-          created_at: u.created_at,
-          score
-        };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-
-    const reactions7dMap = {};
-    recentPosts.forEach(p => {
-      if (p.username) {
-        const reactionCount = Array.isArray(p.reactions) ? p.reactions.length : 0;
-        reactions7dMap[p.username] = (reactions7dMap[p.username] || 0) + reactionCount;
-      }
-    });
-
-    const users7dMetrics = users
-      .filter(u => !excluded.includes(u.username))
-      .map(u => {
-        const posts7d = posts7dMap[u.username] || 0;
-        const likes7d = likes7dMap[u.username] || 0;
-        const comments7d = comments7dMap[u.username] || 0;
-        const reactions7d = reactions7dMap[u.username] || 0;
-        const totalEngagement7d = posts7d + likes7d + comments7d;
-        const totalReactions = reactions7d > 0 ? reactions7d : likes7d;
-        return {
-          username: u.username,
-          fullname: u.fullname || '',
-          posts7d,
-          likes7d,
-          comments7d,
-          reactions7d,
-          totalEngagement7d,
-          mobcoins: u.mobcoins || 0,
-          totalReactions
-        };
-      });
-
-    const weighted7d = users7dMetrics.map(u => {
-      const s = 0.6 * u.totalEngagement7d + 0.2 * u.posts7d + 0.2 * u.totalReactions;
-      u.score7d = Math.round(s * 10) / 10;
-      return u;
-    });
-
-    weighted7d.sort((a, b) => b.score7d - a.score7d);
-    const topUsers7d = weighted7d.filter(u => u.score7d > 0).slice(0, 10);
-
-    const topCoinHolders = users
-      .map(u => ({
-        username: u.username,
-        fullname: u.fullname || '',
-        mobcoins: u.mobcoins || 0
-      }))
-      .sort((a, b) => b.mobcoins - a.mobcoins)
-      .slice(0, 5);
-
-    const totalPosts = posts.length;
-    const pollPosts = posts.filter(p => p.type === "poll").length;
-    const normalPosts = posts.filter(p => p.type === "post").length;
-    const anonPosts = posts.filter(p => p.type === "").length;
-    const eventPosts = posts.filter(p => p.type === "event").length;
-    const totalLikes = posts.reduce((s, p) => s + (Array.isArray(p.likes) ? p.likes.length : 0), 0);
-    const totalComments = posts.reduce((s, p) => s + (Array.isArray(p.comments) ? p.comments.length : 0), 0);
-    const avgLikes = totalPosts > 0 ? Math.round(totalLikes / totalPosts) : 0;
-    const avgComments = totalPosts > 0 ? Math.round(totalComments / totalPosts) : 0;
-    const engagementRate = totalPosts > 0 ? ((totalLikes + totalComments) / totalPosts).toFixed(2) : 0;
-    const totalMobcoins = users.reduce((s, u) => s + (u.mobcoins || 0), 0);
-
-    const prevWeekUsers = weekCounts[2] || 0;
-    const currWeekUsers = weekCounts[3] || 0;
-    const userWeeklyGrowth = prevWeekUsers > 0 ? ((currWeekUsers - prevWeekUsers) / prevWeekUsers * 100).toFixed(1) : 'N/A';
-
-    const prevWeekPosts = postWeekCounts[2] || 0;
-    const currWeekPosts = postWeekCounts[3] || 0;
-    const postWeeklyGrowth = prevWeekPosts > 0 ? ((currWeekPosts - prevWeekPosts) / prevWeekPosts * 100).toFixed(1) : 'N/A';
-
-    res.json({
-      users: users || [],
-      analytics: {
-        signups: { hourLabels, hourCounts, dayLabels, dayCounts, weekLabels, weekCounts, monthLabels, monthCounts },
-        postCreations: { hourLabels: postHourLabels, hourCounts: postHourCounts, dayLabels: postDayLabels, dayCounts: postDayCounts, weekLabels: postWeekLabels, weekCounts: postWeekCounts, monthLabels: postMonthLabels, monthCounts: postMonthCounts },
-        posts: { totalPosts, pollPosts, normalPosts, anonPosts, eventPosts, avgLikes, avgComments, totalLikes, totalComments, engagementRate },
-        topUsers: rankedUsers,
-        topUsers7d,
-        topCoinHolders,
-        postCountsPerUser: postMap,
-        totalMobcoins,
-        userWeeklyGrowth,
-        postWeeklyGrowth
-      }
-    });
-  } catch (err) {
-    console.error('Analytics error:', err);
-    res.status(500).json({ error: "Server error generating analytics" });
-  }
-});
-
-app.post("/api/admin/user/toggle-status", async (req, res) => {
-  try {
-    const { userId, disabled } = req.body;
-    if (!userId) return res.status(400).json({ error: "User ID required" });
-
-    const { error } = await supabase
-      .from('users')
-      .update({ disabled: !!disabled })
-      .eq('id', userId);
-
-    if (error) throw error;
-    res.json({ success: true, disabled: !!disabled });
-  } catch (err) {
-    console.error('Toggle status error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/admin/user/update-coins", async (req, res) => {
-  try {
-    const { userId, mobcoins } = req.body;
-    if (!userId) return res.status(400).json({ error: "User ID required" });
-
-    const { error } = await supabase
-      .from('users')
-      .update({ mobcoins: parseInt(mobcoins) || 0 })
-      .eq('id', userId);
-
-    if (error) throw error;
-    res.json({ success: true, mobcoins });
-  } catch (err) {
-    console.error('Update coins error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-
 app.get("/leaderboard", async (req, res) => {
   try {
     const now = new Date();
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const users = await fetchAll(
-      supabase,
-      "users",
-      "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, profile_type"
-    );
+    // Try cached leaderboard from MemoryDB
+    if (memoryDb && memoryDb.isReady) {
+      const cached = memoryDb.getCachedLeaderboard();
+      if (cached) {
+        return res.json(cached);
+      }
+    }
 
-    const posts = await fetchAll(
-      supabase2,
-      "Posts",
-      "id, username, type, likes, comments, created_at, text, media, reactions"
-    );
+    // Use MemoryDB if available, otherwise fallback to fetchAll
+    let users, posts;
+    if (memoryDb && memoryDb.isReady) {
+      users = memoryDb.users.map(u => ({
+        id: u.id,
+        profile_pic: u.profile_pic,
+        username: u.username,
+        fullname: u.fullname,
+        mobcoins: u.mobcoins,
+        followers: u.followers,
+        created_at: u.created_at,
+        biography: u.biography,
+        profile_type: u.profile_type,
+      }));
+      posts = memoryDb.posts.map(p => ({
+        id: p.id,
+        username: p.username,
+        type: p.type,
+        likes: p.likes,
+        comments: p.comments,
+        created_at: p.created_at,
+        text: p.text,
+        media: p.media,
+        reactions: p.reactions,
+      }));
+    } else {
+      users = await fetchAll(
+        supabase,
+        "users",
+        "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, profile_type"
+      );
+      posts = await fetchAll(
+        supabase2,
+        "Posts",
+        "id, username, type, likes, comments, created_at, text, media, reactions"
+      );
+    }
 
     const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
 
@@ -6740,182 +6066,24 @@ app.get("/leaderboard", async (req, res) => {
       .filter(u => u.score7d > 0)
       .slice(0, 5);
 
-    res.json({
+    const result = {
       success: true,
       leaderboard,
       fetchedAt: now.toISOString()
-    });
+    };
+
+    // Cache in MemoryDB for 5 minutes
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.setCachedLeaderboard(result);
+    }
+
+    res.json(result);
 
   } catch (err) {
     console.error("Leaderboard error:", err.message);
     res.status(500).json({ success: false, error: "Internal server error." });
   }
 });
-app.post("/connect", async (req, res) => {
-  try {
-    const { currentUsername, targetUsername } = req.body;
-
-    if (!currentUsername || !targetUsername) {
-      return res.status(400).json({ error: "Both currentUsername and targetUsername are required" });
-    }
-
-    // Fetch both users
-    const { data: currentUser, error: currError } = await supabase
-      .from("users")
-      .select("username, friends, following, profile_type")
-      .eq("username", currentUsername)
-      .single();
-
-    if (currError || !currentUser) {
-      return res.status(404).json({ error: "Current user not found" });
-    }
-
-    const { data: targetUser, error: targetError } = await supabase
-      .from("users")
-      .select("username, profile_type, followers, friends, email")
-      .eq("username", targetUsername)
-      .single();
-
-    if (targetError || !targetUser) {
-      return res.status(404).json({ error: "Target user not found" });
-    }
-
-    currentUser.friends = currentUser.friends || [];
-    currentUser.following = currentUser.following || [];
-    targetUser.followers = targetUser.followers || [];
-    targetUser.friends = targetUser.friends || [];
-
-    const targetProfileType = targetUser.profile_type.toLowerCase();
-    let action;
-
-    if (targetProfileType === "organisation") {
-      const alreadyFollowing = targetUser.followers.includes(currentUsername);
-
-      if (alreadyFollowing) {
-        // Unfollow
-        targetUser.followers = targetUser.followers.filter(u => u !== currentUsername);
-        currentUser.following = currentUser.following.filter(u => u !== targetUsername);
-        action = "unfollowed";
-
-        await addNotification(targetUsername, {
-          id: Date.now(),
-          message: `${currentUsername} unfollowed you.`,
-          read: false,
-          link: `/@${currentUsername}`,
-          timestamp: new Date().toISOString(),
-          type: 'follow',
-          sender: currentUsername,
-        });
-
-      } else {
-        // Follow
-        targetUser.followers.push(currentUsername);
-        currentUser.following.push(targetUsername);
-        action = "followed";
-
-        await addNotification(targetUsername, {
-          id: Date.now(),
-          message: `${currentUsername} followed you.`,
-          read: false,
-          link: `/@${currentUsername}`,
-          timestamp: new Date().toISOString(),
-          type: 'follow',
-          sender: currentUsername,
-        });
-
-        if (targetUser.email) {
-          await sendNotificationEmail(
-            targetUser.email,
-            `${currentUsername} followed your page`,
-            `
-            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${targetUser.fullname || targetUser.username},</p>
-            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${currentUsername}</strong> just followed your page on Textmob.</p>
-            <table role="presentation" cellpadding="0" cellspacing="0">
-              <tr>
-                <td align="center" style="background-color:#2563eb;border-radius:8px;">
-                  <a href="https://textmob.web.app/@${currentUsername}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Profile</a>
-                </td>
-              </tr>
-            </table>
-            `
-          );
-        }
-      }
-
-      await supabase.from("users").update({ followers: targetUser.followers }).eq("username", targetUsername);
-      await supabase.from("users").update({ following: currentUser.following }).eq("username", currentUsername);
-
-      res.json({ message: `Successfully ${action} the organisation.` });
-
-    } else if (targetProfileType === "individual") {
-      const alreadyFriends = currentUser.friends.includes(targetUsername);
-
-      if (alreadyFriends) {
-        // Unfriend
-        currentUser.friends = currentUser.friends.filter(u => u !== targetUsername);
-        targetUser.friends = targetUser.friends.filter(u => u !== currentUsername);
-        action = "unfriended";
-
-        await addNotification(targetUsername, {
-          id: Date.now(),
-          message: `${currentUsername} unfriended you.`,
-          read: false,
-          link: `/@${currentUsername}`,
-          timestamp: new Date().toISOString(),
-          type: 'connection',
-          sender: currentUsername,
-        });
-
-      } else {
-        // Friend
-        currentUser.friends.push(targetUsername);
-        targetUser.friends.push(currentUsername);
-        action = "friended";
-
-        await addNotification(targetUsername, {
-          id: Date.now(),
-          message: `${currentUsername} friended you.`,
-          read: false,
-          link: `/@${currentUsername}`,
-          timestamp: new Date().toISOString(),
-          type: 'connection',
-          sender: currentUsername,
-        });
-
-        if (targetUser.email) {
-          await sendNotificationEmail(
-            targetUser.email,
-            `${currentUsername} added you as a friend`,
-            `
-            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${targetUser.fullname || targetUser.username},</p>
-            <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${currentUsername}</strong> added you as a friend on Textmob.</p>
-            <table role="presentation" cellpadding="0" cellspacing="0">
-              <tr>
-                <td align="center" style="background-color:#2563eb;border-radius:8px;">
-                  <a href="https://textmob.web.app/@${currentUsername}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Profile</a>
-                </td>
-              </tr>
-            </table>
-            `
-          );
-        }
-      }
-
-      await supabase.from("users").update({ friends: currentUser.friends }).eq("username", currentUsername);
-      await supabase.from("users").update({ friends: targetUser.friends }).eq("username", targetUsername);
-
-      res.json({ message: `Successfully ${action} the user.` });
-
-    } else {
-      res.status(400).json({ error: "Unknown profile type" });
-    }
-
-  } catch (error) {
-    console.error("Error in /connect:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 const WEEK_IN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 const randomMessages = [
@@ -7018,59 +6186,6 @@ require('dotenv').config();
 // Your existing routes (unchanged except small additions)
 app.get('/online-users', (req, res) => {
   return res.json({ users: Object.keys(onlineUsers) });
-});
-
-app.get("/get-last-message", async (req, res) => {
-  const { user1, user2 } = req.query;
-  const { data: msgs } = await supabase
-    .from("Messages")
-    .select("*")
-    .or(
-      `and(sender.eq.${user1},receiver.eq.${user2}),and(sender.eq.${user2},receiver.eq.${user1})`
-    )
-    .order("timestamp", { ascending: false })
-    .limit(1);
-  const { count: unreadCount } = await supabase
-    .from("Messages")
-    .select("*", { count: "exact", head: true })
-    .eq("sender", user2)
-    .eq("receiver", user1)
-    .eq("read", false);
-  res.json({ lastMsg: msgs[0] || null, unreadCount: unreadCount || 0 });
-});
-
-app.delete('/delete-message/:id', async (req, res) => {
-  const { id } = req.params;
-  const { sender } = req.query;
-  if (!id || !sender) {
-    return res.status(400).json({ error: 'Missing message ID or sender' });
-  }
-  const { data: message, error: fetchError } = await supabase
-    .from("Messages")
-    .select("*")
-    .eq("id", id)
-    .single();
-  if (fetchError || !message) {
-    return res.status(404).json({ error: 'Message not found' });
-  }
-  if (message.sender !== sender) {
-    return res.status(403).json({ error: 'Not authorized to delete this message' });
-  }
-  const { error: deleteError } = await supabase
-    .from("Messages")
-    .delete()
-    .eq("id", id);
-  if (deleteError) {
-    return res.status(500).json({ error: 'Failed to delete message' });
-  }
-  const { receiver } = message;
-  if (onlineUsers[sender]) {
-    onlineUsers[sender].emit("message-deleted", { id });
-  }
-  if (onlineUsers[receiver]) {
-    onlineUsers[receiver].emit("message-deleted", { id });
-  }
-  res.json({ success: true, id });
 });
 
 // Socket.IO
@@ -7254,8 +6369,9 @@ async function generateAIResponse(messages, mediaUrl, mediaType) {
   while (attempt < maxTries) {
     attempt = attempt + 1;
     try {
+      var groqModel = (selectedModel === "openai/gpt-oss-120b") ? "llama-3.3-70b-versatile" : selectedModel;
       var payload = {
-        model: selectedModel,
+        model: groqModel,
         messages: finalMessages,
         temperature: 0.8,
         max_tokens: 2000
@@ -7881,90 +6997,6 @@ function extractMeta(html, href) {
   };
 }
 
-app.get("/link", async function (req, res) {
-  let href = req.query.url || "";
-  href = href.replace(/[^a-zA-Z0-9:/?&=._-]/g, "");
-
-  const styledPage = (content) => `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <title>Textmob Link</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex items-center justify-center min-h-screen p-4">
-      <div class="w-full max-w-md bg-white dark:bg-gray-800 shadow-xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div class="p-6 space-y-4 text-center">
-          ${content}
-        </div>
-        <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 text-xs text-gray-500 text-center border-t border-gray-200 dark:border-gray-700">
-          🔗 This link is from <span class="font-semibold">Textmob</span>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  try {
-    if (!href) {
-      return res.send(
-        styledPage(`
-          <p class="text-red-500 font-semibold">🚫 Invalid or missing link</p>
-          <a href="/" class="inline-block mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Go Back</a>
-        `)
-      );
-    }
-
-    if (href.startsWith("/")) {
-      return res.redirect(href);
-    }
-
-    if (!(href.startsWith("http://") || href.startsWith("https://"))) {
-      return res.send(
-        styledPage(`
-          <p class="text-red-500 font-semibold">🚫 Invalid Link. Please recheck.</p>
-          <a href="/" class="inline-block mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Go Back</a>
-        `)
-      );
-    }
-
-    let meta = { title: href, desc: "", image: "", favicon: "" };
-    try {
-      const resp = await fetch(href, { timeout: 5000 });
-      const html = await resp.text();
-      meta = extractMeta(html, href);
-    } catch (err) {
-      // fallback
-    }
-
-    return res.send(
-      styledPage(`
-        <div class="space-y-3">
-          <div class="flex items-center gap-2 justify-center">
-            <img src="${meta.favicon}" alt="favicon" class="w-6 h-6 rounded">
-            <h1 class="text-lg font-bold">${meta.title}</h1>
-          </div>
-          <p class="text-sm text-gray-600 dark:text-gray-400">${meta.desc || "No description available"}</p>
-          ${meta.image
-          ? `<img src="${meta.image}" alt="Preview" class="w-full h-40 object-cover rounded-lg">`
-          : ""
-        }
-          <p class="text-xs text-gray-400 break-all">${href}</p>
-          <div class="flex justify-center gap-3 mt-4">
-            <a href="/" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">Go Back</a>
-            <a href="${href}${href.includes("?") ? "&" : "?"}ref=textmob" target="_blank" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white">Open Link</a>
-          </div>
-        </div>
-      `)
-    );
-  } catch (err) {
-    return res.send(
-      styledPage(`<p class="text-red-500 font-semibold">⚠️ Error: ${err.message}</p>`)
-    );
-  }
-});
-
 async function checkAndDeliverPendingMessages(username) {
   try {
     const { data: pending, error } = await supabase
@@ -8058,12 +7090,13 @@ app.get("/trending-hashtags", async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// GET /get-posts
+// GET/POST /get-posts
 // -------------------------------------------------------------
-app.get("/get-posts", async (req, res) => {
+app.post("/get-posts", express.json(), async (req, res) => {
   try {
-    const { username, tab = "foryou", page = 1, seenIds = "" } = req.query;
-    const limit = parseInt(req.query.limit, 10) || 10;
+    const params = req.body;
+    const { username, tab = "foryou", page = 1, seenIds = "" } = params;
+    const limit = parseInt(params.limit, 10) || 10;
     const pg = parseInt(page, 10) || 1;
 
     const isPublic = !username;
@@ -8088,262 +7121,337 @@ app.get("/get-posts", async (req, res) => {
 
     const isColdStart = !isPublic && userFollowing.size === 0 && userFriends.size === 0;
 
-    if (tab === "following") {
+    // ─── NEW UNIFIED SCORING ENGINE ───
+    // Used by both /get-posts and /snaps-feed
+    function computeScore(post, ctx) {
+      const ageHours = Math.max(0.1, ctx.ageHours);
+      const likes = (post.likes || []).length;
+      const comments = (post.comments || []).length;
+      const reactions = (post.reactions || []).length;
+      const contentType = post.type || 'post';
+
+      // Half-life based on tab
+      const halfLife = ctx.tab === 'following' ? 36 : 12;
+      const freshness = Math.pow(0.5, ageHours / halfLife);
+
+      const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
+      const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
+
+      // Mild follow nudge (replaces affinityMul completely)
+      const followNudge = ctx.following.has(post.username) ? 1.2 : 1.0;
+
+      // Per-user content type weight (from feed_prefs)
+      const typeWeight = (ctx.contentTypeWeights && ctx.contentTypeWeights[contentType]) || 1.0;
+
+      // Seen penalty: absolute kill if already viewed
+      const seenPenalty = ctx.seenIds.has(String(post.id)) ? 0 : 1.0;
+
+      // Liked penalty: absolute kill if user has already liked this post
+      const likedPenalty = (ctx.username && Array.isArray(post.likes) && post.likes.includes(ctx.username)) ? 0 : 1.0;
+
+      // Self penalty: don't show own posts
+      const selfPenalty = post.username === ctx.username ? 0.1 : 1.0;
+
+      // Negative signal suppression
+      let negPenalty = 1.0;
+      if (ctx.negativeSignals) {
+        const sigs = ctx.negativeSignals.get(post.username) || [];
+        for (const s of sigs) {
+          if (s.type === 'hide') { negPenalty = 0; break; }
+          if (s.type === 'not_interested' && s.contentType === contentType) negPenalty *= 0.1;
+          if (s.type === 'skip' && s.contentType === contentType) negPenalty *= 0.3;
+        }
+        // If 3+ skips on same author for any type, suppress entirely
+        const skipCount = sigs.filter(s => s.type === 'skip').length;
+        if (skipCount >= 3) negPenalty = 0;
+      }
+
+      // Per-category weight multiplier (from feed_prefs.categoryWeights)
+      let catWeight = 1.0;
+      const postCats = post.categories || [];
+      if (ctx.categoryWeights) {
+        for (const c of postCats) {
+          const w = ctx.categoryWeights[c];
+          if (w !== undefined) { catWeight = w; break; }
+        }
+        // Fallback: if none of the post's categories have a weight, check if user has the category as interest
+        if (catWeight === 1.0 && ctx.userCategories && postCats.length > 0) {
+          if (postCats.some(c => ctx.userCategories.includes(c))) catWeight = 1.3;
+        }
+      } else if (ctx.userCategories && ctx.userCategories.length > 0) {
+        if (postCats.some(c => ctx.userCategories.includes(c))) catWeight = 1.3;
+      }
+
+      const freshnessWeight = ctx.tab === 'following' ? 15.0 : 10.0;
+      const velocityWeight = ctx.tab === 'following' ? 5.0 : 4.0;
+
+      const score = (
+        (freshness * freshnessWeight) +
+        (velocity * velocityWeight)
+      ) * followNudge * typeWeight * seenPenalty * likedPenalty * selfPenalty * negPenalty * catWeight;
+
+      if (ctx.username && post.id && process.env.LOG_SCORES) {
+        console.log(`[score] user=${ctx.username} post=${post.id} score=${score.toFixed(4)} freshness=${freshness.toFixed(4)} velocity=${velocity.toFixed(4)} followNudge=${followNudge} typeWeight=${typeWeight} seenPenalty=${seenPenalty} negPenalty=${negPenalty} catWeight=${catWeight}`);
+      }
+
+      return score + (Math.random() * 0.2);
+    }
+
+    // Build user context for scoring
+    async function buildUserContext(username, tab, seenIds, pg, limit) {
+      const { following: fSet, friends: frSet, blocked: bSet } = memoryDb && memoryDb.isReady
+        ? memoryDb.getUserSets(username)
+        : { following: new Set(), friends: new Set(), blocked: new Set() };
+
+      const following = new Set([...fSet, ...frSet]);
+
+      // Feed preferences
+      let feedPrefs = {};
+      let userCategories = [];
+      let negativeSignals = new Map();
+      if (memoryDb && memoryDb.isReady) {
+        const userData = memoryDb.findUser(username);
+        if (userData) {
+          feedPrefs = userData.feed_prefs || {};
+          userCategories = userData.categories || [];
+          negativeSignals = memoryDb.getNegativeSignals(username) || new Map();
+        }
+      }
+
+      const clientSeenIds = new Set((seenIds || '').split(',').filter(Boolean));
+      if (memoryDb && memoryDb.isReady) {
+        const serverSeen = memoryDb.getSeenPosts(username);
+        serverSeen.forEach(id => clientSeenIds.add(id));
+      } else {
+        if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set());
+        userPostSeenMap.get(username).forEach(id => clientSeenIds.add(id));
+      }
+
+      const categoryWeights = feedPrefs.categoryWeights || {};
+      if (process.env.LOG_SCORES && Object.keys(categoryWeights).length > 0) {
+        console.log(`[context] user=${username} categoryWeights=${JSON.stringify(categoryWeights)} contentTypeWeights=${JSON.stringify(feedPrefs.contentTypeWeights)}`);
+      }
+
+      return {
+        username,
+        following: new Set([...fSet, ...frSet]),
+        blocked: bSet,
+        tab,
+        seenIds: clientSeenIds,
+        contentTypeWeights: feedPrefs.contentTypeWeights || {},
+        categoryWeights,
+        userCategories,
+        negativeSignals,
+        ageHours: 0,
+      };
+    }
+
+    // Last N posts pool (configurable, defaults to 700)
+    const POST_POOL_LIMIT = 700;
+
+    // ─── MemoryDB fast path (unified scoring) ───
+    if (memoryDb && memoryDb.isReady && !isPublic) {
+      let pool = memoryDb.posts.filter(p =>
+        p && p.id && p.username &&
+        !p.disabled &&
+        !(p.type && p.type.startsWith('group')) &&
+        !blockedUsers.has(p.username)
+      );
+
+      // Sort by created_at desc and take last POST_POOL_LIMIT
+      pool.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      pool = pool.slice(0, POST_POOL_LIMIT);
+
+      if (tab === 'following') {
+        if (isColdStart) return res.json([]);
+        const { following: fSet, friends: frSet } = memoryDb.getUserSets(username);
+        const connected = new Set([...fSet, ...frSet]);
+        pool = pool.filter(p => connected.has(p.username));
+      }
+
+      const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
+      const now = Date.now();
+      const HOUR = 3600000;
+
+      const scored = pool.map(p => {
+        const ageMs = now - new Date(p.created_at).getTime();
+        return {
+          ...p,
+          _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, ageMs / HOUR) })
+        };
+      });
+
+      scored.sort((a, b) => b._score - a._score);
+
+      // Diversity: max 2 per author (4 for cold-start)
+      function diversify(arr, targetCount) {
+        const result = [];
+        const skipped = [];
+        const userCount = new Map();
+        const maxPer = isColdStart ? 4 : 2;
+        for (const post of arr) {
+          if (result.length >= targetCount * 2) break;
+          const cnt = userCount.get(post.username) || 0;
+          if (cnt < maxPer) {
+            result.push(post);
+            userCount.set(post.username, cnt + 1);
+          } else {
+            skipped.push(post);
+          }
+        }
+        if (result.length < targetCount * 2) {
+          for (const post of skipped) {
+            if (result.length >= targetCount * 2) break;
+            result.push(post);
+          }
+        }
+        const final = [];
+        const fc = new Map();
+        for (const post of result) {
+          if (final.length >= targetCount) break;
+          const cnt = fc.get(post.username) || 0;
+          if (cnt < maxPer) {
+            final.push(post);
+            fc.set(post.username, cnt + 1);
+          } else {
+            final.push(post);
+          }
+        }
+        return final.length >= targetCount ? final : result.slice(0, targetCount);
+      }
+
+      const startIdx = (pg - 1) * limit;
+      const bestNext = scored.slice(startIdx, startIdx + limit * 2);
+      const final = diversify(bestNext, limit).map(({ _score, ...p }) => p);
+
+      final.forEach(p => memoryDb.markPostSeen(username, p.id));
+
+      // Attach verified flags
+      const unames = [...new Set(final.map(p => p.username))];
+      const vMap = memoryDb.getVerifiedMap(unames);
+      final.forEach(p => p.verified = vMap[p.username] || false);
+
+      return res.json(final);
+    }
+    // ─── End MemoryDB fast path ───
+
+    // ─── Fallback paths (DB query) ───
+    const clientSeenIds = new Set((seenIds || '').split(',').filter(Boolean));
+    if (username && !isPublic) {
+      if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set());
+      userPostSeenMap.get(username).forEach(id => clientSeenIds.add(id));
+    }
+    const NOW = Date.now();
+    const HOUR = 3600000;
+
+    if (tab === 'following') {
       if (!username || isColdStart) {
-        // Fall back to trending for logged-out or cold-start users
         const { data: posts } = await supabase2
-          .from("Posts")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(POST_LIMIT);
+          .from('Posts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(POST_POOL_LIMIT);
         if (!posts) return res.json([]);
         const filtered = posts.filter(p => p && p.id && p.username && !(p.disabled === true));
-        const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
-        // Merge server-side seen posts
-        if (username) {
-          if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set());
-          userPostSeenMap.get(username).forEach(id => clientSeenIds.add(id));
-        }
-        const now = Date.now();
-        const HOUR = 3600000;
-        const scored = filtered.map(p => {
-          const ageMs = now - new Date(p.created_at).getTime();
-          const ageHours = Math.max(0.1, ageMs / HOUR);
-          const likes = (p.likes || []).length;
-          const comments = (p.comments || []).length;
-          const reactions = (p.reactions || []).length;
-          const freshness = Math.pow(0.5, ageHours / 12);
-          const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
-          const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
-          let typeBonus = 1.0;
-          if (p.media && p.media.length > 0) typeBonus = 2.0;
-          const seenPenalty = clientSeenIds.has(String(p.id)) ? 0.00001 : 1.0;
-          const score = (freshness * 10 + velocity * 5 + typeBonus * 2) * seenPenalty;
-          return { ...p, _score: score + (Math.random() * 0.5) };
-        });
+        const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
+        const scored = filtered.map(p => ({
+          ...p,
+          _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
+        }));
         scored.sort((a, b) => b._score - a._score);
-        const sliced = scored.slice(0, limit).map(({ _score, ...p }) => p);
-        if (username) {
-          const serverSet = userPostSeenMap.get(username);
-          if (serverSet) {
-            sliced.forEach(p => serverSet.add(String(p.id)));
-            if (serverSet.size > 2000) {
-              const iter = serverSet.keys();
-              for (let i = 0; i < 500; i++) serverSet.delete(iter.next().value);
-            }
+        const sliced = scored.slice((pg - 1) * limit, (pg - 1) * limit + limit).map(({ _score, ...p }) => p);
+        sliced.forEach(p => {
+          clientSeenIds.add(String(p.id));
+          if (username) {
+            if (memoryDb && memoryDb.isReady) memoryDb.markPostSeen(username, p.id);
+            else if (!isPublic) { if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set()); userPostSeenMap.get(username).add(String(p.id)); }
           }
+        });
+        if (clientSeenIds.size > 2000) {
+          const iter = clientSeenIds.keys();
+          for (let i = 0; i < 500; i++) clientSeenIds.delete(iter.next().value);
         }
         return res.json(sliced);
       }
       const followingsAndFriends = [...new Set([...userFollowing, ...userFriends])].filter(u => !blockedUsers.has(u));
       if (followingsAndFriends.length === 0) return res.json([]);
 
-      const { data: posts, error: postErr } = await supabase2
-        .from("Posts")
-        .select("*")
-        .in("username", followingsAndFriends)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (postErr || !posts) return res.json([]);
+      const { data: posts } = await supabase2
+        .from('Posts')
+        .select('*')
+        .in('username', followingsAndFriends)
+        .order('created_at', { ascending: false })
+        .limit(POST_POOL_LIMIT);
+      if (!posts) return res.json([]);
+      const filtered = posts.filter(p => p && p.id && p.username && !(p.type || '').toLowerCase().startsWith('group') && !(p.disabled === true));
 
-      const filtered = posts.filter(p =>
-        p && p.id && p.username &&
-        !(p.type && p.type.toLowerCase().startsWith("group")) &&
-        !(p.disabled === true)
-      );
-      const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
-      // Merge server-side seen posts
-      if (username) {
-        if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set());
-        userPostSeenMap.get(username).forEach(id => clientSeenIds.add(id));
-      }
-      const now = Date.now();
-      const HOUR = 3600000;
-      const scored = filtered.map(p => {
-        const ageMs = now - new Date(p.created_at).getTime();
-        const ageHours = Math.max(0.1, ageMs / HOUR);
-        const likes = (p.likes || []).length;
-        const comments = (p.comments || []).length;
-        const reactions = (p.reactions || []).length;
-
-        const isFriend = userFriends.has(p.username);
-        const isFollowing = userFollowing.has(p.username);
-        const affinityMul = isFriend ? 4.0 : isFollowing ? 2.5 : 1.0;
-
-        const halfLifeHours = isFriend || isFollowing ? 24 : 12;
-        const freshness = Math.pow(0.5, ageHours / halfLifeHours);
-
-        const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
-        const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
-
-        let typeBonus = 1.0;
-        if (p.type === "live") typeBonus = 3.0;
-        if (p.media && p.media.length > 0) typeBonus = 1.5;
-        if (p.type === "poll") typeBonus = 1.2;
-
-        const isSeen = clientSeenIds.has(String(p.id));
-        const seenPenalty = isSeen ? 0.00001 : 1.0;
-        const selfPenalty = p.username === username ? 0.1 : 1.0;
-        const hasLiked = (p.likes || []).includes(username);
-        const likedBoost = hasLiked ? 1.0 : 2.0;
-
-        const score = (
-          (freshness * 12) +
-          (velocity * 4) +
-          (typeBonus * 2)
-        ) * affinityMul * seenPenalty * selfPenalty * likedBoost;
-
-        return { ...p, _score: score + (Math.random() * 0.3) };
-      });
+      const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
+      const scored = filtered.map(p => ({
+        ...p,
+        _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
+      }));
       scored.sort((a, b) => b._score - a._score);
       const startIndex = (pg - 1) * limit;
       const final = scored.slice(startIndex, startIndex + limit).map(({ _score, ...p }) => p);
-      if (username) {
-        const serverSet = userPostSeenMap.get(username);
-        if (serverSet) {
-          final.forEach(p => serverSet.add(String(p.id)));
-          if (serverSet.size > 2000) {
-            const iter = serverSet.keys();
-            for (let i = 0; i < 500; i++) serverSet.delete(iter.next().value);
-          }
+      final.forEach(p => {
+        clientSeenIds.add(String(p.id));
+        if (username) {
+          if (memoryDb && memoryDb.isReady) memoryDb.markPostSeen(username, p.id);
+          else if (!isPublic) { if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set()); userPostSeenMap.get(username).add(String(p.id)); }
         }
+      });
+      if (clientSeenIds.size > 2000) {
+        const iter = clientSeenIds.keys();
+        for (let i = 0; i < 500; i++) clientSeenIds.delete(iter.next().value);
       }
       return res.json(final);
     }
 
-    // Tab is "foryou": fetch posts
+    // Tab is "foryou" — fallback
     let fetchedPosts = [];
-    if (!isPublic) {
-      try {
-        const [meResult, postsResult] = await Promise.all([
-          supabase.from("users").select("following, friends, blocked_users").eq("username", username).single(),
-          supabase2.from("Posts").select("*").order("created_at", { ascending: false }).limit(POST_LIMIT)
-        ]);
-        if (meResult.data) {
-          userFollowing = new Set(meResult.data.following || []);
-          userFriends = new Set(meResult.data.friends || []);
-          blockedUsers = new Set(meResult.data.blocked_users || []);
-        }
-        fetchedPosts = postsResult.data || [];
-      } catch {
-        const { data } = await supabase2.from("Posts").select("*").order("created_at", { ascending: false }).limit(POST_LIMIT);
-        fetchedPosts = data || [];
+    try {
+      const [meResult, postsResult] = await Promise.all([
+        !isPublic ? supabase.from('users').select('following, friends, blocked_users').eq('username', username).single() : Promise.resolve({ data: null }),
+        supabase2.from('Posts').select('*').order('created_at', { ascending: false }).limit(POST_POOL_LIMIT)
+      ]);
+      if (meResult?.data) {
+        userFollowing = new Set(meResult.data.following || []);
+        userFriends = new Set(meResult.data.friends || []);
+        blockedUsers = new Set(meResult.data.blocked_users || []);
       }
-    } else {
-      const { data } = await supabase2.from("Posts").select("*").order("created_at", { ascending: false }).limit(POST_LIMIT);
+      fetchedPosts = postsResult.data || [];
+    } catch {
+      const { data } = await supabase2.from('Posts').select('*').order('created_at', { ascending: false }).limit(POST_POOL_LIMIT);
       fetchedPosts = data || [];
     }
 
     if (!fetchedPosts.length) return res.json([]);
 
-    // Filter
     const eligible = fetchedPosts.filter(p =>
-      p && p.id && p.username &&
-      !p.group_id && !p.isGroupPost &&
-      !blockedUsers.has(p.username) &&
-      !(p.disabled === true)
+      p && p.id && p.username && !p.group_id && !p.isGroupPost && !blockedUsers.has(p.username) && !(p.disabled === true)
     );
     if (!eligible.length) return res.json([]);
 
-    const clientSeenIds = new Set((seenIds || "").split(",").filter(Boolean));
-    // Merge server-side seen posts
-    if (username && !isPublic) {
-      if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set());
-      userPostSeenMap.get(username).forEach(id => clientSeenIds.add(id));
-    }
-    const now = Date.now();
-    const HOUR = 3600000;
-    const userMobcoins = {};
+    const ctx = await buildUserContext(username, 'foryou', seenIds, pg, limit);
 
-    // Fetch popularity data for cold-start users
-    let popularCreators = new Set();
-    let verifiedCreators = new Set();
-    if (isColdStart || isPublic) {
-      try {
-        const { data: authors } = await supabase
-          .from("users")
-          .select("username, verified, followers")
-          .in("username", [...new Set(eligible.map(p => p.username))]);
-        if (authors) {
-          authors.forEach(u => {
-            if (u.verified) verifiedCreators.add(u.username);
-            if (Array.isArray(u.followers) && u.followers.length > 20) popularCreators.add(u.username);
-          });
-        }
-      } catch { }
-    }
+    const scoredPosts = eligible.map(p => ({
+      ...p,
+      _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
+    }));
+    scoredPosts.sort((a, b) => b._score - a._score);
 
-    function scorePost(p) {
-      const ageMs = now - new Date(p.created_at).getTime();
-      const ageHours = Math.max(0.1, ageMs / HOUR);
-      const likes = (p.likes || []).length;
-      const comments = (p.comments || []).length;
-      const reactions = (p.reactions || []).length;
-
-      const isFriend = userFriends.has(p.username);
-      const isFollowing = userFollowing.has(p.username);
-      const affinityMul = isFriend ? 5.0 : isFollowing ? 3.0 : 1.0;
-
-      const friendLiked = (p.likes || []).some(l => userFollowing.has(l));
-      const friendCommented = (p.comments || []).some(c => userFollowing.has(c?.username || c));
-      const socialProof = (friendLiked ? 2.0 : 0) + (friendCommented ? 3.0 : 0);
-
-      // Cold-start: longer half-life so good content lasts
-      const halfLifeHours = isColdStart || isPublic ? 12 : (isFriend || isFollowing ? 12 : 3);
-      const freshness = Math.pow(0.5, ageHours / halfLifeHours);
-
-      const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
-      const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
-
-      // Cold-start: boost velocity weight for trending content
-      const velocityWeight = (isColdStart || isPublic) ? 8.0 : 3.0;
-
-      let typeBonus = 1.0;
-      if (p.type === "live") typeBonus = 3.0;
-      if (p.media && p.media.length > 0) typeBonus = (isColdStart || isPublic) ? 2.5 : 1.5;
-      if (p.type === "poll") typeBonus = (isColdStart || isPublic) ? 2.0 : 1.2;
-
-      const isSeen = clientSeenIds.has(String(p.id));
-      const seenPenalty = isSeen ? 0.00001 : 1.0;
-      const selfPenalty = (p.username === username && !isPublic) ? 0.1 : 1.0;
-      const hasLiked = (p.likes || []).includes(username);
-      const likedBoost = hasLiked ? 1.0 : 2.0;
-
-      // Cold-start: popularity boost for verified / popular creators
-      let popularityMul = 1.0;
-      if (isColdStart || isPublic) {
-        if (verifiedCreators.has(p.username)) popularityMul = 2.0;
-        else if (popularCreators.has(p.username)) popularityMul = 1.5;
-      }
-
-      const userInfluence = (userMobcoins[p.username] || 0) * 0.05;
-
-      const base = (
-        (freshness * 10.0) +
-        (velocity * velocityWeight) +
-        (socialProof * 2.0)
-      ) * affinityMul * typeBonus * seenPenalty * selfPenalty * popularityMul * likedBoost;
-
-      return base + userInfluence + (Math.random() * 0.2);
-    }
-
-    const aiPosts = eligible.filter(p => p.username === "textmobai" && !clientSeenIds.has(String(p.id)));
-    const humanPosts = eligible
-      .filter(p => p.username !== "textmobai")
-      .map(p => ({ p, s: scorePost(p) }))
-      .sort((a, b) => b.s - a.s)
-      .map(x => x.p);
-
-    function diversify(posts, targetCount) {
+    // Diversity pass
+    function diversify(arr, targetCount) {
       const result = [];
       const skipped = [];
       const userCount = new Map();
-      for (const post of posts) {
+      const maxPer = (isColdStart || isPublic) ? 4 : 2;
+      for (const post of arr) {
         if (result.length >= targetCount) break;
-        const count = userCount.get(post.username) || 0;
-        if (count < 2) {
+        const cnt = userCount.get(post.username) || 0;
+        if (cnt < maxPer) {
           result.push(post);
-          userCount.set(post.username, count + 1);
+          userCount.set(post.username, cnt + 1);
         } else {
           skipped.push(post);
         }
@@ -8357,72 +7465,48 @@ app.get("/get-posts", async (req, res) => {
       return result;
     }
 
-    // Cold-start: diversify more by allowing 4 per author instead of 2
-    const diversifyMaxPerUser = (isColdStart || isPublic) ? 4 : 2;
-    (function diversifyCustom() {
-      const result = [];
-      const skipped = [];
-      const userCount = new Map();
-      for (const post of humanPosts) {
-        if (result.length >= limit * 2) break;
-        const count = userCount.get(post.username) || 0;
-        if (count < diversifyMaxPerUser) {
-          result.push(post);
-          userCount.set(post.username, count + 1);
-        } else {
-          skipped.push(post);
-        }
-      }
-      if (result.length < limit * 2) {
-        for (const post of skipped) {
-          if (result.length >= limit * 2) break;
-          result.push(post);
-        }
-      }
-      humanPosts.length = 0;
-      humanPosts.push(...result);
-    })();
+    const humanPosts = scoredPosts.filter(p => p.username !== 'textmobai');
+    const aiPosts = scoredPosts.filter(p => p.username === 'textmobai' && !clientSeenIds.has(String(p.id)));
 
-    const bestNextPosts = humanPosts.slice(0, limit * 2);
-    const diversified = diversify(bestNextPosts, limit);
+    const startIdx = (pg - 1) * limit;
+    const bestNext = humanPosts.slice(startIdx, startIdx + limit * 2);
+    const diversified = diversify(bestNext, limit);
 
-    function interleaveAI(humanArr, aiArr) {
-      if (!aiArr.length) return humanArr;
-      const result = [];
-      let aiIdx = 0;
-      for (let i = 0; i < humanArr.length; i++) {
-        result.push(humanArr[i]);
-        if ((i + 1) % 5 === 0 && aiIdx < aiArr.length) {
-          result.push(aiArr[aiIdx++]);
-        }
+    // Interleave AI posts every 5th position
+    const finalFeed = [];
+    let aiIdx = 0;
+    for (let i = 0; i < diversified.length; i++) {
+      finalFeed.push({ ...diversified[i] });
+      delete finalFeed[finalFeed.length - 1]._score;
+      if ((i + 1) % 5 === 0 && aiIdx < aiPosts.length) {
+        finalFeed.push({ ...aiPosts[aiIdx++] });
+        delete finalFeed[finalFeed.length - 1]._score;
       }
-      return result;
     }
 
-    const finalFeed = interleaveAI(diversified, aiPosts);
-
-    const usernames = [...new Set(finalFeed.map(p => p.username))];
-    if (usernames.length > 0) {
+    const unames = [...new Set(finalFeed.map(p => p.username))];
+    if (unames.length > 0) {
       const { data: authors } = await supabase
-        .from("users")
-        .select("username, verified")
-        .in("username", usernames);
+        .from('users')
+        .select('username, verified')
+        .in('username', unames);
       if (authors) {
-        const verifiedMap = {};
-        authors.forEach(u => verifiedMap[u.username] = u.verified || false);
-        finalFeed.forEach(p => p.verified = verifiedMap[p.username] || false);
+        const vm = {};
+        authors.forEach(u => vm[u.username] = u.verified || false);
+        finalFeed.forEach(p => p.verified = vm[p.username] || false);
       }
     }
 
-    if (username && !isPublic) {
-      const serverSet = userPostSeenMap.get(username);
-      if (serverSet) {
-        finalFeed.forEach(p => serverSet.add(String(p.id)));
-        if (serverSet.size > 2000) {
-          const iter = serverSet.keys();
-          for (let i = 0; i < 500; i++) serverSet.delete(iter.next().value);
-        }
+    finalFeed.forEach(p => {
+      clientSeenIds.add(String(p.id));
+      if (username) {
+        if (memoryDb && memoryDb.isReady) memoryDb.markPostSeen(username, p.id);
+        else if (!isPublic) { if (!userPostSeenMap.has(username)) userPostSeenMap.set(username, new Set()); userPostSeenMap.get(username).add(String(p.id)); }
       }
+    });
+    if (clientSeenIds.size > 2000) {
+      const iter = clientSeenIds.keys();
+      for (let i = 0; i < 500; i++) clientSeenIds.delete(iter.next().value);
     }
 
     res.json(finalFeed);
@@ -8630,219 +7714,6 @@ app.get('/get-user-postse', async (req, res) => {
   }
 });
 
-/**
- * 2. GET /get-user-friends?username=…
- *
- * Returns full profiles of everyone in user.friends (an array of usernames)
- */
-app.get('/get-user-friends', async (req, res) => {
-  const { username } = req.query
-  if (!username) return res.status(400).json({ error: 'username is required' })
-
-  try {
-    // First pull the friends array from the user row
-    const { data: user, error: uErr } = await supabase
-      .from('users')
-      .select('friends')
-      .eq('username', username)
-      .single()
-
-    if (uErr) throw uErr
-    if (!user) return res.status(404).json({ error: 'User not found' })
-
-    if (!Array.isArray(user.friends) || user.friends.length === 0) {
-      return res.json([])
-    }
-
-    // Then fetch their profiles
-    const { data: friends, error: fErr } = await supabase
-      .from('users')
-      .select('fullname, username, profile_pic')
-      .in('username', user.friends)
-
-    if (fErr) throw fErr
-    res.json(friends)
-  } catch (err) {
-    console.error('Error fetching friends:', err)
-    res.status(500).json({ error: 'Failed to fetch friends' })
-  }
-})
-// GET /get-all-media?username=…
-app.get("/get-all-media", async (req, res) => {
-  try {
-    const { username } = req.query;
-    if (!username) return res.status(400).json({ error: "Username is required" });
-
-    // 1) Load your relationships
-    const { data: you, error: youErr } = await supabase
-      .from("users")
-      .select("friends, followers, following")
-      .eq("username", username)
-      .single();
-    if (youErr || !you) return res.status(404).json({ error: "User not found" });
-    const { friends = [], followers = [], following = [] } = you;
-
-    // 2) Fetch ALL posts once
-    const { data: posts = [], error: postsErr } = await supabase2
-      .from("Posts")
-      .select("media, likes, comments, username");
-    if (postsErr) throw postsErr;
-
-    // 3) Partition media arrays
-    const own = [];
-    const liked = [];
-    const commented = [];
-
-    for (const p of posts) {
-      const mArr = Array.isArray(p.media) ? p.media : [];
-      // own posts
-      if (p.username === username) {
-        own.push(...mArr);
-      }
-      // liked posts (JS-level check)
-      if (Array.isArray(p.likes) && p.likes.includes(username)) {
-        liked.push(...mArr);
-      }
-      // commented posts (JS-level check)
-      if (
-        Array.isArray(p.comments) &&
-        p.comments.some(c => c.username === username)
-      ) {
-        commented.push(...mArr);
-      }
-    }
-
-    // 4) Fetch profile pics
-    const fetchPics = async list => {
-      if (!list.length) return [];
-      const { data, error } = await supabase
-        .from("users")
-        .select("profile_pic")
-        .in("username", list);
-      if (error) throw error;
-      return data.map(u => u.profile_pic).filter(Boolean);
-    };
-    const [friendsPics, followersPics, followingPics] = await Promise.all([
-      fetchPics(friends),
-      fetchPics(followers),
-      fetchPics(following),
-    ]);
-
-    // 5) Return grouped object
-    res.json({
-      own,
-      liked,
-      commented,
-      friends: friendsPics,
-      followers: followersPics,
-      following: followingPics,
-    });
-  } catch (err) {
-    console.error("Error in /get-all-media:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-app.get('/get-user-following', async (req, res) => {
-  const { username } = req.query
-  if (!username) return res.status(400).json({ error: 'username is required' })
-
-  try {
-    const { data: user, error: uErr } = await supabase
-      .from('users')
-      .select('following')
-      .eq('username', username)
-      .single()
-
-    if (uErr) throw uErr
-    if (!user) return res.status(404).json({ error: 'User not found' })
-
-    if (!Array.isArray(user.following) || user.following.length === 0) {
-      return res.json([])
-    }
-
-    const { data: followers, error: fErr } = await supabase
-      .from('users')
-      .select('fullname, username, profile_pic, friends, followers, profile_type')
-      .in('username', user.following)
-
-    if (fErr) throw fErr
-    res.json(followers)
-  } catch (err) {
-    console.error('Error fetching followers:', err)
-    res.status(500).json({ error: 'Failed to fetch followers' })
-  }
-})
-
-app.get('/get-user-followers', async (req, res) => {
-  const { username } = req.query
-  if (!username) return res.status(400).json({ error: 'username is required' })
-
-  try {
-    const { data: user, error: uErr } = await supabase
-      .from('users')
-      .select('followers')
-      .eq('username', username)
-      .single()
-
-    if (uErr) throw uErr
-    if (!user) return res.status(404).json({ error: 'User not found' })
-
-    if (!Array.isArray(user.followers) || user.followers.length === 0) {
-      return res.json([])
-    }
-
-    const { data: followers, error: fErr } = await supabase
-      .from('users')
-      .select('fullname, username, profile_pic, friends, followers, profile_type')
-      .in('username', user.followers)
-
-    if (fErr) throw fErr
-    res.json(followers)
-  } catch (err) {
-    console.error('Error fetching followers:', err)
-    res.status(500).json({ error: 'Failed to fetch followers' })
-  }
-})
-
-/**
- * 4. GET /get-user-hashtags?username=…
- *
- * Scans all of a user’s post.text for #hashtags and returns a unique list
- */
-app.get('/get-user-hashtags', async (req, res) => {
-  const { username } = req.query
-  if (!username) return res.status(400).json({ error: 'username is required' })
-
-  try {
-    // grab just the text of all posts
-    const { data: posts, error } = await supabase2
-      .from('Posts')
-      .select('text')
-      .eq('username', username)
-
-    if (error) throw error
-
-    const tagSet = new Set()
-    const regex = /#([A-Za-z0-9_]+)/g
-
-    posts.forEach(p => {
-      let m
-      while ((m = regex.exec(p.text || ''))) {
-        tagSet.add(m[1])
-      }
-    })
-
-    res.json(Array.from(tagSet))
-  } catch (err) {
-    console.error('Error extracting hashtags:', err)
-    res.status(500).json({ error: 'Failed to fetch hashtags' })
-  }
-})
-app.get('/app', function (req, res) {
-  res.redirect('https://github.com/ISMO123-CMYK/Textmob-web-app/raw/refs/heads/main/thetextmobapp.apk')
-})
-
 app.post('/events', async (req, res) => {
   const { username, title, text, scheduled_for, location, registration_url, visib } = req.body;
   if (!username || !title.trim() || !text.trim() || !scheduled_for) {
@@ -8864,6 +7735,11 @@ app.post('/events', async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  // Update memoryDB immediately
+  if (memoryDb && memoryDb.isReady && data) {
+    memoryDb.upsertPost(data);
+  }
 
   res.json({ event: data });
 });
@@ -9308,6 +8184,11 @@ app.post("/profile/:username/update-type", async (req, res) => {
       return res.status(500).json({ error: "Failed to update profile type" });
     }
 
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { profile_type: finalType });
+    }
+
     res.json({ success: true, profile_type: finalType });
   } catch (err) {
     console.error("/update-type error:", err);
@@ -9336,6 +8217,11 @@ app.post("/profile/:username/notification-prefs", async (req, res) => {
       return res.status(500).json({ error: "Failed to update notification preferences" });
     }
 
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { notification_prefs });
+    }
+
     res.json({ success: true, notification_prefs });
   } catch (err) {
     console.error("/notification-prefs error:", err);
@@ -9343,6 +8229,110 @@ app.post("/profile/:username/notification-prefs", async (req, res) => {
   }
 });
 
+// ─── Feed Preferences ─────────────────────────────────────────────────
+app.post("/feed-prefs", async (req, res) => {
+  try {
+    const { username, feed_prefs } = req.body;
+    if (!username || !feed_prefs) {
+      return res.status(400).json({ error: "Username and feed_prefs required" });
+    }
+    const { error } = await supabase
+      .from("users")
+      .update({ feed_prefs })
+      .eq("username", username);
+    if (error) {
+      console.error("/feed-prefs DB error:", error);
+      return res.status(500).json({ error: "Failed to update feed preferences" });
+    }
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { feed_prefs });
+    }
+    res.json({ success: true, feed_prefs });
+  } catch (err) {
+    console.error("/feed-prefs error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── Negative Signal ──────────────────────────────────────────────────
+app.post("/negative-signal", async (req, res) => {
+  try {
+    const { username, postId, signalType, contentType } = req.body;
+    if (!username || !postId || !signalType) {
+      return res.status(400).json({ error: "username, postId, and signalType required" });
+    }
+    if (!['skip', 'hide', 'not_interested'].includes(signalType)) {
+      return res.status(400).json({ error: "signalType must be skip, hide, or not_interested" });
+    }
+    // Store in memoryDB session map
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.addNegativeSignal(username, { postId: String(postId), type: signalType, contentType: contentType || 'post', timestamp: Date.now() });
+    }
+    // Also persist to negative_signals table for cross-session durability
+    await supabase.from("negative_signals").insert({
+      username,
+      post_id: String(postId),
+      signal_type: signalType,
+      content_type: contentType || 'post',
+      created_at: new Date().toISOString()
+    }).then(r => { if (r.error) console.error("/negative-signal persist error:", r.error); });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("/negative-signal error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── Hall of Fame ─────────────────────────────────────────────────────
+app.get("/hof", async (req, res) => {
+  try {
+    // Check cache
+    if (memoryDb && memoryDb.isReady) {
+      const cached = memoryDb.getCachedLeaderboard(); // reuse leaderboard cache mechanism
+      if (cached && cached._hof) {
+        return res.json(cached._hof);
+      }
+    }
+    const curated = await curateHallOfFame();
+    // Cache result
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.setCachedLeaderboard({ _hof: curated, _cachedAt: Date.now() });
+    }
+    res.json(curated);
+  } catch (err) {
+    console.error("/hof error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── Update User Categories (onboarding interests) ────────────────────
+app.post("/update-categories", async (req, res) => {
+  try {
+    const { username, categories } = req.body;
+    if (!username || !Array.isArray(categories)) {
+      return res.status(400).json({ error: "Username and categories array required" });
+    }
+    const valid = categories.filter(c => POST_CATEGORIES.includes(c));
+    const { error } = await supabase
+      .from("users")
+      .update({ categories: valid })
+      .eq("username", username);
+    if (error) {
+      console.error("/update-categories DB error:", error);
+      return res.status(500).json({ error: "Failed to update categories" });
+    }
+    // Update memoryDB
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { categories: valid });
+    }
+    res.json({ success: true, categories: valid });
+  } catch (err) {
+    console.error("/update-categories error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 // — ADD member
 app.post('/groups/:groupId/members', async (req, res) => {
@@ -10093,6 +9083,11 @@ app.post(
         return res.status(500).json({ error: "Failed to create post" });
       }
 
+      // Update memoryDB immediately
+      if (memoryDb && memoryDb.isReady && data) {
+        memoryDb.upsertPost(data);
+      }
+
       // Award Mobcoins (best-effort)
       try {
         await updateMobcoins(
@@ -10447,22 +9442,6 @@ app.get('/api/detect-operator', async (req, res) => {
   }
 });
 
-// Route: POST /t/reward-user (e.g. admin or system trigger)
-app.post("/t/reward-user", async (req, res) => {
-  const { userId, amount, reason } = req.body;
-  if (!userId || !amount) return res.status(400).send("Missing userId or amount");
-
-  try {
-    const newBal = await updateMobcoins(userId, amount, true, reason || "Reward");
-    return res.json({ success: true, newBalance: newBal });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'newindex.html'));
-});
 
 // ─── WEEKLY RECAP SYSTEM ────────────────────────────────────────────────
 // Uses only raw DB queries. Skips users with zero activity (no posts + no engagement).
@@ -10600,8 +9579,9 @@ async function generateRecapAI(activity) {
     // Jitter to desync parallel workers
     await new Promise(r => setTimeout(r, 100 + Math.random() * 400));
     try {
+      const groqModel = "openai/gpt-oss-120b" === "openai/gpt-oss-120b" ? "llama-3.3-70b-versatile" : "openai/gpt-oss-120b";
       const aiRes = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
-        model: "openai/gpt-oss-120b",
+        model: groqModel,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Here's the user's weekly stats:\n${parts.join('\n')}\n\nWrite a short, friendly recap.` }
@@ -10769,33 +9749,6 @@ if (new Date().getDay() === 1 && new Date().getHours() >= 8 && new Date().getHou
   setTimeout(processAllWeeklyRecaps, 30000); // 30s delay to let server warm up
 }
 
-// Manual trigger endpoint (admin only)
-app.post("/admin/trigger-weekly-recap", express.json(), async (req, res) => {
-  try {
-    const { key, username } = req.body || {};
-    if (key !== 'secret_admin_key') {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-    if (username) {
-      await sendWeeklyRecapEmail(username);
-      return res.json({ ok: true, message: `Recap sent to ${username}` });
-    }
-    // Fire and forget full cycle
-    processAllWeeklyRecaps();
-    res.json({ ok: true, message: 'Weekly recap cycle started for all users' });
-  } catch (err) {
-    res.status(500).json({ error: err?.message });
-  }
-});
-
-// Status endpoint
-app.get("/api/weekly-recap-status", (req, res) => {
-  res.json({
-    weekKey: getWeekKey(),
-    usersSent: recapWeekSent.size,
-  });
-});
-
 function getLocalIP() {
   const os = require('os');
   const interfaces = os.networkInterfaces();
@@ -10808,9 +9761,397 @@ function getLocalIP() {
   }
   return 'localhost';
 }
+// ============================================================
+// ADMIN ROUTES (asilfcismail)
+// ============================================================
+
+app.get("/asilfcismail", (req, res) => {
+  res.sendFile(path.join(__dirname, "asilfcismail.html"));
+});
+
+app.get("/api/asilfcismail/data", async (req, res) => {
+  try {
+    const now = new Date();
+
+    let users, posts;
+
+    if (memoryDb && memoryDb.isReady && memoryDb.users.length > 0 && memoryDb.posts.length > 0) {
+      users = memoryDb.users;
+      posts = memoryDb.posts;
+    } else {
+      [users, posts] = await Promise.all([
+        fetchAll(
+          supabase,
+          "users",
+          "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, phone, notifications, email, profile_type, disabled, password"
+        ),
+        fetchAll(
+          supabase2,
+          "Posts",
+          "id, username, type, likes, comments, created_at, text, media, reactions"
+        )
+      ]);
+    }
+
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
+
+    // ANALYTICS LOGIC
+    const hourLabels = Array.from({ length: 24 }, (_, i) => `${23 - i} hours ago`);
+    const hourCounts = Array(24).fill(0);
+    const dayLabels = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (6 - i));
+      return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    });
+    const dayCounts = Array(7).fill(0);
+    const weekLabels = Array.from({ length: 4 }, (_, i) => i < 3 ? `${3 - i} weeks ago` : 'This Week');
+    const weekCounts = Array(4).fill(0);
+    const monthLabels = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - (11 - i));
+      return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    });
+    const monthCounts = Array(12).fill(0);
+
+    users.forEach(u => {
+      if (!u.created_at) return;
+      const d = new Date(u.created_at);
+      const diffMs = now - d;
+      const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+      if (diffH >= 0 && diffH < 24) hourCounts[23 - diffH]++;
+      const diffD = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      if (diffD >= 0 && diffD < 7) dayCounts[6 - diffD]++;
+      const diffW = Math.floor(diffD / 7);
+      if (diffW >= 0 && diffW < 4) weekCounts[3 - diffW]++;
+      const diffM = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
+      if (diffM >= 0 && diffM < 12) monthCounts[11 - diffM]++;
+    });
+
+    const postHourLabels = Array.from({ length: 24 }, (_, i) => `${23 - i} hours ago`);
+    const postHourCounts = Array(24).fill(0);
+    const postDayLabels = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (6 - i));
+      return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    });
+    const postDayCounts = Array(7).fill(0);
+    const postWeekLabels = Array.from({ length: 4 }, (_, i) => i < 3 ? `${3 - i} weeks ago` : 'This Week');
+    const postWeekCounts = Array(4).fill(0);
+    const postMonthLabels = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - (11 - i));
+      return d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    });
+    const postMonthCounts = Array(12).fill(0);
+
+    posts.forEach(p => {
+      if (!p.created_at) return;
+      const d = new Date(p.created_at);
+      const diffMs = now - d;
+      const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+      if (diffH >= 0 && diffH < 24) postHourCounts[23 - diffH]++;
+      const diffD = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      if (diffD >= 0 && diffD < 7) postDayCounts[6 - diffD]++;
+      const diffW = Math.floor(diffD / 7);
+      if (diffW >= 0 && diffW < 4) postWeekCounts[3 - diffW]++;
+      const diffM = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
+      if (diffM >= 0 && diffM < 12) postMonthCounts[11 - diffM]++;
+    });
+
+    const postMap = {};
+    posts.forEach(p => {
+      if (p.username) postMap[p.username] = (postMap[p.username] || 0) + 1;
+    });
+
+    const posts7dMap = {};
+    const likes7dMap = {};
+    const comments7dMap = {};
+    const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
+
+    recentPosts.forEach(p => {
+      if (p.username) {
+        let postScore = 0;
+        const hasMedia = p.media && p.media.length > 0;
+        const rawText = p.content || p.text || '';
+        const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
+        const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
+
+        if (hasMedia) postScore += 2;
+        if (wordCount > 3) postScore += 1;
+        else if (!hasMedia) postScore += 0.1;
+
+        posts7dMap[p.username] = (posts7dMap[p.username] || 0) + postScore;
+        likes7dMap[p.username] = (likes7dMap[p.username] || 0) + (Array.isArray(p.likes) ? p.likes.length : 0);
+        comments7dMap[p.username] = (comments7dMap[p.username] || 0) + (Array.isArray(p.comments) ? p.comments.length : 0);
+      }
+    });
+
+    const totalLikesPerUser = {};
+    const totalCommentsPerUser = {};
+    const totalReactionsPerUser = {};
+
+    posts.forEach(p => {
+      if (p.username) {
+        const likeCount = Array.isArray(p.likes) ? p.likes.length : 0;
+        const commentCount = Array.isArray(p.comments) ? p.comments.length : 0;
+        const reactionCount = Array.isArray(p.reactions) ? p.reactions.length : 0;
+
+        totalLikesPerUser[p.username] = (totalLikesPerUser[p.username] || 0) + likeCount;
+        totalCommentsPerUser[p.username] = (totalCommentsPerUser[p.username] || 0) + commentCount;
+        totalReactionsPerUser[p.username] = (totalReactionsPerUser[p.username] || 0) + reactionCount;
+      }
+    });
+
+    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai"];
+    const rankedUsers = users
+      .filter(u => !excluded.includes(u.username))
+      .map(u => {
+        const followers = Array.isArray(u.followers) ? u.followers.length : 0;
+        const coins = u.mobcoins || 0;
+        const userLikes = totalLikesPerUser[u.username] || 0;
+        const userComments = totalCommentsPerUser[u.username] || 0;
+        const userReactions = totalReactionsPerUser[u.username] || 0;
+        
+        // Hall of Fame Score: Content Appreciation (Likes & Reactions) + Comments + Followers + Mobcoins
+        const totalContentAppreciation = userLikes + userReactions;
+        const score = (totalContentAppreciation * 3) + (userComments * 2) + followers + Math.floor(coins / 50);
+        
+        return {
+          id: u.id,
+          username: u.username,
+          fullname: u.fullname || '',
+          avatar: u.profile_pic,
+          created_at: u.created_at,
+          score
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20);
+
+    const reactions7dMap = {};
+    recentPosts.forEach(p => {
+      if (p.username) {
+        const reactionCount = Array.isArray(p.reactions) ? p.reactions.length : 0;
+        reactions7dMap[p.username] = (reactions7dMap[p.username] || 0) + reactionCount;
+      }
+    });
+
+    const users7dMetrics = users
+      .filter(u => !excluded.includes(u.username))
+      .map(u => {
+        const posts7d = posts7dMap[u.username] || 0;
+        const likes7d = likes7dMap[u.username] || 0;
+        const comments7d = comments7dMap[u.username] || 0;
+        const reactions7d = reactions7dMap[u.username] || 0;
+        const totalEngagement7d = posts7d + likes7d + comments7d;
+        const totalReactions = reactions7d > 0 ? reactions7d : likes7d;
+        return {
+          username: u.username,
+          fullname: u.fullname || '',
+          avatar: u.profile_pic,
+          posts7d,
+          likes7d,
+          comments7d,
+          reactions7d,
+          totalEngagement7d,
+          mobcoins: u.mobcoins || 0,
+          totalReactions
+        };
+      });
+
+    const weighted7d = users7dMetrics.map(u => {
+      const s = 0.6 * u.totalEngagement7d + 0.2 * u.posts7d + 0.2 * u.totalReactions;
+      u.score7d = Math.round(s * 10) / 10;
+      return u;
+    });
+
+    weighted7d.sort((a, b) => b.score7d - a.score7d);
+    const topUsers7d = weighted7d.filter(u => u.score7d > 0).slice(0, 10);
+
+    const topCoinHolders = users
+      .map(u => ({
+        username: u.username,
+        fullname: u.fullname || '',
+        avatar: u.profile_pic,
+        mobcoins: u.mobcoins || 0
+      }))
+      .sort((a, b) => b.mobcoins - a.mobcoins)
+      .slice(0, 5);
+
+    const totalPosts = posts.length;
+    const pollPosts = posts.filter(p => p.type === "poll").length;
+    const normalPosts = posts.filter(p => p.type === "post" || !p.type || p.type === "text" || p.type === "media").length;
+    const anonPosts = posts.filter(p => p.type === "").length;
+    const eventPosts = posts.filter(p => p.type === "event").length;
+    const totalLikes = posts.reduce((s, p) => s + (Array.isArray(p.likes) ? p.likes.length : 0), 0);
+    const totalComments = posts.reduce((s, p) => s + (Array.isArray(p.comments) ? p.comments.length : 0), 0);
+    const avgLikes = totalPosts > 0 ? Math.round(totalLikes / totalPosts) : 0;
+    const avgComments = totalPosts > 0 ? Math.round(totalComments / totalPosts) : 0;
+    const engagementRate = totalPosts > 0 ? ((totalLikes + totalComments) / totalPosts).toFixed(2) : 0;
+    const totalMobcoins = users.reduce((s, u) => s + (u.mobcoins || 0), 0);
+
+    const prevWeekUsers = weekCounts[2] || 0;
+    const currWeekUsers = weekCounts[3] || 0;
+    const userWeeklyGrowth = prevWeekUsers > 0 ? ((currWeekUsers - prevWeekUsers) / prevWeekUsers * 100).toFixed(1) : '0';
+
+    const prevWeekPosts = postWeekCounts[2] || 0;
+    const currWeekPosts = postWeekCounts[3] || 0;
+    const postWeeklyGrowth = prevWeekPosts > 0 ? ((currWeekPosts - prevWeekPosts) / prevWeekPosts * 100).toFixed(1) : '0';
+
+    res.json({
+      users: users || [],
+      analytics: {
+        signups: { hourLabels, hourCounts, dayLabels, dayCounts, weekLabels, weekCounts, monthLabels, monthCounts },
+        postCreations: { hourLabels: postHourLabels, hourCounts: postHourCounts, dayLabels: postDayLabels, dayCounts: postDayCounts, weekLabels: postWeekLabels, weekCounts: postWeekCounts, monthLabels: postMonthLabels, monthCounts: postMonthCounts },
+        posts: { totalPosts, pollPosts, normalPosts, anonPosts, eventPosts, avgLikes, avgComments, totalLikes, totalComments, engagementRate },
+        topUsers: rankedUsers,
+        topUsers7d,
+        topCoinHolders,
+        postCountsPerUser: postMap,
+        totalMobcoins,
+        userWeeklyGrowth,
+        postWeeklyGrowth
+      }
+    });
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: "Server error generating analytics" });
+  }
+});
+
+app.get("/api/admin/payouts", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('redemption_queue')
+      .select('*, users(username, fullname, profile_pic)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/payout/update", async (req, res) => {
+  try {
+    const { id, status } = req.body;
+    if (!id || !status) return res.status(400).json({ error: "ID and status required" });
+    const { data: payout, error: fetchError } = await supabase
+      .from('redemption_queue')
+      .select('*, users(username, email, fullname)')
+      .eq('id', id)
+      .single();
+    if (fetchError) throw fetchError;
+    const { error: updateError } = await supabase
+      .from('redemption_queue')
+      .update({ status, processed_at: new Date().toISOString() })
+      .eq('id', id);
+    if (updateError) throw updateError;
+    const user = payout.users;
+    if (user && user.username) {
+      const msg = status === 'COMPLETED'
+        ? `Your redemption of ${payout.coin_amount} Mobcoins was processed!`
+        : `Your redemption request has been rejected.`;
+      const subject = status === 'COMPLETED' ? "Redemption Successful" : "Redemption Update";
+      await triggerNotification(user.username, 'mobcoins', { msg, subject, html: msg, link: "/wallet" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/admin/verification-requests", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('verification_requests')
+      .select('id, created_at, users(username)')
+      .eq('status', 'PENDING');
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/verification-update", async (req, res) => {
+  try {
+    const { id, status } = req.body;
+    if (!id || !['ACCEPTED', 'REJECTED'].includes(status)) return res.status(400).json({ error: "Invalid request" });
+    const updates = { status, updated_at: new Date().toISOString() };
+    if (status === 'ACCEPTED') {
+      const oneMonthFromNow = new Date();
+      oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+      updates.verified_until = oneMonthFromNow.toISOString();
+    }
+    const { data: request, error: updateError } = await supabase
+      .from('verification_requests')
+      .update(updates)
+      .eq('id', id)
+      .select('user_id, users(username)')
+      .single();
+    if (updateError) throw updateError;
+    if (status === 'ACCEPTED') {
+      await triggerNotification(request.users.username, 'verification', { msg: "You have been verified!", subject: "Verification Accepted!", html: `Hi @${request.users.username},<br><br>You are now verified!`, link: "/accountscenter" });
+    } else {
+      await triggerNotification(request.users.username, 'verification', { msg: "Your verification was rejected.", subject: "Verification Update", html: `Hi @${request.users.username},<br><br>Please ensure you meet all criteria.`, link: "/accountscenter" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/user/toggle-status", async (req, res) => {
+  try {
+    const { userId, disabled } = req.body;
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+    const { error } = await supabase.from('users').update({ disabled: !!disabled }).eq('id', userId);
+    if (error) throw error;
+    res.json({ success: true, disabled: !!disabled });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/user/update-coins", async (req, res) => {
+  try {
+    const { userId, mobcoins } = req.body;
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+    const { error } = await supabase.from('users').update({ mobcoins: parseInt(mobcoins) || 0 }).eq('id', userId);
+    if (error) throw error;
+    res.json({ success: true, mobcoins });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fallback catch-all route for SPA routing
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, 'asilfcismail.html'));
+});
+
+// Periodically persist seen maps to disk (every 5 minutes)
+setInterval(() => {
+  if (memoryDb && memoryDb.isReady) {
+    memoryDb.userPostSeenMap = userPostSeenMap;
+    memoryDb.userSnapSeenMap = userSnapSeenMap;
+    memoryDb.saveSeenMaps();
+  }
+}, 5 * 60 * 1000);
+
 if (require.main === module) {
-  server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  memoryDb.initialize().then(() => {
+    server.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }).catch(err => {
+    console.error('[MemoryDB] Failed to initialize. Starting without cache.', err);
+    server.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT} (NO CACHE)`);
+    });
   });
 }
 

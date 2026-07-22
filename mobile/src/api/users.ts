@@ -23,30 +23,20 @@ export interface SuggestedUser {
   mutuals?: number;
 }
 
-export async function followUserAPI(follower: string, following: string) {
-  return apiPost<{ ok: boolean }>('/follow-user', { follower, following });
-}
-
-export async function unfollowUserAPI(follower: string, following: string) {
-  return apiPost<{ ok: boolean }>('/unfollow-user', { follower, following });
-}
-
 export async function followAPI(username: string, currentUsername: string, action: string) {
-  return apiPost<{ status: string }>('/follow', { username, currentUsername, action });
+  const normAction = action === 'friend' ? 'follow' : action === 'unfriend' ? 'unfollow' : action;
+  return apiPost<{ status: string }>('/follow', { username, currentUsername, action: normAction });
 }
 
 export async function friendAPI(username: string, currentUsername: string, action: string) {
-  return apiPost<{ status: string }>('/friend', { username, currentUsername, action });
+  const normAction = action === 'follow' ? 'friend' : action === 'unfollow' ? 'unfriend' : action;
+  return apiPost<{ status: string }>('/friend', { username, currentUsername, action: normAction });
 }
 
 export async function getFollowStatusAPI(from: string, to: string) {
   return apiGet<{ status: string; profileType: string; label: string }>(
     `/follow-status?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
   );
-}
-
-export async function toggleFollowStatusAPI(follower: string, following: string) {
-  return apiPost<{ ok: boolean }>('/follow-status', { follower, following });
 }
 
 export async function getSuggestionsFeedAPI(username: string) {
@@ -85,4 +75,8 @@ export async function getFollowersAPI(username: string) {
 
 export async function getFollowingAPI(username: string) {
   return apiGet<UserProfile[]>(`/following?username=${encodeURIComponent(username)}`);
+}
+
+export async function searchGeneralAPI(query: string, currentUsername?: string) {
+  return apiGet<any[]>(`/general/search?query=${encodeURIComponent(query)}${currentUsername ? `&currentUsername=${encodeURIComponent(currentUsername)}` : ''}`);
 }

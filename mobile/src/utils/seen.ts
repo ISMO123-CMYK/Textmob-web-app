@@ -25,8 +25,7 @@ export function getSeenParam(): string {
 export function markSeen(ids: string[]) {
   ensureCache();
   ids.forEach(id => seenIdsCache!.add(String(id)));
-  const arr = Array.from(seenIdsCache!).slice(-2000);
-  storage.setStore(KEYS.VIEWED_IDS, JSON.stringify(arr));
+  storage.setStore(KEYS.VIEWED_IDS, JSON.stringify(Array.from(seenIdsCache!)));
 }
 
 export function resetSeen() {

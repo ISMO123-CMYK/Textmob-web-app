@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, Image, Modal,
-  Dimensions,
+  Dimensions, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,10 +13,13 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { getFeedPostsAPI, likePostAPI, addCommentAPI, reactPostAPI, getPostReactionsAPI, votePollAPI, Post } from '../../api/posts';
 import { getLivePostsAPI } from '../../api/live';
 import PostCard, { PostSkeleton } from '../../components/PostCard';
-import { API_BASE_URL } from '../../api/client';
+import { apiPost, apiGet, API_BASE_URL } from '../../api/client';
 import { storage, KEYS } from '../../utils/storage';
 import { getSeenParam, markSeen } from '../../utils/seen';
 import MobileHeader from '../../components/MobileHeader';
+
+const CATEGORIES = ['music','sports','gaming','news','education','entertainment','technology','fashion','art','food','travel','lifestyle','comedy','science','business','health'];
+const CONTENT_TYPES = ['live', 'media', 'poll', 'text'];
 
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 const REACTIONS = [
@@ -30,6 +33,7 @@ const REACTIONS = [
 ];
 
 function isGroupPost(p: Post) { return p.type?.toLowerCase().startsWith('group'); }
+const postKeyExtractor = (item: Post) => String(item.id);
 
 function SuggestionCard({ sug, onNavigate }: { sug: any; onNavigate: (path: string) => void }) {
   const { colors, isDark } = useTheme();
@@ -119,6 +123,8 @@ export default function HomeScreen() {
   const [liveCounts, setLiveCounts] = useState<Record<string, number>>({});
   const [activeIndex, setActiveIndex] = useState(-1);
   const [pullDelta, setPullDelta] = useState(0);
+  const [showFeedSettings, setShowFeedSettings] = useState(false);
+  const [feedPrefs, setFeedPrefs] = useState<{ contentTypeWeights: Record<string, number>; categoryWeights: Record<string, number> }>({ contentTypeWeights: {}, categoryWeights: {} });
   const pullStartY = useRef(0);
   const scrollY = useRef(0);
   const viewabilityConfigCallbackRef = useRef(({ changed, viewableItems }: any) => {
@@ -171,6 +177,27 @@ export default function HomeScreen() {
     };
   }, [tab]);
 
+  // Load feed preferences from the server
+  useEffect(() => {
+    if (!username) return;
+    apiGet(`/profile/${encodeURIComponent(username)}`).then((res: any) => {
+      if (res?.ok && res?.data?.feed_prefs) {
+        setFeedPrefs(res.data.feed_prefs);
+      }
+    }).catch(() => {});
+  }, [username]);
+
+  async function saveFeedPrefs(updates: Partial<typeof feedPrefs>) {
+    const newPrefs = { ...feedPrefs, ...updates };
+    setFeedPrefs(newPrefs);
+    if (username) {
+      await apiPost('/feed-prefs', {
+        username,
+        feed_prefs: newPrefs,
+      }).catch(() => {});
+    }
+  }
+
   const fetchPosts = useCallback(async (pageNum: number, isRefresh = false) => {
     setLoading(true);
     setError('');
@@ -187,7 +214,8 @@ export default function HomeScreen() {
         const filtered = (Array.isArray(res.data) ? res.data : []).filter(p => p && !isGroupPost(p));
         setPosts(prev => {
           const merged = pageNum === 1 ? filtered : [...prev, ...filtered];
-          return merged;
+          const seen = new Set();
+          return merged.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
         });
         setHasMore(filtered.length >= 10);
       } else {
@@ -260,20 +288,25 @@ export default function HomeScreen() {
 
   // Process reactions from post data
   useEffect(() => {
-    posts.forEach(p => {
-      if (p) {
+    const pendingFetch = new Set<string | number>();
+    setReactionCountsCache(prev => {
+      const next = { ...prev };
+      posts.forEach(p => {
+        if (!p) return;
+        const id = String(p.id);
         if (Array.isArray(p.reactions)) {
-          const data = computeReactionData(p.reactions, username);
-          setReactionCountsCache(c => ({ ...c, [String(p.id)]: data }));
-        } else if (!reactionCountsCache[String(p.id)]) {
-          fetchReactions(p.id);
+          next[id] = computeReactionData(p.reactions, username);
+        } else if (!prev[id]) {
+          pendingFetch.add(p.id);
         }
-      }
+      });
+      return next;
     });
-  }, [posts]);
+    pendingFetch.forEach(id => fetchReactions(id));
+  }, [posts, username]);
 
   // Poll vote
-  async function handlePollVote(postId: string | number, optionId: string | number) {
+  const handlePollVote = useCallback(async (postId: string | number, optionId: string | number) => {
     if (!username) return;
     setPosts(prev => prev.map(p => p.id === postId ? {
       ...p,
@@ -284,24 +317,31 @@ export default function HomeScreen() {
       }),
     } : p));
     await votePollAPI(String(postId), optionId, username).catch(() => {});
-  }
+  }, [username]);
 
   // Like
-  function handleLike(postId: string | number) {
+  const handleLike = useCallback((postId: string | number) => {
     if (!username) return;
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: p.likes?.includes(username) ? p.likes.filter(u => u !== username) : [...(p.likes || []), username] } : p));
     likePostAPI(String(postId), username).catch(() => {});
-  }
+  }, [username]);
+
+  // Negative signal
+  const handleNegativeSignal = useCallback((postId: string, signalType: string, contentType: string) => {
+    if (!username) return;
+    setPosts(prev => prev.filter(p => String(p.id) !== String(postId)));
+    apiPost('/negative-signal', { username, postId, signalType, contentType }).catch(() => {});
+  }, [username]);
 
   // Comment
-  async function handleComment(postId: string | number, text: string) {
+  const handleComment = useCallback(async (postId: string | number, text: string) => {
     if (!username || !text.trim()) return;
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: [...(p.comments || []), { id: Date.now().toString(), username, text: text.trim(), created_at: new Date().toISOString() }] } : p));
     await addCommentAPI(String(postId), username, text.trim()).catch(() => {});
-  }
+  }, [username]);
 
   // React
-  function handleReact(postId: string | number, reaction: string, etext: string) {
+  const handleReact = useCallback((postId: string | number, reaction: string, etext: string) => {
     if (!username) return;
     setPosts(prev => prev.map(p => {
       if (!p || p.id !== postId) return p;
@@ -324,7 +364,7 @@ export default function HomeScreen() {
         setReactionCountsCache(c => ({ ...c, [String(postId)]: computeReactionData(res.data.reactions, username) }));
       }
     }).catch(() => setTimeout(() => fetchReactions(postId), 1500));
-  }
+  }, [username, posts]);
 
   // Flush new posts
   function flushNewPosts() {
@@ -423,7 +463,7 @@ export default function HomeScreen() {
   }
 
   // Render post with suggestion slots
-  const renderPost = ({ item, index }: { item: Post; index: number }) => {
+  const renderPost = useCallback(({ item, index }: { item: Post; index: number }) => {
     const showSuggestion = (index + 1) % 5 === 0 && suggestions.length > 0;
     return (
       <View>
@@ -443,14 +483,14 @@ export default function HomeScreen() {
         {showSuggestion && <SuggestionSlot suggestions={suggestions} slotIndex={Math.floor(index / 5)} />}
       </View>
     );
-  };
+  }, [isFocused, activeIndex, liveCounts, reactionCountsCache, reactionsOpenFor, suggestions, handlePollVote, handleComment, handleLike, handleReact]);
 
-  const s = makeStyles(colors, isDark);
+  const s = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
   // Error state
   if (error && posts.length === 0) {
     return (
-      <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
+      <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
         <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
             <Image source={{ uri: DEFAULT_PIC }} style={{ width: 32, height: 32, borderRadius: 16 }} />
@@ -479,7 +519,7 @@ export default function HomeScreen() {
   // Initial loading
   if (loading && page === 1 && posts.length === 0) {
     return (
-      <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
+      <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
         <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
             <Image source={{ uri: DEFAULT_PIC }} style={{ width: 32, height: 32, borderRadius: 16 }} />
@@ -503,6 +543,11 @@ export default function HomeScreen() {
               <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
             </TouchableOpacity>
           )}
+          {username && (
+            <TouchableOpacity style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
+              <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={s.refreshBtn} onPress={() => { setPage(1); fetchPosts(1, true); }}>
             <ActivityIndicator size="small" color={colors.primary} />
           </TouchableOpacity>
@@ -515,7 +560,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
       {/* Header */}
       <MobileHeader navigation={navigation} />
 
@@ -530,6 +575,11 @@ export default function HomeScreen() {
           <TouchableOpacity style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
             <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
             {tab === 'following' && <View style={s.tabIndicator} />}
+          </TouchableOpacity>
+        )}
+        {username && (
+          <TouchableOpacity style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
+            <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
         <TouchableOpacity style={s.refreshBtn} onPress={() => { setPage(1); fetchPosts(1, true); }}>
@@ -589,10 +639,14 @@ export default function HomeScreen() {
           key="posts"
           data={posts}
           renderItem={renderPost}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={postKeyExtractor}
           contentContainerStyle={s.feedList}
           onScroll={onScroll}
           scrollEventThrottle={16}
+          windowSize={5}
+          maxToRenderPerBatch={10}
+          initialNumToRender={5}
+          removeClippedSubviews={true}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
@@ -689,9 +743,71 @@ export default function HomeScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Feed Settings Modal */}
+      <Modal visible={showFeedSettings} transparent animationType="slide" onRequestClose={() => setShowFeedSettings(false)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View style={[modalStyles.sheet, { backgroundColor: colors.card }]}>
+            <View style={modalStyles.handle} />
+            <Text style={[modalStyles.title, { color: colors.textPrimary }]}>Feed Settings</Text>
+            <ScrollView style={{ maxHeight: 400 }}>
+              {/* Category weights */}
+              <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Category weights</Text>
+              {CATEGORIES.map(cat => (
+                <View key={cat} style={modalStyles.row}>
+                  <Text style={[modalStyles.rowLabel, { color: colors.textPrimary }]}>{cat}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity onPress={() => {
+                      const w = feedPrefs.categoryWeights[cat] ?? 1;
+                      saveFeedPrefs({ categoryWeights: { ...feedPrefs.categoryWeights, [cat]: Math.max(0, +(w - 0.1).toFixed(1)) } });
+                    }} style={modalStyles.btn}><Text style={{ color: colors.textSecondary, fontSize: 16 }}>−</Text></TouchableOpacity>
+                    <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700', minWidth: 24, textAlign: 'center' }}>{feedPrefs.categoryWeights[cat] ?? 1}</Text>
+                    <TouchableOpacity onPress={() => {
+                      const w = feedPrefs.categoryWeights[cat] ?? 1;
+                      saveFeedPrefs({ categoryWeights: { ...feedPrefs.categoryWeights, [cat]: Math.min(2, +(w + 0.1).toFixed(1)) } });
+                    }} style={modalStyles.btn}><Text style={{ color: colors.textSecondary, fontSize: 16 }}>+</Text></TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+              {/* Content type weights */}
+              <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary, marginTop: 12 }]}>Content type weights</Text>
+              {CONTENT_TYPES.map(ct => (
+                <View key={ct} style={modalStyles.row}>
+                  <Text style={[modalStyles.rowLabel, { color: colors.textPrimary }]}>{ct}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity onPress={() => {
+                      const w = feedPrefs.contentTypeWeights[ct] ?? 1;
+                      saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [ct]: Math.max(0, +(w - 0.1).toFixed(1)) } });
+                    }} style={modalStyles.btn}><Text style={{ color: colors.textSecondary, fontSize: 16 }}>−</Text></TouchableOpacity>
+                    <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700', minWidth: 24, textAlign: 'center' }}>{feedPrefs.contentTypeWeights[ct] ?? 1}</Text>
+                    <TouchableOpacity onPress={() => {
+                      const w = feedPrefs.contentTypeWeights[ct] ?? 1;
+                      saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [ct]: Math.min(2, +(w + 0.1).toFixed(1)) } });
+                    }} style={modalStyles.btn}><Text style={{ color: colors.textSecondary, fontSize: 16 }}>+</Text></TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity onPress={() => setShowFeedSettings(false)} style={[modalStyles.doneBtn, { backgroundColor: colors.primary }]}>
+              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+const modalStyles = StyleSheet.create({
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '80%' },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#d1d5db', alignSelf: 'center', marginBottom: 16 },
+  title: { fontSize: 16, fontWeight: '800', marginBottom: 16, textAlign: 'center' },
+  sectionLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  rowLabel: { fontSize: 13, fontWeight: '600', textTransform: 'capitalize', flex: 1 },
+  btn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center' },
+  doneBtn: { marginTop: 16, paddingVertical: 12, borderRadius: 12, alignItems: 'center' },
+});
 
 const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safe: { flex: 1 },

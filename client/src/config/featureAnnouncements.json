@@ -1,16 +1,6 @@
 
 [
   {
-    "key": "mobcin-moetization",
-    "type": "feature",
-    "eyebrow": "Get Paid",
-    "title": "Monetization is officially LIVE!",
-    "body": "Turn your Mobcoins into real cash or airtime. Cash out once a week and get your alerts every Saturday.",
-    "primaryAction": "Monetize Now",
-    "href": "/wallet",
-    "accent": "emerald"
-  },
-  {
     "key": "install-ap",
     "type": "install",
     "eyebrow": "Home screen access",
@@ -19,65 +9,5 @@
     "primaryAction": "Install App",
     "secondaryAction": "Maybe later",
     "accent": "blue"
-  },
-  {
-    "key": "live-video-streamin",
-    "type": "feature",
-    "eyebrow": "Go live",
-    "title": "Live video streaming is here",
-    "body": "Start a live moment, bring your people in, and let conversations happen while the energy is still fresh.",
-    "primaryAction": "Explore Live",
-    "href": "/live",
-    "accent": "red"
-  },
-  {
-    "key": "louda-messaging",
-    "type": "feature",
-    "eyebrow": "Brand new messaging",
-    "title": "Messaging powered by Louda",
-    "body": "Textmob chats are getting a serious upgrade: richer conversations, smoother messaging, and a more connected way to stay close.",
-    "primaryAction": "Open Messages",
-    "href": "/chats",
-    "accent": "violet"
-  },
-  {
-    "key": "verified-badge",
-    "type": "feature",
-    "eyebrow": "Get Verified",
-    "title": "Get your verified badge",
-    "body": "Stand out with a verified checkmark for just ₦500/month. Available once you enable Professional Mode and reach 50 posts.",
-    "primaryAction": "Get Verified",
-    "href": "/accountscentern",
-    "accent": "blue"
-  },
-  {
-    "key": "pro-mode-conversion",
-    "type": "feature",
-    "eyebrow": "Professional Mode",
-    "title": "Convert friends to followers",
-    "body": "Switch from Personal to Professional Mode seamlessly and automatically convert your existing friends into followers on the go.",
-    "primaryAction": "Switch to Pro",
-    "href": "/accountscenter",
-    "accent": "indigo"
-  },
-  {
-    "key": "repost-quote",
-    "type": "feature",
-    "eyebrow": "Timeline",
-    "title": "Reposting and quotes are here",
-    "body": "Share your favorite moments directly to your network or add your own commentary with Quote Posts.",
-    "primaryAction": "Try it now",
-    "href": "/",
-    "accent": "amber"
-  },
-  {
-    "key": "creator-insights",
-    "type": "feature",
-    "eyebrow": "Creator Tools",
-    "title": "Unlock deep profile insights",
-    "body": "Track your reach, see how your content is performing, and level up your growth with advanced creator tools.",
-    "primaryAction": "View Insights",
-    "href": "/accountscenter",
-    "accent": "rose"
   }
 ]

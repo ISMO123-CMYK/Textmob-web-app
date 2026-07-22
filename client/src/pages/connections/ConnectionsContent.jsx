@@ -60,8 +60,35 @@ export default function ConnectionsContent() {
   }, [username]);
 
   async function handleFollow(target) {
-    await apiFetch('/follow-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ follower: username, following: target }) });
-    setFollowing(prev => prev.includes(target) ? prev.filter(u => u !== target) : [...prev, target]);
+    try {
+      const res = await apiFetch(`/follow-status?from=${encodeURIComponent(username)}&to=${encodeURIComponent(target)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const isOrg = data.profileType !== 'individual';
+      const isConnected = data.status === 'following' || data.status === 'friended';
+
+      if (isConnected) {
+        const endpoint = isOrg ? '/follow' : '/friend';
+        const action = isOrg ? 'unfollow' : 'unfriend';
+        await apiFetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: target, currentUsername: username, action }),
+        });
+        setFollowing(prev => prev.filter(u => u !== target));
+      } else {
+        const endpoint = isOrg ? '/follow' : '/friend';
+        const action = isOrg ? 'follow' : 'friend';
+        await apiFetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: target, currentUsername: username, action }),
+        });
+        setFollowing(prev => [...prev, target]);
+      }
+    } catch (err) {
+      console.error("handleFollow error:", err);
+    }
   }
 
   const tabs = [

@@ -31,8 +31,8 @@ export default function NewStoryModal({ isOpen, onClose, onStoryCreated }) {
 
   function handleFile(file) {
     if (!file) return;
-    if (file.size > 52428800) { // 50MB
-      setErrorMsg('Media file must be under 50 MB');
+    if (file.size > 104857600) { // 100MB
+      setErrorMsg('Media file must be under 100 MB');
       return;
     }
     const isImg = file.type.startsWith('image/');

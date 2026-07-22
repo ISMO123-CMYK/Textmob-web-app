@@ -1,6 +1,7 @@
 export function timeAgo(dateString: string): string {
   const now = Date.now();
   const date = new Date(dateString).getTime();
+  if (isNaN(date)) return '';
   const seconds = Math.floor((now - date) / 1000);
 
   if (seconds < 60) return 'just now';

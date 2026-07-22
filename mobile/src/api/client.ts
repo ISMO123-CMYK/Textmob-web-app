@@ -1,12 +1,45 @@
 import { getSecure, KEYS } from '../utils/storage';
 
 const API_BASE_URL = 'https://textmob-provider-api-99ii.onrender.com';
+const REQUEST_TIMEOUT = 15000;
+const MAX_RETRIES = 2;
 
 export interface ApiResponse<T = any> {
   ok: boolean;
   data?: T;
   error?: string;
   status: number;
+}
+
+interface CacheEntry {
+  data: any;
+  expiry: number;
+}
+
+const responseCache = new Map<string, CacheEntry>();
+const inflightDedup = new Map<string, Promise<ApiResponse>>();
+
+function getCacheKey(endpoint: string, options: RequestInit = {}): string {
+  if (options.method && options.method !== 'GET') return '';
+  return endpoint;
+}
+
+function getFromCache(key: string): any {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key: string, data: any, ttl = 30000) {
+  responseCache.set(key, { data, expiry: Date.now() + ttl });
+}
+
+export function clearApiCache() {
+  responseCache.clear();
 }
 
 async function getAuthUsername(): Promise<string | null> {
@@ -21,56 +54,97 @@ async function getAuthUsername(): Promise<string | null> {
 export async function apiFetch<T = any>(
   endpoint: string,
   options: RequestInit = {},
+  retries = MAX_RETRIES,
 ): Promise<ApiResponse<T>> {
-  try {
-    const url = endpoint.startsWith('http')
-      ? endpoint
-      : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  const cacheKey = getCacheKey(endpoint, options);
+  if (cacheKey) {
+    const cached = getFromCache(cacheKey);
+    if (cached) return { ok: true, data: cached, status: 200 };
+    const inflight = inflightDedup.get(cacheKey);
+    if (inflight) return inflight as Promise<ApiResponse<T>>;
+  }
 
-    const headers: Record<string, string> = {
-      ...(options.headers as Record<string, string>),
-    };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
-    if (!(options.body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json';
-    }
+  const finalOptions: RequestInit = {
+    ...options,
+    signal: controller.signal,
+  };
 
-    const res = await fetch(url, {
-      ...options,
-      headers,
-    });
+  const doFetch = async (attempt: number): Promise<ApiResponse<T>> => {
+    try {
+      const url = endpoint.startsWith('http')
+        ? endpoint
+        : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
-    const contentType = res.headers.get('content-type') || '';
-    let data: any;
+      const headers: Record<string, string> = {
+        ...(options.headers as Record<string, string>),
+      };
 
-    if (contentType.includes('application/json')) {
-      data = await res.json();
-    } else {
-      const text = await res.text();
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = text;
+      if (!(finalOptions.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
       }
-    }
 
-    if (!res.ok) {
+      const res = await fetch(url, {
+        ...finalOptions,
+        headers,
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      let data: any;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+      }
+
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: data?.error || `HTTP ${res.status}`,
+          status: res.status,
+          data,
+        };
+      }
+
+      if (cacheKey) {
+        setCache(cacheKey, data);
+      }
+
+      return { ok: true, data, status: res.status };
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        if (attempt < retries) {
+          return doFetch(attempt + 1);
+        }
+        return { ok: false, error: 'Request timed out', status: 0 };
+      }
+      if (attempt < retries) {
+        return doFetch(attempt + 1);
+      }
       return {
         ok: false,
-        error: data?.error || `HTTP ${res.status}`,
-        status: res.status,
-        data,
+        error: err?.message || 'Network error',
+        status: 0,
       };
     }
+  };
 
-    return { ok: true, data, status: res.status };
-  } catch (err: any) {
-    return {
-      ok: false,
-      error: err?.message || 'Network error',
-      status: 0,
-    };
+  const promise = doFetch(0);
+  if (cacheKey) {
+    inflightDedup.set(cacheKey, promise);
+    promise.finally(() => inflightDedup.delete(cacheKey!));
   }
+
+  promise.finally(() => clearTimeout(timeoutId));
+  return promise;
 }
 
 export async function apiPost<T = any>(
@@ -120,6 +194,7 @@ export async function uploadFile<T = any>(
       : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
     xhr.open('POST', url);
+    xhr.timeout = 120000;
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
@@ -142,6 +217,10 @@ export async function uploadFile<T = any>(
 
     xhr.onerror = () => {
       resolve({ ok: false, error: 'Network error during upload', status: 0 });
+    };
+
+    xhr.ontimeout = () => {
+      resolve({ ok: false, error: 'Upload timed out', status: 0 });
     };
 
     xhr.send(formData);

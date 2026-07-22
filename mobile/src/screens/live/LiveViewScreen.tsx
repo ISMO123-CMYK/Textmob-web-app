@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, SafeAreaView, Image, TextInput,
-  Animated, Dimensions, ScrollView,
+  ActivityIndicator, Image, TextInput,
+  Animated, Dimensions, ScrollView, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -84,6 +85,8 @@ function LiveCommentMessage({ msg }: { msg: any }) {
 }
 
 export default function LiveViewScreen({ navigation, route }: { navigation: any; route?: any }) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const deviceIsLandscape = windowWidth > windowHeight;
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
   const { socket, on, off, emit } = useSocket();
@@ -108,7 +111,7 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
   const [giftSending, setGiftSending] = useState(false);
   const [streamEnded, setStreamEnded] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isLandscapeStream, setIsLandscapeStream] = useState(false);
+  const [isLandscapeStream, setIsLandscapeStream] = useState<boolean | null>(null);
   const [videoSize, setVideoSize] = useState({ w: 0, h: 0 });
 
   const chatScrollRef = useRef<ScrollView>(null);
@@ -148,7 +151,7 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
   // Detect video dimensions to adjust contentFit like web client
   useEffect(() => {
     if (!player) return;
-    const sub = player.subscribeToStatusChange(status => {
+    const sub = player.addListener('statusChange', ({ status }) => {
       if (status?.videoWidth && status?.videoHeight) {
         const w = status.videoWidth as number;
         const h = status.videoHeight as number;
@@ -156,7 +159,7 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
         setIsLandscapeStream(w > h);
       }
     });
-    return () => sub?.();
+    return () => sub.remove();
   }, [player]);
 
   // Watch route params for navigation changes (re-navigation to same screen)
@@ -382,6 +385,8 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
     }
   };
 
+  // Keep live video content contained to avoid oversize cropping regardless of stream orientation
+  const videoContentFit = 'contain';
   const s = makeStyles(colors, isDark);
 
   // ── ACTIVE STREAM VIEW ──
@@ -395,7 +400,8 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
               <VideoView
                 player={player}
                 style={{ flex: 1 }}
-                contentFit={isLandscapeStream ? 'contain' : 'cover'}
+                contentFit={videoContentFit as any}
+                nativeControls={false}
               />
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#111' }}>

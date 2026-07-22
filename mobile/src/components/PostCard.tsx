@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet, TextInput, Modal,
-  FlatList, ActivityIndicator, Alert, Pressable, ScrollView, Dimensions, Share,
+  FlatList, ActivityIndicator, Alert, Pressable, ScrollView, Dimensions, Share, Animated, useWindowDimensions, PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEvent } from 'expo';
@@ -48,11 +48,15 @@ function RichText({ text, style }: { text: string; style?: any }) {
 }
 
 
-function PostMenu({ visible, onClose, post }: { visible: boolean; onClose: () => void; post: Post }) {
+function PostMenu({ visible, onClose, post, onNegativeSignal }: { visible: boolean; onClose: () => void; post: Post; onNegativeSignal?: (postId: string, signal: string, contentType: string) => void }) {
   const { colors, isDark } = useTheme();
   const items = [
     { icon: 'share-outline' as const, label: 'Share' },
     { icon: 'link-outline' as const, label: 'Copy link' },
+    { type: 'divider' as const },
+    { icon: 'eye-off-outline' as const, label: 'Not interested', signal: 'not_interested' },
+    { icon: 'close-circle-outline' as const, label: 'Hide', signal: 'hide' },
+    { type: 'divider' as const },
     { icon: 'flag-outline' as const, label: 'Report', danger: true },
   ];
   return (
@@ -60,21 +64,28 @@ function PostMenu({ visible, onClose, post }: { visible: boolean; onClose: () =>
       <TouchableOpacity style={pmStyles.overlay} activeOpacity={1} onPress={onClose}>
         <View style={[pmStyles.sheet, { backgroundColor: colors.card }]}>
           <View style={[pmStyles.handle, { backgroundColor: isDark ? '#475569' : '#cbd5e1' }]} />
-          {items.map((item) => (
-            <TouchableOpacity
-              key={item.label}
-              style={pmStyles.row}
-              onPress={() => {
-                onClose();
-                if (item.label === 'Copy link') {
-                  Alert.alert('Copied', 'Post link copied to clipboard!');
-                }
-              }}
-            >
-              <Ionicons name={item.icon} size={20} color={item.danger ? '#ef4444' : colors.textSecondary} />
-              <Text style={[pmStyles.label, { color: item.danger ? '#ef4444' : colors.textPrimary }]}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
+          {items.map((item: any) => {
+            if (item.type === 'divider') {
+              return <View key={Math.random()} style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />;
+            }
+            return (
+              <TouchableOpacity
+                key={item.label}
+                style={pmStyles.row}
+                onPress={() => {
+                  onClose();
+                  if (item.label === 'Copy link') {
+                    Alert.alert('Copied', 'Post link copied to clipboard!');
+                  } else if (item.signal && onNegativeSignal) {
+                    onNegativeSignal(String(post.id), item.signal, post.type || 'post');
+                  }
+                }}
+              >
+                <Ionicons name={item.icon} size={20} color={item.danger ? '#ef4444' : colors.textSecondary} />
+                <Text style={[pmStyles.label, { color: item.danger ? '#ef4444' : colors.textPrimary }]}>{item.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
           <TouchableOpacity style={[pmStyles.cancelBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]} onPress={onClose}>
             <Text style={[pmStyles.cancelText, { color: colors.textPrimary }]}>Cancel</Text>
           </TouchableOpacity>
@@ -170,7 +181,7 @@ function QuotedPostView({ quotedPostId, onNavigate }: { quotedPostId: string; on
         <Text style={[qStyles.time, { color: colors.textSecondary }]}>· {timeAgo(post.created_at)}</Text>
       </View>
       <RichText text={post.text || ''} style={[qStyles.text, { color: colors.textSecondary }]} />
-      {post.media?.length > 0 && (
+      {post.media && post.media.length > 0 && (
         <Image source={{ uri: post.media[0] }} style={qStyles.thumb} resizeMode="cover" />
       )}
     </TouchableOpacity>
@@ -304,9 +315,60 @@ function MediaGallery({ media, isActive, onOpenLightbox }: { media: string[]; is
   return <View style={{ borderRadius: 12, overflow: 'hidden' }}>{grid}</View>;
 }
 
+function ZoomableImage({ uri }: { uri: string }) {
+  const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const lastScale = useRef(1);
+  const lastPan = useRef({ x: 0, y: 0 });
+  const baseDist = useRef(0);
+
+  const panResponder = useMemo(() =>
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) => gs.dx !== 0 || gs.dy !== 0,
+      onPanResponderGrant: (evt) => {
+        if (evt.nativeEvent.touches.length === 2) {
+          const [t1, t2] = evt.nativeEvent.touches;
+          baseDist.current = Math.hypot(t2.pageX - t1.pageX, t2.pageY - t1.pageY);
+          lastScale.current = scale;
+          lastPan.current = pan;
+        } else {
+          lastPan.current = pan;
+        }
+      },
+      onPanResponderMove: (evt, gs) => {
+        if (evt.nativeEvent.touches.length === 2) {
+          const [t1, t2] = evt.nativeEvent.touches;
+          const dist = Math.hypot(t2.pageX - t1.pageX, t2.pageY - t1.pageY);
+          if (baseDist.current > 0) {
+            setScale(Math.max(1, Math.min(4, lastScale.current * (dist / baseDist.current))));
+          }
+        } else if (scale > 1) {
+          setPan({ x: lastPan.current.x + gs.dx / scale, y: lastPan.current.y + gs.dy / scale });
+        }
+      },
+      onPanResponderRelease: () => {
+        baseDist.current = 0;
+      },
+    }), [scale, pan]);
+
+  return (
+    <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+      <Image
+        source={{ uri }}
+        style={{
+          width: '100%',
+          height: '100%',
+          transform: [{ scale }, { translateX: pan.x }, { translateY: pan.y }],
+        }}
+        resizeMode="contain"
+      />
+    </View>
+  );
+}
+
 function MediaLightbox({ media, startIndex, onClose }: { media: string[]; startIndex: number; onClose: () => void }) {
   const [idx, setIdx] = useState(startIndex);
-  const { colors, isDark } = useTheme();
   const src = media[idx];
   const isVid = isVideo(src);
 
@@ -320,11 +382,11 @@ function MediaLightbox({ media, startIndex, onClose }: { media: string[]; startI
           {media.length > 1 && <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' }}>{idx + 1} / {media.length}</Text>}
           <View style={{ width: 36 }} />
         </View>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ flex: 1 }}>
           {isVid ? (
-            <View style={{ width: '100%', maxHeight: '100%' }}><VideoItem uri={src} noMargin /></View>
+            <View style={{ width: '100%', height: '100%' }}><VideoItem uri={src} noMargin /></View>
           ) : (
-            <Image source={{ uri: src }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+            <ZoomableImage key={idx} uri={src} />
           )}
         </View>
         {media.length > 1 && (
@@ -456,8 +518,9 @@ function LiveEndedCard({ post }: { post: Post }) {
 
 function LiveCard({ post, viewerCount, onLike, onWatch }: { post: Post; viewerCount: number; onLike: (id: string | number) => void; onWatch: () => void }) {
   const { colors } = useTheme();
+  const { username } = useAuth();
   const authorProfile = useProfileCache(post.username);
-  const liked = post.likes?.includes('');
+  const liked = post.likes?.includes(username || '');
 
   return (
     <View style={{ marginBottom: 12 }}>
@@ -521,6 +584,7 @@ interface PostCardProps {
   onComment?: (postId: string | number, text: string) => void;
   onLike?: (postId: string | number) => void;
   onReact?: (postId: string | number, reaction: string, etext: string) => void;
+  onNegativeSignal?: (postId: string, signal: string, contentType: string) => void;
 }
 
 export function PostSkeleton() {
@@ -637,7 +701,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
   );
 }
 
-export default function PostCard({
+const PostCard = React.memo(function PostCard({
   post, isActive, showViewButton, showCommentInput, viewerCount = 0,
   reactionCounts: externalReactionCounts, onReactionToggle,
   onVotePoll, onComment, onLike, onReact,
@@ -663,7 +727,7 @@ export default function PostCard({
   useEffect(() => {
     setLocalLikes(post.likes || []);
     setLocalComments(post.comments || []);
-  }, [post.likes, post.comments]);
+  }, [post.id, post.likes?.length, post.comments?.length]);
 
   useEffect(() => {
     if (!onReact && post.id) {
@@ -776,7 +840,7 @@ export default function PostCard({
             <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
-        <PostMenu visible={menuOpen} onClose={() => setMenuOpen(false)} post={post} />
+        <PostMenu visible={menuOpen} onClose={() => setMenuOpen(false)} post={post} onNegativeSignal={onNegativeSignal} />
       </View>
 
       {/* Text */}
@@ -797,7 +861,7 @@ export default function PostCard({
       )}
 
       {/* Media */}
-      {post.media?.length > 0 && (
+      {post.media && post.media.length > 0 && (
         <MediaGallery media={post.media} isActive={isActive} onOpenLightbox={setLightboxIdx} />
       )}
 
@@ -855,21 +919,32 @@ export default function PostCard({
         )}
       </View>
 
-      {/* Comment input */}
-      {showCommentField && username && (
-        <View style={s.commentInputRow}>
-          <TextInput
-            style={[s.commentInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary, borderColor: colors.border }]}
-            placeholder="Write a comment…"
-            placeholderTextColor={colors.textSecondary}
-            value={commentText}
-            onChangeText={setCommentText}
-            onSubmitEditing={handleComment}
-            returnKeyType="send"
-            autoFocus
-          />
-        </View>
-      )}
+      {/* Comment modal */}
+      <Modal visible={showCommentField && !!username} transparent animationType="fade" onRequestClose={() => setShowCommentField(false)}>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowCommentField(false)}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: '90%', maxHeight: '80%', backgroundColor: isDark ? '#1e293b' : '#fff', borderRadius: 16, padding: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <Text style={{ fontWeight: '700', fontSize: 16, color: colors.textPrimary }}>Add comment</Text>
+              <TouchableOpacity onPress={() => setShowCommentField(false)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={{ minHeight: 100, maxHeight: 200, fontSize: 15, color: colors.textPrimary, textAlignVertical: 'top', backgroundColor: isDark ? '#0f172a' : '#f3f4f6', borderRadius: 12, padding: 14 }}
+              placeholder="Write a comment…"
+              placeholderTextColor={colors.textSecondary}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+              <TouchableOpacity onPress={handleComment} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24, opacity: commentText.trim() ? 1 : 0.4 }} disabled={!commentText.trim()}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Post</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
       {showCommentField && !username && (
         <TouchableOpacity style={[s.guestComment, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]} onPress={() => { setShowCommentField(false); Alert.alert('Sign in', 'Log in to leave a comment'); }}>
           <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
@@ -893,7 +968,9 @@ export default function PostCard({
       )}
     </View>
   );
-}
+});
+
+export default PostCard;
 
 const s = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 12 },
@@ -917,7 +994,5 @@ const s = StyleSheet.create({
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
   actionBtnLiked: { backgroundColor: '#fef2f2' },
   actionCount: { fontSize: 12, fontWeight: '600', color: '#64748b' },
-  commentInputRow: { marginTop: 8 },
-  commentInput: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 13, borderWidth: 1 },
   guestComment: { marginTop: 8, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12 },
 });

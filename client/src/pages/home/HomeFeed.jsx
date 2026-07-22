@@ -175,6 +175,30 @@ export default function HomeFeed({ propPosts }) {
 
   const isLoggedIn = !!user.username;
 
+  // Feed settings state
+  const [showFeedSettings, setShowFeedSettings] = useState(false);
+  const [feedPrefs, setFeedPrefs] = useState({ contentTypeWeights: {}, categoryWeights: {}, mutedCreators: [], exploreThreshold: 0.3 });
+
+  // Load feed prefs
+  useEffect(() => {
+    if (user.username) {
+      const userData = window.__memoryDb?.findUser?.(user.username);
+      if (userData?.feed_prefs) setFeedPrefs(userData.feed_prefs);
+    }
+  }, [user.username, showFeedSettings]);
+
+  async function saveFeedPrefs(updates) {
+    const newPrefs = { ...feedPrefs, ...updates };
+    setFeedPrefs(newPrefs);
+    if (user.username) {
+      await apiFetch('/feed-prefs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user.username, feed_prefs: newPrefs })
+      }).catch(() => {});
+    }
+  }
+
   // Tab bar component
   function TabBar({ isMobile }) {
     if (propPosts) return null;
@@ -196,6 +220,66 @@ export default function HomeFeed({ propPosts }) {
             {activeTab === tab && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-blue-600 rounded-full block" />}
           </button>
         ))}
+        {isLoggedIn && (
+          <button onClick={() => setShowFeedSettings(true)} className="px-3 py-3.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" title="Feed settings">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+            </svg>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Feed settings panel
+  function FeedSettingsPanel() {
+    if (!showFeedSettings) return null;
+    const contentTypes = ['live', 'media', 'poll', 'text'];
+    const allCategories = ['music','sports','gaming','news','education','entertainment','technology','fashion','art','food','travel','lifestyle','comedy','science','business','health'];
+    const catWeights = feedPrefs.categoryWeights || {};
+    return (
+      <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/40 overflow-y-auto" onClick={() => setShowFeedSettings(false)}>
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 w-96 max-w-[95vw] shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4 sticky top-0 bg-white dark:bg-gray-900 pb-2">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Feed Settings</h3>
+            <button onClick={() => setShowFeedSettings(false)} className="text-gray-400 hover:text-gray-600"><svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+          </div>
+          <div className="space-y-4">
+            {/* Category weights */}
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2">Category weights <span className="font-normal text-gray-400">(0 = hide, 1 = normal, 2 = double)</span></p>
+              <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                {allCategories.map(cat => (
+                  <div key={cat} className="flex items-center justify-between">
+                    <label className="text-xs text-gray-700 dark:text-gray-300 capitalize flex-shrink-0 w-20 truncate">{cat}</label>
+                    <input type="range" min="0" max="2" step="0.1" value={catWeights[cat] ?? 1} onChange={e => saveFeedPrefs({ categoryWeights: { ...catWeights, [cat]: parseFloat(e.target.value) } })} className="w-32 h-1.5" />
+                    <span className="text-xs text-gray-500 w-6 text-right">{catWeights[cat] ?? 1}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Content type weights */}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2">Content type weights</p>
+              {contentTypes.map(t => (
+                <div key={t} className="flex items-center justify-between">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 capitalize flex-shrink-0 w-20">{t}</label>
+                  <input type="range" min="0" max="2" step="0.1" value={feedPrefs.contentTypeWeights[t] || 1} onChange={e => saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [t]: parseFloat(e.target.value) } })} className="w-32 h-1.5" />
+                  <span className="text-xs text-gray-500 w-6 text-right">{feedPrefs.contentTypeWeights[t] || 1}</span>
+                </div>
+              ))}
+            </div>
+            {/* Explore threshold */}
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+              <label className="text-xs text-gray-500 dark:text-gray-400 font-semibold block mb-2">Explore new content</label>
+              <input type="range" min="0" max="1" step="0.1" value={feedPrefs.exploreThreshold ?? 0.3} onChange={e => saveFeedPrefs({ exploreThreshold: parseFloat(e.target.value) })} className="w-full h-1.5" />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>Less</span>
+                <span>More</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -317,6 +401,20 @@ export default function HomeFeed({ propPosts }) {
     } catch (e) { console.error('Poll vote failed', e); }
   }
 
+  // Negative signal handler
+  function handleNegativeSignal(postId, signalType, contentType) {
+    if (!user.username) return;
+    const username = user.username;
+    // Immediately remove from visible feed
+    setPosts(prev => prev.filter(p => String(p.id) !== String(postId)));
+    // Fire and forget to server
+    apiFetch('/negative-signal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, postId, signalType, contentType })
+    }).catch(() => {});
+  }
+
   // Like handler
   function handleLike(postId) {
     if (!user.username) { window.showAuthPrompt?.('Log in to like posts'); return; }
@@ -418,21 +516,24 @@ export default function HomeFeed({ propPosts }) {
       setError('');
       try {
         let seen = getSeenParam();
-        let usernameParam = user.username ? `username=${encodeURIComponent(user.username)}` : '';
-        let url = [
-          `/get-posts`,
-          `?${usernameParam}`,
-          `&tab=${activeTab}`,
-          `&page=${pg}`,
-          `&limit=10`,
-          seen ? `&seenIds=${encodeURIComponent(seen)}` : ''
-        ].join('');
-        let res = await apiFetch(url);
+        let res = await apiFetch('/get-posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: user.username || undefined,
+            tab: activeTab,
+            page: pg,
+            limit: 10,
+            seenIds: seen || undefined,
+          }),
+        });
         if (!res.ok) throw Error('Failed to load posts');
         let data = await res.json();
         let filtered = Array.isArray(data) ? data.filter(p => p && !isGroupPost(p)) : [];
         setPosts(prev => {
           let merged = pg === 1 ? filtered : [...prev, ...filtered];
+          let seen = new Set();
+          merged = merged.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
           window.__feedState[activeTab].posts = merged;
           return merged;
         });
@@ -501,10 +602,18 @@ export default function HomeFeed({ propPosts }) {
     if (pullDelta > 60) {
       setLoading(true);
       setPullDelta(40);
-      let refreshUserParam = user.username ? `username=${encodeURIComponent(user.username)}&` : '';
-      apiFetch(`/get-posts?${refreshUserParam}tab=${activeTab}&page=1&limit=10`)
-        .then(r => r.json())
-        .then(data => {
+      let seen = getSeenParam();
+      apiFetch('/get-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: user.username || undefined,
+          tab: activeTab,
+          page: 1,
+          limit: 10,
+          seenIds: seen || undefined,
+        }),
+      }).then(r => r.json()).then(data => {
           let filtered = (Array.isArray(data) ? data : []).filter(p => !isGroupPost(p));
           setPosts(filtered);
           setPage(1);
@@ -605,6 +714,7 @@ export default function HomeFeed({ propPosts }) {
                     handleReact={handleReact}
                     showCommentInput={true}
                     showViewButton={true}
+                    onNegativeSignal={handleNegativeSignal}
                   />
                 </div>
                 {showSuggestion && <SuggestionSlot suggestions={suggestions} slotIndex={Math.floor(index / 5)} />}
@@ -631,6 +741,7 @@ export default function HomeFeed({ propPosts }) {
           )}
         </div>
       </div>
+      <FeedSettingsPanel />
     </div>
   );
 }

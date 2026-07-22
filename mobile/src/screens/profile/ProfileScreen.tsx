@@ -1,19 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, SafeAreaView, Image, Linking, Alert,
+  ActivityIndicator, Image, Linking, Alert,
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { getProfileAPI } from '../../api/auth';
 import { getUserPostsAPI, Post } from '../../api/posts';
 import { followAPI, getFollowStatusAPI } from '../../api/users';
+import { clearApiCache } from '../../api/client';
 import { timeAgo, formatNumber } from '../../utils/format';
 
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
-const GRADIENT_COLORS = ['#f0f4ff', '#e8f0fe', '#f0f4ff'];
 const POST_PAGE_LIMIT = 24;
 
 export default function ProfileScreen({ route, navigation }: { route: any; navigation: any }) {
@@ -31,10 +32,12 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
   const [activeTab, setActiveTab] = useState<string>('posts');
   const [bioExpanded, setBioExpanded] = useState(false);
   const [postPage, setPostPage] = useState(1);
-  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [connections, setConnections] = useState<string[]>([]);
   const [followingList, setFollowingList] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'feed'>('grid');
+  const isLoadingRef = useRef(false);
 
   const isOwn = currentUser === targetUsername;
   const isOrg = (profile?.profile_type || '').toLowerCase() === 'organisation';
@@ -52,7 +55,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
     setError('');
     setPosts([]);
     setPostPage(1);
-    setHasMorePosts(false);
+    setHasMorePosts(true);
     try {
       const [profileRes, postsRes] = await Promise.all([
         getProfileAPI(targetUsername),
@@ -61,12 +64,15 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
       if (!profileRes.ok) throw new Error('Profile not found');
       const p = profileRes.data;
       setProfile(p);
-      setConnections(isOrg ? (p.followers || []) : (p.friends || []));
+      const fetchedIsOrg = (p.profile_type || '').toLowerCase() === 'organisation';
+      setConnections(fetchedIsOrg ? (p.followers || []) : (p.followers || []));
       setFollowingList(p.following || []);
       if (postsRes.ok && postsRes.data) {
         const list = normalizePosts(postsRes.data);
-        setPosts(list.slice(0, POST_PAGE_LIMIT));
-        setHasMorePosts(list.length > POST_PAGE_LIMIT);
+        setPosts(list);
+        setHasMorePosts(list.length >= POST_PAGE_LIMIT);
+      } else {
+        setHasMorePosts(false);
       }
     } catch (e: any) {
       setError(e.message || 'Failed to load profile');
@@ -92,37 +98,74 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
     try {
       const action = followStatus === 'following' ? 'unfollow' : 'follow';
       const res = await followAPI(targetUsername, currentUser, action);
-      if (res.ok) setFollowStatus(res.data?.status || '');
+      if (res.ok) {
+        setFollowStatus(res.data?.status || '');
+        clearApiCache();
+      }
       profile && setProfile({ ...profile, followers: action === 'follow' ? [...(profile.followers || []), currentUser] : (profile.followers || []).filter((u: string) => u !== currentUser) });
     } catch {}
     setFollowLoading(false);
   };
 
   const loadMorePosts = async () => {
-    if (loadingMore || !hasMorePosts) return;
+    if (loadingMore || !hasMorePosts || isLoadingRef.current) return;
+    isLoadingRef.current = true;
     setLoadingMore(true);
     try {
       const nextPage = postPage + 1;
       const res = await getUserPostsAPI(targetUsername, nextPage, POST_PAGE_LIMIT);
       if (res.ok && res.data) {
         const batch = normalizePosts(res.data);
-        setPosts(prev => [...prev, ...batch.slice(0, POST_PAGE_LIMIT)]);
-        setPostPage(nextPage);
-        setHasMorePosts(batch.length > POST_PAGE_LIMIT);
+        if (batch.length === 0) {
+          setHasMorePosts(false);
+        } else {
+          setPosts(prev => [...prev, ...batch]);
+          setPostPage(nextPage);
+          setHasMorePosts(batch.length >= POST_PAGE_LIMIT);
+        }
+      } else {
+        setHasMorePosts(false);
       }
-    } catch {}
+    } catch {
+      setHasMorePosts(false);
+    }
     setLoadingMore(false);
+    isLoadingRef.current = false;
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadProfile();
+    isLoadingRef.current = true;
+    setPosts([]);
+    setPostPage(1);
+    setHasMorePosts(true);
+    try {
+      const [profileRes, postsRes] = await Promise.all([
+        getProfileAPI(targetUsername),
+        getUserPostsAPI(targetUsername, 1, POST_PAGE_LIMIT),
+      ]);
+      if (profileRes.ok) {
+        const p = profileRes.data;
+        setProfile(p);
+        const fetchedIsOrg = (p.profile_type || '').toLowerCase() === 'organisation';
+        setConnections(fetchedIsOrg ? (p.followers || []) : (p.followers || []));
+        setFollowingList(p.following || []);
+      }
+      if (postsRes.ok && postsRes.data) {
+        const list = normalizePosts(postsRes.data);
+        setPosts(list);
+        setHasMorePosts(list.length >= POST_PAGE_LIMIT);
+      } else {
+        setHasMorePosts(false);
+      }
+    } catch {}
     await loadFollowStatus();
+    isLoadingRef.current = false;
     setRefreshing(false);
   };
 
   const tabs = [
-    { id: 'posts', label: 'Posts', count: posts.length },
+    { id: 'posts', label: 'Posts', count: profile?.post_count ?? posts.length },
     { id: 'connections', label: isOrg ? 'Followers' : 'Friends', count: connections.length },
     { id: 'following', label: 'Following', count: followingList.length },
   ];
@@ -193,9 +236,47 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
     );
   };
 
+  const PostFeedItem = ({ item }: { item: Post }) => {
+    const mediaUrl = Array.isArray(item.media) && item.media.length ? item.media[0] : null;
+    const isVideo = mediaUrl && /\.(mp4|webm|ogg)$/i.test(mediaUrl);
+    return (
+      <TouchableOpacity
+        style={[s.feedItem, { borderBottomColor: colors.border }]}
+        onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+        activeOpacity={0.7}
+      >
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+          {mediaUrl && (
+            <View style={s.feedThumb}>
+              {isVideo && <Ionicons name="play" size={14} color="#fff" style={{ position: 'absolute', zIndex: 2, alignSelf: 'center', top: '40%' }} />}
+              <Image source={{ uri: mediaUrl }} style={s.feedThumbImg} />
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={[s.feedText, { color: colors.textPrimary }]} numberOfLines={2}>{item.text || '\u2014'}</Text>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Ionicons name="heart-outline" size={11} color={colors.textSecondary} />
+                <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{Array.isArray(item.likes) ? item.likes.length : 0}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Ionicons name="chatbubble-outline" size={10} color={colors.textSecondary} />
+                <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{Array.isArray(item.comments) ? item.comments.length : 0}</Text>
+              </View>
+              {item.created_at && (
+                <Text style={[s.feedMeta, { color: colors.textSecondary, marginLeft: 'auto' }]}>
+                  {timeAgo(item.created_at)}
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   const ListHeader = () => (
     <View>
-      {/* Cover */}
       <View style={s.coverWrap}>
         <Image source={{ uri: DEFAULT_PIC }} style={s.coverFallback} />
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
@@ -204,7 +285,6 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
       </View>
 
       <View style={s.profileSection}>
-        {/* Avatar + action buttons */}
         <View style={s.avatarRow}>
           <Image source={{ uri: profile?.profile_pic || DEFAULT_PIC }} style={s.avatar} />
           <View style={s.actionBtns}>
@@ -240,7 +320,6 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
           </View>
         </View>
 
-        {/* Name + badges */}
         <View style={s.nameRow}>
           <Text style={[s.fullname, { color: colors.textPrimary }]}>
             {profile?.fullname || targetUsername}
@@ -259,7 +338,6 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         </View>
         <Text style={[s.usernameText, { color: colors.textSecondary }]}>@{targetUsername}</Text>
 
-        {/* Bio */}
         {bio ? (
           <View style={s.bioSection}>
             <Text style={[s.bio, { color: colors.textPrimary }]}>{displayedBio}</Text>
@@ -271,7 +349,6 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
           </View>
         ) : null}
 
-        {/* Meta info */}
         <View style={s.metaRow}>
           {profile?.location && (
             <View style={s.metaItem}>
@@ -295,7 +372,6 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
           )}
         </View>
 
-        {/* Stats */}
         <View style={[s.statsRow, { borderBottomColor: colors.border }]}>
           <TouchableOpacity style={s.statItem} onPress={() => setActiveTab('connections')}>
             <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(connections.length)}</Text>
@@ -306,13 +382,12 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
             <Text style={[s.statLabel, { color: colors.textSecondary }]}>Following</Text>
           </TouchableOpacity>
           <View style={s.statItem}>
-            <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(posts.length)}</Text>
+            <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(profile?.post_count ?? posts.length)}</Text>
             <Text style={[s.statLabel, { color: colors.textSecondary }]}>Posts</Text>
           </View>
         </View>
       </View>
 
-      {/* Tabs */}
       <View style={[s.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {tabs.map(tab => (
           <TouchableOpacity key={tab.id} style={s.tab} onPress={() => setActiveTab(tab.id)}>
@@ -327,6 +402,14 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
             {activeTab === tab.id && <View style={[s.tabIndicator, { backgroundColor: colors.primary }]} />}
           </TouchableOpacity>
         ))}
+        {activeTab === 'posts' && (
+          <TouchableOpacity
+            style={{ paddingHorizontal: 8, justifyContent: 'center' }}
+            onPress={() => setViewMode(v => v === 'grid' ? 'feed' : 'grid')}
+          >
+            <Ionicons name={viewMode === 'grid' ? 'list-outline' : 'grid-outline'} size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -334,33 +417,47 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
       <FlatList
-        key={activeTab === 'posts' ? 'posts_3col' : 'connections_1col'}
+        key={`${activeTab}_${viewMode}`}
         data={activeTab === 'posts' ? posts : (activeTab === 'connections' ? connections : followingList)}
-        numColumns={activeTab === 'posts' ? 3 : 1}
+        numColumns={activeTab === 'posts' && viewMode === 'grid' ? 3 : 1}
         keyExtractor={(item) => (activeTab === 'posts' ? String(item.id) : item)}
-        renderItem={activeTab === 'posts' 
-          ? ({ item }) => <PostGridItem item={item} />
-          : ({ item: uname }) => (
-            <TouchableOpacity style={[s.userRow, { borderBottomColor: colors.border }]} onPress={() => navigation.push('Profile', { username: uname })}>
-              <View style={s.userAvatar}>
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{(uname || '?')[0].toUpperCase()}</Text>
-              </View>
-              <Text style={[s.userName, { color: colors.textPrimary }]}>@{uname}</Text>
-              {uname !== currentUser && (
-                <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.primary }}>
-                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>Follow</Text>
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          )
+        renderItem={
+          activeTab === 'posts'
+            ? viewMode === 'grid'
+              ? ({ item }) => <PostGridItem item={item} />
+              : ({ item }) => <PostFeedItem item={item} />
+            : ({ item: uname }) => (
+              <TouchableOpacity style={[s.userRow, { borderBottomColor: colors.border }]} onPress={() => navigation.push('Profile', { username: uname })}>
+                <View style={s.userAvatar}>
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{(uname || '?')[0].toUpperCase()}</Text>
+                </View>
+                <Text style={[s.userName, { color: colors.textPrimary }]}>@{uname}</Text>
+                {uname !== currentUser && (
+                  <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.primary }}>
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>Follow</Text>
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            )
         }
         ListHeaderComponent={ListHeader}
-        columnWrapperStyle={activeTab === 'posts' ? s.gridRow : undefined}
+        columnWrapperStyle={activeTab === 'posts' && viewMode === 'grid' ? s.gridRow : undefined}
         contentContainerStyle={s.gridContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        onEndReached={activeTab === 'posts' ? loadMorePosts : undefined}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={activeTab === 'posts' && loadingMore ? <ActivityIndicator style={{ padding: 16 }} color={colors.primary} /> : null}
+        ListFooterComponent={activeTab === 'posts' ? (
+          loadingMore ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : hasMorePosts ? (
+            <TouchableOpacity
+              onPress={loadMorePosts}
+              style={{ marginVertical: 20, alignSelf: 'center', paddingHorizontal: 28, paddingVertical: 10, borderRadius: 24, backgroundColor: isDark ? '#334155' : '#f3f4f6' }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>Load more</Text>
+            </TouchableOpacity>
+          ) : null
+        ) : null}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingTop: 40, paddingBottom: 40 }}>
             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>None yet</Text>
@@ -427,4 +524,9 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: StyleSheet.hairlineWidth },
   userAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
   userName: { fontSize: 14, fontWeight: '600', flex: 1 },
+  feedItem: { padding: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  feedThumb: { width: 56, height: 56, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.border, justifyContent: 'center' },
+  feedThumbImg: { width: '100%', height: '100%' },
+  feedText: { fontSize: 13, lineHeight: 17 },
+  feedMeta: { fontSize: 10, fontWeight: '500' },
 });

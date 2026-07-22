@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { forgotPasswordAPI, verifyResetCodeAPI, resetPasswordAPI } from '../../api/auth';
 import { isValidPassword, getPasswordStrength } from '../../utils/validators';

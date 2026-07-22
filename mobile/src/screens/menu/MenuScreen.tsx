@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, Alert, Image, Linking, Modal,
+  ScrollView, Alert, Image, Linking, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiGet, apiPost } from '../../api/client';
@@ -102,7 +103,7 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
   const s = makeStyles(colors, isDark);
 
   return (
-    <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View style={s.headerContent}>
           <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Menu</Text>

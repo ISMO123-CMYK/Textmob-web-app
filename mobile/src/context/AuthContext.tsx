@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User, loginAPI, signupAPI, verifyUserAPI, getProfileAPI } from '../api/auth';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { User, loginAPI, signupAPI, getProfileAPI } from '../api/auth';
 import { storage, KEYS } from '../utils/storage';
 
 interface AuthContextType {
@@ -28,38 +28,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const mountedRef = useRef(true);
 
   const username = user?.username || null;
 
   const refreshProfile = useCallback(async () => {
-    const stored = await storage.getSecure(KEYS.CURRENT_USER);
-    if (stored) {
-      const res = await getProfileAPI(stored);
-      if (res.ok && res.data) {
-        setUser(res.data);
-      }
+    if (!username) return;
+    const res = await getProfileAPI(username);
+    if (res.ok && res.data && mountedRef.current) {
+      setUser(res.data);
     }
-  }, []);
+  }, [username]);
 
   useEffect(() => {
+    mountedRef.current = true;
     (async () => {
       try {
         const stored = await storage.getSecure(KEYS.CURRENT_USER);
         if (stored && stored !== 'undefined') {
-          const verifyRes = await verifyUserAPI(stored);
-          if (verifyRes.ok && verifyRes.data?.exists === false) {
-            await storage.clearStore();
-            await storage.removeSecure(KEYS.CURRENT_USER);
-          } else if (verifyRes.ok) {
-            const profileRes = await getProfileAPI(stored);
-            if (profileRes.ok && profileRes.data) {
-              setUser(profileRes.data);
-            }
+          // Instantly set minimal cached user so splash hides immediately
+          const cachedProfile = await storage.getStore('CACHED_USER_PROFILE_' + stored);
+          if (cachedProfile && mountedRef.current) {
+            setUser(cachedProfile);
+          } else if (mountedRef.current) {
+            setUser({ username: stored, full_name: stored, id: '', created_at: '' } as User);
           }
+
+          // Refresh fresh profile data asynchronously in background
+          getProfileAPI(stored).then(profileRes => {
+            if (profileRes.ok && profileRes.data && mountedRef.current) {
+              setUser(profileRes.data);
+              storage.setStore('CACHED_USER_PROFILE_' + stored, profileRes.data);
+            }
+          }).catch(() => {});
         }
       } catch { }
-      setIsChecking(false);
+      if (mountedRef.current) setIsChecking(false);
     })();
+    return () => { mountedRef.current = false; };
   }, []);
 
   const login = useCallback(async (identifier: string, password: string) => {
@@ -70,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const u = res.data.user;
         setUser(u);
         await storage.setSecure(KEYS.CURRENT_USER, u.username);
+        await storage.setStore('CACHED_USER_PROFILE_' + u.username, u);
         return { success: true };
       }
       return { success: false, error: res.error || 'Invalid credentials' };
@@ -88,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const u = res.data;
         setUser(u);
         await storage.setSecure(KEYS.CURRENT_USER, u.username);
+        await storage.setStore('CACHED_USER_PROFILE_' + u.username, u);
         return { success: true, username: u.username };
       }
       return { success: false, error: res.error || 'Signup failed' };
@@ -100,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     setUser(null);
+    setIsLoading(false);
     await storage.removeSecure(KEYS.CURRENT_USER);
     await storage.removeStore(KEYS.CACHED_PROFILE_PIC);
   }, []);

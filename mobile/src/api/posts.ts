@@ -55,13 +55,7 @@ export interface FeedParams {
 }
 
 export async function getFeedPostsAPI(params: FeedParams) {
-  const query = new URLSearchParams();
-  if (params.username) query.set('username', params.username);
-  if (params.tab) query.set('tab', params.tab);
-  if (params.page) query.set('page', String(params.page));
-  if (params.limit) query.set('limit', String(params.limit));
-  if (params.seenIds) query.set('seenIds', params.seenIds);
-  return apiGet<Post[]>(`/get-posts?${query.toString()}`);
+  return apiPost<Post[]>('/get-posts', params);
 }
 
 export async function getPostAPI(id: string) {
@@ -102,15 +96,14 @@ export async function votePollAPI(postId: string, optionId: string | number, use
   return apiPost<{ ok: boolean }>('/vote-poll-option', { postId, optionId, username });
 }
 
-export async function getUserPostsAPI(username: string) {
-  return apiGet<Post[]>(`/get-user-posts?username=${encodeURIComponent(username)}`);
+export async function getUserPostsAPI(username: string, page: number = 0, limit: number = 0) {
+  let url = `/get-user-posts?username=${encodeURIComponent(username)}`;
+  if (page > 0) url += `&page=${page}`;
+  if (limit > 0) url += `&limit=${limit}`;
+  return apiGet<Post[]>(url);
 }
 
-export async function getSnapsFeedAPI(username?: string, limit: number = 20, seenIds?: string) {
-  const query = new URLSearchParams();
-  if (username) query.set('username', username);
-  query.set('limit', String(limit));
-  if (seenIds) query.set('seenIds', seenIds);
-  return apiGet<any>(`/snaps-feed?${query.toString()}`);
+export async function getSnapsFeedAPI(username?: string, limit: number = 20, seenIds?: string, page: number = 1) {
+  return apiPost<any>('/snaps-feed', { username, limit, page, seenIds });
 }
 

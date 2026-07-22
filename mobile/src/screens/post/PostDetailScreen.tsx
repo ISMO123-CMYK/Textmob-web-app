@@ -11,6 +11,7 @@ import { useSocket } from '../../context/SocketContext';
 import { getPostAPI, addCommentAPI, likePostAPI, getPostReactionsAPI, reactPostAPI, votePollAPI, Post, Comment } from '../../api/posts';
 import { searchUsersAPI, UserProfile } from '../../api/users';
 import { getProfileAPI } from '../../api/auth';
+import useProfileCache from '../../hooks/useProfileCache';
 import PostCard from '../../components/PostCard';
 import { timeAgo } from '../../utils/format';
 import { apiGet } from '../../api/client';
@@ -18,12 +19,13 @@ import { apiGet } from '../../api/client';
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 
 function CommentRow({ item, colors, borderColor, onPress }: { item: Comment; colors: any; borderColor: string; onPress: (u: string) => void }) {
+  const profile = useProfileCache(item.username);
   return (
     <TouchableOpacity style={[styles.commentRow, { borderBottomColor: borderColor }]} onPress={() => onPress(item.username)}>
-      <Image source={{ uri: DEFAULT_PIC }} style={[styles.commentAvatar, { backgroundColor: colors.border }]} />
+      <Image source={{ uri: profile?.profile_pic || DEFAULT_PIC }} style={[styles.commentAvatar, { backgroundColor: colors.border }]} />
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Text style={[styles.commentUser, { color: colors.textPrimary }]}>{item.username}</Text>
+          <Text style={[styles.commentUser, { color: colors.textPrimary }]}>{profile?.fullname || item.username}</Text>
           <Text style={[styles.commentTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at || '')}</Text>
         </View>
         <Text style={[styles.commentText, { color: colors.textSecondary }]}>{item.text}</Text>
@@ -87,15 +89,21 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     return () => off('new-comment', handler);
   }, [postId, on, off]);
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const atMatch = commentText.match(/@(\w*)$/);
     if (atMatch && atMatch[1].length >= 1) {
-      searchUsersAPI(atMatch[1], 6).then(r => {
-        if (r.ok && r.data) { setMentionResults(r.data); setShowMentions(true); }
-      });
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        searchUsersAPI(atMatch[1], 6).then(r => {
+          if (r.ok && r.data) { setMentionResults(r.data); setShowMentions(true); }
+        });
+      }, 300);
     } else {
       setShowMentions(false);
     }
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [commentText]);
 
   const selectMention = useCallback((user: UserProfile) => {
@@ -160,7 +168,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
       <PostCard
         post={post!}
         showViewButton={false}
-        showCommentInput={false}
+        showCommentInput
         reactionCounts={reactionCounts}
         onReact={handleReact}
         onVotePoll={handlePollVote}

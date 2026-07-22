@@ -44,11 +44,15 @@ function DotsIcon() {
 }
 
 /* ─── Un – post options menu ─── */
-function PostMenu({ post, open, setOpen, navigate }) {
+function PostMenu({ post, open, setOpen, navigate, onNegativeSignal }) {
   const menuItems = [
     { label: 'Save post', icon: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z' },
     { label: 'Share', icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
     { label: 'Copy link', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
+    { type: 'divider' },
+    { label: 'Not interested', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636', signal: 'not_interested' },
+    { label: 'Hide', icon: 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21', signal: 'hide' },
+    { type: 'divider' },
     { label: 'Report', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', danger: true }
   ];
 
@@ -60,26 +64,35 @@ function PostMenu({ post, open, setOpen, navigate }) {
       </button>
       {open && (
         <div className="absolute top-8 right-0 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-xl overflow-hidden z-30 min-w-[148px]" onMouseLeave={() => setOpen(false)}>
-          {menuItems.map(({ label, icon, danger }) => (
-            <button
-              onClick={() => {
-                if (label === 'Copy link') {
-                  navigator.clipboard.writeText(`https://textmob.web.app/post/${post.id}`);
-                }
-                setOpen(false);
-              }}
-              className={cn(
-                'flex items-center gap-3 w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition',
-                danger ? 'text-red-500' : 'text-gray-700 dark:text-gray-300'
-              )}
-              key={label}
-            >
-              <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d={icon} />
-              </svg>
-              {label}
-            </button>
-          ))}
+          {menuItems.map((item) => {
+            if (item.type === 'divider') {
+              return <div key={Math.random()} className="border-t border-gray-100 dark:border-gray-800 my-1" />;
+            }
+            return (
+              <button
+                onClick={() => {
+                  if (item.label === 'Copy link') {
+                    navigator.clipboard.writeText(`https://textmob.web.app/post/${post.id}`);
+                  } else if (item.signal && onNegativeSignal) {
+                    onNegativeSignal(post.id, item.signal, post.type || 'post');
+                  }
+                  setOpen(false);
+                }}
+                className={cn(
+                  'flex items-center gap-3 w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition',
+                  item.danger ? 'text-red-500' : item.signal ? 'text-gray-500 dark:text-gray-400' : 'text-gray-700 dark:text-gray-300'
+                )}
+                key={item.label}
+              >
+                {item.icon && (
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={item.icon} />
+                  </svg>
+                )}
+                {item.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -90,33 +103,42 @@ function PostMenu({ post, open, setOpen, navigate }) {
 function FollowButtonInline({ targetUsername, currentUsername, onUpdate }) {
   const [status, setStatus] = useState('none');
   const [loading, setLoading] = useState(false);
+  const [profileType, setProfileType] = useState('individual');
 
   useEffect(() => {
     if (!targetUsername || !currentUsername || targetUsername === currentUsername) return;
-    apiFetch(`/profile/${encodeURIComponent(targetUsername)}`)
+    apiFetch(`/follow-status?from=${encodeURIComponent(currentUsername)}&to=${encodeURIComponent(targetUsername)}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (!data) return;
-        if ((data.followers || []).includes(currentUsername)) setStatus('following');
-        else setStatus('none');
+        setStatus(data.status || 'none');
+        setProfileType(data.profileType || 'individual');
       })
       .catch(() => { });
   }, [targetUsername, currentUsername]);
 
   if (!targetUsername || !currentUsername || targetUsername === currentUsername) return null;
+  if (status === 'following' || status === 'friended') return null;
 
   async function toggle() {
     if (loading) return;
     setLoading(true);
     try {
-      const endpoint = status === 'following' ? '/unfollow-user' : '/follow-user';
-      await apiFetch(endpoint, {
+      const isOrg = profileType !== 'individual';
+      const endpoint = isOrg ? '/follow' : '/friend';
+      const isConnected = status === 'following' || status === 'friended';
+      const action = isOrg ? (isConnected ? 'unfollow' : 'follow') : (isConnected ? 'unfriend' : 'friend');
+      const body = { username: targetUsername, currentUsername, action };
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ follower: currentUsername, following: targetUsername })
+        body: JSON.stringify(body)
       });
-      setStatus(s => s === 'following' ? 'none' : 'following');
-      onUpdate?.();
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data.status || (isOrg ? 'following' : 'friended'));
+        onUpdate?.();
+      }
     } catch (err) {
       console.error('FollowButton:', err);
     } finally {
@@ -124,7 +146,7 @@ function FollowButtonInline({ targetUsername, currentUsername, onUpdate }) {
     }
   }
 
-  if (status === 'following') return null;
+  const label = status === 'friended' ? 'Friends' : status === 'following' ? 'Following' : profileType !== 'individual' ? 'Follow' : 'Add Friend';
 
   return (
     <button
@@ -132,13 +154,13 @@ function FollowButtonInline({ targetUsername, currentUsername, onUpdate }) {
       disabled={loading}
       className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 mr-1"
     >
-      Follow
+      {loading ? '...' : label}
     </button>
   );
 }
 
 /* ─── Wn – post header ─── */
-function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen, navigate }) {
+function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen, navigate, onNegativeSignal }) {
   let groupId = post.type?.startsWith('group-post-') ? post.type.replace('group-post-', '') : null;
   let groupInfo = groupId ? groupProfiles[groupId] : null;
   const phGuest = !localStorage.currentUser;
@@ -180,7 +202,7 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
           <span className="text-[11px] text-gray-400 dark:text-gray-500 leading-none">{timeAgo(post.created_at)}</span>
         </div>
       </div>
-      <PostMenu post={post} open={menuOpen} setOpen={setMenuOpen} navigate={navigate} />
+      <PostMenu post={post} open={menuOpen} setOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} />
     </div>
   );
 }
@@ -927,7 +949,7 @@ function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, nav
 
   return (
     <div className="bg-white dark:bg-gray-900 px-4 pt-4 pb-5 border-b border-gray-100 dark:border-gray-800">
-      <PostHeader post={post} authorProfile={authorProfile} groupProfiles={{}} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} />
+      <PostHeader post={post} authorProfile={authorProfile} groupProfiles={{}} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} />
       <div className="rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
         <div className="h-[3px] bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
         <div className="p-4">
@@ -1124,7 +1146,8 @@ const PostCard = ({
   handleReact,
   showCommentInput = true,
   showViewButton = true,
-  onNavigate
+  onNavigate,
+  onNegativeSignal
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const authorProfile = useProfileCache(post.username);
@@ -1156,7 +1179,7 @@ const PostCard = ({
   // Default post (text, poll, media)
   return (
     <div className="bg-white dark:bg-gray-900 px-4 pt-4 pb-4">
-      <PostHeader post={post} authorProfile={authorProfile} groupProfiles={groupProfiles} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} />
+      <PostHeader post={post} authorProfile={authorProfile} groupProfiles={groupProfiles} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} />
       {post.text && <PostText text={post.text} />}
       {post.type === 'poll' && post.options && <PollContent post={post} handlePollVote={handlePollVote} />}
       {post.media?.length > 0 && (

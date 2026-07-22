@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, ScrollView, Alert, Image, Modal, TextInput, ActivityIndicator
+  ScrollView, Alert, Image, Modal, TextInput, ActivityIndicator, Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import {
   getAccountStatsAPI, getProfileAPI, updateProfileAPI,
   changePasswordAPI, updateProfileTypeAPI, deactivateAccountAPI,
-  submitVerifyRequestAPI, getVerifyStatusAPI, updateNotificationPrefsAPI
+  updateNotificationPrefsAPI
 } from '../../api/auth';
 import { migrateFriendsAPI } from '../../api/users';
 import { apiGet, apiPost, apiDelete } from '../../api/client';
@@ -42,7 +43,6 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
     switch (key) {
       case 'home': setActiveSub('home'); break;
       case 'monetize': setActiveSub('monetize'); break;
-      case 'verification': setActiveSub('verification'); break;
       case 'analytics': setActiveSub('analytics'); break;
       case 'composer': setActiveSub('composer'); break;
       case 'posts': setActiveSub('posts'); break;
@@ -72,7 +72,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
     switch (activeSub) {
       case 'home': return <OverviewTab username={username} profile={profile} profileData={profileData} stats={stats} posts={posts} isOrg={isOrg} colors={colors} isDark={isDark} setActiveSub={setActiveSub} accent={accent} />;
       case 'monetize': return <MonetizationTab username={username} stats={stats} isOrg={isOrg} colors={colors} isDark={isDark} />;
-      case 'verification': return <VerificationTab username={username} profile={profile} postsCount={postsCount} isOrg={isOrg} colors={colors} isDark={isDark} />;
+
       case 'analytics': return <AnalyticsTab posts={posts} stats={stats} profile={profile} isOrg={isOrg} colors={colors} />;
       case 'composer': return <ComposerTab username={username} posts={posts} setPosts={setPosts} colors={colors} isDark={isDark} setActiveSub={setActiveSub} />;
       case 'posts': return <PostsTab posts={posts} setPosts={setPosts} username={username} colors={colors} isDark={isDark} setActiveSub={setActiveSub} />;
@@ -92,7 +92,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       items: [
         { key: 'home', label: 'Overview', icon: 'home-outline' as const },
         { key: 'monetize', label: 'Earnings', icon: 'cash-outline' as const },
-        { key: 'verification', label: 'Get Verified', icon: 'checkmark-circle-outline' as const },
+
         { key: 'analytics', label: 'Analytics', icon: 'bar-chart-outline' as const },
       ],
     },
@@ -195,7 +195,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
 
 function getTabLabel(key: string): string {
   const labels: Record<string, string> = {
-    home: 'Overview', monetize: 'Earnings', verification: 'Get Verified',
+    home: 'Overview', monetize: 'Earnings',
     analytics: 'Analytics', composer: 'New Post', posts: 'My Posts',
     snaps: 'Snaps Studio', grow: 'Milestones', leaderboard: 'Leaderboard',
     profile: 'Edit Profile', prefs: 'Preferences', danger: 'Account',
@@ -216,18 +216,18 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
   return (
     <ScrollView style={{ padding: 16 }}>
       {!profile?.verified && (
-        <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#bfdbfe', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+        <TouchableOpacity onPress={() => Linking.openURL('https://wa.me/2347087421125')} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#bfdbfe', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary }}>Get verified</Text>
-            <Text style={{ fontSize: 11, color: colors.textSecondary }}>Increase trust and visibility</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary }}>Contact us on WhatsApp</Text>
           </View>
-          <TouchableOpacity onPress={() => setActiveSub('verification')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Verify</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Contact</Text>
+          </View>
+        </TouchableOpacity>
       )}
       {!isOrg && (
         <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#e9d5ff', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
@@ -448,114 +448,25 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark }: any) {
   );
 }
 
-function VerificationTab({ username, profile, postsCount, isOrg, colors, isDark }: any) {
-  const [verifyRequest, setVerifyRequest] = useState<any>(null);
-  const [verifyLoading, setVerifyLoading] = useState(true);
-  const [showPayment, setShowPayment] = useState(false);
-  const [isSubmitLoading, setIsSubmitLoading] = useState(false);
-
-  useEffect(() => {
-    if (username) {
-      getVerifyStatusAPI(username).then(r => {
-        if (r.ok) setVerifyRequest(r.data);
-        setVerifyLoading(false);
-      });
-    }
-  }, [username]);
-
-  const isEligible = isOrg && postsCount >= 50;
-  const activeVerified = verifyRequest?.status === 'ACCEPTED' && new Date(verifyRequest?.verified_until) > new Date();
-
-  const handleVerifySubmit = async () => {
-    setIsSubmitLoading(true);
-    try {
-      const res = await submitVerifyRequestAPI(username);
-      if (res.ok) {
-        setShowPayment(false);
-        setVerifyRequest({ status: 'PENDING' });
-        Alert.alert('Success', 'Verification request submitted.');
-      } else {
-        Alert.alert('Error', res.error || 'Failed to submit request.');
-      }
-    } catch {
-      Alert.alert('Error', 'Submission failed.');
-    } finally {
-      setIsSubmitLoading(false);
-    }
-  };
-
+function VerificationTab({ colors }: any) {
   return (
     <ScrollView style={{ padding: 16 }}>
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Get Verified</Text>
-      {verifyLoading ? (
-        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 24 }} />
-      ) : activeVerified ? (
-        <View style={[styles.statusBanner, { backgroundColor: '#16a34a' }]}>
-          <Ionicons name="checkmark-circle" size={32} color="#fff" />
-          <Text style={styles.bannerText}>You are verified!</Text>
-          <Text style={styles.bannerSub}>Expires: {new Date(verifyRequest.verified_until).toLocaleDateString()}</Text>
+      <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, alignItems: 'center', paddingVertical: 32 }]}>
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <Ionicons name="checkmark-circle" size={28} color="#2563eb" />
         </View>
-      ) : verifyRequest?.status === 'PENDING' ? (
-        <View style={[styles.statusBanner, { backgroundColor: '#d97706' }]}>
-          <Ionicons name="time" size={32} color="#fff" />
-          <Text style={styles.bannerText}>Request Pending</Text>
-          <Text style={styles.bannerSub}>Admin is reviewing your application.</Text>
-        </View>
-      ) : isEligible ? (
-        <View style={[styles.statusBanner, { backgroundColor: '#2563eb' }]}>
-          <Ionicons name="ribbon" size={32} color="#fff" />
-          <Text style={styles.bannerText}>You're eligible!</Text>
-          <Text style={styles.bannerSub}>Verification helps your audience recognize your authenticity. Subscription lasts for one month at ₦500/month.</Text>
-          <TouchableOpacity style={styles.payBtn} onPress={() => setShowPayment(true)}>
-            <Text style={{ color: '#2563eb', fontWeight: '800' }}>Proceed to Payment</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.cardHeader, { color: colors.textPrimary }]}>Keep working towards your badge</Text>
-          <View style={{ gap: 10, marginTop: 12 }}>
-            {!isOrg && (
-              <View style={[styles.reqRow, { backgroundColor: '#fef3c7', padding: 10, borderRadius: 8 }]}>
-                <Ionicons name="star" size={16} color="#d97706" />
-                <Text style={{ color: '#92400e', fontSize: 12, flex: 1 }}>Switch to a Professional account in Edit Profile</Text>
-              </View>
-            )}
-            <View style={styles.reqRow}>
-              <Ionicons name={postsCount >= 50 ? 'checkmark-circle' : 'close-circle'} size={18} color={postsCount >= 50 ? '#16a34a' : '#dc2626'} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.textPrimary, fontSize: 13 }}>Have at least 50 posts</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{postsCount}/50 posts</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
-
-      <Modal visible={showPayment} transparent animationType="slide" onRequestClose={() => setShowPayment(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Complete Payment</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 12 }}>
-              Make a payment of ₦500 to the account below:
-            </Text>
-            <View style={[styles.payDetails, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}>
-              <Text style={styles.payLabel}>Account Name</Text>
-              <Text style={[styles.payValue, { color: colors.textPrimary }]}>OPAY ISMAIL OLOHUNTOYIN GIDADO</Text>
-              <Text style={styles.payLabel}>Account Number</Text>
-              <Text style={[styles.payValueBig, { color: colors.primary }]}>7057581322</Text>
-              <Text style={{ color: '#dc2626', fontSize: 11, fontWeight: '700', marginTop: 8 }}>
-                Remark: Textmob Verification Request
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.confirmBtn} onPress={handleVerifySubmit} disabled={isSubmitLoading}>
-              {isSubmitLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>I have made payment</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowPayment(false)}>
-              <Text style={{ color: colors.textSecondary }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20, paddingHorizontal: 16 }}>
+          Contact us on WhatsApp to get verified.
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: '#25D366', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+          onPress={() => Linking.openURL('https://wa.me/2347087421125')}
+        >
+          <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Chat on WhatsApp</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -861,7 +772,7 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, setActiv
     { label: '2,000 coins', desc: 'Earn 2,000 coins', done: mobcoins >= 2000 },
     { label: '20 posts', desc: 'Publish 20 posts', done: postsCount >= 20 },
     { label: '50 followers', desc: 'Reach 50 followers', done: followers >= 50 },
-    { label: '50 posts', desc: 'Qualify for verification', done: postsCount >= 50 },
+    { label: '50 posts', desc: 'Reach 50 posts', done: postsCount >= 50 },
     { label: '5,000 coins', desc: 'Earn 5,000 coins', done: mobcoins >= 5000 },
     { label: '100 followers', desc: 'Reach 100 followers', done: followers >= 100 },
     { label: '10,000 coins', desc: 'Earn 10,000 coins', done: mobcoins >= 10000 },

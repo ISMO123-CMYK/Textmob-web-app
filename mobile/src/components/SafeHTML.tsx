@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useWindowDimensions, Linking } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import { useTheme } from '../context/ThemeContext';
@@ -89,35 +89,35 @@ function convertMarkdown(html: string): string {
 export default function SafeHTML({ text, style }: { text: string; style?: any }) {
   const { width } = useWindowDimensions();
   const { colors, isDark } = useTheme();
+  const navigation = useNavigation<any>();
 
   if (!text) return null;
 
-  let processed = text;
+  const processed = useMemo(() => {
+    let p = text;
 
-  // Convert markdown to HTML if text doesn't already contain block HTML tags
-  if (!text.includes('<a') && !text.includes('<p>') && !text.includes('<div')) {
-    // Decode HTML entities first
-    processed = processed
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&nbsp;/g, ' ');
+    if (!text.includes('<a') && !text.includes('<p>') && !text.includes('<div')) {
+      p = p
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ');
 
-    // Convert markdown to HTML
-    processed = convertMarkdown(processed);
+      p = convertMarkdown(p);
 
-    // Convert URLs, mentions, and hashtags to HTML links
-    processed = processed
-      .replace(/(@[\w.-]+)/g, '<a href="app://profile/$1">$1</a>')
-      .replace(/(#[\w-]+)/g, '<a href="app://search/$1">$1</a>')
-      .replace(/(https?:\/\/[^\s<>"']+[^\s<>"',.!?;:])/g, '<a href="$1">$1</a>')
-      .replace(/[ \t]+$/gm, '')
-      .replace(/(?:\r\n|\r|\n)/g, '<br />');
-  }
+      p = p
+        .replace(/(@[\w.-]+)/g, '<a href="app://profile/$1">$1</a>')
+        .replace(/(#[\w-]+)/g, '<a href="app://search/$1">$1</a>')
+        .replace(/(https?:\/\/[^\s<>"']+[^\s<>"',.!?;:])/g, '<a href="$1">$1</a>')
+        .replace(/[ \t]+$/gm, '')
+        .replace(/(?:\r\n|\r|\n)/g, '<br />');
+    }
+    return p;
+  }, [text]);
 
-  const tagsStyles = {
+  const tagsStyles = useMemo(() => ({
     body: {
       color: style?.color || colors.textPrimary,
       fontSize: style?.fontSize || 14,
@@ -161,9 +161,7 @@ export default function SafeHTML({ text, style }: { text: string; style?: any })
     ul: { marginVertical: 4, paddingLeft: 20 },
     ol: { marginVertical: 4, paddingLeft: 20 },
     li: { marginVertical: 2, lineHeight: 20 },
-  };
-
-  const navigation = useNavigation<any>();
+  }), [colors, isDark, style]);
 
   const navigateTo = (path: string) => {
     if (path.startsWith('/post/')) {

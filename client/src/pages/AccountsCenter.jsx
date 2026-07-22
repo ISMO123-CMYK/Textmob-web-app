@@ -50,7 +50,6 @@ const NAV = [
     section: 'Dashboard', items: [
       { key: 'home', label: 'Overview', icon: K.Home },
       { key: 'monetize', label: 'Earnings', icon: K.Coin },
-      { key: 'verification', label: 'Get Verified', icon: K.Check },
       { key: 'analytics', label: 'Analytics', icon: K.Chart },
     ]
   },
@@ -276,7 +275,7 @@ export default function AccountsCenter() {
           {activeTab === 'analytics' && <AnalyticsTab posts={posts} stats={stats} profile={profile} isOrg={isOrg} accentText={accentText} />}
           {activeTab === 'composer' && <ComposerTab username={username} setTab={setActiveTab} isOrg={isOrg} accent={accent} />}
           {activeTab === 'profile' && <EditProfileTab profile={profile} setProfile={setProfile} username={username} isOrg={isOrg} accent={accent} accentText={accentText} />}
-          {activeTab === 'verification' && <VerificationTab profile={profile} posts={posts} isOrg={isOrg} showAlert={showAlert} />}
+          {activeTab === 'verification' && <VerificationTab />}
           {activeTab === 'posts' && <PostsTab posts={posts} setPosts={setPosts} username={username} setTab={setActiveTab} />}
           {activeTab === 'snaps' && <SnapsTab posts={posts} setPosts={setPosts} username={username} setTab={setActiveTab} isOrg={isOrg} accent={accent} accentText={accentText} />}
           {activeTab === 'grow' && <GrowTab stats={stats} profile={profile} username={username} isOrg={isOrg} setTab={setActiveTab} accent={accent} />}
@@ -295,114 +294,21 @@ export default function AccountsCenter() {
 }
 
 // New VerificationTab
-function VerificationTab({ profile, posts = [], isOrg, showAlert }) {
-  const postCount = posts.length;
-  const isEligible = isOrg && postCount >= 50;
-
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [request, setRequest] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // Check for status on load
-  useEffect(() => {
-    async function checkStatus() {
-      const res = await apiFetch(`/api/verify-status?username=${profile?.username}`);
-      if (res.ok) {
-        setRequest(await res.json()); // { status, verified_until }
-      }
-      setLoading(false);
-    }
-    if (profile?.username) checkStatus();
-  }, [profile?.username]);
-
-  const isVerifiedActive = request?.status === 'ACCEPTED' && new Date(request?.verified_until) > new Date();
-
+function VerificationTab() {
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-gray-900">Get Verified</h2>
-
-      {loading ? (
-        <div className="bg-white p-6 rounded-xl animate-pulse">Loading status...</div>
-      ) : isVerifiedActive ? (
-        <div className="bg-green-600 text-white rounded-2xl p-8 text-center shadow-lg">
-          <p className="text-xl font-bold">You are verified!</p>
-          <p className="text-sm mt-2 opacity-90">Verified until: {new Date(request.verified_until).toLocaleDateString()}</p>
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
+          <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
         </div>
-      ) : request?.status === 'PENDING' ? (
-        <div className="bg-amber-600 text-white rounded-2xl p-8 text-center shadow-lg">
-          <p className="text-xl font-bold">Request Pending</p>
-          <p className="text-sm">Admin is reviewing your verification request.</p>
-        </div>
-      ) : isEligible ? (
-        <div className="bg-blue-600 text-white rounded-2xl p-8 text-center shadow-lg">
-          <div className="w-20 h-20 rounded-full bg-white/20 text-white flex items-center justify-center mx-auto mb-6">
-            <svg viewBox="0 0 24 24" className="w-10 h-10 fill-none stroke-current" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-          </div>
-          <p className="text-xl font-bold mb-2">You're eligible!</p>
-          <p className="text-sm text-blue-100 mb-4 opacity-90">Verification helps your audience recognize your authenticity. <strong>Subscription lasts for one month</strong> at ₦500/month.</p>
-          <button onClick={() => setShowPaymentModal(true)} className="w-full h-12 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all">Proceed to Payment</button>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-          <p className="text-sm font-semibold text-gray-900">Keep working towards your badge</p>
-          <div className="space-y-2">
-            {!isOrg && (
-              <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg text-amber-800 text-xs">
-                {K.Star} Switch to a Professional account in Edit Profile.
-              </div>
-            )}
-            {postCount < 50 && (
-              <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg text-amber-800 text-xs">
-                {K.Posts} You need {50 - postCount} more quality posts.
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 leading-relaxed">Verification helps your audience recognize your authenticity. You need 50 quality posts to apply. Stay active and keep growing your presence.</p>
-        </div>
-      )}
-
-
-      {showPaymentModal && (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-[100]" onClick={() => setShowPaymentModal(false)} />
-          <div className="fixed bottom-0 left-0 right-0 md:inset-0 md:flex md:items-center md:justify-center z-[110] p-4">
-            <div className="bg-white p-6 rounded-2xl w-full md:max-w-md shadow-2xl relative">
-              <button onClick={() => setShowPaymentModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-              <h3 className="text-lg font-bold mb-4">Complete Payment</h3>
-              <p className="text-sm text-gray-600 mb-4">Please make a payment of <strong>₦500</strong> to the account below:</p>
-              <div className="bg-gray-50 p-4 rounded-xl mb-4">
-                <p className="text-xs text-gray-500 uppercase font-bold">Account Name</p>
-                <p className="text-sm font-semibold mb-3">OPAY ISMAIL OLOHUNTOYIN GIDADO</p>
-                <p className="text-xs text-gray-500 uppercase font-bold">Account Number</p>
-                <p className="text-lg font-bold tracking-widest text-blue-600">7057581322</p>
-                <p className="text-xs text-red-600 font-bold mt-3">IMPORTANT: Set remark to: <span className="underline">Textmob Verification Request</span></p>
-              </div>
-              <button onClick={async () => {
-                try {
-                  const res = await apiFetch('/api/verify-request', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: profile?.username })
-                  });
-                  const data = await res.json();
-                  if (res.ok) {
-                    setShowPaymentModal(false);
-                    setRequest({ status: 'PENDING' });
-                    showAlert('Request Submitted', data.message);
-                  } else {
-                    showAlert('Submission Failed', data.error || 'Submission failed');
-                  }
-                } catch (err) {
-                  showAlert('Error', 'Error submitting request');
-                }
-              }}
-                className="w-full h-12 bg-emerald-600 text-white rounded-xl font-bold">I have made payment</button>
-            </div>
-          </div>
-        </>
-      )}
+        <p className="text-sm text-gray-600 mb-4">Contact us on WhatsApp to get verified.</p>
+        <a href="https://wa.me/2347087421125" target="_blank" rel="noopener noreferrer"
+           className="inline-flex items-center gap-2 h-12 px-6 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-all">
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.716.875 5.233 2.356 7.301L.758 23.625a.75.75 0 00.866.964l5.084-1.09A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22.5a10.456 10.456 0 01-5.36-1.476.75.75 0 00-.587-.084l-3.595.771 1.226-3.17a.75.75 0 00-.084-.769A10.422 10.422 0 011.5 12c0-5.79 4.71-10.5 10.5-10.5S22.5 6.21 22.5 12 17.79 22.5 12 22.5z"/></svg>
+          Chat on WhatsApp
+        </a>
+      </div>
     </div>
   );
 }
@@ -422,14 +328,15 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
   return (
     <div className="space-y-4">
       {!profile?.verified && (
-        <div className="bg-white border border-blue-100 rounded-2xl p-5 flex items-center gap-4">
+        <a href="https://wa.me/2347087421125" target="_blank" rel="noopener noreferrer"
+           className="bg-white border border-blue-100 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition-all">
           <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl">{K.Check}</div>
           <div className="flex-1">
             <p className="text-sm font-bold text-gray-900">Unlock your potential</p>
             <p className="text-xs text-gray-500">Get a blue tick to increase trust and visibility.</p>
           </div>
-          <button onClick={() => setTab('verification')} className="h-9 px-4 bg-blue-600 text-white rounded-lg text-xs font-bold">Get Verified</button>
-        </div>
+          <span className="h-9 px-4 bg-blue-600 text-white rounded-lg text-xs font-bold inline-flex items-center">Contact Us</span>
+        </a>
       )}
       {!isOrg && (
         <div className="bg-white border border-purple-100 rounded-2xl p-5 flex items-center gap-4">
@@ -1306,20 +1213,6 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
         </div>
       </Accordion>
 
-      <Accordion title="Verification progress" icon={K.Check} isOrg={isOrg}>
-        <div className="space-y-3 pt-3">
-          <p className="text-xs text-gray-500">Track your progress toward earning a verification badge.</p>
-          <div className="relative w-full" style={{ height: 250 }}>
-            <canvas ref={chartRef2} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p className="text-2xl font-bold text-gray-900">{posts.length}</p>
-              <p className="text-[10px] text-gray-400">posts</p>
-            </div>
-          </div>
-          <p className="text-center text-xs text-gray-400 bg-gray-50 p-2 rounded-lg">{Math.max(0, 50 - posts.length)} more posts to go</p>
-        </div>
-      </Accordion>
-
       <Accordion title="Growth over time" icon={K.Bolt} isOrg={isOrg}>
         <div className="pt-3 relative w-full" style={{ height: 250 }}>
           <p className="text-xs text-gray-500 mb-2">Trend of your posts and likes over the last 6 months.</p>
@@ -1361,7 +1254,7 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
     { label: '2,000 coins', desc: 'Earn 2,000 coins', done: mobcoins >= 2000, icon: K.Coin, tab: 'monetize' },
     { label: '20 posts', desc: 'Publish 20 posts', done: postCount >= 20, icon: K.Posts },
     { label: '50 followers', desc: 'Reach 50 followers', done: followers >= 50, icon: K.Users },
-    { label: '50 posts (Verified!)', desc: 'Reach 50 posts to qualify for verification', done: postCount >= 50, icon: K.Check, tab: 'verification' },
+    { label: '50 posts', desc: 'Reach 50 posts', done: postCount >= 50, icon: K.Check },
     { label: '5,000 coins', desc: 'Earn 5,000 coins', done: mobcoins >= 5000, icon: K.Coin },
     { label: '100 followers', desc: 'Reach 100 followers', done: followers >= 100, icon: K.Users },
     { label: '10,000 coins', desc: 'Earn 10,000 coins', done: mobcoins >= 10000, icon: K.Coin },

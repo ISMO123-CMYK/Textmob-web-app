@@ -24,14 +24,20 @@ const ThemeContext = createContext<ThemeContextType>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
     (async () => {
       const saved = await storage.getStore(KEYS.DARK_MODE);
-      if (saved === 'light' || saved === 'dark' || saved === 'system') {
-        setThemeModeState(saved);
+      if (mounted) {
+        if (saved === 'light' || saved === 'dark' || saved === 'system') {
+          setThemeModeState(saved);
+        }
+        setReady(true);
       }
     })();
+    return () => { mounted = false; };
   }, []);
 
   const isDark = themeMode === 'system' ? systemScheme === 'dark' : themeMode === 'dark';
@@ -43,10 +49,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleTheme = useCallback(async () => {
-    const next = isDark ? 'light' : 'dark';
-    setThemeModeState(next);
-    await storage.setStore(KEYS.DARK_MODE, next);
-  }, [isDark]);
+    setThemeModeState(prev => {
+      const next = prev === 'system' ? (systemScheme === 'dark' ? 'light' : 'dark') : (prev === 'dark' ? 'light' : 'dark');
+      storage.setStore(KEYS.DARK_MODE, next);
+      return next;
+    });
+  }, [systemScheme]);
+
+  if (!ready) {
+    return <>{children}</>;
+  }
 
   return (
     <ThemeContext.Provider value={{ isDark, colors, themeMode, setThemeMode, toggleTheme }}>

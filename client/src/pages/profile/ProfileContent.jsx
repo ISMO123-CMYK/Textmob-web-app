@@ -197,7 +197,7 @@ function _Component38({
   let te = [{
     id: `posts`,
     label: `Posts`,
-    count: r.length
+    count: t?.post_count ?? r.length
   }, {
     id: `connections`,
     label: A ? `Followers` : `Friends`,

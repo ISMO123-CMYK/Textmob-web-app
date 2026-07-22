@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform,
+  ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
   Image, Modal, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { createPostAPI, getPostAPI, Post } from '../../api/posts';
@@ -61,6 +62,8 @@ export default function CreatePostScreen({ route }: { route: any }) {
   const [pollOptions, setPollOptions] = useState<PollOption[]>([{ id: '1', text: '' }, { id: '2', text: '' }]);
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
   const [showPreview, setShowPreview] = useState(true);
+  const [postCategories, setPostCategories] = useState<string[]>([]);
+  const CATEGORIES = ['music','sports','gaming','news','education','entertainment','technology','fashion','art','food','travel','lifestyle','comedy','science','business','health','other'];
 
   const insertMarkdown = useCallback((before: string, after: string = '') => {
     const { start, end } = selection;
@@ -162,6 +165,8 @@ export default function CreatePostScreen({ route }: { route: any }) {
         validOptions.forEach((o, i) => formData.append(`option_${i + 1}`, o.text.trim()));
       }
     }
+
+    if (postCategories.length > 0) formData.append('categories', JSON.stringify(postCategories));
 
     const res = await createPostAPI(formData);
     setLoading(false);
@@ -269,6 +274,19 @@ export default function CreatePostScreen({ route }: { route: any }) {
               <TouchableOpacity style={{ position: 'absolute', top: 4, right: 4 }} onPress={() => setQuotedPost(null)}>
                 <Ionicons name="close" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Category picker (multi-select) */}
+          {!showPollBuilder && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+              <Text style={[s.sectionLabel, { color: colors.textSecondary, width: '100%', marginBottom: 4 }]}>CATEGORIES</Text>
+              {CATEGORIES.filter(c => c !== 'other').map(cat => (
+                <TouchableOpacity key={cat} onPress={() => setPostCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}
+                  style={[s.catChip, { backgroundColor: postCategories.includes(cat) ? colors.primary + '20' : isDark ? '#1e293b' : '#f3f4f6' }]}>
+                  <Text style={[s.catChipText, { color: postCategories.includes(cat) ? colors.primary : colors.textSecondary }]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           )}
 
@@ -431,6 +449,9 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   pollInput: { flex: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13 },
   addPollBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   addPollText: { fontSize: 13, fontWeight: '600' },
+  sectionLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
+  catChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  catChipText: { fontSize: 12, fontWeight: '600' },
   mdToolbar: { flexDirection: 'row', gap: 4, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, marginTop: 8 },
   mdBtn: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   mdBtnText: { fontSize: 13, fontWeight: '700' },

@@ -265,9 +265,11 @@ export default function PostContent() {
   const toggleLike = (id) => {
     if (!localStorage.currentUser) { window.showAuthPrompt?.('Log in to like posts'); return; }
     let username = localStorage.currentUser;
+    let prevSnapshot = null;
     setPost(prev => {
       if (!prev || prev.id !== id) return prev;
       let liked = prev.likes.includes(username);
+      prevSnapshot = prev.likes;
       return {
         ...prev,
         likes: liked ? prev.likes.filter(u => u !== username) : [...prev.likes, username]
@@ -277,6 +279,8 @@ export default function PostContent() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ postId: id, username })
+    }).catch(() => {
+      setPost(prev => prev?.id === id ? { ...prev, likes: prevSnapshot || [] } : prev);
     });
   };
 
