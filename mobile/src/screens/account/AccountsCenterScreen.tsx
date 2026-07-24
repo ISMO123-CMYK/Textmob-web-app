@@ -1063,6 +1063,7 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
 }
 
 function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: any) {
+  const { themeMode, setThemeMode } = useTheme();
   const [notifs, setNotifs] = useState(user?.notification_prefs || {
     likes: { inApp: true, email: true },
     comments: { inApp: true, email: true },
@@ -1072,7 +1073,6 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
     mobcoins: { inApp: true, email: true },
   });
   const [autoSaving, setAutoSaving] = useState(false);
-  const [darkMode, setDarkMode] = useState('system');
 
   const updateNotifPref = async (key: string, channel: string) => {
     if (!user) return;
@@ -1119,9 +1119,9 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
           { value: 'light', label: 'Light mode' },
           { value: 'dark', label: 'Dark mode' },
         ].map(t => (
-          <TouchableOpacity key={t.value} onPress={() => setDarkMode(t.value)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <TouchableOpacity key={t.value} onPress={() => setThemeMode(t.value as any)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <Text style={{ color: colors.textPrimary, fontSize: 13 }}>{t.label}</Text>
-            {darkMode === t.value && <Ionicons name="checkmark-circle" size={18} color={accent} />}
+            {themeMode === t.value && <Ionicons name="checkmark-circle" size={18} color={accent} />}
           </TouchableOpacity>
         ))}
       </View>

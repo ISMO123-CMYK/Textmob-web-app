@@ -46,6 +46,16 @@ class MemoryDB {
       if (usersData) this.users = usersData;
       if (postsData) this.posts = postsData;
 
+      // Filter out posts from disabled users (disabled is TEXT: "true"/"false")
+      const disabledUsernames = new Set(
+        this.users.filter(u => String(u.disabled) === "true").map(u => u.username)
+      );
+      if (disabledUsernames.size > 0) {
+        const before = this.posts.length;
+        this.posts = this.posts.filter(p => !disabledUsernames.has(p.username));
+        console.log(`[MemoryDB] Filtered out ${before - this.posts.length} posts from ${disabledUsernames.size} disabled users.`);
+      }
+
       this.loadSeenMaps();
 
       this.isReady = true;
@@ -104,6 +114,15 @@ class MemoryDB {
 
     pool.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     return pool.slice(0, limit);
+  }
+
+  // Remove all posts by a given username (e.g. when user gets disabled)
+  removeUserPosts(username) {
+    const before = this.posts.length;
+    this.posts = this.posts.filter(p => p.username !== username);
+    const removed = before - this.posts.length;
+    if (removed > 0) console.log(`[MemoryDB] Removed ${removed} posts by @${username}`);
+    return removed;
   }
 
   // In-memory only — does NOT write back to Supabase (the endpoint already did that)

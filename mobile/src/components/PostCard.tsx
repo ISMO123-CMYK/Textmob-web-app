@@ -46,9 +46,10 @@ import SafeHTML from './SafeHTML';
 function RichText({ text, style }: { text: string; style?: any }) {
   return <SafeHTML text={text} style={style} />;
 }
-
-
-function PostMenu({ visible, onClose, post, onNegativeSignal }: { visible: boolean; onClose: () => void; post: Post; onNegativeSignal?: (postId: string, signal: string, contentType: string) => void }) {
+function onNegativeSignal(postId: string, signal: string, contentType: string) {
+  console.log(postId, signal, contentType);
+}
+function PostMenu({ visible, onClose, post }: { visible: boolean; onClose: () => void; post: Post }) {
   const { colors, isDark } = useTheme();
   const items = [
     { icon: 'share-outline' as const, label: 'Share' },
@@ -255,7 +256,7 @@ function VideoItem({ uri, noMargin }: { uri: string; isActive?: boolean; noMargi
   const [fullscreenVisible, setFullscreenVisible] = useState(false);
   return (
     <>
-      <VideoThumbnail uri={uri} aspectRatio={16/9} noMargin={noMargin} onPress={() => setFullscreenVisible(true)} />
+      <VideoThumbnail uri={uri} aspectRatio={16 / 9} noMargin={noMargin} onPress={() => setFullscreenVisible(true)} />
       <VideoPlayerFullscreen uri={uri} visible={fullscreenVisible} onClose={() => setFullscreenVisible(false)} />
     </>
   );
@@ -267,7 +268,7 @@ function SingleImage({ src, onOpenLightbox }: { src: string; onOpenLightbox?: (i
   useEffect(() => {
     Image.getSize(src, (w, h) => {
       if (w && h) setAspectRatio(w / h);
-    }, () => {});
+    }, () => { });
   }, [src]);
 
   return (
@@ -626,7 +627,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
       await Share.share({
         message: `Check out this snap by @${post.username} on Textmob!\nhttps://louda.web.app/snaps?id=${post.id}`,
       });
-    } catch {}
+    } catch { }
   };
 
   return (
@@ -922,7 +923,7 @@ const PostCard = React.memo(function PostCard({
       {/* Comment modal */}
       <Modal visible={showCommentField && !!username} transparent animationType="fade" onRequestClose={() => setShowCommentField(false)}>
         <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowCommentField(false)}>
-          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ width: '90%', maxHeight: '80%', backgroundColor: isDark ? '#1e293b' : '#fff', borderRadius: 16, padding: 20 }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => { }} style={{ width: '90%', maxHeight: '80%', backgroundColor: isDark ? '#1e293b' : '#fff', borderRadius: 16, padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <Text style={{ fontWeight: '700', fontSize: 16, color: colors.textPrimary }}>Add comment</Text>
               <TouchableOpacity onPress={() => setShowCommentField(false)}>

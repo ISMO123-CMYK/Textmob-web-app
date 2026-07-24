@@ -57,17 +57,21 @@
         }, 100);
       }
       function applyDarkMode(mode) {
-        if (mode === "light") {
-          if (window.DarkReader) { try { window.DarkReader.disable(); } catch (e) { } }
-          return;
+        const isSystemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const shouldBeDark = mode === "dark" ? true : mode === "light" ? false : isSystemDark;
+
+        if (shouldBeDark) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
         }
+
         safeCallDarkReader(() => {
           try { if (window.DarkReader && typeof window.DarkReader.setFetchMethod === "function") { window.DarkReader.setFetchMethod(window.fetch); } } catch (e) { }
-          if (mode === "dark") { window.DarkReader.enable({ brightness: 100, contrast: 100, sepia: 0 }); }
-          else if (mode === "custom") { window.DarkReader.enable({ brightness: 110, contrast: 90, sepia: 8 }); }
-          else {
-            if (typeof window.DarkReader.auto === "function") { window.DarkReader.auto({ brightness: 100, contrast: 100, sepia: 0 }); }
-            else { const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; prefersDark ? window.DarkReader.enable() : window.DarkReader.disable(); }
+          if (shouldBeDark) {
+            window.DarkReader.enable({ brightness: 100, contrast: 100, sepia: 0 });
+          } else {
+            window.DarkReader.disable();
           }
         });
       }
@@ -76,11 +80,16 @@
       window.addEventListener("app:preferences:update", (e) => {
         try { const detail = e.detail || {}; if (typeof detail.darkMode === "string") { localStorage.setItem("darkMode", detail.darkMode); applyDarkMode(detail.darkMode); } } catch (err) { }
       });
+      window.addEventListener("app:theme:change", () => {
+        const current = localStorage.getItem("darkMode") || "system";
+        applyDarkMode(current);
+      });
       window.addEventListener("storage", (e) => { if (e.key === "darkMode" && e.newValue) { applyDarkMode(e.newValue); } });
       if (window.matchMedia) {
         const mq = window.matchMedia("(prefers-color-scheme: dark)");
-        if (mq.addEventListener) { mq.addEventListener("change", () => { const current = localStorage.getItem("darkMode") || "system"; if (current === "system") applyDarkMode("system"); }); }
-        else if (mq.addListener) { mq.addListener(() => { const current = localStorage.getItem("darkMode") || "system"; if (current === "system") applyDarkMode("system"); }); }
+        const handleSysChange = () => { const current = localStorage.getItem("darkMode") || "system"; if (current === "system") applyDarkMode("system"); };
+        if (mq.addEventListener) { mq.addEventListener("change", handleSysChange); }
+        else if (mq.addListener) { mq.addListener(handleSysChange); }
       }
     })();
   </script>

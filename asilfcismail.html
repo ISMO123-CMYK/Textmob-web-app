@@ -1,1112 +1,790 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Textmob Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <title>Textmob — Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --bg: #0a0a0a;
-            --card-bg: #141414;
-            --accent: #ff4d4d;
-            --accent-glow: rgba(255, 77, 77, 0.2);
-            --text-main: #ffffff;
-            --text-dim: #999999;
-            --glass: rgba(255, 255, 255, 0.05);
-            --success: #00ff88;
-            --warning: #ffcc00;
-            --info: #00d4ff;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Outfit', sans-serif;
-            background: var(--bg);
-            color: var(--text-main);
-            padding: 20px 40px;
-            overflow-x: hidden;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--glass);
-        }
-
-        .header h1 {
-            font-weight: 800;
-            font-size: 2rem;
-            letter-spacing: -1px;
-        }
-
-        .header .badge {
-            background: var(--accent);
-            padding: 6px 14px;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            box-shadow: 0 0 15px var(--accent-glow);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass);
-            border-radius: 16px;
-            padding: 20px;
-            transition: transform 0.2s;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-        }
-
-        .stat-label {
-            color: var(--text-dim);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-        }
-
-        .stat-meta {
-            font-size: 0.8rem;
-            margin-top: 4px;
-        }
-
-        .charts-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .chart-card {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 25px;
-            border: 1px solid var(--glass);
-        }
-
-        .chart-card h3 {
-            margin-bottom: 20px;
-            font-weight: 600;
-            color: var(--text-dim);
-            font-size: 1rem;
-        }
-
-        /* TABS */
-        .tabs {
-            display: flex;
-            gap: 20px;
-            margin: 40px 0 20px;
-            border-bottom: 1px solid var(--glass);
-            padding-bottom: 10px;
-            flex-wrap: wrap;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            color: var(--text-dim);
-            font-weight: 600;
-            transition: 0.3s;
-            border-radius: 8px;
-        }
-
-        .tab:hover {
-            background: var(--glass);
-        }
-
-        .tab.active {
-            color: var(--accent);
-            background: var(--accent-glow);
-        }
-
-        .section {
-            display: none;
-        }
-
-        .section.active {
-            display: block;
-        }
-
-        .admin-table-container {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 25px;
-            border: 1px solid var(--glass);
-            margin-bottom: 40px;
-        }
-
-        .table-controls {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .search-input {
-            flex: 1;
-            min-width: 300px;
-            padding: 12px 18px;
-            background: #1e1e1e;
-            border: 1px solid var(--glass);
-            border-radius: 10px;
-            color: white;
-            outline: none;
-        }
-
-        .search-input:focus {
-            border-color: var(--accent);
-        }
-
-        .table-wrapper {
-            overflow-x: auto;
-            border-radius: 10px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 1000px;
-        }
-
-        th {
-            background: #1e1e1e;
-            color: var(--accent);
-            text-align: left;
-            padding: 14px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        td {
-            padding: 14px;
-            border-bottom: 1px solid var(--glass);
-            font-size: 0.9rem;
-        }
-
-        tr:hover {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .badge-status {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-
-        .status-active,
-        .status-COMPLETED {
-            background: rgba(0, 255, 136, 0.1);
-            color: var(--success);
-        }
-
-        .status-disabled,
-        .status-REJECTED {
-            background: rgba(255, 77, 77, 0.1);
-            color: var(--accent);
-        }
-
-        .status-PENDING {
-            background: rgba(255, 204, 0, 0.1);
-            color: var(--warning);
-        }
-
-        .action-btn {
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.75rem;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-
-        .btn-toggle {
-            background: #333;
-            color: white;
-        }
-
-        .btn-toggle:hover {
-            background: #444;
-        }
-
-        .btn-coins {
-            background: var(--warning);
-            color: #000;
-            margin-left: 5px;
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: #000;
-        }
-
-        .btn-danger {
-            background: var(--accent);
-            color: white;
-            margin-left: 5px;
-        }
-
-        /* Hall of Fame Specific */
-        .ranking-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-
-        .ranking-card {
-            background: var(--card-bg);
-            border-radius: 20px;
-            padding: 20px;
-            border: 1px solid var(--glass);
-        }
-
-        .ranking-card h3 {
-            margin-bottom: 15px;
-            color: var(--accent);
-            font-size: 1rem;
-        }
-
-        .ranking-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px;
-            border-bottom: 1px solid var(--glass);
-        }
-
-        .ranking-item:last-child {
-            border-bottom: none;
-        }
-
-        .ranking-pos {
-            font-weight: 800;
-            font-size: 1.1rem;
-            color: var(--text-dim);
-            width: 25px;
-        }
-
-        .ranking-info {
-            flex: 1;
-        }
-
-        .ranking-info .name {
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        .ranking-info .handle {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-        }
-
-        .ranking-val {
-            font-weight: 700;
-            color: var(--success);
-        }
-
-        /* Eligibility Banner */
-        .banner {
-            background: linear-gradient(90deg, var(--accent), #ff8000);
-            padding: 20px;
-            border-radius: 16px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: white;
-        }
-
-        .banner-info h2 {
-            font-size: 1.5rem;
-            font-weight: 800;
-        }
-
-        .banner-info p {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-
-        .banner-value {
-            font-size: 2rem;
-            font-weight: 900;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 20px;
-            width: 400px;
-            border: 1px solid var(--glass);
-        }
-
-        .modal-content h3 {
-            margin-bottom: 20px;
-        }
-
-        .modal-content input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 20px;
-            background: #222;
-            border: 1px solid var(--glass);
-            color: white;
-            border-radius: 8px;
-        }
-
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-
-        .modal-btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        .btn-cancel {
-            background: #333;
-            color: white;
-        }
-
-        .btn-save {
-            background: var(--accent);
-            color: white;
-        }
-
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--bg);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            transition: opacity 0.5s;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid var(--glass);
-            border-top: 5px solid var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        @media (max-width: 768px) {
-            body {
-                padding: 20px;
-            }
-
-            .charts-container {
-                grid-template-columns: 1fr;
-            }
-        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --bg:#f8fafc;--card:#fff;--border:#e5e7eb;--text:#0f172a;--dim:#64748b;
+            --primary:#2563eb;--primary-hover:#1d4ed8;--primary-light:rgba(37,99,235,0.08);
+            --success:#10b981;--error:#ef4444;--warning:#f59e0b;--info:#06b6d4;
+            --shadow:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+            --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -1px rgba(0,0,0,0.04);
+            --shadow-lg:0 10px 15px -3px rgba(0,0,0,0.06),0 4px 6px -2px rgba(0,0,0,0.04);
+            --radius:12px;--radius-lg:16px;--radius-xl:20px;
+            --sidebar:250px;--sidebar-collapsed:64px;
+            --ease:cubic-bezier(0.16,1,0.3,1)
+        }
+        html,body{height:100%}
+        body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);display:flex;overflow:hidden}
+        ::-webkit-scrollbar{width:6px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:3px}
+        a{color:var(--primary);text-decoration:none}
+        button{cursor:pointer;font-family:inherit}
+
+        /* Sidebar */
+        .sidebar{
+            width:var(--sidebar);background:var(--card);border-right:1px solid var(--border);
+            display:flex;flex-direction:column;flex-shrink:0;z-index:100;
+            transition:width .3s var(--ease)
+        }
+        .sidebar-header{
+            padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0
+        }
+        .sidebar-header .logo{width:36px;height:36px;background:var(--primary);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;flex-shrink:0}
+        .sidebar-header h1{font-size:18px;font-weight:700;white-space:nowrap}
+        .sidebar-header .badge{font-size:10px;font-weight:600;background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:20px}
+        .sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto}
+        .nav-section{margin-bottom:8px}
+        .nav-label{font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;padding:8px 14px 6px}
+        .nav-item{
+            display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;
+            font-size:14px;font-weight:500;color:var(--dim);transition:all .2s var(--ease);cursor:pointer;white-space:nowrap
+        }
+        .nav-item:hover{background:var(--bg);color:var(--text)}
+        .nav-item.active{background:var(--primary-light);color:var(--primary);font-weight:600}
+        .nav-item .icon{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px}
+        .sidebar-footer{
+            padding:16px 20px;border-top:1px solid var(--border);font-size:12px;color:var(--dim);flex-shrink:0;
+            display:flex;align-items:center;justify-content:space-between
+        }
+        .sidebar-footer .updated{font-size:11px;color:var(--dim)}
+
+        /* Main */
+        .main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+        .main-header{
+            display:flex;align-items:center;justify-content:space-between;padding:16px 32px;
+            background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;gap:16px
+        }
+        .main-header .page-title h2{font-size:20px;font-weight:700}
+        .main-header .page-title p{font-size:13px;color:var(--dim);margin-top:2px}
+        .main-header .header-actions{display:flex;align-items:center;gap:10px}
+        .main-header .header-actions .refresh-btn{
+            padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card);
+            font-size:13px;font-weight:500;color:var(--dim);transition:all .2s var(--ease)
+        }
+        .main-header .header-actions .refresh-btn:hover{background:var(--bg);border-color:#cbd5e1}
+        .hamburger{display:none;width:36px;height:36px;border:1px solid var(--border);border-radius:8px;background:var(--card);align-items:center;justify-content:center;font-size:20px;color:var(--dim)}
+        .main-content{flex:1;overflow-y:auto;padding:24px 32px}
+        @media(max-width:768px){
+            .sidebar{position:fixed;left:-280px;height:100%;transition:left .3s var(--ease);box-shadow:var(--shadow-lg)}
+            .sidebar.open{left:0}
+            .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.3);z-index:99}
+            .sidebar-overlay.show{display:block}
+            .hamburger{display:flex}
+            .main-header{padding:12px 16px;flex-wrap:wrap}
+            .main-header .page-title h2{font-size:17px}
+            .main-content{padding:16px}
+        }
+
+        /* Stats Grid */
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+        .stat-card{
+            background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+            padding:20px;transition:all .2s var(--ease)
+        }
+        .stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+        .stat-card .label{font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.4px}
+        .stat-card .value{font-size:28px;font-weight:700;margin-top:6px;line-height:1.1}
+        .stat-card .meta{font-size:12px;color:var(--dim);margin-top:4px}
+        .stat-card .meta.positive{color:var(--success)}
+        .stat-card .meta.negative{color:var(--error)}
+
+        /* Charts */
+        .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+        @media(max-width:768px){.charts-row{grid-template-columns:1fr}}
+        .chart-card{
+            background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+            padding:20px
+        }
+        .chart-card h3{font-size:13px;font-weight:600;color:var(--dim);margin-bottom:16px}
+
+        /* Section content */
+        .section{display:none}
+        .section.active{display:block}
+        .section-card{
+            background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+            overflow:hidden
+        }
+        .section-card .card-header{
+            padding:16px 20px;border-bottom:1px solid var(--border);
+            display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap
+        }
+        .section-card .card-header h3{font-size:15px;font-weight:600}
+        .section-card .card-tools{display:flex;gap:10px;flex-wrap:wrap;flex:1;max-width:500px}
+        .section-card .card-tools input{
+            flex:1;min-width:200px;padding:9px 14px;border:1px solid var(--border);
+            border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:var(--bg)
+        }
+        .section-card .card-tools input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
+
+        /* Tables */
+        .table-scroll{overflow-x:auto}
+        table{width:100%;border-collapse:collapse;font-size:13px}
+        thead th{
+            background:var(--bg);text-align:left;padding:10px 16px;
+            font-size:11px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;
+            border-bottom:1px solid var(--border);white-space:nowrap
+        }
+        tbody td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+        tr:hover td{background:rgba(37,99,235,0.02)}
+        .avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0}
+        .user-cell{display:flex;align-items:center;gap:10px}
+        .user-cell .name{font-weight:600;font-size:13px}
+        .user-cell .handle{font-size:12px;color:var(--dim)}
+
+        /* Badges */
+        .badge{
+            display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;
+            font-size:11px;font-weight:600;white-space:nowrap
+        }
+        .badge-active{background:rgba(16,185,129,0.1);color:var(--success)}
+        .badge-disabled{background:rgba(239,68,68,0.1);color:var(--error)}
+        .badge-verified{background:rgba(37,99,235,0.1);color:var(--primary)}
+        .badge-pending{background:rgba(245,158,11,0.1);color:var(--warning)}
+        .badge-completed{background:rgba(16,185,129,0.1);color:var(--success)}
+        .badge-rejected{background:rgba(239,68,68,0.1);color:var(--error)}
+        .badge-type{background:var(--bg);color:var(--info)}
+        .verified-icon{color:var(--primary);font-size:14px}
+
+        /* Buttons */
+        .btn{
+            display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;
+            border:none;font-size:12px;font-weight:600;transition:all .15s var(--ease);white-space:nowrap
+        }
+        .btn:active{transform:scale(.96)}
+        .btn-primary{background:var(--primary);color:#fff}
+        .btn-primary:hover{background:var(--primary-hover)}
+        .btn-ghost{background:transparent;color:var(--dim);border:1px solid var(--border)}
+        .btn-ghost:hover{background:var(--bg);color:var(--text)}
+        .btn-success{background:var(--success);color:#fff}
+        .btn-success:hover{opacity:.9}
+        .btn-danger{background:var(--error);color:#fff}
+        .btn-danger:hover{opacity:.9}
+        .btn-warning{background:var(--warning);color:#fff}
+        .btn-warning:hover{opacity:.9}
+        .btn-info{background:var(--info);color:#fff}
+        .btn-info:hover{opacity:.9}
+        .btn-sm{padding:4px 9px;font-size:11px}
+        .btn-group{display:flex;gap:4px;flex-wrap:wrap}
+
+        /* Banner */
+        .banner{
+            background:linear-gradient(135deg,var(--primary),#1d4ed8);color:#fff;
+            border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:24px;
+            display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px
+        }
+        .banner h2{font-size:18px;font-weight:700}
+        .banner p{font-size:13px;opacity:.9;margin-top:4px}
+        .banner .banner-value{font-size:28px;font-weight:800}
+
+        /* Rankings */
+        .ranking-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+        .ranking-card{
+            background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px
+        }
+        .ranking-card h3{font-size:14px;font-weight:600;color:var(--dim);margin-bottom:12px}
+        .ranking-item{
+            display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)
+        }
+        .ranking-item:last-child{border-bottom:none}
+        .rank-pos{font-size:14px;font-weight:700;color:var(--dim);width:24px;text-align:center}
+        .rank-info{flex:1;min-width:0}
+        .rank-info .name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .rank-info .handle{font-size:11px;color:var(--dim)}
+        .rank-val{font-size:13px;font-weight:700;color:var(--success);white-space:nowrap}
+
+        /* Content stats */
+        .content-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:16px}
+        .content-stat{
+            background:var(--bg);border-radius:var(--radius);padding:14px;text-align:center
+        }
+        .content-stat .cs-label{font-size:11px;color:var(--dim);font-weight:600;text-transform:uppercase}
+        .content-stat .cs-value{font-size:20px;font-weight:700;margin-top:4px}
+
+        /* Modal */
+        .modal-overlay{
+            display:none;position:fixed;inset:0;background:rgba(15,23,42,0.4);
+            backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:16px
+        }
+        .modal-overlay.open{display:flex}
+        .modal{
+            background:var(--card);border-radius:var(--radius-xl);width:520px;max-width:100%;
+            max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg)
+        }
+        .modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .modal-header h3{font-size:17px;font-weight:700}
+        .modal-header .close-btn{width:32px;height:32px;border:none;background:var(--bg);border-radius:8px;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--dim);cursor:pointer}
+        .modal-body{padding:20px 24px}
+        .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+        .modal-footer .btn{padding:9px 20px;font-size:13px}
+        .modal input,.modal select{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:var(--bg)}
+        .modal input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
+        .modal label{font-size:13px;font-weight:500;display:block;margin-bottom:6px}
+
+        /* User detail */
+        .detail-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+        .detail-avatar{width:60px;height:60px;border-radius:50%;object-fit:cover}
+        .detail-info h2{font-size:18px;font-weight:700}
+        .detail-info p{font-size:13px;color:var(--dim)}
+        .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+        .detail-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+        .detail-row .dl{color:var(--dim)}
+        .detail-row .dv{font-weight:500}
+        .post-mini{
+            display:flex;align-items:center;justify-content:space-between;gap:10px;
+            padding:10px 14px;background:var(--bg);border-radius:10px;margin-bottom:6px;font-size:13px
+        }
+        .post-mini .pm-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
+        .post-mini .pm-meta{font-size:11px;color:var(--dim);white-space:nowrap}
+
+        /* Loading */
+        .loading-screen{
+            position:fixed;inset:0;background:var(--card);z-index:2000;
+            display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+            transition:opacity .4s
+        }
+        .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading-screen p{font-size:14px;color:var(--dim)}
     </style>
 </head>
-
 <body>
-    <div id="loading" class="loading-overlay">
-        <div class="spinner"></div>
-        <p style="margin-top: 20px; color: var(--text-dim);">Accessing the Database...</p>
-    </div>
+<div id="loading" class="loading-screen"><div class="spinner"></div><p>Loading dashboard...</p></div>
 
-    <div class="header">
-        <h1>Textmob</h1>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <div id="last-updated" style="font-size: 0.8rem; color: var(--text-dim);"></div>
-            <div class="badge">ADMIN ACCESS</div>
+<!-- Sidebar Overlay (mobile) -->
+<div id="sidebarOverlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">T</div>
+        <div>
+            <h1>textmob</h1>
+            <div class="badge">ADMIN</div>
         </div>
     </div>
-
-    <div class="stats-grid" id="stats-summary">
-        <!-- Stats cards will be injected here -->
-    </div>
-
-    <div class="charts-container">
-        <div class="chart-card">
-            <h3>Signup Velocity (Last 7 Days)</h3>
-            <canvas id="signupChart" height="150"></canvas>
-        </div>
-        <div class="chart-card">
-            <h3>Content Creation (Last 7 Days)</h3>
-            <canvas id="contentChart" height="150"></canvas>
-        </div>
-    </div>
-
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('users')">User Management</div>
-        <div class="tab" onclick="switchTab('payouts')">Payout Requests</div>
-        <div class="tab" onclick="switchTab('verification')">Verification Management</div>
-        <div class="tab" onclick="switchTab('eligible')">Eligible for Withdrawal</div>
-        <div class="tab" onclick="switchTab('halloffame')">Hall of Fame & Rankings</div>
-    </div>
-
-    <!-- USERS SECTION -->
-    <div id="users-section" class="section active">
-        <div class="admin-table-container">
-            <div class="table-controls">
-                <input type="text" id="userSearch" class="search-input"
-                    placeholder="Search by username, name, email, phone or password...">
-                <button class="action-btn btn-toggle" onclick="fetchData()">Refresh Data</button>
+    <nav class="sidebar-nav">
+        <div class="nav-section">
+            <div class="nav-label">Management</div>
+            <div class="nav-item active" data-tab="users" onclick="switchTab('users')">
+                <span class="icon">&#9783;</span> Users
             </div>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Contact</th>
-                            <th>Credentials</th>
-                            <th>Coins</th>
-                            <th>Status</th>
-                            <th>Created</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="usersBody">
-                        <!-- User rows will be injected here -->
-                    </tbody>
-                </table>
+            <div class="nav-item" data-tab="posts" onclick="switchTab('posts')">
+                <span class="icon">&#9998;</span> Posts
+            </div>
+            <div class="nav-item" data-tab="payouts" onclick="switchTab('payouts')">
+                <span class="icon">&#36;</span> Payouts
+            </div>
+            <div class="nav-item" data-tab="verification" onclick="switchTab('verification')">
+                <span class="icon">&#10003;</span> Verification
             </div>
         </div>
-    </div>
-
-    <!-- PAYOUTS SECTION -->
-    <div id="payouts-section" class="section">
-        <div class="admin-table-container">
-            <div class="table-controls">
-                <input type="text" id="payoutSearch" class="search-input" placeholder="Filter by user or status...">
-                <button class="action-btn btn-toggle" onclick="fetchPayouts()">Refresh Payouts</button>
+        <div class="nav-section">
+            <div class="nav-label">Analytics</div>
+            <div class="nav-item" data-tab="eligible" onclick="switchTab('eligible')">
+                <span class="icon">&#9733;</span> Eligible
             </div>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Requested By</th>
-                            <th>Type</th>
-                            <th>Coins</th>
-                            <th>Naira Value</th>
-                            <th>Payout Details</th>
-                            <th>Status</th>
-                            <th>Date Requested</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="payoutsBody">
-                        <!-- Payout rows will be injected here -->
-                    </tbody>
-                </table>
+            <div class="nav-item" data-tab="halloffame" onclick="switchTab('halloffame')">
+                <span class="icon">&#9730;</span> Hall of Fame
             </div>
         </div>
+    </nav>
+    <div class="sidebar-footer">
+        <span id="lastUpdated" class="updated">—</span>
+        <span style="font-size:11px">v1.0</span>
     </div>
+</aside>
 
-    <!-- ELIGIBLE SECTION -->
-    <div id="eligible-section" class="section">
-        <div class="banner">
-            <div class="banner-info">
-                <h2>Potential Liabilities</h2>
-                <p id="eligibleCount">0 users are eligible to withdraw right now (>= 2,000 Mobcoins).</p>
-            </div>
-            <div class="banner-value" id="eligibleTotal">₦0</div>
-        </div>
-        <div class="admin-table-container">
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Balance (Coins)</th>
-                            <th>Withdrawal Worth (Naira)</th>
-                            <th>Last Activity</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="eligibleBody">
-                        <!-- Eligible users injected here -->
-                    </tbody>
-                </table>
+<!-- Main -->
+<div class="main">
+    <header class="main-header">
+        <div style="display:flex;align-items:center;gap:12px">
+            <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()">&#9776;</button>
+            <div class="page-title">
+                <h2 id="pageTitle">Users</h2>
+                <p id="pageSubtitle">Manage all platform users</p>
             </div>
         </div>
-    </div>
+        <div class="header-actions">
+            <button class="refresh-btn" onclick="refreshCurrentTab()">&#8635; Refresh</button>
+        </div>
+    </header>
 
-    <!-- VERIFICATION SECTION -->
-    <div id="verification-section" class="section">
-        <div class="admin-table-container">
-            <h3>Pending Verification Requests</h3>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Request Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="verificationBody">
-                        <!-- Verification requests will be injected here -->
-                    </tbody>
-                </table>
+    <div class="main-content">
+        <!-- Stats (shown on all tabs) -->
+        <div id="statsSection">
+            <div class="stats-grid" id="statsSummary"></div>
+            <div class="charts-row">
+                <div class="chart-card"><h3>Signups (7 days)</h3><canvas id="signupChart" height="120"></canvas></div>
+                <div class="chart-card"><h3>Posts (7 days)</h3><canvas id="contentChart" height="120"></canvas></div>
             </div>
         </div>
-    </div>
 
-    <!-- HALL OF FAME SECTION -->
-    <div id="halloffame-section" class="section">
-        <div class="ranking-grid">
-            <div class="ranking-card">
-                <h3>🏆 Hall of Fame (All Time)</h3>
-                <div id="hallOfFameBody">
-                    <!-- Data injected here -->
+        <!-- USERS -->
+        <div id="section-users" class="section active">
+            <div class="section-card">
+                <div class="card-header">
+                    <h3>All Users</h3>
+                    <div class="card-tools">
+                        <input type="text" id="userSearch" placeholder="Search by username, name, email, phone...">
+                    </div>
                 </div>
-            </div>
-            <div class="ranking-card">
-                <h3>🔥 Top Engagers (7 Days)</h3>
-                <div id="topEngagersBody">
-                    <!-- Data injected here -->
-                </div>
-            </div>
-            <div class="ranking-card">
-                <h3>💰 Richest Users</h3>
-                <div id="richestUsersBody">
-                    <!-- Data injected here -->
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr>
+                            <th>User</th><th>Contact</th><th>Coins</th><th>Verified</th><th>Status</th><th>Created</th><th>Actions</th>
+                        </tr></thead>
+                        <tbody id="usersBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <div class="admin-table-container">
-            <h3>📊 Platform Content Analytics</h3>
-            <div id="contentStatsGrid" class="stats-grid" style="margin-top:20px;">
-                <!-- Content stats injected here -->
+        <!-- POSTS -->
+        <div id="section-posts" class="section">
+            <div class="section-card">
+                <div class="card-header">
+                    <h3>All Posts</h3>
+                    <div class="card-tools">
+                        <input type="text" id="postSearch" placeholder="Search by text or @username...">
+                        <button class="btn btn-primary" onclick="fetchAndRenderPosts()">Search</button>
+                        <button class="btn btn-ghost" onclick="document.getElementById('postSearch').value='';fetchAndRenderPosts()">Clear</button>
+                    </div>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr>
+                            <th>Author</th><th>Type</th><th>Content</th><th>Likes</th><th>Comments</th><th>Date</th><th>Actions</th>
+                        </tr></thead>
+                        <tbody id="postsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAYOUTS -->
+        <div id="section-payouts" class="section">
+            <div class="section-card">
+                <div class="card-header">
+                    <h3>Payout Requests</h3>
+                    <div class="card-tools">
+                        <input type="text" id="payoutSearch" placeholder="Filter by user or status...">
+                    </div>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr>
+                            <th>User</th><th>Type</th><th>Coins</th><th>Naira</th><th>Details</th><th>Status</th><th>Date</th><th>Actions</th>
+                        </tr></thead>
+                        <tbody id="payoutsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ELIGIBLE -->
+        <div id="section-eligible" class="section">
+            <div class="banner">
+                <div>
+                    <h2>Potential Liabilities</h2>
+                    <p id="eligibleCount">0 users eligible</p>
+                </div>
+                <div class="banner-value" id="eligibleTotal">&#8358;0</div>
+            </div>
+            <div class="section-card">
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr>
+                            <th>User</th><th>Balance</th><th>Worth</th><th>Last Activity</th><th>Actions</th>
+                        </tr></thead>
+                        <tbody id="eligibleBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VERIFICATION -->
+        <div id="section-verification" class="section">
+            <div class="section-card">
+                <div class="card-header"><h3>Pending Requests</h3></div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th>User</th><th>Date</th><th>Actions</th></tr></thead>
+                        <tbody id="verificationBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- HALL OF FAME -->
+        <div id="section-halloffame" class="section">
+            <div class="ranking-grid">
+                <div class="ranking-card">
+                    <h3>Hall of Fame</h3><div id="hallOfFameBody"></div>
+                </div>
+                <div class="ranking-card">
+                    <h3>Top Engagers (7d)</h3><div id="topEngagersBody"></div>
+                </div>
+                <div class="ranking-card">
+                    <h3>Richest Users</h3><div id="richestUsersBody"></div>
+                </div>
+            </div>
+            <div class="section-card">
+                <div class="card-header"><h3>Content Analytics</h3></div>
+                <div class="content-stats" id="contentStatsGrid"></div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Coin Modal -->
-    <div id="coinModal" class="modal">
-        <div class="modal-content">
-            <h3>Update Mobcoins</h3>
-            <p id="coinModalUser" style="margin-bottom: 10px; color: var(--text-dim);"></p>
+<!-- Coin Modal -->
+<div id="coinModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header"><h3>Update Mobcoins</h3><button class="close-btn" onclick="closeCoinModal()">&times;</button></div>
+        <div class="modal-body">
+            <label id="coinModalUser" style="margin-bottom:12px;color:var(--dim);font-size:13px"></label>
             <input type="number" id="coinAmount" placeholder="Enter amount">
-            <div class="modal-actions">
-                <button class="modal-btn btn-cancel" onclick="closeCoinModal()">Cancel</button>
-                <button class="modal-btn btn-save" onclick="saveCoins()">Update</button>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeCoinModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveCoins()">Update</button>
         </div>
     </div>
+</div>
 
-    <script>
-        let allData = null;
-        let payoutsData = [];
-        let signupChart = null;
-        let contentChart = null;
-        let selectedUserId = null;
+<!-- User Detail Modal -->
+<div id="userDetailModal" class="modal-overlay">
+    <div class="modal" style="width:600px">
+        <div class="modal-header"><h3>User Profile</h3><button class="close-btn" onclick="closeUserDetailModal()">&times;</button></div>
+        <div class="modal-body" id="userDetailContent"></div>
+        <div class="modal-footer"><button class="btn btn-ghost" onclick="closeUserDetailModal()">Close</button></div>
+    </div>
+</div>
 
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+<!-- Delete Post Modal -->
+<div id="deletePostModal" class="modal-overlay">
+    <div class="modal" style="width:420px">
+        <div class="modal-header"><h3>Delete Post</h3><button class="close-btn" onclick="closeDeletePostModal()">&times;</button></div>
+        <div class="modal-body">
+            <p style="color:var(--dim);margin-bottom:8px;font-size:14px">Are you sure? This cannot be undone.</p>
+            <p id="deletePostInfo" style="font-size:13px;background:var(--bg);padding:10px 14px;border-radius:8px;color:var(--dim)"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeDeletePostModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDeletePost()">Delete</button>
+        </div>
+    </div>
+</div>
 
-            const tabEl = document.querySelector(`.tab[onclick="switchTab('${tab}')"]`);
-            const sectionEl = document.getElementById(`${tab}-section`);
+<script>
+let allData = null, payoutsData = [], signupChart = null, contentChart = null;
+let selectedUserId = null, pendingDeletePostId = null;
 
-            if (tabEl) tabEl.classList.add('active');
-            if (sectionEl) sectionEl.classList.add('active');
-            else console.error(`Section not found: ${tab}-section`);
+function toggleSidebar(){
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('show');
+}
 
-            if (tab === 'payouts') fetchPayouts();
-            if (tab === 'halloffame') renderHallOfFame();
-            if (tab === 'eligible') renderEligible();
-            if (tab === 'verification') fetchVerificationRequests();
-        }
+function setPageTitle(title, sub){
+    document.getElementById('pageTitle').textContent = title;
+    document.getElementById('pageSubtitle').textContent = sub || '';
+}
 
-        async function fetchData() {
-            try {
-                const response = await fetch('/api/asilfcismail/data');
-                const data = await response.json();
-                allData = data;
-                renderDashboard();
-                document.getElementById('loading').style.opacity = '0';
-                setTimeout(() => document.getElementById('loading').style.display = 'none', 500);
-                document.getElementById('last-updated').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
-            } catch (err) {
-                console.error('Fetch error:', err);
-                alert('Failed to load admin data');
-            }
-        }
+function switchTab(tab){
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    const navEl = document.querySelector(`.nav-item[data-tab="${tab}"]`);
+    if(navEl) navEl.classList.add('active');
+    const sec = document.getElementById('section-'+tab);
+    if(sec) sec.classList.add('active');
 
-        async function fetchPayouts() {
-            try {
-                const response = await fetch('/api/admin/payouts');
-                const data = await response.json();
-                payoutsData = data;
-                renderPayouts();
-            } catch (err) {
-                console.error('Fetch payouts error:', err);
-                alert('Failed to load payouts');
-            }
-        }
+    if(window.innerWidth<=768){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('show')}
 
-        function renderDashboard() {
-            renderStats();
-            renderCharts();
-            renderUsers();
-            if (document.getElementById('halloffame-section').classList.contains('active')) renderHallOfFame();
-            if (document.getElementById('eligible-section').classList.contains('active')) renderEligible();
-        }
+    const labels={users:['Users','Manage all platform users'],posts:['Posts','Moderate platform content'],
+        payouts:['Payouts','Process withdrawal requests'],eligible:['Eligible','Users eligible for withdrawal'],
+        verification:['Verification','Review verification requests'],halloffame:['Hall of Fame','Top users & analytics']};
+    const [t,s]=labels[tab]||['Dashboard',''];
+    setPageTitle(t,s);
 
-        function renderStats() {
-            const a = allData.analytics;
-            const container = document.getElementById('stats-summary');
-            const stats = [
-                { label: 'Total Users', value: allData.users.length, meta: `${a.userWeeklyGrowth}% growth`, color: '' },
-                { label: 'Total Posts', value: a.posts.totalPosts, meta: `${a.postWeeklyGrowth}% growth`, color: '' },
-                { label: 'Engagement', value: a.posts.engagementRate, meta: 'Avg per post', color: '' },
-                { label: 'Total Mobcoins', value: a.totalMobcoins.toLocaleString(), meta: 'Global Liquidity', color: 'color: gold' },
-            ];
+    if(tab==='payouts') fetchPayouts();
+    if(tab==='halloffame') renderHallOfFame();
+    if(tab==='eligible') renderEligible();
+    if(tab==='verification') fetchVerificationRequests();
+    if(tab==='posts') fetchAndRenderPosts();
+}
 
-            container.innerHTML = stats.map(s => `
-                <div class="stat-card">
-                    <div class="stat-label">${s.label}</div>
-                    <div class="stat-value" style="${s.color}">${s.value}</div>
-                    <div class="stat-meta ${s.meta.includes('-') ? 'negative' : 'positive'}">${s.meta}</div>
-                </div>
-            `).join('');
-        }
+function refreshCurrentTab(){
+    const active = document.querySelector('.nav-item.active');
+    if(active) switchTab(active.dataset.tab);
+    fetchData();
+}
 
-        function renderCharts() {
-            const a = allData.analytics;
+async function fetchData(){
+    try{
+        const r=await fetch('/api/asilfcismail/data');
+        allData=await r.json();
+        renderDashboard();
+        document.getElementById('loading').style.opacity='0';
+        setTimeout(()=>document.getElementById('loading').style.display='none',400);
+        document.getElementById('lastUpdated').textContent=new Date().toLocaleTimeString();
+    }catch(e){console.error(e);alert('Failed to load')}
+}
 
-            if (signupChart) signupChart.destroy();
-            if (contentChart) contentChart.destroy();
+function renderDashboard(){renderStats();renderCharts();renderUsers()}
 
-            const signupCtx = document.getElementById('signupChart').getContext('2d');
-            signupChart = new Chart(signupCtx, {
-                type: 'line',
-                data: {
-                    labels: a.signups.dayLabels,
-                    datasets: [{
-                        label: 'New Signups',
-                        data: a.signups.dayCounts,
-                        borderColor: '#ff4d4d',
-                        backgroundColor: 'rgba(255, 77, 77, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
-                }
-            });
+function renderStats(){
+    const a=allData.analytics;
+    document.getElementById('statsSummary').innerHTML=[
+        {l:'Total Users',v:allData.users.length,m:`${a.userWeeklyGrowth}% growth`,c:''},
+        {l:'Total Posts',v:a.posts.totalPosts,m:`${a.postWeeklyGrowth}% growth`,c:''},
+        {l:'Engagement',v:a.posts.engagementRate,m:'Avg per post',c:''},
+        {l:'Total Mobcoins',v:a.totalMobcoins.toLocaleString(),m:'Global liquidity',c:''},
+    ].map(s=>`<div class="stat-card"><div class="label">${s.l}</div><div class="value" style="${s.c}">${s.v}</div><div class="meta">${s.m}</div></div>`).join('');
+}
 
-            const contentCtx = document.getElementById('contentChart').getContext('2d');
-            contentChart = new Chart(contentCtx, {
-                type: 'bar',
-                data: {
-                    labels: a.postCreations.dayLabels,
-                    datasets: [{
-                        label: 'Posts Created',
-                        data: a.postCreations.dayCounts,
-                        backgroundColor: '#00ff88',
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
-                }
-            });
-        }
+function renderCharts(){
+    const a=allData.analytics;
+    if(signupChart)signupChart.destroy();
+    if(contentChart)contentChart.destroy();
+    signupChart=new Chart(document.getElementById('signupChart'),{type:'line',data:{labels:a.signups.dayLabels,datasets:[{label:'Signups',data:a.signups.dayCounts,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.08)',fill:true,tension:.4}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false}}}}});
+    contentChart=new Chart(document.getElementById('contentChart'),{type:'bar',data:{labels:a.postCreations.dayLabels,datasets:[{label:'Posts',data:a.postCreations.dayCounts,backgroundColor:'#10b981',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false}}}}});
+}
 
-        function renderUsers(filterTerm = '') {
-            const tbody = document.getElementById('usersBody');
-            const term = filterTerm.toLowerCase();
+function renderUsers(q=''){
+    const term=q.toLowerCase();
+    const f=allData.users.filter(u=>u.username?.toLowerCase().includes(term)||u.fullname?.toLowerCase().includes(term)||u.email?.toLowerCase().includes(term)||u.phone?.toLowerCase().includes(term));
+    document.getElementById('usersBody').innerHTML=f.map(u=>`<tr>
+        <td><div class="user-cell"><img class="avatar" src="${u.profile_pic||'https://ui-avatars.com/api/?name='+u.username}" onerror="this.src='https://ui-avatars.com/api/?name='+u.username"><div><div class="name">@${u.username}</div><div class="handle">${u.fullname||''}</div></div></div></td>
+        <td><div>${u.email||'—'}</div><div class="handle">${u.phone||''}</div></td>
+        <td style="font-weight:700;color:var(--warning)">${(u.mobcoins||0).toLocaleString()}</td>
+        <td>${u.verified?'<span class="badge badge-verified">&#10003; Verified</span>':'<span class="badge badge-pending">—</span>'}</td>
+        <td><span class="badge ${String(u.disabled)==='true'?'badge-disabled':'badge-active'}">${String(u.disabled)==='true'?'Disabled':'Active'}</span></td>
+            <td style="font-size:12px;color:var(--dim)">${new Date(u.created_at).toLocaleDateString()}</td>
+            <td><div class="btn-group">
+                <button class="btn btn-sm btn-info" onclick="viewUserDetails('${u.id}')">Profile</button>
+                <button class="btn btn-sm ${String(u.disabled)==='true'?'btn-success':'btn-ghost'}" onclick="toggleUser('${u.id}','${u.disabled}')">${String(u.disabled)==='true'?'Enable':'Disable'}</button>
+            <button class="btn btn-sm ${u.verified?'btn-ghost':'btn-primary'}" onclick="toggleVerified('${u.id}',${!u.verified})">${u.verified?'Unverify':'Verify'}</button>
+            <button class="btn btn-sm btn-warning" onclick="openCoinModal('${u.id}','${u.username}',${u.mobcoins||0})">Coins</button>
+        </div></td>
+    </tr>`).join('');
+}
 
-            const filtered = allData.users.filter(u =>
-                u.username?.toLowerCase().includes(term) ||
-                u.fullname?.toLowerCase().includes(term) ||
-                u.email?.toLowerCase().includes(term) ||
-                u.phone?.toLowerCase().includes(term) ||
-                u.password?.toLowerCase().includes(term)
-            );
+async function fetchAndRenderPosts(){
+    const s=document.getElementById('postSearch').value.trim();
+    try{
+        let u='/api/admin/posts?limit=100';
+        if(s){u+=s.startsWith('@')?'&username='+encodeURIComponent(s.slice(1)):'&search='+encodeURIComponent(s)}
+        const r=await fetch(u);
+        renderPosts(await r.json());
+    }catch(e){console.error(e);alert('Failed')}
+}
 
-            tbody.innerHTML = filtered.map(u => `
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <img class="avatar" src="${u.profile_pic || 'https://ui-avatars.com/api/?name=' + u.username}" onerror="this.src='https://ui-avatars.com/api/?name=' + u.username">
-                            <div>
-                                <div style="font-weight: 700;">@${u.username}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-dim);">${u.fullname || ''}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <div style="font-size: 0.8rem;">${u.email || 'No email'}</div>
-                        <div style="font-size: 0.75rem; color: var(--text-dim);">${u.phone || ''}</div>
-                    </td>
-                    <td>
-                        <code style="background: #000; padding: 2px 5px; border-radius: 4px; color: var(--warning); font-size: 0.8rem;">${u.password || '********'}</code>
-                    </td>
-                    <td style="color: gold; font-weight: 700;">${(u.mobcoins || 0).toLocaleString()}</td>
-                    <td>
-                        <span class="badge-status ${u.disabled ? 'status-disabled' : 'status-active'}">
-                            ${u.disabled ? 'DISABLED' : 'ACTIVE'}
-                        </span>
-                    </td>
-                    <td style="font-size: 0.75rem; color: var(--text-dim);">${new Date(u.created_at).toLocaleDateString()}</td>
-                    <td>
-                        <button class="action-btn btn-toggle" onclick="toggleUser('${u.id}', ${u.disabled})">
-                            ${u.disabled ? 'Enable' : 'Disable'}
-                        </button>
-                        <button class="action-btn btn-coins" onclick="openCoinModal('${u.id}', '${u.username}', ${u.mobcoins || 0})">
-                            Coins
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+function renderPosts(posts){
+    const tbody=document.getElementById('postsBody');
+    if(!posts||!posts.length) return tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--dim);padding:40px;font-size:14px">No posts found</td></tr>';
+    tbody.innerHTML=posts.map(p=>{
+        const txt=(p.text||'(no text)').slice(0,80);
+        const likes=Array.isArray(p.likes)?p.likes.length:(p.likes||0);
+        const cmts=Array.isArray(p.comments)?p.comments.length:(p.comments||0);
+        return `<tr>
+            <td><strong>@${p.username||'?'}</strong></td>
+            <td><span class="badge badge-type">${p.type||'text'}</span></td>
+            <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)">${txt}${(p.text||'').length>80?'...':''}</td>
+            <td>${likes}</td><td>${cmts}</td>
+            <td style="font-size:12px;color:var(--dim)">${new Date(p.created_at).toLocaleDateString()}</td>
+            <td><div class="btn-group">
+                <button class="btn btn-sm btn-info" onclick="viewPostDetail('${p.id}')">View</button>
+                <button class="btn btn-sm btn-danger" onclick="openDeletePostModal('${p.id}','@${p.username||'?'}')">Delete</button>
+            </div></td>
+        </tr>`;
+    }).join('');
+}
 
-        function renderPayouts(filterTerm = '') {
-            const tbody = document.getElementById('payoutsBody');
-            const term = filterTerm.toLowerCase();
+async function viewPostDetail(id){
+    try{
+        const r=await fetch('/api/admin/posts?limit=1');
+        const posts=await r.json();
+        const p=posts.find(x=>String(x.id)===String(id));
+        if(!p) return alert('Not found');
+        const likes=Array.isArray(p.likes)?p.likes.length:(p.likes||0);
+        const cmts=Array.isArray(p.comments)?p.comments.length:(p.comments||0);
+        document.getElementById('userDetailContent').innerHTML=`
+            <div style="margin-bottom:16px"><strong style="font-size:15px">Post by @${p.username}</strong></div>
+            <div class="detail-grid">
+                <div class="detail-row"><span class="dl">ID</span><span class="dv" style="font-size:11px">${p.id}</span></div>
+                <div class="detail-row"><span class="dl">Type</span><span class="dv">${p.type||'text'}</span></div>
+                <div class="detail-row"><span class="dl">Likes</span><span class="dv">${likes}</span></div>
+                <div class="detail-row"><span class="dl">Comments</span><span class="dv">${cmts}</span></div>
+                <div class="detail-row" style="grid-column:1/-1"><span class="dl">Created</span><span class="dv">${new Date(p.created_at).toLocaleString()}</span></div>
+            </div>
+            <div style="margin-top:12px;padding:14px;background:var(--bg);border-radius:10px;color:var(--dim);font-size:13px;line-height:1.6">${p.text||'(no text)'}</div>`;
+        document.getElementById('userDetailModal').classList.add('open');
+    }catch(e){alert('Error')}
+}
 
-            const filtered = payoutsData.filter(p =>
-                p.users?.username?.toLowerCase().includes(term) ||
-                p.status?.toLowerCase().includes(term) ||
-                p.type?.toLowerCase().includes(term)
-            );
+function openDeletePostModal(id,author){pendingDeletePostId=id;document.getElementById('deletePostInfo').textContent='Post by '+author;document.getElementById('deletePostModal').classList.add('open')}
+function closeDeletePostModal(){pendingDeletePostId=null;document.getElementById('deletePostModal').classList.remove('open')}
+async function confirmDeletePost(){
+    if(!pendingDeletePostId) return;
+    try{
+        const r=await fetch('/api/admin/delete-post',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postId:pendingDeletePostId})});
+        if(r.ok){closeDeletePostModal();fetchAndRenderPosts();fetchData();alert('Deleted')}
+        else alert('Failed');
+    }catch(e){alert('Error')}
+}
 
-            tbody.innerHTML = filtered.map(p => {
-                const details = p.payout_details;
-                let detailsHtml = '';
-                if (p.type === 'CASH') {
-                    detailsHtml = `<b>${details.bank}</b><br>${details.account_no}<br>${details.name}`;
-                } else {
-                    detailsHtml = `<b>${details.network}</b><br>${details.phone}`;
-                }
+async function fetchPayouts(){
+    try{const r=await fetch('/api/admin/payouts');payoutsData=await r.json();renderPayouts()}catch(e){console.error(e)}
+}
 
-                return `
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <img class="avatar" src="${p.users?.profile_pic || 'https://ui-avatars.com/api/?name=' + p.users?.username}" onerror="this.src='https://ui-avatars.com/api/?name=' + p.users?.username">
-                            <div>
-                                <div style="font-weight: 700;">@${p.users?.username}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-dim);">${p.users?.fullname || ''}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td><span class="badge-status" style="background: var(--glass); color: var(--info)">${p.type}</span></td>
-                    <td style="font-weight: 700;">${p.coin_amount.toLocaleString()}</td>
-                    <td style="color: var(--success); font-weight: 700;">₦${p.naira_value}</td>
-                    <td style="font-size: 0.8rem; line-height: 1.4;">${detailsHtml}</td>
-                    <td>
-                        <span class="badge-status status-${p.status}">
-                            ${p.status}
-                        </span>
-                    </td>
-                    <td style="font-size: 0.75rem; color: var(--text-dim);">${new Date(p.created_at).toLocaleString()}</td>
-                    <td>
-                        ${p.status === 'PENDING' ? `
-                            <button class="action-btn btn-success" onclick="updatePayoutStatus('${p.id}', 'COMPLETED')">Complete</button>
-                            <button class="action-btn btn-danger" onclick="updatePayoutStatus('${p.id}', 'REJECTED')">Reject</button>
-                        ` : '<span style="color: var(--text-dim); font-style: italic;">Processed</span>'}
-                    </td>
-                </tr>
-            `}).join('');
-        }
+function renderPayouts(q=''){
+    const term=q.toLowerCase();
+    const f=payoutsData.filter(p=>p.users?.username?.toLowerCase().includes(term)||p.status?.toLowerCase().includes(term)||p.type?.toLowerCase().includes(term));
+    document.getElementById('payoutsBody').innerHTML=f.map(p=>{
+        const d=p.payout_details;
+        const dh=p.type==='CASH'?`<b>${d.bank}</b><br>${d.account_no}<br>${d.name}`:`<b>${d.network}</b><br>${d.phone}`;
+        return `<tr>
+            <td><div class="user-cell"><img class="avatar" src="${p.users?.profile_pic||'https://ui-avatars.com/api/?name='+p.users?.username}" onerror="this.src='https://ui-avatars.com/api/?name='+p.users?.username"><div><div class="name">@${p.users?.username}</div><div class="handle">${p.users?.fullname||''}</div></div></div></td>
+            <td><span class="badge badge-type">${p.type}</span></td>
+            <td style="font-weight:700">${p.coin_amount.toLocaleString()}</td>
+            <td style="font-weight:700;color:var(--success)">&#8358;${p.naira_value}</td>
+            <td style="font-size:12px;line-height:1.5">${dh}</td>
+            <td><span class="badge badge-${p.status.toLowerCase()}">${p.status}</span></td>
+            <td style="font-size:12px;color:var(--dim)">${new Date(p.created_at).toLocaleString()}</td>
+            <td>${p.status==='PENDING'?`<div class="btn-group"><button class="btn btn-sm btn-success" onclick="updatePayoutStatus('${p.id}','COMPLETED')">Complete</button><button class="btn btn-sm btn-danger" onclick="updatePayoutStatus('${p.id}','REJECTED')">Reject</button></div>`:'<span style="color:var(--dim);font-size:12px">Processed</span>'}</td>
+        </tr>`;
+    }).join('');
+}
 
-        function renderEligible() {
-            if (!allData) return;
-            const threshold = 2000;
-            const excluded = ["textmobofficial", "ismailg", "ibg", "ibrahimg", "textmobai", 'bossprogrammer'];
+function renderEligible(){
+    if(!allData) return;
+    const t=2000,ex=["textmobofficial","ismailg","ibg","ibrahimg","textmobai",'bossprogrammer'];
+    const e=allData.users.filter(u=>u.username&&(u.mobcoins||0)>=t&&!ex.includes(u.username.toLowerCase()));
+    const n=e.reduce((s,u)=>s+(u.mobcoins*0.1),0);
+    document.getElementById('eligibleCount').textContent=`${e.length} users eligible to withdraw (>= 2,000 Mobcoins)`;
+    document.getElementById('eligibleTotal').textContent='₦'+n.toLocaleString();
+    document.getElementById('eligibleBody').innerHTML=e.sort((a,b)=>b.mobcoins-a.mobcoins).map(u=>`<tr>
+        <td><div class="user-cell"><img class="avatar" src="${u.profile_pic||'https://ui-avatars.com/api/?name='+u.username}" onerror="this.src='https://ui-avatars.com/api/?name='+u.username"><div><div class="name">@${u.username}</div><div class="handle">${u.fullname||''}</div></div></div></td>
+        <td style="font-weight:700;color:var(--warning)">${u.mobcoins.toLocaleString()}</td>
+        <td style="font-weight:700;color:var(--success)">₦${(u.mobcoins*0.1).toLocaleString()}</td>
+        <td style="font-size:12px;color:var(--dim)">${u.created_at?new Date(u.created_at).toLocaleDateString():'N/A'}</td>
+        <td><button class="btn btn-sm btn-info" onclick="viewUserDetails('${u.id}')">Manage</button></td>
+    </tr>`).join('');
+}
 
-            const eligible = allData.users.filter(u => {
-                if (!u.username) return false;
-                const uname = u.username.toLowerCase();
-                return (u.mobcoins || 0) >= threshold && !excluded.includes(uname);
-            });
+function renderHallOfFame(){
+    if(!allData) return;
+    const a=allData.analytics;
+    document.getElementById('hallOfFameBody').innerHTML=(a.topUsers||[]).map((u,i)=>`<div class="ranking-item"><div class="rank-pos">#${i+1}</div><img class="avatar" src="${u.avatar||'https://ui-avatars.com/api/?name='+u.username}" onerror="this.src='https://ui-avatars.com/api/?name='+u.username"><div class="rank-info"><div class="name">${u.fullname||u.username}</div><div class="handle">@${u.username}</div></div><div class="rank-val">${u.score.toLocaleString()} pts</div></div>`).join('');
+    document.getElementById('topEngagersBody').innerHTML=(a.topUsers7d||[]).map((u,i)=>`<div class="ranking-item"><div class="rank-pos">#${i+1}</div><div class="rank-info"><div class="name">${u.fullname||u.username}</div><div class="handle">@${u.username}</div></div><div class="rank-val" style="color:var(--error)">${u.score7d}</div></div>`).join('');
+    document.getElementById('richestUsersBody').innerHTML=(a.topCoinHolders||[]).map((u,i)=>`<div class="ranking-item"><div class="rank-pos">#${i+1}</div><div class="rank-info"><div class="name">${u.fullname||u.username}</div><div class="handle">@${u.username}</div></div><div class="rank-val" style="color:var(--warning)">₦${(u.mobcoins*0.1).toLocaleString()}</div></div>`).join('');
+    const cs=a.posts;
+    document.getElementById('contentStatsGrid').innerHTML=[
+        {l:'Total Posts',v:cs.totalPosts},{l:'Polls',v:cs.pollPosts},{l:'Standard',v:cs.normalPosts},{l:'Events',v:cs.eventPosts},{l:'Likes',v:cs.totalLikes},{l:'Comments',v:cs.totalComments}
+    ].map(s=>`<div class="content-stat"><div class="cs-label">${s.l}</div><div class="cs-value">${(s.v||0).toLocaleString()}</div></div>`).join('');
+}
 
-            const totalNaira = eligible.reduce((s, u) => s + (u.mobcoins * 0.1), 0);
+/* --- Search listeners --- */
+document.getElementById('userSearch').addEventListener('input',e=>renderUsers(e.target.value));
+document.getElementById('payoutSearch').addEventListener('input',e=>renderPayouts(e.target.value));
+document.getElementById('postSearch').addEventListener('keydown',e=>{if(e.key==='Enter')fetchAndRenderPosts()});
 
-            document.getElementById('eligibleCount').innerText = `${eligible.length} users are eligible to withdraw right now (>= 2,000 Mobcoins).`;
-            document.getElementById('eligibleTotal').innerText = `₦${totalNaira.toLocaleString()}`;
+async function updatePayoutStatus(id,s){
+    if(!confirm(`Mark as ${s}?`)) return;
+    try{const r=await fetch('/api/admin/payout/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:s})});if(r.ok){fetchPayouts();fetchData()}else alert('Failed')}catch(e){alert('Error')}
+}
 
-            const tbody = document.getElementById('eligibleBody');
-            tbody.innerHTML = eligible.sort((a, b) => b.mobcoins - a.mobcoins).map(u => `
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <img class="avatar" src="${u.profile_pic || 'https://ui-avatars.com/api/?name=' + u.username}" onerror="this.src='https://ui-avatars.com/api/?name=' + u.username">
-                            <div>
-                                <div style="font-weight: 700;">@${u.username}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-dim);">${u.fullname || ''}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td style="font-weight: 700; color: gold;">${u.mobcoins.toLocaleString()}</td>
-                    <td style="font-weight: 800; color: var(--success);">₦${(u.mobcoins * 0.1).toLocaleString()}</td>
-                    <td style="font-size: 0.75rem; color: var(--text-dim);">${u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}</td>
-                    <td>
-                        <button class="action-btn btn-toggle" onclick="switchTab('users'); document.getElementById('userSearch').value='${u.username}'; renderUsers('${u.username}')">Manage</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
+async function toggleUser(id,cur){
+    const isDisabled = String(cur)==='true';
+    if(!confirm(`${isDisabled?'Enable':'Disable'} this user?`)) return;
+    try{const r=await fetch('/api/admin/user/toggle-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:id,disabled:!isDisabled})});if(r.ok)fetchData();else alert('Failed')}catch(e){alert('Error')}
+}
 
-        function renderHallOfFame() {
-            if (!allData) return;
-            const a = allData.analytics;
+async function toggleVerified(id,val){
+    if(!confirm(`${val?'Verify':'Remove verification from'} this user?${val?' They will be notified.':''}`)) return;
+    try{const r=await fetch('/api/admin/user/set-verified',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:id,verified:val})});if(r.ok)fetchData();else{alert((await r.json()).error||'Failed')}}catch(e){alert('Error')}
+}
 
-            const hofBody = document.getElementById('hallOfFameBody');
-            hofBody.innerHTML = a.topUsers.map((u, i) => `
-                <div class="ranking-item">
-                    <div class="ranking-pos">#${i + 1}</div>
-                    <img class="avatar" src="${u.avatar || 'https://ui-avatars.com/api/?name=' + u.username}" onerror="this.src='https://ui-avatars.com/api/?name=' + u.username">
-                    <div class="ranking-info">
-                        <div class="name">${u.fullname || u.username}</div>
-                        <div class="handle">@${u.username}</div>
+async function viewUserDetails(id){
+    try{
+        const r=await fetch(`/api/admin/user/details?userId=${encodeURIComponent(id)}`);
+        if(!r.ok) throw Error('fail');
+        const d=await r.json(),u=d.user,posts=d.posts||[];
+        const content=document.getElementById('userDetailContent');
+        content.innerHTML=`
+            <div class="detail-header">
+                <img class="detail-avatar" src="${u.profile_pic||'https://ui-avatars.com/api/?name='+u.username}" onerror="this.src='https://ui-avatars.com/api/?name='+u.username">
+                <div class="detail-info"><h2>@${u.username} ${u.verified?'<span style="color:var(--primary)">&#10003;</span>':''}</h2><p>${u.fullname||'No name'}</p></div>
+            </div>
+            <div class="detail-grid">
+                <div class="detail-row"><span class="dl">Email</span><span class="dv">${u.email||'N/A'}</span></div>
+                <div class="detail-row"><span class="dl">Phone</span><span class="dv">${u.phone||'N/A'}</span></div>
+                <div class="detail-row"><span class="dl">Bio</span><span class="dv">${u.biography||'N/A'}</span></div>
+                <div class="detail-row"><span class="dl">Coins</span><span class="dv" style="color:var(--warning)">${(u.mobcoins||0).toLocaleString()}</span></div>
+                <div class="detail-row"><span class="dl">Followers</span><span class="dv">${Array.isArray(u.followers)?u.followers.length:u.followers||0}</span></div>
+                <div class="detail-row"><span class="dl">Verified</span><span class="dv" style="color:${u.verified?'var(--primary)':'var(--dim)'}">${u.verified?'Yes':'No'}</span></div>
+                <div class="detail-row"><span class="dl">Status</span><span class="dv" style="color:${String(u.disabled)==='true'?'var(--error)':'var(--success)'}">${String(u.disabled)==='true'?'Disabled':'Active'}</span></div>
+                <div class="detail-row"><span class="dl">Type</span><span class="dv">${u.profile_type||'Individual'}</span></div>
+                <div class="detail-row" style="grid-column:1/-1"><span class="dl">Joined</span><span class="dv">${u.created_at?new Date(u.created_at).toLocaleString():'N/A'}</span></div>
+            </div>
+            <div style="margin-top:16px;font-weight:600;font-size:14px">Recent Posts (${posts.length})</div>
+            ${posts.length===0?'<div style="text-align:center;padding:24px;color:var(--dim);font-size:13px">No posts</div>':posts.map(p=>`
+                <div class="post-mini">
+                    <span class="pm-text">${(p.text||'(no text)').slice(0,55)}${(p.text||'').length>55?'...':''}</span>
+                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                        <span class="pm-meta">${Array.isArray(p.likes)?p.likes.length:0} likes</span>
+                        <span class="pm-meta">${new Date(p.created_at).toLocaleDateString()}</span>
+                        <button class="btn btn-sm btn-danger" onclick="openDeletePostModal('${p.id}','@${u.username}')" style="padding:3px 7px;font-size:10px">X</button>
                     </div>
-                    <div class="ranking-val">${u.score.toLocaleString()} pts</div>
                 </div>
-            `).join('');
+            `).join('')}`;
+        document.getElementById('userDetailModal').classList.add('open');
+    }catch(e){console.error(e);alert('Failed to load')}
+}
 
-            const engBody = document.getElementById('topEngagersBody');
-            engBody.innerHTML = a.topUsers7d.map((u, i) => `
-                <div class="ranking-item">
-                    <div class="ranking-pos">#${i + 1}</div>
-                    <div class="ranking-info">
-                        <div class="name">${u.fullname || u.username}</div>
-                        <div class="handle">@${u.username}</div>
-                    </div>
-                    <div class="ranking-val" style="color:var(--accent)">${u.score7d}</div>
-                </div>
-            `).join('');
+function closeUserDetailModal(){document.getElementById('userDetailModal').classList.remove('open')}
 
-            const richBody = document.getElementById('richestUsersBody');
-            richBody.innerHTML = a.topCoinHolders.map((u, i) => `
-                <div class="ranking-item">
-                    <div class="ranking-pos">#${i + 1}</div>
-                    <div class="ranking-info">
-                        <div class="name">${u.fullname || u.username}</div>
-                        <div class="handle">@${u.username}</div>
-                    </div>
-                    <div class="ranking-val" style="color:gold">₦${(u.mobcoins * 0.1).toLocaleString()}</div>
-                </div>
-            `).join('');
+function openCoinModal(id,usr,cur){selectedUserId=id;document.getElementById('coinModalUser').textContent='@'+usr+' — current: '+cur.toLocaleString();document.getElementById('coinAmount').value=cur;document.getElementById('coinModal').classList.add('open')}
+function closeCoinModal(){document.getElementById('coinModal').classList.remove('open')}
+async function saveCoins(){
+    const a=parseInt(document.getElementById('coinAmount').value);
+    if(isNaN(a)) return alert('Invalid');
+    try{const r=await fetch('/api/admin/user/update-coins',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:selectedUserId,mobcoins:a})});if(r.ok){closeCoinModal();fetchData()}else alert('Failed')}catch(e){alert('Error')}
+}
 
-            const contentStatsGrid = document.getElementById('contentStatsGrid');
-            const cs = a.posts;
-            const stats = [
-                { label: 'Total Posts', value: cs.totalPosts },
-                { label: 'Polls', value: cs.pollPosts },
-                { label: 'Standard Posts', value: cs.normalPosts },
-                { label: 'Events', value: cs.eventPosts },
-                { label: 'Total Likes', value: cs.totalLikes },
-                { label: 'Total Comments', value: cs.totalComments },
-            ];
-            contentStatsGrid.innerHTML = stats.map(s => `
-                <div class="stat-card">
-                    <div class="stat-label">${s.label}</div>
-                    <div class="stat-value">${s.value.toLocaleString()}</div>
-                </div>
-            `).join('');
-        }
+async function updateVerification(id,s){
+    if(!confirm(`Mark as ${s}?`)) return;
+    try{const r=await fetch('/api/admin/verification-update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status:s})});if(r.ok){fetchVerificationRequests();alert('Updated')}else alert('Failed')}catch(e){alert('Error')}
+}
 
-        // Search events
-        document.getElementById('userSearch').addEventListener('input', (e) => renderUsers(e.target.value));
-        document.getElementById('payoutSearch').addEventListener('input', (e) => renderPayouts(e.target.value));
+async function fetchVerificationRequests(){
+    try{
+        const r=await fetch('/api/admin/verification-requests');
+        if(!r.ok) throw Error('fail');
+        const reqs=await r.json();
+        const tbody=document.getElementById('verificationBody');
+        tbody.innerHTML=reqs.length===0?'<tr><td colspan="3" style="text-align:center;color:var(--dim);padding:40px">No pending requests</td></tr>':reqs.map(req=>`<tr>
+            <td><strong>@${req.users?.username||'?'}</strong></td>
+            <td style="font-size:12px;color:var(--dim)">${new Date(req.created_at).toLocaleString()}</td>
+            <td><div class="btn-group">
+                <button class="btn btn-sm btn-success" onclick="updateVerification('${req.id}','ACCEPTED')">Accept</button>
+                <button class="btn btn-sm btn-danger" onclick="updateVerification('${req.id}','REJECTED')">Reject</button>
+            </div></td>
+        </tr>`).join('');
+    }catch(e){console.error(e)}
+}
 
-        async function updatePayoutStatus(id, status) {
-            if (!confirm(`Mark this payout as ${status}?`)) return;
+/* Close modals on overlay click */
+document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',function(e){if(e.target===this){this.classList.remove('open');pendingDeletePostId=null}})});
 
-            try {
-                const response = await fetch('/api/admin/payout/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, status })
-                });
-
-                if (response.ok) {
-                    fetchPayouts();
-                    fetchData(); // Refresh general data too
-                } else {
-                    alert('Action failed');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Error updating payout');
-            }
-        }
-
-        async function toggleUser(userId, currentDisabled) {
-            if (!confirm(`Are you sure you want to ${currentDisabled ? 'enable' : 'disable'} this user?`)) return;
-
-            try {
-                const response = await fetch('/api/admin/user/toggle-status', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, disabled: !currentDisabled })
-                });
-
-                if (response.ok) {
-                    fetchData(); // Refresh
-                } else {
-                    alert('Action failed');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Error performing action');
-            }
-        }
-
-        function openCoinModal(userId, username, currentCoins) {
-            selectedUserId = userId;
-            document.getElementById('coinModalUser').innerText = `Editing @${username}`;
-            document.getElementById('coinAmount').value = currentCoins;
-            document.getElementById('coinModal').style.display = 'flex';
-        }
-
-        function closeCoinModal() {
-            document.getElementById('coinModal').style.display = 'none';
-        }
-
-        async function saveCoins() {
-            const amount = parseInt(document.getElementById('coinAmount').value);
-            if (isNaN(amount)) return alert('Invalid amount');
-
-            try {
-                const response = await fetch('/api/admin/user/update-coins', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: selectedUserId, mobcoins: amount })
-                });
-
-                if (response.ok) {
-                    closeCoinModal();
-                    fetchData(); // Refresh
-                } else {
-                    alert('Failed to update coins');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Error updating coins');
-            }
-        }
-
-        async function updateVerification(id, status) {
-            if (!confirm(`Mark this verification request as ${status}?`)) return;
-            try {
-                const response = await fetch('/api/admin/verification-update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, status })
-                });
-                if (response.ok) {
-                    fetchVerificationRequests();
-                    alert('Verification status updated');
-                } else {
-                    alert('Action failed');
-                }
-            } catch (err) {
-                console.error(err);
-                alert('Error updating status');
-            }
-        }
-
-        async function fetchVerificationRequests() {
-            try {
-                const response = await fetch('/api/admin/verification-requests');
-                if (!response.ok) throw new Error('Failed to fetch requests');
-                const requests = await response.json();
-                
-                const tbody = document.getElementById('verificationBody');
-                tbody.innerHTML = requests.map(req => `
-                    <tr>
-                        <td>@${req.users.username}</td>
-                        <td>${new Date(req.created_at).toLocaleString()}</td>
-                        <td>
-                            <button class="action-btn" onclick="updateVerification('${req.id}', 'ACCEPTED')">Accept</button>
-                            <button class="action-btn" onclick="updateVerification('${req.id}', 'REJECTED')" style="background:var(--danger)">Reject</button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (err) {
-                console.error('Error fetching verification requests:', err);
-            }
-        }
-
-        // Initial fetch
-        fetchData();
-        fetchVerificationRequests();
-    </script>
+fetchData();
+fetchVerificationRequests();
+</script>
 </body>
-
 </html>

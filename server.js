@@ -761,6 +761,27 @@ const authorMobcoinsCache = new Map();
 
 // Duplicated imports removed
 
+// ── Disabled User Guard ──────────────────────────────────────────────────────
+async function isUserDisabled(username) {
+  if (!username) return true;
+  const { data: user } = await supabase
+    .from("users")
+    .select("disabled")
+    .eq("username", username)
+    .maybeSingle();
+  // disabled is TEXT in DB: "true" or "false"
+  return user ? String(user.disabled) === "true" : true;
+}
+
+// ── Disabled Guard Middleware ────────────────────────────────────────────────
+async function guardDisabled(req, res, next) {
+  const username = req.body?.username || req.body?.currentUsername || req.query?.username;
+  if (username && await isUserDisabled(username)) {
+    return res.status(403).json({ error: "Account disabled. Cannot perform actions." });
+  }
+  next();
+}
+
 // --- HLS Proxy Middleware ---
 // Redirects HLS requests from Express (port 5000) to NMS (port 8000)
 app.get("/live/:postId/:file", async (req, res) => {
@@ -1077,6 +1098,26 @@ app.get("/api/verify-user", async (req, res) => {
     res.json({ exists: !!user });
   } catch (err) {
     console.error("[VERIFY-USER CRITICAL ERROR]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/check-disabled", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("disabled")
+      .eq("username", username)
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: "Database error" });
+    if (!user) return res.json({ disabled: false });
+
+    res.json({ disabled: String(user.disabled) === "true" });
+  } catch (err) {
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -1819,6 +1860,7 @@ app.get("/follow-status", async (req, res) => {
 app.post("/follow", async (req, res) => {
   try {
     const { username, currentUsername, action } = req.body;
+    if (await isUserDisabled(currentUsername || username)) return res.status(403).json({ error: "Account disabled" });
 
     // ── input checks ──────────────────────────────────────
     if (!username || !currentUsername || !action)
@@ -3017,6 +3059,7 @@ function normalizeChatId(a, b) {
 }
 
 app.post("/create-spark", upload.single("media"), async (req, res) => {
+  if (await isUserDisabled(req.body?.username)) return res.status(403).json({ error: "Account disabled" });
   try {
     const { username, caption } = req.body;
     if (!username || !req.file) {
@@ -4240,6 +4283,7 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
   try {
     const { username, text, visib, activities, quoted_post_id, category, categories } = req.body;
     let { options } = req.body;
+    if (await isUserDisabled(username)) return res.status(403).json({ error: "Account disabled" });
 
     if (!username || !text) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -5180,9 +5224,8 @@ io.on("connection", function (socket) {
 app.post("/like-post", async (req, res) => {
   try {
     const { postId, username } = req.body;
-    if (!postId || !username) {
-      return res.status(400).json({ error: "Post ID and username are required" });
-    }
+    if (!postId || !username) return res.status(400).json({ error: "Post ID and username are required" });
+    if (await isUserDisabled(username)) return res.status(403).json({ error: "Account disabled" });
 
     // Fetch the post owner and type for notifications
     const { data: post, error: fetchError } = await supabase2
@@ -7130,6 +7173,13 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const reactions = (post.reactions || []).length;
       const contentType = post.type || 'post';
 
+      // Verified author boost: +5.0 if author is verified
+      let verifiedBoost = 0;
+      if (memoryDb && memoryDb.isReady && post.username) {
+        const author = memoryDb.findUser(post.username);
+        if (author && String(author.verified) === "true") verifiedBoost = 5.0;
+      }
+
       // Half-life based on tab
       const halfLife = ctx.tab === 'following' ? 36 : 12;
       const freshness = Math.pow(0.5, ageHours / halfLife);
@@ -7194,7 +7244,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
         console.log(`[score] user=${ctx.username} post=${post.id} score=${score.toFixed(4)} freshness=${freshness.toFixed(4)} velocity=${velocity.toFixed(4)} followNudge=${followNudge} typeWeight=${typeWeight} seenPenalty=${seenPenalty} negPenalty=${negPenalty} catWeight=${catWeight}`);
       }
 
-      return score + (Math.random() * 0.2);
+      return score + verifiedBoost + (Math.random() * 0.2);
     }
 
     // Build user context for scoring
@@ -10000,8 +10050,14 @@ app.get("/api/asilfcismail/data", async (req, res) => {
     const currWeekPosts = postWeekCounts[3] || 0;
     const postWeeklyGrowth = prevWeekPosts > 0 ? ((currWeekPosts - prevWeekPosts) / prevWeekPosts * 100).toFixed(1) : '0';
 
+    const sortedUsers = (users || []).sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+
     res.json({
-      users: users || [],
+      users: sortedUsers,
       analytics: {
         signups: { hourLabels, hourCounts, dayLabels, dayCounts, weekLabels, weekCounts, monthLabels, monthCounts },
         postCreations: { hourLabels: postHourLabels, hourCounts: postHourCounts, dayLabels: postDayLabels, dayCounts: postDayCounts, weekLabels: postWeekLabels, weekCounts: postWeekCounts, monthLabels: postMonthLabels, monthCounts: postMonthCounts },
@@ -10108,9 +10164,27 @@ app.post("/api/admin/user/toggle-status", async (req, res) => {
   try {
     const { userId, disabled } = req.body;
     if (!userId) return res.status(400).json({ error: "User ID required" });
-    const { error } = await supabase.from('users').update({ disabled: !!disabled }).eq('id', userId);
+
+    const { data: user, error: fetchErr } = await supabase
+      .from('users')
+      .select('username')
+      .eq('id', userId)
+      .single();
+    if (fetchErr) throw fetchErr;
+
+    const disabledStr = String(!!disabled);
+    const { error } = await supabase.from('users').update({ disabled: disabledStr }).eq('id', userId);
     if (error) throw error;
-    res.json({ success: true, disabled: !!disabled });
+
+    // Update MemoryDB in real-time
+    if (memoryDb && memoryDb.isReady && user) {
+      memoryDb.updateUser(user.username, { disabled: disabledStr });
+      if (disabled) {
+        memoryDb.removeUserPosts(user.username);
+      }
+    }
+
+    res.json({ success: true, disabled: disabledStr });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -10120,10 +10194,147 @@ app.post("/api/admin/user/update-coins", async (req, res) => {
   try {
     const { userId, mobcoins } = req.body;
     if (!userId) return res.status(400).json({ error: "User ID required" });
+
+    const { data: user, error: fetchErr } = await supabase
+      .from('users')
+      .select('username')
+      .eq('id', userId)
+      .single();
+    if (fetchErr) throw fetchErr;
+
     const { error } = await supabase.from('users').update({ mobcoins: parseInt(mobcoins) || 0 }).eq('id', userId);
     if (error) throw error;
+
+    // Update MemoryDB in real-time
+    if (memoryDb && memoryDb.isReady && user) {
+      memoryDb.updateUser(user.username, { mobcoins: parseInt(mobcoins) || 0 });
+    }
+
     res.json({ success: true, mobcoins });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── NEW ADMIN ENDPOINTS ──────────────────────────────────────────────────────
+
+app.post("/api/admin/user/set-verified", async (req, res) => {
+  try {
+    const { userId, verified } = req.body;
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+
+    const { data: user, error: fetchErr } = await supabase
+      .from("users")
+      .select("username, fullname")
+      .eq("id", userId)
+      .single();
+    if (fetchErr) throw fetchErr;
+
+    const { error: updateErr } = await supabase
+      .from("users")
+      .update({ verified: !!verified })
+      .eq("id", userId);
+    if (updateErr) throw updateErr;
+
+    // Update MemoryDB in real-time
+    if (memoryDb && memoryDb.isReady && user) {
+      memoryDb.updateUser(user.username, { verified: !!verified });
+    }
+
+    if (verified && user) {
+      await triggerNotification(user.username, 'verification', {
+        msg: `Congratulations @${user.username}! You have been verified by the admin.`,
+        subject: "You're Verified on Textmob!",
+        html: `Hi ${user.fullname || user.username},<br><br>You have been verified by the Textmob admin team. Enjoy your verified badge!`,
+        link: "/accountscenter"
+      });
+    }
+
+    res.json({ success: true, verified: !!verified });
+  } catch (err) {
+    console.error("[ADMIN SET VERIFIED ERROR]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/admin/user/details", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    if (error) throw error;
+
+    const { data: posts, error: postsErr } = await supabase2
+      .from("Posts")
+      .select("id, type, text, created_at, likes, comments, media")
+      .eq("username", user.username)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (postsErr) throw postsErr;
+
+    res.json({ user, posts: posts || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/admin/posts", async (req, res) => {
+  try {
+    const { search, username, limit: queryLimit } = req.query;
+    let query = supabase2
+      .from("Posts")
+      .select("id, username, type, text, created_at, likes, comments, media, disabled")
+      .order("created_at", { ascending: false });
+
+    if (username) query = query.eq("username", username);
+    if (search) query = query.ilike("text", `%${search}%`);
+
+    const qLimit = parseInt(queryLimit) || 50;
+    query = query.limit(qLimit);
+
+    const { data: posts, error } = await query;
+    if (error) throw error;
+
+    res.json(posts || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/delete-post", async (req, res) => {
+  try {
+    const { postId } = req.body;
+    if (!postId) return res.status(400).json({ error: "postId required" });
+
+    const { data: post, error: fetchErr } = await supabase2
+      .from("Posts")
+      .select("media_public_ids")
+      .eq("id", postId)
+      .single();
+    if (fetchErr) throw fetchErr;
+
+    (post.media_public_ids || []).forEach(async publicId => {
+      await cloudinary.uploader.destroy(publicId, { resource_type: "auto" });
+    });
+
+    const { error: deleteErr } = await supabase2
+      .from("Posts")
+      .delete()
+      .eq("id", postId);
+    if (deleteErr) throw deleteErr;
+
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.posts = memoryDb.posts.filter(p => String(p.id) !== String(postId));
+    }
+
+    res.json({ success: true, message: "Post deleted by admin" });
+  } catch (err) {
+    console.error("[ADMIN DELETE POST ERROR]", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Textmob",
-    "slug": "Textmob",
+    "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -28,6 +28,7 @@
       "eas": {
         "projectId": "cd3ed21d-7bd6-4b73-b893-1fbc3a9b67de"
       }
-    }
+    },
+    "owner": "bossprogrammer20"
   }
 }
