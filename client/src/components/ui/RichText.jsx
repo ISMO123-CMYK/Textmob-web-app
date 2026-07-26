@@ -58,9 +58,14 @@ export default function RichText({ html }) {
         (match, tag) => `<a data-lexum href="/topsearch?q=${encodeURIComponent(tag)}" class="text-blue-500 font-semibold hover:underline">${match}</a>`
       );
 
+      // Convert markdown (bold, italic, code, lists, headings, etc.)
+      if (typeof window.marked !== 'undefined') {
+        result = window.marked.parse(result, { gfm: true, breaks: true, mangle: false, headerIds: false });
+      }
+
       // Sanitize if DOMPurify is available
-      if (typeof DOMPurify !== 'undefined') {
-        result = DOMPurify.sanitize(result, { ADD_ATTR: ['data-lexum'] });
+      if (typeof window.DOMPurify !== 'undefined') {
+        result = window.DOMPurify.sanitize(result, { ADD_ATTR: ['data-lexum'] });
       }
 
       setParsed(result);
@@ -70,5 +75,5 @@ export default function RichText({ html }) {
     return () => { active = false; };
   }, [html]);
 
-  return <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: parsed }} />;
+  return <div className="prose markdown max-w-none" dangerouslySetInnerHTML={{ __html: parsed }} />;
 }

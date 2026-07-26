@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import PostCard from '../../components/ui/PostCard';
+import RichText from '../../components/ui/RichText';
 import useProfileCache from '../../utils/useProfileCache';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
@@ -34,7 +35,9 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
             {cmt.deleted && <span className="text-[10px] text-gray-400 italic">[deleted]</span>}
           </div>
           {!cmt.deleted && (
-            <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug mt-0.5">{cmt.text}</p>
+            <div className="text-sm text-gray-700 dark:text-gray-300 leading-snug mt-0.5">
+              <RichText html={cmt.text} />
+            </div>
           )}
         </div>
         {!cmt.deleted && (

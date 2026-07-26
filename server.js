@@ -7327,11 +7327,9 @@ app.post("/get-posts", express.json(), async (req, res) => {
       // Boost score from paid boosts
       const boostScoreValue = (post.boost_score || 0) * 2.0;
 
-      // Media bonus
-      const mediaBonus = (post.media && post.media.length > 0) ? (isVideo(post.media[0]) ? 3.0 : 1.5) : 0;
-
-      // Video length bonus
-      const videoLengthBonus = (post.video_duration || 0) > 0 ? Math.min(2.0, (post.video_duration / 60) * 1.0) : 0;
+      // Media bonus — removed (text-only posts deserve a fair shot)
+      const mediaBonus = 0;
+      const videoLengthBonus = 0;
 
       // Half-life based on tab
       const halfLife = ctx.tab === 'following' ? 36 : 12;
