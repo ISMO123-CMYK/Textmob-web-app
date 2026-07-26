@@ -608,9 +608,9 @@ function renderPosts(posts){
 
 async function viewPostDetail(id){
     try{
-        const r=await fetch('/api/admin/posts?limit=1');
+        const r=await fetch('/api/admin/posts?id='+encodeURIComponent(id));
         const posts=await r.json();
-        const p=posts.find(x=>String(x.id)===String(id));
+        const p=posts[0];
         if(!p) return alert('Not found');
         const likes=Array.isArray(p.likes)?p.likes.length:(p.likes||0);
         const cmts=Array.isArray(p.comments)?p.comments.length:(p.comments||0);

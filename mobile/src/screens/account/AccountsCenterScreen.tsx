@@ -590,7 +590,17 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
   const [editText, setEditText] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [boostingPost, setBoostingPost] = useState<any>(null);
+  const [boostAmount, setBoostAmount] = useState(1);
+  const [boosting, setBoosting] = useState(false);
+  const [balance, setBalance] = useState(0);
   const filtered = posts.filter((p: any) => p.type !== 'snap');
+
+  useEffect(() => {
+    apiGet(`/api/user/stats?username=${encodeURIComponent(username)}`).then((r: any) => {
+      if (r.ok && r.data) setBalance(r.data.mobcoins || 0);
+    }).catch(() => {});
+  }, [username]);
 
   const saveEdit = async () => {
     setSaving(true);
@@ -621,6 +631,24 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
         finally { setDeletingId(null); }
       }},
     ]);
+  };
+
+  const handleBoost = async () => {
+    if (!boostingPost || boostAmount < 1) return;
+    const cost = boostAmount * 500;
+    if (balance < cost) { Alert.alert('Insufficient Balance', `Need ${cost.toLocaleString()} mobcoins, have ${balance.toLocaleString()}.`); return; }
+    setBoosting(true);
+    try {
+      const res = await apiPost('/api/boost-post', { postId: boostingPost.id, username, boostAmount });
+      if (!res.ok || res.data?.error) { Alert.alert('Error', res.data?.error || 'Boost failed'); return; }
+      setBalance((prev: number) => prev - cost);
+      const fresh = await apiGet(`/get-user-posts?username=${encodeURIComponent(username)}`);
+      if (fresh.ok && fresh.data) setPosts(fresh.data);
+      setBoostingPost(null);
+      setBoostAmount(1);
+      Alert.alert('Boosted!', `+${boostAmount} pts (cost: ${cost.toLocaleString()} mobcoins).`);
+    } catch { Alert.alert('Error', 'Boost failed'); }
+    finally { setBoosting(false); }
   };
 
   if (!filtered.length) {
@@ -678,8 +706,70 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
             </Text>
             {post.type === 'poll' && <Text style={{ color: '#2563eb', fontSize: 10, fontWeight: '600' }}>Poll</Text>}
           </View>
+          <TouchableOpacity onPress={() => { setBoostingPost(post); setBoostAmount(1); }} style={{ marginTop: 10, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#fed7aa', backgroundColor: '#fff7ed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Ionicons name="flash" size={14} color="#f97316" />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#f97316' }}>Boost Post</Text>
+            {post.boost_score > 0 && <Text style={{ fontSize: 11, color: '#f97316', opacity: 0.7 }}>({post.boost_score} pts)</Text>}
+          </TouchableOpacity>
         </View>
       ))}
+
+      {/* Boost Modal */}
+      <Modal visible={!!boostingPost} transparent animationType="slide" onRequestClose={() => setBoostingPost(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Boost Post</Text>
+            {boostingPost && (
+              <>
+                <View style={{ backgroundColor: '#fff7ed', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#fed7aa' }}>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary }}>Current boost score</Text>
+                  <Text style={{ fontSize: 22, fontWeight: '800', color: '#f97316' }}>{boostingPost.boost_score || 0} pts</Text>
+                </View>
+
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginBottom: 8 }}>Boost amount</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <TouchableOpacity onPress={() => setBoostAmount(Math.max(1, boostAmount - 1))} style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary }}>−</Text>
+                  </TouchableOpacity>
+                  <TextInput
+                    value={String(boostAmount)}
+                    onChangeText={t => setBoostAmount(Math.min(100, Math.max(1, parseInt(t) || 1)))}
+                    keyboardType="number-pad"
+                    style={{ flex: 1, height: 40, textAlign: 'center', backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}
+                  />
+                  <TouchableOpacity onPress={() => setBoostAmount(Math.min(100, boostAmount + 1))} style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary }}>+</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>Cost</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textPrimary }}>{(boostAmount * 500).toLocaleString()} mobcoins</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>Balance</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: balance >= boostAmount * 500 ? '#10b981' : '#ef4444' }}>{balance.toLocaleString()} mobcoins</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12, color: colors.textSecondary }}>New score</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#f97316' }}>{(boostingPost.boost_score || 0) + boostAmount} pts</Text>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity onPress={() => setBoostingPost(null)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+                    <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleBoost} disabled={boosting || balance < boostAmount * 500} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#f97316', alignItems: 'center', opacity: (boosting || balance < boostAmount * 500) ? 0.5 : 1, flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+                    {boosting ? <ActivityIndicator color="#fff" /> : <><Ionicons name="flash" size={16} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800' }}>Boost {boostAmount}pt</Text></>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!editingPost} transparent animationType="slide" onRequestClose={() => setEditingPost(null)}>
         <View style={styles.modalOverlay}>

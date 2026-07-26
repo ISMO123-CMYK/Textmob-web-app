@@ -5,24 +5,78 @@ import PostCard from '../../components/ui/PostCard';
 import useProfileCache from '../../utils/useProfileCache';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
-function CommentItem({ cmt }) {
+function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, followingUsernames = [] }) {
   const profile = useProfileCache(cmt.username);
   const ciGuest = !localStorage.currentUser;
+  const currentUser = localStorage.currentUser;
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const replies = cmt.replies || [];
+  const [showReplies, setShowReplies] = useState(() => replies.some(r => followingUsernames.includes(r.username)));
+
+  if (cmt.deleted && replies.length === 0) return null;
 
   return (
-    <div className="flex items-start gap-2">
+    <div className={`flex items-start gap-2 ${depth > 0 ? 'ml-8 mt-2' : 'mt-3'}`}>
       <img
         src={profile.profile_pic || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg'}
         alt={profile.fullname}
-        className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100 dark:border-gray-800"
+        className="w-7 h-7 rounded-full object-cover flex-shrink-0 border border-gray-100 dark:border-gray-800"
         loading="lazy"
       />
-      <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-2xl max-w-[85%] cursor-pointer" onClick={() => { if (ciGuest) { window.showAuthPrompt?.('Create an account to view profiles'); return; } window.Lexum?.navigate(`/@${cmt.username}`); }}>
-        <div className="flex items-center gap-1">
-          <p className="text-xs font-bold text-gray-900 dark:text-gray-100 leading-snug">{profile.fullname || cmt.username}</p>
-          {(cmt.verified === true || profile.verified === true) && <VerifiedBadge className="w-3 h-3" />}
+      <div className="flex-1 min-w-0">
+        <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-2xl">
+          <div className="flex items-center gap-1">
+            <p className="text-xs font-bold text-gray-900 dark:text-gray-100 leading-snug cursor-pointer" onClick={() => { if (ciGuest) { window.showAuthPrompt?.('Create an account to view profiles'); return; } window.Lexum?.navigate(`/@${cmt.username}`); }}>
+              {profile.fullname || cmt.username}
+            </p>
+            {(cmt.verified === true || profile.verified === true) && <VerifiedBadge className="w-3 h-3" />}
+            {cmt.deleted && <span className="text-[10px] text-gray-400 italic">[deleted]</span>}
+          </div>
+          {!cmt.deleted && (
+            <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug mt-0.5">{cmt.text}</p>
+          )}
         </div>
-        <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug mt-0.5">{cmt.text}</p>
+        {!cmt.deleted && (
+          <div className="flex items-center gap-3 mt-0.5 ml-2">
+            {currentUser && (
+              <button onClick={() => setShowReplyInput(!showReplyInput)} className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">
+                Reply
+              </button>
+            )}
+            {(currentUser === cmt.username || currentUser === postOwner) && (
+              <button onClick={() => onDelete(cmt.id)} className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors">
+                Delete
+              </button>
+            )}
+            {replies.length > 0 && (
+              <button onClick={() => setShowReplies(!showReplies)} className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-blue-500 transition-colors">
+                {showReplies ? 'Hide' : 'View'} {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+              </button>
+            )}
+          </div>
+        )}
+        {showReplyInput && currentUser && (
+          <div className="flex items-center gap-2 mt-2 ml-2">
+            <input
+              type="text"
+              value={replyText}
+              onChange={e => setReplyText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && replyText.trim()) { onReply(cmt.id, replyText.trim()); setReplyText(''); setShowReplyInput(false); } }}
+              placeholder="Write a reply..."
+              className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-1.5 text-xs outline-none text-gray-800 dark:text-gray-200 placeholder-gray-400"
+              autoFocus
+            />
+            {replyText.trim() && (
+              <button onClick={() => { onReply(cmt.id, replyText.trim()); setReplyText(''); setShowReplyInput(false); }} className="text-blue-600 dark:text-blue-400 font-bold text-xs">
+                Reply
+              </button>
+            )}
+          </div>
+        )}
+        {showReplies && replies.map((r, i) => (
+          <CommentItem key={r.id || i} cmt={r} postId={postId} postOwner={postOwner} onReply={onReply} onDelete={onDelete} depth={depth + 1} followingUsernames={followingUsernames} />
+        ))}
       </div>
     </div>
   );
@@ -170,6 +224,13 @@ export default function PostContent() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [reactionsOpenFor, setReactionsOpenFor] = useState(null);
   const [reactionsCache, setReactionsCache] = useState({});
+  const [followingUsernames, setFollowingUsernames] = useState([]);
+
+  useEffect(() => {
+    const cu = localStorage.currentUser;
+    if (!cu) return;
+    apiFetch(`/get-user-following?username=${encodeURIComponent(cu)}`).then(r => r.ok ? r.json() : []).then(d => setFollowingUsernames(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
 
   const postId = window.location.pathname.split('/post/')[1] || '';
 
@@ -246,11 +307,14 @@ export default function PostContent() {
 
     loadPost();
 
+    function commentExistsInTree(comments, id) {
+      return comments.some(c => String(c.id) === String(id) || (c.replies && commentExistsInTree(c.replies, id)));
+    }
     const onComment = t => {
       if (t?.postId === postId) {
-        setPost(prev => !prev || prev.comments.some(c => c.id === t.id) ? prev : {
-          ...prev,
-          comments: [...prev.comments, t]
+        setPost(prev => {
+          if (!prev || commentExistsInTree(prev.comments, t.id)) return prev;
+          return { ...prev, comments: [t, ...prev.comments] };
         });
       }
     };
@@ -299,6 +363,57 @@ export default function PostContent() {
         body: JSON.stringify({ postId: id, username: localStorage.currentUser, comment: trimmed })
       });
     } catch { }
+  };
+
+  function addReplyToCommentTree(comments, parentId, reply) {
+    return comments.map(c => {
+      if (String(c.id) === String(parentId)) {
+        return { ...c, replies: [...(c.replies || []), reply] };
+      }
+      if (c.replies && c.replies.length > 0) {
+        return { ...c, replies: addReplyToCommentTree(c.replies, parentId, reply) };
+      }
+      return c;
+    });
+  }
+
+  const handleReply = async (parentId, text) => {
+    if (!localStorage.currentUser || !post) return;
+    const newReply = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), username: localStorage.currentUser, text, timestamp: new Date().toISOString(), parentId };
+    setPost(prev => ({
+      ...prev,
+      comments: addReplyToCommentTree(prev.comments, parentId, newReply)
+    }));
+    try {
+      await apiFetch('/add-comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: post.id, username: localStorage.currentUser, comment: text, parentId })
+      });
+    } catch {}
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!localStorage.currentUser || !post) return;
+    if (!confirm('Delete this comment?')) return;
+    try {
+      await apiFetch('/delete-comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: post.id, commentId, username: localStorage.currentUser })
+      });
+      setPost(prev => ({
+        ...prev,
+        comments: prev.comments.map(c => {
+          if (c.id === commentId) {
+            if (c.replies && c.replies.length > 0) return { ...c, text: '[deleted]', deleted: true };
+            return null;
+          }
+          if (c.replies) return { ...c, replies: c.replies.filter(r => r.id !== commentId) };
+          return c;
+        }).filter(Boolean)
+      }));
+    } catch {}
   };
 
   const handlePollVote = async (id, optionId) => {
@@ -408,7 +523,7 @@ export default function PostContent() {
         <div className="px-4 pb-6 space-y-4">
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 pt-2">Comments</p>
           {[...post.comments].reverse().map((c, i) => (
-            <CommentItem cmt={c} key={c.id || i} />
+            <CommentItem key={c.id || i} cmt={c} postId={post.id} postOwner={post.username} onReply={handleReply} onDelete={handleDeleteComment} followingUsernames={followingUsernames} />
           ))}
         </div>
       )}

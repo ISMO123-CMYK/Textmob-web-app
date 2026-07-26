@@ -31,6 +31,7 @@ export interface Comment {
   text: string;
   verified?: boolean;
   created_at?: string;
+  parentId?: string;
 }
 
 export interface Reaction {
@@ -78,8 +79,12 @@ export async function likePostAPI(postId: string, username: string) {
   return apiPost<{ ok: boolean }>('/like-post', { postId, username });
 }
 
-export async function addCommentAPI(postId: string, username: string, comment: string) {
-  return apiPost<{ ok: boolean }>('/add-comment', { postId, username, comment });
+export async function deleteCommentAPI(postId: string, commentId: string, username: string) {
+  return apiPost<{ ok: boolean }>('/delete-comment', { postId, commentId, username });
+}
+
+export async function addCommentAPI(postId: string, username: string, comment: string, parentId?: string) {
+  return apiPost<{ ok: boolean }>('/add-comment', { postId, username, comment, parentId });
 }
 
 export async function reactPostAPI(postId: string, username: string, reaction: string, etext: string) {

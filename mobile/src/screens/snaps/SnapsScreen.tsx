@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useIsFocused } from '@react-navigation/native';
 import { getFeedPostsAPI, likePostAPI, reactPostAPI, addCommentAPI, getSnapsFeedAPI, Post } from '../../api/posts';
 import { getFollowStatusAPI, followAPI, friendAPI } from '../../api/users';
+import { CATEGORIES } from '../../data/categories';
 import * as ImagePicker from 'expo-image-picker';
 import { apiPost, uploadFile, API_BASE_URL } from '../../api/client';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
@@ -357,6 +358,7 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [caption, setCaption] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showReactions, setShowReactions] = useState<string | number | null>(null);
   const [showComments, setShowComments] = useState<string | number | null>(null);
   const [showGift, setShowGift] = useState<any>(null);
@@ -504,9 +506,11 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
       fd.append('text', caption.trim() || ' ');
       // Use React Native native FormData (append {uri, name, type} instead of File)
       fd.append('media', getUploadAsset(selectedVideo) as any);
+      if (selectedCategories.length > 0) fd.append('categories', JSON.stringify(selectedCategories));
       await uploadFile('/create-snap', fd, (p) => setUploadProgress(p));
       setSelectedVideo(null);
       setCaption('');
+      setSelectedCategories([]);
       setUploading(false);
       loadSnaps();
     } catch (err) {
@@ -611,12 +615,12 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
       </Modal>
 
       {/* Create Snap Modal */}
-      <Modal visible={showCreateModal} transparent animationType="slide" onRequestClose={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); }}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); }}>
+      <Modal visible={showCreateModal} transparent animationType="slide" onRequestClose={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); }}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); }}>
           <View style={[styles.createModalContent, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
             <View style={styles.createModalHeader}>
               <Text style={[styles.createModalTitle, { color: colors.textPrimary }]}>New Snap</Text>
-              <TouchableOpacity onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); }}>
+              <TouchableOpacity onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); }}>
                 <Ionicons name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
@@ -635,6 +639,20 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
               multiline
             />
             <Text style={[styles.charCount, { color: colors.textSecondary }]}>{caption.length}/280</Text>
+            <View style={{ padding: 16, paddingTop: 0 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Categories</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {CATEGORIES.map(cat => {
+                  const isSelected = selectedCategories.includes(cat.id);
+                  return (
+                    <TouchableOpacity key={cat.id} onPress={() => setSelectedCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
+                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: isSelected ? cat.color + '30' : (isDark ? '#1e293b' : '#f3f4f6') }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: isSelected ? cat.color : colors.textSecondary }}>{cat.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
             <TouchableOpacity style={styles.postSnapBtn} onPress={handleCreateSnap}>
               <Text style={styles.postSnapBtnText}>✦ Post Snap</Text>
             </TouchableOpacity>

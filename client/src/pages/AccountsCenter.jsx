@@ -864,7 +864,15 @@ function PostsTab({ posts, setPosts, username, setTab }) {
   const [editText, setEditText] = useState('');
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [boostingPost, setBoostingPost] = useState(null);
+  const [boostAmount, setBoostAmount] = useState(1);
+  const [boosting, setBoosting] = useState(false);
+  const [balance, setBalance] = useState(0);
   const filtered = posts.filter(p => p.type !== 'snap');
+
+  useEffect(() => {
+    apiFetch(`/api/user/stats?username=${encodeURIComponent(username)}`).then(r => r.ok ? r.json() : { mobcoins: 0 }).then(d => setBalance(d.mobcoins || 0)).catch(() => {});
+  }, [username]);
 
   async function saveEdit() {
     setSaving(true);
@@ -890,6 +898,29 @@ function PostsTab({ posts, setPosts, username, setTab }) {
       setPosts(prev => prev.filter(p => p.id !== postId));
     } catch (err) { alert(err.message); }
     finally { setDeletingId(null); }
+  }
+
+  async function handleBoost() {
+    if (!boostingPost || boostAmount < 1) return;
+    const cost = boostAmount * 500;
+    if (balance < cost) { alert(`Insufficient balance. You need ${cost.toLocaleString()} mobcoins but have ${balance.toLocaleString()}.`); return; }
+    setBoosting(true);
+    try {
+      const res = await apiFetch('/api/boost-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId: boostingPost.id, username, boostAmount }),
+      });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      setBalance(prev => prev - cost);
+      const fresh = await apiFetch(`/get-user-posts?username=${encodeURIComponent(username)}`);
+      if (fresh.ok) setPosts(await fresh.json());
+      setBoostingPost(null);
+      setBoostAmount(1);
+      alert(`Boosted! +${boostAmount} pts (cost: ${cost.toLocaleString()} mobcoins).`);
+    } catch (err) { alert(err.message); }
+    finally { setBoosting(false); }
   }
 
   if (!filtered.length) {
@@ -944,8 +975,63 @@ function PostsTab({ posts, setPosts, username, setTab }) {
             <span className="flex items-center gap-1"><span className="text-blue-500">{K.Chat}</span>{post.comments?.length || 0} comments</span>
             {post.type === 'poll' && <span className="bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-0.5 rounded-full">Poll</span>}
           </div>
+
+          {username && (
+            <div className="flex items-center gap-3 pt-1">
+              {post.boost_score > 0 && (
+                <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full flex items-center gap-1">{K.Bolt}Score: {post.boost_score}</span>
+              )}
+              <button onClick={() => { setBoostingPost(post); setBoostAmount(1); }} className="flex-1 h-10 rounded-xl border border-orange-200 bg-orange-50 text-orange-600 text-sm font-semibold hover:bg-orange-100 transition-all flex items-center justify-center gap-2">
+                {K.Bolt}Boost Post
+              </button>
+            </div>
+          )}
         </div>
       ))}
+
+      <BottomSheet open={!!boostingPost} onClose={() => setBoostingPost(null)} title="Boost Post">
+        <div className="px-5 py-4 pb-10 space-y-5">
+          {boostingPost && (
+            <>
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-1">
+                <p className="text-xs text-gray-500">Current boost score</p>
+                <p className="text-xl font-bold text-orange-600">{boostingPost.boost_score || 0} pts</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Boost amount</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setBoostAmount(Math.max(1, boostAmount - 1))} className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-lg hover:bg-gray-200 transition-all">−</button>
+                  <input type="number" min="1" max="100" value={boostAmount} onChange={e => setBoostAmount(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))} className="flex-1 h-10 text-center bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold outline-none focus:ring-2 focus:ring-orange-200" />
+                  <button onClick={() => setBoostAmount(Math.min(100, boostAmount + 1))} className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-lg hover:bg-gray-200 transition-all">+</button>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Cost</span>
+                  <span className="font-bold text-gray-900">{(boostAmount * 500).toLocaleString()} mobcoins</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Your balance</span>
+                  <span className={`font-bold ${balance >= boostAmount * 500 ? 'text-green-600' : 'text-red-500'}`}>{balance.toLocaleString()} mobcoins</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">New boost score</span>
+                  <span className="font-bold text-orange-600">{(boostingPost.boost_score || 0) + boostAmount} pts</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => setBoostingPost(null)} className="flex-1 h-11 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
+                <button onClick={handleBoost} disabled={boosting || balance < boostAmount * 500} className="flex-1 h-11 bg-orange-500 text-white rounded-xl text-sm font-semibold disabled:opacity-40 hover:bg-orange-600 transition-all flex items-center justify-center gap-2">
+                  {boosting ? 'Processing...' : <>{K.Bolt}Boost {boostAmount} pt{boostAmount > 1 ? 's' : ''}</>}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </BottomSheet>
 
       <BottomSheet open={!!editingPost} onClose={() => setEditingPost(null)} title="Edit post" wide>
         <div className="px-5 py-4 pb-10 space-y-4">

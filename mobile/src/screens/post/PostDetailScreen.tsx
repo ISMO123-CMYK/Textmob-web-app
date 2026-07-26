@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, TextInput, Image, Alert,
@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import { getPostAPI, addCommentAPI, likePostAPI, getPostReactionsAPI, reactPostAPI, votePollAPI, Post, Comment } from '../../api/posts';
+import { getPostAPI, addCommentAPI, deleteCommentAPI, likePostAPI, getPostReactionsAPI, reactPostAPI, votePollAPI, Post, Comment } from '../../api/posts';
 import { searchUsersAPI, UserProfile } from '../../api/users';
 import { getProfileAPI } from '../../api/auth';
 import useProfileCache from '../../hooks/useProfileCache';
@@ -18,19 +18,58 @@ import { apiGet } from '../../api/client';
 
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 
-function CommentRow({ item, colors, borderColor, onPress }: { item: Comment; colors: any; borderColor: string; onPress: (u: string) => void }) {
+function CommentRow({ item, colors, borderColor, onPress, onReply, onDelete, replyToId, setReplyToId, replyText, setReplyText, handleSubmitReply, username, postUsername }: {
+  item: Comment; colors: any; borderColor: string; onPress: (u: string) => void;
+  onReply: (id: string, name: string) => void; onDelete: (id: string) => void;
+  replyToId: string | null; setReplyToId: (id: string | null) => void;
+  replyText: string; setReplyText: (t: string) => void;
+  handleSubmitReply: (parentId: string) => void;
+  username: string | null; postUsername: string | undefined;
+}) {
   const profile = useProfileCache(item.username);
+  const isReplying = replyToId === item.id;
   return (
-    <TouchableOpacity style={[styles.commentRow, { borderBottomColor: borderColor }]} onPress={() => onPress(item.username)}>
-      <Image source={{ uri: profile?.profile_pic || DEFAULT_PIC }} style={[styles.commentAvatar, { backgroundColor: colors.border }]} />
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Text style={[styles.commentUser, { color: colors.textPrimary }]}>{profile?.fullname || item.username}</Text>
-          <Text style={[styles.commentTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at || '')}</Text>
+    <View>
+      <TouchableOpacity style={[styles.commentRow, { borderBottomColor: borderColor }]} onPress={() => onPress(item.username)}>
+        <Image source={{ uri: profile?.profile_pic || DEFAULT_PIC }} style={[styles.commentAvatar, { backgroundColor: colors.border }]} />
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={[styles.commentUser, { color: colors.textPrimary }]}>{profile?.fullname || item.username}</Text>
+            <Text style={[styles.commentTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at || '')}</Text>
+          </View>
+          <Text style={[styles.commentText, { color: colors.textSecondary }]}>{item.text}</Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
+            <TouchableOpacity onPress={() => onReply(item.id, item.username)}>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>Reply</Text>
+            </TouchableOpacity>
+            {(username === item.username || username === postUsername) && (
+              <TouchableOpacity onPress={() => onDelete(item.id)}>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: '#ef4444' }}>Delete</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-        <Text style={[styles.commentText, { color: colors.textSecondary }]}>{item.text}</Text>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+      {isReplying && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingBottom: 8, paddingLeft: 54 }}>
+          <TextInput
+            style={{ flex: 1, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 8, fontSize: 13, backgroundColor: colors.border, color: colors.textPrimary }}
+            placeholder={`Reply to @${item.username}...`}
+            placeholderTextColor={colors.textSecondary}
+            value={replyText}
+            onChangeText={setReplyText}
+            onSubmitEditing={() => handleSubmitReply(item.id)}
+            returnKeyType="send"
+            autoFocus
+          />
+          {replyText.trim().length > 0 && (
+            <TouchableOpacity onPress={() => handleSubmitReply(item.id)}>
+              <Ionicons name="send" size={16} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 const MemoCommentRow = React.memo(CommentRow);
@@ -53,6 +92,9 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
   const [reactionCounts, setReactionCounts] = useState<Record<string, { counts: Record<string, number>; userReaction: string | null }>>({});
   const [group, setGroup] = useState<any>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [replyToId, setReplyToId] = useState<string | null>(null);
+  const [replyToName, setReplyToName] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -63,7 +105,16 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
       if (r.ok && r.data) {
         const p = r.data;
         setPost(p);
-        setComments(p.comments || []);
+        function flattenComments(comments, parentId = null) {
+          if (!comments) return [];
+          const result = [];
+          for (const c of comments) {
+            result.push({ ...c, parentId: parentId || c.parentId || null, replies: undefined });
+            if (c.replies) result.push(...flattenComments(c.replies, c.id));
+          }
+          return result;
+        }
+        setComments(flattenComments(p.comments));
         if (p.type?.startsWith('group-post-')) {
           const groupId = p.type.replace('group-post-', '');
           apiGet(`/groups/${groupId}/light?username=${username || ''}`).then(gr => {
@@ -82,7 +133,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     const handler = (e: any) => {
       if (e?.postId === postId) {
         const newC: Comment = { id: e.id || Date.now().toString(), username: e.username, text: e.text, created_at: e.created_at || new Date().toISOString() };
-        setComments(prev => prev.some(c => c.id === newC.id) ? prev : [...prev, newC]);
+        setComments(prev => prev.some(c => String(c.id) === String(newC.id)) ? prev : [...prev, newC]);
       }
     };
     on('new-comment', handler);
@@ -116,14 +167,32 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     inputRef.current?.focus();
   }, [commentText]);
 
-  const handleComment = useCallback(async () => {
+  const handleComment = useCallback(async (parentId?: string) => {
     if (!username || !commentText.trim() || !post) return;
-    const newC: Comment = { id: Date.now().toString(), username, text: commentText.trim(), created_at: new Date().toISOString() };
+    const newC: Comment = { id: Date.now().toString(), username, text: commentText.trim(), created_at: new Date().toISOString(), parentId };
     setComments(prev => [...prev, newC]);
     setCommentText('');
     setShowMentions(false);
-    await addCommentAPI(postId, username, commentText.trim()).catch(() => {});
+    setReplyToId(null);
+    setReplyToName(null);
+    await addCommentAPI(postId, username, commentText.trim(), parentId).catch(() => {});
   }, [username, commentText, post, postId]);
+
+  const handleDeleteComment = useCallback(async (commentId: string) => {
+    if (!username || !post) return;
+    setComments(prev => prev.filter(c => c.id !== commentId && c.parentId !== commentId));
+    await deleteCommentAPI(postId, commentId, username).catch(() => {});
+  }, [username, post, postId]);
+
+  const handleReplySubmit = useCallback((parentId: string) => {
+    if (!username || !replyText.trim() || !post) return;
+    const newC: Comment = { id: Date.now().toString(), username, text: replyText.trim(), created_at: new Date().toISOString(), parentId };
+    setComments(prev => [...prev, newC]);
+    setReplyText('');
+    setReplyToId(null);
+    setReplyToName(null);
+    addCommentAPI(postId, username, replyText.trim(), parentId).catch(() => {});
+  }, [username, replyText, post, postId]);
 
   const handleLike = useCallback(() => {
     if (!username) return;
@@ -177,9 +246,56 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     </View>
   ), [post, reactionCounts, handleReact, handlePollVote, handleLike]);
 
-  const renderComment = useCallback(({ item }: { item: Comment }) => (
-    <MemoCommentRow item={item} colors={colors} borderColor={colors.border} onPress={navigateToProfile} />
-  ), [colors, navigateToProfile]);
+  const topLevelComments = useMemo(() => comments.filter(c => !c.parentId), [comments]);
+
+  const getReplies = useCallback((parentId: string) => comments.filter(c => c.parentId === parentId), [comments]);
+
+  const handleReplyPress = useCallback((id: string, name: string) => {
+    setReplyToId(id);
+    setReplyToName(name);
+  }, []);
+
+  const renderComment = useCallback(({ item }: { item: Comment }) => {
+    const replies = getReplies(item.id);
+    return (
+      <View>
+        <MemoCommentRow
+          item={item}
+          colors={colors}
+          borderColor={colors.border}
+          onPress={navigateToProfile}
+          onReply={handleReplyPress}
+          onDelete={handleDeleteComment}
+          replyToId={replyToId}
+          setReplyToId={setReplyToId}
+          replyText={replyText}
+          setReplyText={setReplyText}
+          handleSubmitReply={handleReplySubmit}
+          username={username}
+          postUsername={post?.username}
+        />
+        {replies.map(reply => (
+          <View key={reply.id} style={{ paddingLeft: 40 }}>
+            <MemoCommentRow
+              item={reply}
+              colors={colors}
+              borderColor={colors.border}
+              onPress={navigateToProfile}
+              onReply={handleReplyPress}
+              onDelete={handleDeleteComment}
+              replyToId={replyToId}
+              setReplyToId={setReplyToId}
+              replyText={replyText}
+              setReplyText={setReplyText}
+              handleSubmitReply={handleReplySubmit}
+              username={username}
+              postUsername={post?.username}
+            />
+          </View>
+        ))}
+      </View>
+    );
+  }, [colors, navigateToProfile, handleDeleteComment, handleReplyPress, replyToId, replyText, handleReplySubmit, username, post?.username, getReplies]);
 
   const keyExtractor = useCallback((item: Comment, idx: number) => item.id || String(idx), []);
 
@@ -247,31 +363,41 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
       </View>
 
       <FlatList
-        data={comments}
+        data={topLevelComments}
         keyExtractor={keyExtractor}
         ListHeaderComponent={renderHeader}
         renderItem={renderComment}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={isEmpty}
         keyboardShouldPersistTaps="handled"
+        extraData={replyToId}
       />
 
       <View style={[styles.bottomInput, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 10 }]}>
         {username ? (
           <View style={{ flex: 1, position: 'relative' }}>
+            {replyToId && replyToName && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4, paddingBottom: 4 }}>
+                <Ionicons name="return-down-forward" size={14} color={colors.primary} />
+                <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>Replying to @{replyToName}</Text>
+                <TouchableOpacity onPress={() => { setReplyToId(null); setReplyToName(null); }}>
+                  <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            )}
             <View style={styles.inputRow}>
               <TextInput
                 ref={inputRef}
                 style={[styles.input, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
-                placeholder="Write a comment..."
+                placeholder={replyToId ? "Write a reply..." : "Write a comment..."}
                 placeholderTextColor={colors.textSecondary}
                 value={commentText}
                 onChangeText={setCommentText}
-                onSubmitEditing={handleComment}
+                onSubmitEditing={() => handleComment(replyToId || undefined)}
                 returnKeyType="send"
               />
               {sendVisible && (
-                <TouchableOpacity onPress={handleComment} style={styles.sendBtn}>
+                <TouchableOpacity onPress={() => handleComment(replyToId || undefined)} style={styles.sendBtn}>
                   <Ionicons name="send" size={18} color={colors.primary} />
                 </TouchableOpacity>
               )}

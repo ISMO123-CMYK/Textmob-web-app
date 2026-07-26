@@ -4,6 +4,9 @@ import { cn } from '../../utils/classNames';
 import useScrollDirection from '../../utils/useScrollDirection';
 import useProfileCache from '../../utils/useProfileCache';
 import PostCard, { PostSkeleton } from '../../components/ui/PostCard';
+import { CATEGORIES } from '../../data/categories';
+
+const allCategories = CATEGORIES.map(c => c.id);
 
 /* ─── seen-posts tracking (rr/ir/ar/or) ─── */
 const SEEN_KEY = '__tmob_viewed_ids';
@@ -178,10 +181,23 @@ export default function HomeFeed({ propPosts }) {
   // Feed settings state
   const [showFeedSettings, setShowFeedSettings] = useState(false);
   const [feedPrefs, setFeedPrefs] = useState({ contentTypeWeights: {}, categoryWeights: {}, mutedCreators: [], exploreThreshold: 0.3 });
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardSelected, setOnboardSelected] = useState([]);
 
-  // Load feed prefs
+  // Load feed prefs from localStorage + server
   useEffect(() => {
     if (user.username) {
+      const stored = localStorage.getItem('textmob_feed_preferences');
+      if (stored) {
+        try {
+          const prefs = JSON.parse(stored);
+          if (Array.isArray(prefs)) {
+            const weights = {};
+            allCategories.forEach(c => { weights[c] = prefs.includes(c) ? 3.0 : 1.0; });
+            setFeedPrefs(prev => ({ ...prev, categoryWeights: weights }));
+          }
+        } catch {}
+      }
       const userData = window.__memoryDb?.findUser?.(user.username);
       if (userData?.feed_prefs) setFeedPrefs(userData.feed_prefs);
     }
@@ -198,6 +214,17 @@ export default function HomeFeed({ propPosts }) {
       }).catch(() => {});
     }
   }
+
+  // Onboarding effect
+  useEffect(() => {
+    if (isLoggedIn) {
+      const onboarded = localStorage.getItem('textmob_feed_onboarded');
+      if (!onboarded) {
+        const timer = setTimeout(() => setShowOnboarding(true), 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isLoggedIn]);
 
   // Tab bar component
   function TabBar({ isMobile }) {
@@ -235,47 +262,83 @@ export default function HomeFeed({ propPosts }) {
   function FeedSettingsPanel() {
     if (!showFeedSettings) return null;
     const contentTypes = ['live', 'media', 'poll', 'text'];
-    const allCategories = ['music','sports','gaming','news','education','entertainment','technology','fashion','art','food','travel','lifestyle','comedy','science','business','health'];
-    const catWeights = feedPrefs.categoryWeights || {};
+
+    // Load from localStorage, fallback to feedPrefs
+    const [selectedCats, setSelectedCats] = useState(() => {
+      try {
+        const stored = localStorage.getItem('textmob_feed_preferences');
+        if (stored) return JSON.parse(stored);
+      } catch {}
+      return Object.entries(feedPrefs.categoryWeights || {})
+        .filter(([, w]) => w > 1)
+        .map(([k]) => k);
+    });
+
+    function toggleCat(catId) {
+      setSelectedCats(prev => {
+        const next = prev.includes(catId) ? prev.filter(c => c !== catId) : [...prev, catId];
+        localStorage.setItem('textmob_feed_preferences', JSON.stringify(next));
+        const weights = {};
+        allCategories.forEach(c => { weights[c] = next.includes(c) ? 3.0 : 1.0; });
+        saveFeedPrefs({ categoryWeights: weights });
+        return next;
+      });
+    }
+
     return (
       <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/40 overflow-y-auto" onClick={() => setShowFeedSettings(false)}>
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 w-96 max-w-[95vw] shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-4 sticky top-0 bg-white dark:bg-gray-900 pb-2">
-            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Feed Settings</h3>
-            <button onClick={() => setShowFeedSettings(false)} className="text-gray-400 hover:text-gray-600"><svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Feed Preferences</h3>
+            <button onClick={() => setShowFeedSettings(false)} className="text-gray-400 hover:text-gray-600">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
           </div>
           <div className="space-y-4">
-            {/* Category weights */}
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2">Category weights <span className="font-normal text-gray-400">(0 = hide, 1 = normal, 2 = double)</span></p>
-              <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
-                {allCategories.map(cat => (
-                  <div key={cat} className="flex items-center justify-between">
-                    <label className="text-xs text-gray-700 dark:text-gray-300 capitalize flex-shrink-0 w-20 truncate">{cat}</label>
-                    <input type="range" min="0" max="2" step="0.1" value={catWeights[cat] ?? 1} onChange={e => saveFeedPrefs({ categoryWeights: { ...catWeights, [cat]: parseFloat(e.target.value) } })} className="w-32 h-1.5" />
-                    <span className="text-xs text-gray-500 w-6 text-right">{catWeights[cat] ?? 1}</span>
-                  </div>
-                ))}
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-3">Pick categories you want to see more of</p>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map(cat => {
+                  const isSelected = selectedCats.includes(cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => toggleCat(cat.id)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border',
+                        isSelected
+                          ? 'text-white border-transparent'
+                          : 'text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
+                      )}
+                      style={isSelected ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
+                    >
+                      {cat.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-            {/* Content type weights */}
             <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2">Content type weights</p>
-              {contentTypes.map(t => (
-                <div key={t} className="flex items-center justify-between">
-                  <label className="text-xs text-gray-700 dark:text-gray-300 capitalize flex-shrink-0 w-20">{t}</label>
-                  <input type="range" min="0" max="2" step="0.1" value={feedPrefs.contentTypeWeights[t] || 1} onChange={e => saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [t]: parseFloat(e.target.value) } })} className="w-32 h-1.5" />
-                  <span className="text-xs text-gray-500 w-6 text-right">{feedPrefs.contentTypeWeights[t] || 1}</span>
-                </div>
-              ))}
-            </div>
-            {/* Explore threshold */}
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
-              <label className="text-xs text-gray-500 dark:text-gray-400 font-semibold block mb-2">Explore new content</label>
-              <input type="range" min="0" max="1" step="0.1" value={feedPrefs.exploreThreshold ?? 0.3} onChange={e => saveFeedPrefs({ exploreThreshold: parseFloat(e.target.value) })} className="w-full h-1.5" />
-              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                <span>Less</span>
-                <span>More</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2">Content type preference</p>
+              <div className="flex flex-wrap gap-2">
+                {contentTypes.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      const current = feedPrefs.contentTypeWeights[t] || 1;
+                      const next = current >= 3.0 ? 1.0 : 3.0;
+                      saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [t]: next } });
+                    }}
+                    className={cn(
+                      'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+                      (feedPrefs.contentTypeWeights[t] || 1) > 1
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -742,6 +805,33 @@ export default function HomeFeed({ propPosts }) {
         </div>
       </div>
       <FeedSettingsPanel />
+      {showOnboarding && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">Personalize Your Feed</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Select at least 3 categories you're interested in. We'll show you more of what you love.</p>
+            <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto mb-5">
+              {CATEGORIES.map(cat => {
+                const isSel = onboardSelected.includes(cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setOnboardSelected(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
+                    className={cn('px-3 py-2 rounded-full text-xs font-semibold transition-all border', isSel ? 'text-white border-transparent' : 'text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700')}
+                    style={isSel ? { backgroundColor: cat.color } : {}}
+                  >
+                    {cat.name}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { localStorage.setItem('textmob_feed_onboarded', 'true'); setShowOnboarding(false); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800">Skip</button>
+              <button onClick={() => { if (onboardSelected.length < 3) { alert('Please select at least 3 categories'); return; } localStorage.setItem('textmob_feed_onboarded', 'true'); localStorage.setItem('textmob_feed_preferences', JSON.stringify(onboardSelected)); const weights = {}; allCategories.forEach(c => { weights[c] = onboardSelected.includes(c) ? 3.0 : 1.0; }); saveFeedPrefs({ categoryWeights: weights }); setShowOnboarding(false); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600">Continue</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

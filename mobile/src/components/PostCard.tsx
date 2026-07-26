@@ -46,11 +46,9 @@ import SafeHTML from './SafeHTML';
 function RichText({ text, style }: { text: string; style?: any }) {
   return <SafeHTML text={text} style={style} />;
 }
-function onNegativeSignal(postId: string, signal: string, contentType: string) {
-  console.log(postId, signal, contentType);
-}
-function PostMenu({ visible, onClose, post }: { visible: boolean; onClose: () => void; post: Post }) {
+function PostMenu({ visible, onClose, post, onNegativeSignal }: { visible: boolean; onClose: () => void; post: Post; onNegativeSignal?: (postId: string, signal: string, contentType: string) => void }) {
   const { colors, isDark } = useTheme();
+  const { username } = useAuth();
   const items = [
     { icon: 'share-outline' as const, label: 'Share' },
     { icon: 'link-outline' as const, label: 'Copy link' },
@@ -77,8 +75,12 @@ function PostMenu({ visible, onClose, post }: { visible: boolean; onClose: () =>
                   onClose();
                   if (item.label === 'Copy link') {
                     Alert.alert('Copied', 'Post link copied to clipboard!');
-                  } else if (item.signal && onNegativeSignal) {
-                    onNegativeSignal(String(post.id), item.signal, post.type || 'post');
+                  } else if (item.signal) {
+                    if (onNegativeSignal) {
+                      onNegativeSignal(String(post.id), item.signal, post.type || 'post');
+                    } else if (username) {
+                      apiPost('/negative-signal', { username, postId: String(post.id), signalType: item.signal, contentType: post.type || 'post' }).catch(() => {});
+                    }
                   }
                 }}
               >
@@ -705,7 +707,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
 const PostCard = React.memo(function PostCard({
   post, isActive, showViewButton, showCommentInput, viewerCount = 0,
   reactionCounts: externalReactionCounts, onReactionToggle,
-  onVotePoll, onComment, onLike, onReact,
+  onVotePoll, onComment, onLike, onReact, onNegativeSignal,
 }: PostCardProps) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
@@ -830,6 +832,12 @@ const PostCard = React.memo(function PostCard({
             <View style={s.nameRow}>
               <Text style={[s.authorName, { color: colors.textPrimary }]} numberOfLines={1}>{authorProfile.fullname || post.username}</Text>
               {post.verified && <VerifiedBadge size={14} />}
+              {(post as any).boost_score > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#fff7ed', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                  <Ionicons name="flash" size={10} color="#f97316" />
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#f97316' }}>Boosted</Text>
+                </View>
+              )}
               {post.activities && <Text style={[s.activityText, { color: colors.textSecondary }]}>· is feeling {post.activities}</Text>}
             </View>
             <Text style={[s.time, { color: colors.textSecondary }]}>{timeAgo(post.created_at)}</Text>

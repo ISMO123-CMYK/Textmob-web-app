@@ -8,6 +8,7 @@ import { cn } from '../../utils/classNames';
 import NavIcons from '../../utils/navIcons';
 import Ye from '../../components/ui/BottomSheet';
 import AutocompleteDropdown from '../../components/layout/AutocompleteDropdown';
+import { CATEGORIES as CATEGORY_LIST, CATEGORY_IDS } from '../../data/categories';
 
 // Import fabric.js from CDN or global fabric variable
 
@@ -51,7 +52,7 @@ export default function MakePostContent(props) {
   let [quotedPostId, setQuotedPostId] = useState(props.quoteId || null);
   let [quotedPostData, setQuotedPostData] = useState(null);
   let [postCategories, setPostCategories] = useState([]);
-  const CATEGORIES = ['music', 'sports', 'gaming', 'news', 'education', 'entertainment', 'technology', 'fashion', 'art', 'food', 'travel', 'lifestyle', 'comedy', 'science', 'business', 'health', 'other'];
+  const CATEGORIES = CATEGORY_LIST;
 
   useEffect(() => {
     if (quotedPostId) {
@@ -805,12 +806,12 @@ export default function MakePostContent(props) {
               <div className={`flex-shrink-0 px-4 pb-1`}>
                 <div className={`flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide`}>
                   <span className={`text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex-shrink-0`}>Categories:</span>
-                  {CATEGORIES.filter(c => c !== 'other').map(cat => (
-                    <button key={cat} onClick={() => setPostCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}
+                  {CATEGORIES.map(cat => (
+                    <button key={cat.id} onClick={() => setPostCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
                       className={cn(`text-[11px] font-semibold px-2.5 py-1 rounded-full transition whitespace-nowrap`,
-                        postCategories.includes(cat) ? `bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400` : `bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700`
+                        postCategories.includes(cat.id) ? `bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400` : `bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700`
                       )}>
-                      {cat}
+                      {cat.name}
                     </button>
                   ))}
                 </div>

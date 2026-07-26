@@ -6,6 +6,7 @@ import timeAgo from '../../utils/timeAgo';
 import RichText from './RichText';
 import { SnapPlayer } from '../../pages/snaps/SnapsContent';
 import GiftCoinsModal from './GiftCoinsModal';
+import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag } from 'lucide-react';
 
 /* ─── constants ─── */
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
@@ -17,6 +18,15 @@ function VerifiedBadge({ className = "w-3.5 h-3.5" }) {
   return (
     <svg viewBox="0 0 24 24" className={cn("text-blue-500 fill-current", className)}>
       <path d="M22.5 12.5c0-1.58-.8-2.95-2.03-3.76.54-1.51.18-3.22-1.07-4.47-1.25-1.25-2.96-1.61-4.47-1.07C14.12 2.03 12.5 1.25 11 1.25c-1.5 0-3.12.78-3.93 1.95-1.51-.54-3.22-.18-4.47 1.07-1.25 1.25-1.61 2.96-1.07 4.47C.3 9.55-.5 10.92-.5 12.5c0 1.58.8 2.95 2.03 3.76-.54 1.51-.18 3.22 1.07 4.47 1.25 1.25 2.96 1.61 4.47 1.07.81 1.17 2.43 1.95 3.93 1.95 1.5 0 3.12-.78 3.93-1.95 1.51.54 3.22.18 4.47-1.07 1.25-1.25 1.61-2.96 1.07-4.47 1.23-.81 2.03-2.18 2.03-3.76zM11 18l-4.5-4.5 1.5-1.5L11 15l7-7 1.5 1.5L11 18z" />
+    </svg>
+  );
+}
+
+/* ─── BoostedBadge ─── */
+function BoostedBadge({ className = "w-3.5 h-3.5" }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn("text-orange-500 fill-current", className)}>
+      <path d="M13 10V3L4 14h7v7l9-11h-7z" />
     </svg>
   );
 }
@@ -85,9 +95,14 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal }) {
                 key={item.label}
               >
                 {item.icon && (
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d={item.icon} />
-                  </svg>
+                  <div className="w-4 h-4 flex-shrink-0">
+                    {item.label === 'Save post' && <Bookmark className="w-4 h-4 stroke-current" strokeWidth={2} />}
+                    {item.label === 'Copy link' && <Link className="w-4 h-4 stroke-current" strokeWidth={2} />}
+                    {item.label === 'Share' && <Share2 className="w-4 h-4 stroke-current" strokeWidth={2} />}
+                    {item.label === 'Not interested' && <ThumbsDown className="w-4 h-4 stroke-current" strokeWidth={2} />}
+                    {item.label === 'Hide' && <EyeOff className="w-4 h-4 stroke-current" strokeWidth={2} />}
+                    {item.label === 'Report' && <Flag className="w-4 h-4 stroke-current" strokeWidth={2} />}
+                  </div>
                 )}
                 {item.label}
               </button>
@@ -187,6 +202,12 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
               {authorProfile.fullname || post.username}
             </a>
             { (post.verified === true) && <VerifiedBadge /> }
+            {(post.boost_score || 0) > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-1.5 py-0.5 rounded-full">
+                <BoostedBadge className="w-3 h-3" />
+                <span>Boosted</span>
+              </span>
+            )}
             {groupInfo && (
               <Fragment>
                 <span className="text-xs text-gray-400 dark:text-gray-600">in</span>
@@ -452,9 +473,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
             liked ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
           )}
         >
-          <svg viewBox="0 0 24 24" className={cn('w-4 h-4', liked ? 'fill-red-500 stroke-red-500' : 'fill-none stroke-current')} strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-          </svg>
+          <Heart className={cn('w-4 h-4', liked ? 'fill-red-500 stroke-red-500' : 'stroke-current')} strokeWidth={2} />
           <span>{post.likes.length}</span>
         </button>
 
@@ -463,9 +482,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
           onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to comment'); return; } showCommentInput ? setShowInput(s => !s) : navigate(`/post/${post.id}`); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-          </svg>
+          <MessageCircle className="w-4 h-4 stroke-current" strokeWidth={2} />
           <span>{post.comments.length}</span>
         </button>
 
@@ -474,20 +491,16 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
           onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to quote posts'); return; } navigate(`/make-post/${post.id}`); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
+          <Repeat2 className="w-4 h-4 stroke-current" strokeWidth={2} />
         </button>
 
         {/* Gift Mobcoins */}
         <button
           onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to send gifts'); return; } setShowGiftModal(true); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          aria-label="Gift Mobcoins"
+          aria-label="Send Gift"
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" strokeWidth="0">
-            <path d="M9.375 3a1.875 1.875 0 0 0 0 3.75h1.875v4.5H3.375A1.875 1.875 0 0 1 1.5 9.375v-.75c0-1.036.84-1.875 1.875-1.875h3.193A3.375 3.375 0 0 1 12 2.753a3.375 3.375 0 0 1 5.432 3.997h3.943c1.035 0 1.875.84 1.875 1.875v.75c0 1.036-.84 1.875-1.875 1.875H12.75v-4.5h1.875a1.875 1.875 0 1 0-1.875-1.875V6.75h-1.5V4.875C11.25 3.839 10.41 3 9.375 3ZM11.25 12.75H3v6.75a2.25 2.25 0 0 0 2.25 2.25h6v-9ZM12.75 12.75v9h6.75a2.25 2.25 0 0 0 2.25-2.25v-6.75h-9Z" />
-          </svg>
+          <Gift className="w-4 h-4 stroke-current" strokeWidth={2} />
         </button>
 
         {/* Reaction */}
@@ -496,9 +509,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
           className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           aria-label="React"
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <SmilePlus className="w-4 h-4 stroke-current" strokeWidth={2} />
         </button>
 
         {/* View */}
@@ -507,10 +518,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
             onClick={() => abNavigate(`/post/${post.id}`, 'Create an account to view posts')}
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="1.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            <Eye className="w-4 h-4 stroke-current" strokeWidth={1.5} />
             <span className="hidden sm:inline">View</span>
           </button>
         )}

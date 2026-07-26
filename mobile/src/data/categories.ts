@@ -1,0 +1,39 @@
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export const CATEGORIES: Category[] = [
+  { id: 'technology', name: 'Technology', color: '#3B82F6' },
+  { id: 'programming', name: 'Programming', color: '#10B981' },
+  { id: 'science', name: 'Science', color: '#14B8A6' },
+  { id: 'education', name: 'Education', color: '#84CC16' },
+  { id: 'news', name: 'News', color: '#DC2626' },
+  { id: 'politics', name: 'Politics', color: '#7C3AED' },
+  { id: 'business', name: 'Business', color: '#059669' },
+  { id: 'finance', name: 'Finance', color: '#65A30D' },
+  { id: 'sports', name: 'Sports', color: '#EA580C' },
+  { id: 'gaming', name: 'Gaming', color: '#6366F1' },
+  { id: 'health', name: 'Health', color: '#84CC16' },
+  { id: 'fitness', name: 'Fitness', color: '#DC2626' },
+  { id: 'food', name: 'Food', color: '#F59E0B' },
+  { id: 'travel', name: 'Travel', color: '#0EA5E9' },
+  { id: 'music', name: 'Music', color: '#A855F7' },
+  { id: 'movies', name: 'Movies', color: '#EF4444' },
+  { id: 'comedy', name: 'Comedy', color: '#F59E0B' },
+  { id: 'fashion', name: 'Fashion', color: '#EC4899' },
+  { id: 'art', name: 'Art & Design', color: '#8B5CF6' },
+  { id: 'photography', name: 'Photography', color: '#6366F1' },
+  { id: 'anime', name: 'Anime', color: '#F472B6' },
+  { id: 'entertainment', name: 'Entertainment', color: '#EC4899' },
+  { id: 'lifestyle', name: 'Lifestyle', color: '#78716C' },
+  { id: 'pets', name: 'Pets & Animals', color: '#F97316' },
+  { id: 'automotive', name: 'Cars & Bikes', color: '#1E40AF' },
+  { id: 'nature', name: 'Nature', color: '#16A34A' },
+  { id: 'books', name: 'Books & Writing', color: '#A855F7' },
+  { id: 'career', name: 'Career', color: '#0284C7' },
+  { id: 'other', name: 'Other', color: '#6B7280' },
+];
+
+export const CATEGORY_IDS = CATEGORIES.map(c => c.id);

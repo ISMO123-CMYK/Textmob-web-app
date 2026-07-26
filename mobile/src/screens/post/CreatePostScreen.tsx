@@ -11,6 +11,8 @@ import { useAuth } from '../../context/AuthContext';
 import { createPostAPI, getPostAPI, Post } from '../../api/posts';
 import { searchUsersAPI, UserProfile } from '../../api/users';
 import { apiGet } from '../../api/client';
+import { CATEGORIES, CATEGORY_IDS } from '../../data/categories';
+import type { Category } from '../../data/categories';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 
@@ -63,8 +65,6 @@ export default function CreatePostScreen({ route }: { route: any }) {
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
   const [showPreview, setShowPreview] = useState(true);
   const [postCategories, setPostCategories] = useState<string[]>([]);
-  const CATEGORIES = ['music','sports','gaming','news','education','entertainment','technology','fashion','art','food','travel','lifestyle','comedy','science','business','health','other'];
-
   const insertMarkdown = useCallback((before: string, after: string = '') => {
     const { start, end } = selection;
     const selected = text.slice(start, end);
@@ -281,10 +281,10 @@ export default function CreatePostScreen({ route }: { route: any }) {
           {!showPollBuilder && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
               <Text style={[s.sectionLabel, { color: colors.textSecondary, width: '100%', marginBottom: 4 }]}>CATEGORIES</Text>
-              {CATEGORIES.filter(c => c !== 'other').map(cat => (
-                <TouchableOpacity key={cat} onPress={() => setPostCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}
-                  style={[s.catChip, { backgroundColor: postCategories.includes(cat) ? colors.primary + '20' : isDark ? '#1e293b' : '#f3f4f6' }]}>
-                  <Text style={[s.catChipText, { color: postCategories.includes(cat) ? colors.primary : colors.textSecondary }]}>{cat}</Text>
+              {CATEGORIES.map(cat => (
+                <TouchableOpacity key={cat.id} onPress={() => setPostCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
+                  style={[s.catChip, { backgroundColor: postCategories.includes(cat.id) ? cat.color + '30' : isDark ? '#1e293b' : '#f3f4f6' }]}>
+                  <Text style={[s.catChipText, { color: postCategories.includes(cat.id) ? cat.color : colors.textSecondary }]}>{cat.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>

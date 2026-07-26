@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Image, Modal,
+  ActivityIndicator, Alert, RefreshControl, Image, Modal,
   Dimensions, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,8 +18,8 @@ import { storage, KEYS } from '../../utils/storage';
 import { getSeenParam, markSeen } from '../../utils/seen';
 import MobileHeader from '../../components/MobileHeader';
 
-const CATEGORIES = ['music','sports','gaming','news','education','entertainment','technology','fashion','art','food','travel','lifestyle','comedy','science','business','health'];
-const CONTENT_TYPES = ['live', 'media', 'poll', 'text'];
+import { CATEGORIES, CATEGORY_IDS } from '../../data/categories';
+import type { Category } from '../../data/categories';
 
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 const REACTIONS = [
@@ -125,6 +125,8 @@ export default function HomeScreen() {
   const [pullDelta, setPullDelta] = useState(0);
   const [showFeedSettings, setShowFeedSettings] = useState(false);
   const [feedPrefs, setFeedPrefs] = useState<{ contentTypeWeights: Record<string, number>; categoryWeights: Record<string, number> }>({ contentTypeWeights: {}, categoryWeights: {} });
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardSelected, setOnboardSelected] = useState<string[]>([]);
   const pullStartY = useRef(0);
   const scrollY = useRef(0);
   const viewabilityConfigCallbackRef = useRef(({ changed, viewableItems }: any) => {
@@ -177,14 +179,38 @@ export default function HomeScreen() {
     };
   }, [tab]);
 
-  // Load feed preferences from the server
+  // Load feed preferences from the server and localStorage
   useEffect(() => {
     if (!username) return;
+    // Load from localStorage first
+    storage.getStore('textmob_feed_preferences').then(localPrefs => {
+      if (localPrefs) {
+        try {
+          const prefs = JSON.parse(localPrefs);
+          if (Array.isArray(prefs)) {
+            const weights: Record<string, number> = {};
+            CATEGORIES.forEach(c => { weights[c.id] = prefs.includes(c.id) ? 3.0 : 1.0; });
+            setFeedPrefs(prev => ({ ...prev, categoryWeights: weights }));
+          }
+        } catch {}
+      }
+    });
+    // Also load from server
     apiGet(`/profile/${encodeURIComponent(username)}`).then((res: any) => {
       if (res?.ok && res?.data?.feed_prefs) {
         setFeedPrefs(res.data.feed_prefs);
       }
     }).catch(() => {});
+  }, [username]);
+
+  useEffect(() => {
+    if (username) {
+      storage.getStore('textmob_feed_onboarded').then(val => {
+        if (!val) {
+          setTimeout(() => setShowOnboarding(true), 500);
+        }
+      });
+    }
   }, [username]);
 
   async function saveFeedPrefs(updates: Partial<typeof feedPrefs>) {
@@ -749,44 +775,52 @@ export default function HomeScreen() {
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
           <View style={[modalStyles.sheet, { backgroundColor: colors.card }]}>
             <View style={modalStyles.handle} />
-            <Text style={[modalStyles.title, { color: colors.textPrimary }]}>Feed Settings</Text>
+            <Text style={[modalStyles.title, { color: colors.textPrimary }]}>Feed Preferences</Text>
             <ScrollView style={{ maxHeight: 400 }}>
-              {/* Category weights */}
-              <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Category weights</Text>
-              {CATEGORIES.map(cat => (
-                <View key={cat} style={modalStyles.row}>
-                  <Text style={[modalStyles.rowLabel, { color: colors.textPrimary }]}>{cat}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <TouchableOpacity onPress={() => {
-                      const w = feedPrefs.categoryWeights[cat] ?? 1;
-                      saveFeedPrefs({ categoryWeights: { ...feedPrefs.categoryWeights, [cat]: Math.max(0, +(w - 0.1).toFixed(1)) } });
-                    }} style={modalStyles.btn}><Text style={{ color: colors.textSecondary, fontSize: 16 }}>−</Text></TouchableOpacity>
-                    <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700', minWidth: 24, textAlign: 'center' }}>{feedPrefs.categoryWeights[cat] ?? 1}</Text>
-                    <TouchableOpacity onPress={() => {
-                      const w = feedPrefs.categoryWeights[cat] ?? 1;
-                      saveFeedPrefs({ categoryWeights: { ...feedPrefs.categoryWeights, [cat]: Math.min(2, +(w + 0.1).toFixed(1)) } });
-                    }} style={modalStyles.btn}><Text style={{ color: colors.textSecondary, fontSize: 16 }}>+</Text></TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-              {/* Content type weights */}
-              <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary, marginTop: 12 }]}>Content type weights</Text>
-              {CONTENT_TYPES.map(ct => (
-                <View key={ct} style={modalStyles.row}>
-                  <Text style={[modalStyles.rowLabel, { color: colors.textPrimary }]}>{ct}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <TouchableOpacity onPress={() => {
-                      const w = feedPrefs.contentTypeWeights[ct] ?? 1;
-                      saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [ct]: Math.max(0, +(w - 0.1).toFixed(1)) } });
-                    }} style={modalStyles.btn}><Text style={{ color: colors.textSecondary, fontSize: 16 }}>−</Text></TouchableOpacity>
-                    <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '700', minWidth: 24, textAlign: 'center' }}>{feedPrefs.contentTypeWeights[ct] ?? 1}</Text>
-                    <TouchableOpacity onPress={() => {
-                      const w = feedPrefs.contentTypeWeights[ct] ?? 1;
-                      saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [ct]: Math.min(2, +(w + 0.1).toFixed(1)) } });
-                    }} style={modalStyles.btn}><Text style={{ color: colors.textSecondary, fontSize: 16 }}>+</Text></TouchableOpacity>
-                  </View>
-                </View>
-              ))}
+              <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Pick categories you want to see more of</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {CATEGORIES.map(cat => {
+                  const isSelected = (feedPrefs.categoryWeights[cat.id] || 1) > 1;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => {
+                        const current = feedPrefs.categoryWeights[cat.id] ?? 1;
+                        saveFeedPrefs({ categoryWeights: { ...feedPrefs.categoryWeights, [cat.id]: current > 1 ? 1.0 : 3.0 } });
+                      }}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+                        backgroundColor: isSelected ? cat.color : (isDark ? '#1e293b' : '#f3f4f6'),
+                        borderWidth: 1, borderColor: isSelected ? cat.color : (isDark ? '#334155' : '#e2e8f0'),
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#fff' : colors.textSecondary }}>{cat.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Content type</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {['live', 'media', 'poll', 'text'].map(ct => {
+                  const isSelected = (feedPrefs.contentTypeWeights[ct] || 1) > 1;
+                  return (
+                    <TouchableOpacity
+                      key={ct}
+                      onPress={() => {
+                        const current = feedPrefs.contentTypeWeights[ct] || 1;
+                        saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [ct]: current > 1 ? 1.0 : 3.0 } });
+                      }}
+                      style={{
+                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+                        backgroundColor: isSelected ? '#2563eb' : (isDark ? '#1e293b' : '#f3f4f6'),
+                        borderWidth: 1, borderColor: isSelected ? '#2563eb' : (isDark ? '#334155' : '#e2e8f0'),
+                      }}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#fff' : colors.textSecondary }}>{ct}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </ScrollView>
             <TouchableOpacity onPress={() => setShowFeedSettings(false)} style={[modalStyles.doneBtn, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Done</Text>
@@ -794,6 +828,61 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {showOnboarding && (
+        <Modal visible={showOnboarding} transparent animationType="fade" onRequestClose={() => {}}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 24 }}>
+            <View style={{ backgroundColor: colors.card, borderRadius: 24, padding: 24, width: '100%', maxWidth: 360 }}>
+              <Text style={{ fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 4 }}>Personalize Your Feed</Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 20, lineHeight: 18 }}>
+                Select at least 3 categories you're interested in. We'll show you more of what you love.
+              </Text>
+              <ScrollView style={{ maxHeight: 300, marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {CATEGORIES.map(cat => {
+                    const isSel = onboardSelected.includes(cat.id);
+                    return (
+                      <TouchableOpacity
+                        key={cat.id}
+                        onPress={() => setOnboardSelected(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
+                        style={{
+                          paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                          backgroundColor: isSel ? cat.color : (isDark ? '#1e293b' : '#f3f4f6'),
+                          borderWidth: 1, borderColor: isSel ? cat.color : (isDark ? '#334155' : '#e2e8f0'),
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: isSel ? '#fff' : colors.textSecondary }}>{cat.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                  onPress={() => { storage.setStore('textmob_feed_onboarded', 'true'); setShowOnboarding(false); }}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: isDark ? '#1e293b' : '#f1f5f9', alignItems: 'center' }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Skip</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (onboardSelected.length < 3) { Alert.alert('Selection Required', 'Please select at least 3 categories'); return; }
+                    storage.setStore('textmob_feed_onboarded', 'true');
+                    storage.setStore('textmob_feed_preferences', JSON.stringify(onboardSelected));
+                    const weights: Record<string, number> = {};
+                    CATEGORIES.forEach(c => { weights[c.id] = onboardSelected.includes(c.id) ? 3.0 : 1.0; });
+                    saveFeedPrefs({ categoryWeights: weights });
+                    setShowOnboarding(false);
+                  }}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center' }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Continue</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }

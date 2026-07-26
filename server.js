@@ -2300,7 +2300,7 @@ async function indexUsers() {
 async function indexPosts() {
   const { data, error } = await supabase2
     .from('Posts')
-    .select('id, username, text, media, likes, comments, created_at, type, hashtags');
+    .select('id, username, text, media, likes, comments, created_at, type, hashtags, categories');
 
   if (error) {
     console.error("Error fetching posts:", error);
@@ -2308,7 +2308,7 @@ async function indexPosts() {
   }
 
   data.forEach(post => {
-    const docText = `${post.text || ''} ${post.username} ${Array.isArray(post.hashtags) ? post.hashtags.join(' ') : ''}`;
+    const docText = `${post.text || ''} ${post.username} ${Array.isArray(post.hashtags) ? post.hashtags.join(' ') : ''} ${Array.isArray(post.categories) ? post.categories.join(' ') : ''}`;
     postSearchEngine.indexDocument(String(post.id), docText, { id: post.id, username: post.username, text: post.text, created_at: post.created_at, type: post.type });
   });
 }
@@ -2474,11 +2474,17 @@ app.get("/general/search", async (req, res) => {
 
       let score = r.score;
 
+      // Engagement boost
+      const likes = (p.likes || []).length;
+      const comments = (p.comments || []).length;
+      const engagement = likes + comments * 3;
+      score *= (1 + Math.log(1 + engagement) * 0.05);
+
       // Recency boost
       if (p.created_at) {
         const ageDays = (now - new Date(p.created_at).getTime()) / 86400000;
-        if (ageDays < 1) score *= 1.5;
-        else if (ageDays < 7) score *= 1.2;
+        if (ageDays < 2) score *= 1.3;
+        else if (ageDays < 7) score *= 1.1;
       }
 
       finalResults.push({
@@ -3297,6 +3303,7 @@ async function notifyConnectionsOnPost(username, postText, postId) {
 app.post("/create-snap", upload.array("media", 6), async (req, res) => {
   try {
     const { username, text, visib } = req.body;
+    const snapCategories = req.body.categories ? JSON.parse(req.body.categories) : [];
 
     if (!username || !text) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -3336,6 +3343,7 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
           likes: [],
           comments: [],
           hashtags,
+          categories: snapCategories,
           visib,
           type: "snap"
         }
@@ -3458,6 +3466,9 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
       if (p.type === "live") typeBonus = 3.0;
       if (p.media && p.media.length > 0) typeBonus = 1.5;
 
+      const boostScoreValue = (p.boost_score || 0) * 2.0;
+      const mediaBonus = (p.media && p.media.length > 0) ? 2.0 : 0;
+
       const seenPenalty = seen.has(String(p.id)) ? 0.00001 : 1.0;
       const selfPenalty = p.username === username ? 0.1 : 1.0;
       const userInfluence = 0.0;
@@ -3466,7 +3477,9 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
         (freshness * 10) +
         (velocity * 5) +
         (typeBonus * 2) +
-        (userInfluence * 0.05)
+        (userInfluence * 0.05) +
+        boostScoreValue +
+        mediaBonus
       ) * affinityMul * seenPenalty * selfPenalty;
 
       return { ...p, _score: score + (Math.random() * 0.5) };
@@ -5576,13 +5589,14 @@ app.delete("/delete-post", async (req, res) => {
 // --- ADD COMMENT ---
 app.post("/add-comment", async (req, res) => {
   try {
-    const { postId, username, comment } = req.body;
+    const { postId, username, comment, parentId } = req.body;
 
     if (!postId || !username || !comment) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     const commenterUsername = String(username).trim();
+    const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
     // Helper: normalize usernames for Mobcoins logic
     const normalizeMobcoinUser = (name) =>
@@ -5602,21 +5616,52 @@ app.post("/add-comment", async (req, res) => {
 
     const ownerUsername = String(post.username || "").trim();
 
-    const currentComments = Array.isArray(post.comments) ? post.comments : [];
+    let currentComments = Array.isArray(post.comments) ? post.comments : [];
+    let repliedUsername = null;
 
-    const updatedComments = [
-      ...currentComments,
-      {
+    function addReplyToParent(comments, pid, reply) {
+      return comments.map(c => {
+        if (String(c.id) === String(pid)) {
+          repliedUsername = c.username;
+          return { ...c, replies: [...(c.replies || []), reply] };
+        }
+        if (c.replies && c.replies.length > 0) {
+          return { ...c, replies: addReplyToParent(c.replies, pid, reply) };
+        }
+        return c;
+      });
+    }
+
+    if (parentId) {
+      const newReply = {
+        id: genId(),
         username: commenterUsername,
         text: comment,
         timestamp: new Date().toISOString(),
-      },
-    ];
+        parentId,
+      };
+      const updated = addReplyToParent(currentComments, parentId, newReply);
+      if (repliedUsername) {
+        currentComments = updated;
+      } else {
+        currentComments = [...currentComments, newReply];
+      }
+    } else {
+      currentComments = [
+        ...currentComments,
+        {
+          id: genId(),
+          username: commenterUsername,
+          text: comment,
+          timestamp: new Date().toISOString(),
+        },
+      ];
+    }
 
     // Update post with new comment
     const { error: updateError } = await supabase2
       .from("Posts")
-      .update({ comments: updatedComments })
+      .update({ comments: currentComments })
       .eq("id", postId);
 
     if (updateError) {
@@ -5628,7 +5673,7 @@ app.post("/add-comment", async (req, res) => {
     if (memoryDb && memoryDb.isReady) {
       const cachedP = memoryDb.findPost(postId);
       if (cachedP) {
-        cachedP.comments = updatedComments;
+        cachedP.comments = currentComments;
       }
     }
 
@@ -5649,8 +5694,32 @@ app.post("/add-comment", async (req, res) => {
       }
     }
 
-    // Notify post owner only if it's not their own comment
-    if (!isSelfComment) {
+    // If replying to a specific comment, notify that comment's author
+    if (parentId && repliedUsername && repliedUsername !== commenterUsername && repliedUsername !== ownerUsername) {
+      triggerNotification(repliedUsername, "comments", {
+        msg: `${commenterUsername} replied to your comment: "${comment}"`,
+        link: postLink,
+        sender: commenterUsername,
+        subject: `${commenterUsername} replied to your comment`,
+        html: `
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${repliedUsername},</p>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${commenterUsername}</strong> replied to your comment:</p>
+          <div style="margin:0 0 16px;padding:12px 16px;background-color:#f8fafc;border-radius:8px;">
+            <div style="font-size:14px;line-height:1.5;color:#0f172a;">${comment}</div>
+          </div>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                <a href="https://textmob.web.app${postLink}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Post</a>
+              </td>
+            </tr>
+          </table>
+        `,
+      });
+    }
+
+    // Notify post owner only if it's not their own comment (skip if already notified as replied user)
+    if (!isSelfComment && (!parentId || repliedUsername !== ownerUsername)) {
       triggerNotification(ownerUsername, "comments", {
         msg: `${commenterUsername} commented on your post: "${comment}"`,
         link: postLink,
@@ -5714,6 +5783,79 @@ app.post("/add-comment", async (req, res) => {
   } catch (error) {
     console.error("[add-comment] Add Comment Error:", error);
     return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── DELETE COMMENT ──────────────────────────────────────────────────
+app.post("/delete-comment", express.json(), async (req, res) => {
+  try {
+    const { postId, commentId, username } = req.body;
+    if (!postId || !commentId) return res.status(400).json({ error: "Missing fields" });
+
+    const { data: post, error: fetchError } = await supabase2.from("Posts").select("comments, username").eq("id", postId).single();
+    if (fetchError) return res.status(404).json({ error: "Post not found" });
+
+    function deleteInTree(comments) {
+      return comments.map(c => {
+        if (String(c.id) === String(commentId)) {
+          if (c.username !== username && post.username !== username) {
+            throw new Error("Not authorized");
+          }
+          if (c.replies && c.replies.length > 0) {
+            return { ...c, text: "[deleted]", deleted: true };
+          }
+          return null;
+        }
+        if (c.replies && c.replies.length > 0) {
+          const filtered = deleteInTree(c.replies).filter(Boolean);
+          return { ...c, replies: filtered };
+        }
+        return c;
+      });
+    }
+    const updatedComments = deleteInTree(post.comments).filter(Boolean);
+
+    await supabase2.from("Posts").update({ comments: updatedComments }).eq("id", postId);
+    if (memoryDb && memoryDb.isReady) {
+      const cached = memoryDb.findPost(postId);
+      if (cached) cached.comments = updatedComments;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── EDIT COMMENT ────────────────────────────────────────────────────
+app.post("/edit-comment", express.json(), async (req, res) => {
+  try {
+    const { postId, commentId, username, text } = req.body;
+    if (!postId || !commentId || !text) return res.status(400).json({ error: "Missing fields" });
+
+    const { data: post } = await supabase2.from("Posts").select("comments").eq("id", postId).single();
+    if (!post) return res.status(404).json({ error: "Post not found" });
+
+    function editInTree(comments) {
+      return comments.map(c => {
+        if (String(c.id) === String(commentId) && c.username === username) {
+          return { ...c, text, edited: true };
+        }
+        if (c.replies && c.replies.length > 0) {
+          return { ...c, replies: editInTree(c.replies) };
+        }
+        return c;
+      });
+    }
+    const updatedComments = editInTree(post.comments);
+
+    await supabase2.from("Posts").update({ comments: updatedComments }).eq("id", postId);
+    if (memoryDb && memoryDb.isReady) {
+      const cached = memoryDb.findPost(postId);
+      if (cached) cached.comments = updatedComments;
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -7166,6 +7308,8 @@ app.post("/get-posts", express.json(), async (req, res) => {
 
     // ─── NEW UNIFIED SCORING ENGINE ───
     // Used by both /get-posts and /snaps-feed
+    const isVideo = file => /\.(mp4|webm|ogg)$/i.test(String(file || ''));
+
     function computeScore(post, ctx) {
       const ageHours = Math.max(0.1, ctx.ageHours);
       const likes = (post.likes || []).length;
@@ -7179,6 +7323,15 @@ app.post("/get-posts", express.json(), async (req, res) => {
         const author = memoryDb.findUser(post.username);
         if (author && String(author.verified) === "true") verifiedBoost = 5.0;
       }
+
+      // Boost score from paid boosts
+      const boostScoreValue = (post.boost_score || 0) * 2.0;
+
+      // Media bonus
+      const mediaBonus = (post.media && post.media.length > 0) ? (isVideo(post.media[0]) ? 3.0 : 1.5) : 0;
+
+      // Video length bonus
+      const videoLengthBonus = (post.video_duration || 0) > 0 ? Math.min(2.0, (post.video_duration / 60) * 1.0) : 0;
 
       // Half-life based on tab
       const halfLife = ctx.tab === 'following' ? 36 : 12;
@@ -7237,7 +7390,10 @@ app.post("/get-posts", express.json(), async (req, res) => {
 
       const score = (
         (freshness * freshnessWeight) +
-        (velocity * velocityWeight)
+        (velocity * velocityWeight) +
+        boostScoreValue +
+        mediaBonus +
+        videoLengthBonus
       ) * followNudge * typeWeight * seenPenalty * likedPenalty * selfPenalty * negPenalty * catWeight;
 
       if (ctx.username && post.id && process.env.LOG_SCORES) {
@@ -8327,6 +8483,12 @@ app.post("/negative-signal", async (req, res) => {
       content_type: contentType || 'post',
       created_at: new Date().toISOString()
     }).then(r => { if (r.error) console.error("/negative-signal persist error:", r.error); });
+
+    // Also get post categories to store category-level signal
+    const { data: postData } = await supabase2.from("Posts").select("categories").eq("id", postId).single();
+    if (postData?.categories && memoryDb?.isReady) {
+      memoryDb.addCategoryNegativeSignal(username, postData.categories, signalType);
+    }
 
     res.json({ success: true });
   } catch (err) {
@@ -10285,14 +10447,15 @@ app.get("/api/admin/user/details", async (req, res) => {
 
 app.get("/api/admin/posts", async (req, res) => {
   try {
-    const { search, username, limit: queryLimit } = req.query;
+    const { search, username, limit: queryLimit, id } = req.query;
     let query = supabase2
       .from("Posts")
-      .select("id, username, type, text, created_at, likes, comments, media, disabled")
+      .select("id, username, type, text, created_at, likes, comments, media, boost_score")
       .order("created_at", { ascending: false });
 
     if (username) query = query.eq("username", username);
     if (search) query = query.ilike("text", `%${search}%`);
+    if (id) query = query.eq("id", id);
 
     const qLimit = parseInt(queryLimit) || 50;
     query = query.limit(qLimit);
@@ -10335,6 +10498,123 @@ app.post("/api/admin/delete-post", async (req, res) => {
     res.json({ success: true, message: "Post deleted by admin" });
   } catch (err) {
     console.error("[ADMIN DELETE POST ERROR]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Boost Post ──────────────────────────────────────────────────────
+app.post("/api/boost-post", express.json(), async (req, res) => {
+  try {
+    const { postId, username, boostAmount } = req.body;
+    if (!postId || !username || !boostAmount) return res.status(400).json({ error: "Missing fields" });
+    if (boostAmount < 1 || boostAmount > 100) return res.status(400).json({ error: "Boost amount 1-100" });
+
+    const cost = boostAmount * 500;
+
+    const { data: user } = await supabase.from("users").select("mobcoins").eq("username", username).single();
+    if (!user || (user.mobcoins || 0) < cost) return res.status(400).json({ error: "Insufficient mobcoins" });
+
+    await supabase.from("users").update({ mobcoins: (user.mobcoins || 0) - cost }).eq("username", username);
+    if (memoryDb?.isReady) {
+      const u = memoryDb.findUser(username);
+      if (u) u.mobcoins = (u.mobcoins || 0) - cost;
+    }
+
+    const { data: post, error: fetchErr } = await supabase2.from("Posts").select("boost_score").eq("id", postId).single();
+    if (fetchErr) return res.status(500).json({ error: "Failed to fetch post: " + fetchErr.message });
+    const currentBoost = post?.boost_score || 0;
+    const { error: updateErr } = await supabase2.from("Posts").update({ boost_score: currentBoost + boostAmount, boosted: (currentBoost + boostAmount) > 0 }).eq("id", postId);
+    if (updateErr) return res.status(500).json({ error: "Failed to update boost: " + updateErr.message });
+
+    if (memoryDb?.isReady) {
+      const p = memoryDb.findPost(postId);
+      if (p) { p.boost_score = currentBoost + boostAmount; p.boosted = (currentBoost + boostAmount) > 0; }
+    }
+
+    res.json({ success: true, newBoostScore: currentBoost + boostAmount, cost });
+  } catch (err) {
+    console.error("Boost error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Admin Set Boost ─────────────────────────────────────────────────
+app.post("/api/admin/set-boost", express.json(), async (req, res) => {
+  try {
+    const { postId, boostScore } = req.body;
+    await supabase2.from("Posts").update({ boost_score: boostScore, boosted: boostScore > 0 }).eq("id", postId);
+    if (memoryDb?.isReady) {
+      const p = memoryDb.findPost(postId);
+      if (p) { p.boost_score = boostScore; p.boosted = boostScore > 0; }
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Track Profile View ──────────────────────────────────────────────
+app.post("/api/track-profile-view", express.json(), async (req, res) => {
+  try {
+    const { targetUsername, viewerUsername } = req.body;
+    if (!targetUsername || !viewerUsername) return res.status(400).json({ error: "Missing fields" });
+    if (targetUsername === viewerUsername) return res.json({ success: true });
+
+    const { data: user } = await supabase.from("users").select("profile_views").eq("username", targetUsername).single();
+    const views = (user?.profile_views || 0) + 1;
+    await supabase.from("users").update({ profile_views: views }).eq("username", targetUsername);
+    if (memoryDb?.isReady) {
+      const u = memoryDb.findUser(targetUsername);
+      if (u) u.profile_views = views;
+    }
+    res.json({ success: true, views });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── User Stats ──────────────────────────────────────────────────────
+app.get("/api/user/stats", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    const { data: user } = await supabase.from("users").select("mobcoins, profile_views, followers, following, created_at").eq("username", username).single();
+    const { count: postCount } = await supabase2.from("Posts").select("*", { count: "exact", head: true }).eq("username", username);
+
+    res.json({
+      mobcoins: user?.mobcoins || 0,
+      profileViews: user?.profile_views || 0,
+      followerCount: user?.followers?.length || 0,
+      followingCount: user?.following?.length || 0,
+      postCount,
+      joinedAt: user?.created_at
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Get User Following List ─────────────────────────────────────────
+app.get("/get-user-following", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.json([]);
+    const { data: user } = await supabase.from("users").select("following").eq("username", username).single();
+    res.json(Array.isArray(user?.following) ? user.following : []);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+// ─── User Boosted Posts ──────────────────────────────────────────────
+app.get("/api/user/boosted-posts", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "Username required" });
+    const { data } = await supabase2.from("Posts").select("*").eq("username", username).gt("boost_score", 0).order("created_at", { ascending: false }).limit(50);
+    res.json(data || []);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

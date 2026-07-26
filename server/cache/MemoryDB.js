@@ -237,6 +237,23 @@ class MemoryDB {
     return this.negativeSignalMap.get(username);
   }
 
+  // ─── Category Negative Signals ───
+
+  addCategoryNegativeSignal(username, categories, signalType) {
+    if (!this.categoryPenaltyMap) this.categoryPenaltyMap = new Map();
+    if (!this.categoryPenaltyMap.has(username)) {
+      this.categoryPenaltyMap.set(username, {});
+    }
+    const userCats = this.categoryPenaltyMap.get(username);
+    const cats = Array.isArray(categories) ? categories : [categories];
+    for (const cat of cats) {
+      if (!userCats[cat]) userCats[cat] = { count: 0, types: {} };
+      userCats[cat].count++;
+      if (!userCats[cat].types[signalType]) userCats[cat].types[signalType] = 0;
+      userCats[cat].types[signalType]++;
+    }
+  }
+
   // ─── Social Graph Helpers ───
 
   getUserSets(username) {
