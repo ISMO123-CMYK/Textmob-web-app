@@ -30,6 +30,8 @@ import TopSearchMobile from './pages/search/TopSearchMobile';
 import TopSearchDesktop from './pages/search/TopSearchDesktop';
 import HallOfFameMobile from './pages/halloffame/HallOfFameMobile';
 import HallOfFameDesktop from './pages/halloffame/HallOfFameDesktop';
+import HashtagMobile from './pages/hashtag/HashtagMobile';
+import HashtagDesktop from './pages/hashtag/HashtagDesktop';
 import LiveViewMobile from './pages/live/LiveViewMobile';
 import LiveViewDesktop from './pages/live/LiveViewDesktop';
 import MakePostMobile from './pages/posts/MakePostMobile';
@@ -64,8 +66,10 @@ Lexum.init({
     { path: '/@(:username)', responsive: { mobile: ProfileMobile, desktop: ProfileDesktop } },
     { path: '/wallet', responsive: { mobile: WalletMobile, desktop: WalletDesktop } },
     { path: '/snaps', responsive: { mobile: SnapsMobile, desktop: SnapsDesktop } },
+    { path: '/snap/:id', responsive: { mobile: SnapsMobile, desktop: SnapsDesktop } },
     { path: '/topsearch', responsive: { mobile: TopSearchMobile, desktop: TopSearchDesktop } },
     { path: '/halloffame', responsive: { mobile: HallOfFameMobile, desktop: HallOfFameDesktop } },
+    { path: '/tag/:hashtag', responsive: { mobile: HashtagMobile, desktop: HashtagDesktop } },
     { path: '/live/:postId', responsive: { mobile: LiveViewMobile, desktop: LiveViewDesktop } },
     { path: '/make-post/:quoteId', responsive: { mobile: MakePostMobile, desktop: MakePostDesktop } },
     { path: '/make-post', responsive: { mobile: MakePostMobile, desktop: MakePostDesktop } },

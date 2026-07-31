@@ -1437,6 +1437,8 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
 // ─── 9. Preferences ──────────────────────────────────────────────────────────
 function PrefsTab({ user, setProfile, accent, accentText }) {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') || 'system');
+  const [offlineMode, setOfflineMode] = useState(localStorage.getItem('tmob_offline_mode') === 'true');
+  const [dataSaver, setDataSaver] = useState(localStorage.getItem('tmob_data_saver') === 'true');
   const [notifs, setNotifs] = useState(user?.notification_prefs || {
     likes: { inApp: true, email: true },
     comments: { inApp: true, email: true },
@@ -1525,7 +1527,60 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
         ))}
       </div>
 
-      {/* Notifications */}
+      {/* Offline Mode */}
+      <p className="text-sm font-semibold text-gray-700">Data & Offline</p>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Offline Mode</p>
+              <p className="text-xs text-gray-400">Browse cached posts and snaps when offline</p>
+            </div>
+            <div
+              onClick={() => {
+                const next = !offlineMode;
+                setOfflineMode(next);
+                localStorage.setItem('tmob_offline_mode', next ? 'true' : 'false');
+              }}
+              className={'w-11 h-6 rounded-full relative p-0.5 cursor-pointer transition-colors ' + (offlineMode ? 'bg-blue-600' : 'bg-gray-300')}
+            >
+              <div className={'w-5 h-5 bg-white rounded-full shadow-sm transition-transform ' + (offlineMode ? 'translate-x-5' : 'translate-x-0')} />
+            </div>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+            {offlineMode
+              ? 'Content you load will be cached. When offline, you can browse cached posts and snaps. Like, comment, and other actions will be disabled until you reconnect.'
+              : 'Disabled by default. Turn on to cache content for offline browsing.'}
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Data Saver</p>
+              <p className="text-xs text-gray-400">Load lower-quality images to save mobile data</p>
+            </div>
+            <div
+              onClick={() => {
+                const next = !dataSaver;
+                setDataSaver(next);
+                localStorage.setItem('tmob_data_saver', next ? 'true' : 'false');
+              }}
+              className={'w-11 h-6 rounded-full relative p-0.5 cursor-pointer transition-colors ' + (dataSaver ? 'bg-blue-600' : 'bg-gray-300')}
+            >
+              <div className={'w-5 h-5 bg-white rounded-full shadow-sm transition-transform ' + (dataSaver ? 'translate-x-5' : 'translate-x-0')} />
+            </div>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+            {dataSaver
+              ? 'Images will use Cloudinary low-quality compression (f_auto,q_auto:low).'
+              : 'Images load at original quality. Turn on to reduce bandwidth usage.'}
+          </p>
+        </div>
+      </div>
+
       <p className="text-sm font-semibold text-gray-700">Notifications</p>
       {notifSections.map((section, sIdx) => (
         <div key={sIdx} className="bg-white border border-gray-200 rounded-xl overflow-hidden">

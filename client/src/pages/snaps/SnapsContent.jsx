@@ -6,6 +6,7 @@ import Lexum from '../../router/LexumRouter';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import GiftCoinsModal from '../../components/ui/GiftCoinsModal';
 import { useSnapUpload } from '../../utils/SnapUploadContext';
+import { CATEGORIES } from '../../data/categories';
 
 // Time formatter function fi
 function fi(e) {
@@ -395,6 +396,8 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
   let [uploading, setUploading] = useState(false);
   let [progress, setProgress] = useState(0);
   let [dragActive, setDragActive] = useState(false);
+  let [selectedCategory, setSelectedCategory] = useState('');
+  let [step, setStep] = useState(1);
   let fileInputRef = useRef(null);
   let captionRef = useRef(null);
 
@@ -456,6 +459,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
       setErrorMsg(null);
       setUploading(false);
       setProgress(0);
+      setStep(1);
       if (videoUrl) {
         URL.revokeObjectURL(videoUrl);
         setVideoUrl(null);
@@ -502,6 +506,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
     formData.append('username', username);
     formData.append('text', caption || '');
     formData.append('visibility', 'public');
+    formData.append('categories', JSON.stringify(selectedCategory ? [selectedCategory] : []));
     formData.append('media', videoFile);
 
     try {
@@ -530,11 +535,28 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
   return (
     <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center snap-fade">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className="relative z-10 w-full md:max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl md:rounded-3xl snap-slide md:animate-none">
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800">
-          <div>
-            <div className="text-base font-black text-gray-900 dark:text-gray-100 tracking-tight">New Snap</div>
-            <div className="text-xs text-gray-400 mt-0.5">Share a moment with your world</div>
+      <div className="relative z-10 w-full md:max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl md:rounded-3xl snap-slide md:animate-none flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
+          <div className="w-10">
+            {step > 1 && !uploading && (
+              <button
+                onClick={() => setStep(s => s - 1)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-gray-900 dark:text-gray-100">New Snap</div>
+            <div className="flex items-center justify-center gap-1 mt-1">
+              {[1,2,3].map(s => (
+                <div key={s} className={`h-1 rounded-full transition-all duration-300 ${s <= step ? 'bg-blue-600 w-6' : 'bg-gray-200 dark:bg-gray-700 w-4'}`} />
+              ))}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -545,99 +567,10 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
             </svg>
           </button>
         </div>
-        <div className="px-5 py-4 space-y-4">
-          {videoUrl ? (
-            <div
-              className="relative rounded-2xl overflow-hidden bg-black"
-              style={{
-                aspectRatio: '9/16',
-                maxHeight: 256
-              }}
-            >
-              <video src={videoUrl} className="w-full h-full object-contain" controls playsInline muted />
-              {!uploading && (
-                <button
-                  onClick={() => {
-                    setVideoFile(null);
-                    setVideoUrl(null);
-                  }}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white"
-                >
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
-                <p className="text-white text-xs font-semibold truncate">{videoFile?.name}</p>
-                <p className="text-white/50 text-[10px]">{videoFile ? `${(videoFile.size / 1048576).toFixed(1)} MB` : ''}</p>
-              </div>
-            </div>
-          ) : (
-            <div
-              onClick={() => !uploading && fileInputRef.current?.click()}
-              onDragOver={e => {
-                e.preventDefault();
-                if (!uploading) setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={e => {
-                e.preventDefault();
-                setDragActive(false);
-                if (!uploading) handleVideoFile(e.dataTransfer?.files?.[0]);
-              }}
-              className={cn(
-                "h-52 md:h-64 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed cursor-pointer transition-colors",
-                dragActive
-                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                  : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700",
-                uploading && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="video/*"
-                className="hidden"
-                disabled={uploading}
-                onChange={e => handleVideoFile(e.target.files?.[0])}
-              />
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-7 h-7 text-blue-600 fill-none stroke-current" strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{dragActive ? 'Drop it here' : 'Upload your video'}</p>
-                <p className="text-xs text-gray-400 mt-1">MP4 · MOV · WebM, max 40 MB</p>
-              </div>
-            </div>
-          )}
-          <div className="relative">
-            <textarea
-              ref={captionRef}
-              value={caption}
-              disabled={uploading}
-              onChange={e => setCaption(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Add a caption…"
-              rows={2}
-              maxLength={280}
-              className="w-full bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-all resize-none disabled:opacity-50"
-            />
-            <SuggestionsDropdown items={suggestions} onSelect={handleSelectSuggestion} activeIndex={activeIndex} />
-            <p className="text-right text-[11px] text-gray-400 mt-1">{caption.length}/280</p>
-          </div>
-          {errorMsg && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-xl">
-              <svg viewBox="0 0 24 24" className="w-4 h-4 text-red-500 flex-shrink-0 fill-none stroke-current" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-              <p className="text-xs text-red-600 font-semibold">{errorMsg}</p>
-            </div>
-          )}
+
+        <div className="overflow-y-auto px-5 py-5 space-y-4" style={{ overscrollBehavior: 'contain' }}>
           {uploading && (
-            <div className="flex items-center gap-3 px-3 py-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+            <div className="flex items-center gap-3 px-3 py-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
               <svg viewBox="0 0 44 44" className="w-10 h-10 flex-shrink-0">
                 <circle cx="22" cy="22" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
                 <circle
@@ -652,9 +585,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
                   strokeDashoffset={strokeDashoffset}
                   className="snap-progress-ring"
                 />
-                <text x="22" y="27" textAnchor="middle" fontSize="9" fontWeight="700" fill="#2563eb">
-                  {progress}%
-                </text>
+                <text x="22" y="27" textAnchor="middle" fontSize="9" fontWeight="700" fill="#2563eb">{progress}%</text>
               </svg>
               <div>
                 <p className="text-xs font-bold text-blue-700 dark:text-blue-300">Uploading your snap…</p>
@@ -662,28 +593,138 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
               </div>
             </div>
           )}
-          <div className="flex gap-2 pb-1">
-            {!uploading && (
+
+          {errorMsg && !uploading && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-xl">
+              <svg viewBox="0 0 24 24" className="w-4 h-4 text-red-500 flex-shrink-0 fill-none stroke-current" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <p className="text-xs text-red-600 font-semibold">{errorMsg}</p>
+            </div>
+          )}
+
+          {/* Step 1: Upload Video */}
+          {step === 1 && !uploading && (
+            <div className="space-y-3">
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Choose a video</p>
+              {videoUrl ? (
+                <div>
+                  <div className="relative rounded-2xl overflow-hidden bg-black" style={{ aspectRatio: '9/16', maxHeight: 300 }}>
+                    <video src={videoUrl} className="w-full h-full object-contain" playsInline muted />
+                    <button
+                      onClick={() => { setVideoFile(null); setVideoUrl(null); }}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
+                      <p className="text-white text-xs font-semibold truncate">{videoFile?.name}</p>
+                      <p className="text-white/50 text-[10px]">{videoFile ? `${(videoFile.size / 1048576).toFixed(1)} MB` : ''}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setStep(2)}
+                    className="w-full mt-3 py-3 rounded-xl text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all"
+                  >
+                    Next
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => !uploading && fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); if (!uploading) setDragActive(true); }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={e => { e.preventDefault(); setDragActive(false); if (!uploading) handleVideoFile(e.dataTransfer?.files?.[0]); }}
+                  className={cn(
+                    "h-56 md:h-72 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed cursor-pointer transition-colors",
+                    dragActive
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                      : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 hover:border-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  )}
+                >
+                  <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={e => handleVideoFile(e.target.files?.[0])} />
+                  <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" className="w-8 h-8 text-blue-600 fill-none stroke-current" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{dragActive ? 'Drop it here' : 'Upload your video'}</p>
+                    <p className="text-xs text-gray-400 mt-1">MP4 · MOV · WebM, max 100 MB</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: Caption */}
+          {step === 2 && !uploading && (
+            <div className="space-y-3">
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Add a caption</p>
+              <div className="relative">
+                <textarea
+                  ref={captionRef}
+                  value={caption}
+                  onChange={e => setCaption(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Write something…"
+                  rows={4}
+                  maxLength={280}
+                  className="w-full bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-3 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 outline-none focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-all resize-none"
+                />
+                <SuggestionsDropdown items={suggestions} onSelect={handleSelectSuggestion} activeIndex={activeIndex} />
+                <p className="text-right text-[11px] text-gray-400 mt-1">{caption.length}/280</p>
+              </div>
               <button
-                onClick={() => {
-                  setCaption('');
-                  setVideoFile(null);
-                  setVideoUrl(null);
-                  setErrorMsg(null);
-                }}
-                className="px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-[0.98] transition-colors"
+                onClick={() => setStep(3)}
+                className="w-full py-3 rounded-xl text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all"
               >
-                Reset
+                Next
               </button>
-            )}
-            <button
-              onClick={handlePost}
-              disabled={uploading || !videoFile}
-              className="flex-1 py-3 rounded-xl text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {uploading ? 'Posting in Background…' : '✦ Post Snap'}
-            </button>
-          </div>
+            </div>
+          )}
+
+          {/* Step 3: Category */}
+          {step === 3 && !uploading && (
+            <div className="space-y-3">
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Pick a category</p>
+              <p className="text-xs text-gray-400">Helps us show your snap to the right audience</p>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSelectedCategory(selectedCategory === cat.id ? '' : cat.id)}
+                    className={cn(
+                      "px-4 py-2 rounded-full text-xs font-bold transition-all border",
+                      selectedCategory === cat.id
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                    )}
+                  >
+                    {cat.emoji} {cat.name}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setStep(2)}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-500 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-[0.98] transition-all"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handlePost}
+                  disabled={!videoFile}
+                  className="flex-1 py-3 rounded-xl text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Post Snap
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1219,7 +1260,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
   }
 
   async function handleShareClick() {
-    let url = currentSnap?.link || window.location.href;
+    let url = window.location.origin + '/snap/' + (currentSnap?.id || '');
     try {
       if (navigator?.share) {
         await navigator.share({
@@ -1245,7 +1286,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
         onClick={handleVideoClick}
         aria-label={`Snap by ${currentSnap?.username}`}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/10 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
       {hearts.map(h => (
         <div
           className="absolute pointer-events-none snap-heart"
@@ -1321,11 +1362,11 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
         }}
         className="absolute top-4 right-4 z-20"
         style={{
-          width: 36,
-          height: 36,
+          width: 38,
+          height: 38,
           borderRadius: '50%',
-          background: 'rgba(0,0,0,.4)',
-          backdropFilter: 'blur(4px)',
+          background: 'rgba(0,0,0,.35)',
+          backdropFilter: 'blur(8px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1338,8 +1379,8 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
           <svg
             viewBox="0 0 24 24"
             style={{
-              width: 16,
-              height: 16,
+              width: 18,
+              height: 18,
               fill: 'none',
               stroke: '#fff',
               strokeWidth: 2
@@ -1351,8 +1392,8 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
           <svg
             viewBox="0 0 24 24"
             style={{
-              width: 16,
-              height: 16,
+              width: 18,
+              height: 18,
               fill: 'none',
               stroke: '#fff',
               strokeWidth: 2
@@ -1370,48 +1411,48 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
           right: 72
         }}
       >
-        <div className="flex items-center gap-2 mb-2 pointer-events-auto cursor-pointer">
+        <div className="flex items-center gap-3 mb-3 pointer-events-auto cursor-pointer">
           {profileInfo?.profile_pic ? (
             <img
               src={profileInfo.profile_pic}
               alt={currentSnap?.username}
               style={{
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 borderRadius: '50%',
                 objectFit: 'cover',
-                border: '2px solid rgba(255,255,255,.8)',
+                border: '2px solid rgba(255,255,255,.9)',
                 flexShrink: 0
               }}
             />
           ) : (
             <div
               style={{
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 borderRadius: '50%',
                 background: mi(currentSnap?.username),
                 flexShrink: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 800,
                 color: '#fff',
-                border: '2px solid rgba(255,255,255,.6)'
+                border: '2px solid rgba(255,255,255,.7)'
               }}
             >
               {(currentSnap?.username || '?').slice(0, 2).toUpperCase()}
             </div>
           )}
-          <div onClick={e => { e.stopPropagation(); onProfileClick?.(currentSnap?.username); }}>
+          <div className="flex-1 min-w-0" onClick={e => { e.stopPropagation(); onProfileClick?.(currentSnap?.username); }}>
             <p
               style={{
                 color: '#fff',
-                fontSize: 14,
-                fontWeight: 800,
-                lineHeight: 1.2,
-                textShadow: '0 1px 3px rgba(0,0,0,.5)',
+                fontSize: 15,
+                fontWeight: 700,
+                lineHeight: 1.3,
+                textShadow: '0 1px 2px rgba(0,0,0,.5)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4
@@ -1423,12 +1464,16 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
                   <VerifiedBadge className="w-3.5 h-3.5 text-blue-400" />
                 </div>
               )}
+              {(currentSnap?.boost_score || 0) > 0 && (
+                <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,.15)', padding: '1px 6px', borderRadius: 10, marginLeft: 4, letterSpacing: '0.5px' }}>BOOSTED</span>
+              )}
             </p>
             <p
               style={{
-                color: 'rgba(255,255,255,.6)',
-                fontSize: 11,
-                lineHeight: 1.2
+                color: 'rgba(255,255,255,.55)',
+                fontSize: 12,
+                lineHeight: 1.3,
+                fontWeight: 500
               }}
             >
               @{currentSnap?.username}
@@ -1443,7 +1488,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
         {currentSnap?.text && <SnapText text={currentSnap.text} />}
       </div>
       <div
-        className="absolute z-20 flex flex-col items-center gap-5"
+        className="absolute z-20 flex flex-col items-center gap-4"
         style={{
           right: 12,
           bottom: 80
@@ -1454,26 +1499,25 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
             e.stopPropagation();
             handleSingleLikeClick();
           }}
-          className="flex flex-col items-center gap-1"
+          className="flex flex-col items-center gap-0.5"
           aria-label={isLiked ? 'Unlike' : 'Like'}
         >
           <div className={likePop ? 'snap-like-pop' : ''}>
             <svg
               viewBox="0 0 24 24"
               style={{
-                width: 28,
-                height: 28,
-                filter: 'drop-shadow(0 1px 4px rgba(0,0,0,.4))'
+                width: 30,
+                height: 30,
+                filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.5))'
               }}
               fill={isLiked ? '#ef4444' : '#fff'}
-              stroke={isLiked ? '#ef4444' : 'rgba(0,0,0,.25)'}
-              strokeWidth="0.8"
+              stroke={isLiked ? '#ef4444' : 'none'}
             >
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
             </svg>
           </div>
           <span
-            className={cn("text-white text-xs font-bold", cntPop ? 'snap-cnt-pop' : '')}
+            className={cn("text-white text-[11px] font-bold leading-none", cntPop ? 'snap-cnt-pop' : '')}
             style={{
               textShadow: '0 1px 3px rgba(0,0,0,.6)'
             }}
@@ -1486,22 +1530,22 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
             e.stopPropagation();
             onOpenComments?.(currentSnap);
           }}
-          className="flex flex-col items-center gap-1"
+          className="flex flex-col items-center gap-0.5"
           aria-label="Comments"
         >
           <svg
             viewBox="0 0 24 24"
             style={{
-              width: 27,
-              height: 27,
+              width: 28,
+              height: 28,
               fill: '#fff',
-              filter: 'drop-shadow(0 1px 4px rgba(0,0,0,.4))'
+              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.5))'
             }}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+            <path d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
           </svg>
           <span
-            className="text-white text-xs font-bold"
+            className="text-white text-[11px] font-bold leading-none"
             style={{
               textShadow: '0 1px 3px rgba(0,0,0,.6)'
             }}
@@ -1515,16 +1559,16 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
             if (!username) { window.showAuthPrompt?.('Log in to send gifts'); return; }
             onGift?.(currentSnap);
           }}
-          className="flex flex-col items-center gap-1"
+          className="flex flex-col items-center gap-0.5"
           aria-label="Gift Mobcoins"
         >
           <svg
             viewBox="0 0 24 24"
             style={{
-              width: 25,
-              height: 25,
+              width: 28,
+              height: 28,
               fill: '#fff',
-              filter: 'drop-shadow(0 1px 4px rgba(0,0,0,.4))'
+              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.5))'
             }}
           >
             <path d="M9.375 3a1.875 1.875 0 0 0 0 3.75h1.875v4.5H3.375A1.875 1.875 0 0 1 1.5 9.375v-.75c0-1.036.84-1.875 1.875-1.875h3.193A3.375 3.375 0 0 1 12 2.753a3.375 3.375 0 0 1 5.432 3.997h3.943c1.035 0 1.875.84 1.875 1.875v.75c0 1.036-.84 1.875-1.875 1.875H12.75v-4.5h1.875a1.875 1.875 0 1 0-1.875-1.875V6.75h-1.5V4.875C11.25 3.839 10.41 3 9.375 3ZM11.25 12.75H3v6.75a2.25 2.25 0 0 0 2.25 2.25h6v-9ZM12.75 12.75v9h6.75a2.25 2.25 0 0 0 2.25-2.25v-6.75h-9Z" />
@@ -1535,18 +1579,18 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
             e.stopPropagation();
             handleShareClick();
           }}
-          className="flex flex-col items-center gap-1"
+          className="flex flex-col items-center gap-0.5"
           aria-label="Share"
         >
           <svg
             viewBox="0 0 24 24"
             style={{
-              width: 27,
-              height: 27,
+              width: 28,
+              height: 28,
               fill: 'none',
               stroke: '#fff',
               strokeWidth: 1.8,
-              filter: 'drop-shadow(0 1px 4px rgba(0,0,0,.4))'
+              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.5))'
             }}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
@@ -1556,7 +1600,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
       <div
         className="absolute pointer-events-none z-20"
         style={{
-          bottom: 12,
+          bottom: 8,
           left: 16,
           right: 16
         }}
@@ -1564,15 +1608,16 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
         <div
           style={{
             height: 2,
-            background: 'rgba(255,255,255,.25)',
-            borderRadius: 9
+            background: 'rgba(255,255,255,.2)',
+            borderRadius: 4,
+            overflow: 'hidden'
           }}
         >
           <div
             style={{
               height: '100%',
               background: '#fff',
-              borderRadius: 9,
+              borderRadius: 4,
               width: `${progressPercent}%`,
               transition: 'width .1s linear'
             }}
@@ -1589,12 +1634,24 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
   let [l, u] = useState(null);
   let [giftTarget, setGiftTarget] = useState(null);
   let [d, f] = useState(initialSnaps);
+  let [searchOpen, setSearchOpen] = useState(false);
+  let [searchQuery, setSearchQuery] = useState('');
+  let [searchResults, setSearchResults] = useState([]);
+  let [searchLoading, setSearchLoading] = useState(false);
+  let searchInputRef = useRef(null);
   let p = useRef(null);
   let m = useRef({ y: 0, t: 0 });
 
   function handleIndexChange(newIndex) {
     c(newIndex);
-    if (d[newIndex]) onSnapViewed?.([d[newIndex].id]);
+    if (d[newIndex]) {
+      onSnapViewed?.([d[newIndex].id]);
+      // Update URL to /snap/:id for shareable links (Facebook-style)
+      var snapId = d[newIndex].id;
+      if (window.history && window.location.pathname !== '/snap/' + snapId) {
+        window.history.replaceState(null, '', '/snap/' + snapId);
+      }
+    }
   }
 
   function handleOpenGift(snapObj) {
@@ -1678,6 +1735,25 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
     };
   }, []);
 
+  // Search with debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) { setSearchResults([]); return; }
+    let active = true;
+    setSearchLoading(true);
+    let timer = setTimeout(async () => {
+      try {
+        let res = await apiFetch(`/snaps-search?query=${encodeURIComponent(searchQuery.trim())}&limit=12`);
+        if (active && res.ok) {
+          let data = await res.json();
+          setSearchResults(data.snaps || []);
+        }
+      } catch {} finally {
+        if (active) setSearchLoading(false);
+      }
+    }, 300);
+    return () => { active = false; clearTimeout(timer); };
+  }, [searchQuery]);
+
   function handleOpenComments(snapObj) {
     u(d.find(item => item.id === snapObj.id) || snapObj);
   }
@@ -1749,16 +1825,16 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
             ))}
           </div>
           <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
-            <div className="flex items-center justify-between px-4 pt-12 pb-2">
+            <div className="flex items-center justify-between px-3 pt-14 pb-1">
               <button
                 onClick={onClose}
                 className="pointer-events-auto"
                 style={{
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   borderRadius: '50%',
-                  background: 'rgba(0,0,0,.4)',
-                  backdropFilter: 'blur(4px)',
+                  background: 'rgba(0,0,0,.35)',
+                  backdropFilter: 'blur(8px)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1770,8 +1846,8 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
                 <svg
                   viewBox="0 0 24 24"
                   style={{
-                    width: 16,
-                    height: 16,
+                    width: 18,
+                    height: 18,
                     fill: 'none',
                     stroke: '#fff',
                     strokeWidth: 2.5
@@ -1780,41 +1856,64 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <button
-                onClick={() => onCreateSnap?.()}
-                className="pointer-events-auto flex items-center gap-1.5"
-                style={{
-                  background: 'rgba(0,0,0,.4)',
-                  backdropFilter: 'blur(4px)',
-                  border: '1px solid rgba(255,255,255,.2)',
-                  borderRadius: 20,
-                  padding: '6px 14px',
-                  cursor: 'pointer'
-                }}
-                aria-label="Create Snap"
-              >
-                <svg
-                  viewBox="0 0 24 24"
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => { setSearchOpen(!searchOpen); if (!searchOpen) setTimeout(() => searchInputRef.current?.focus(), 100); }}
+                  className="pointer-events-auto"
                   style={{
-                    width: 14,
-                    height: 14,
-                    fill: 'none',
-                    stroke: '#fff',
-                    strokeWidth: 2.5
+                    width: 38,
+                    height: 38,
+                    borderRadius: '50%',
+                    background: 'rgba(0,0,0,.35)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: 'none',
+                    cursor: 'pointer'
                   }}
+                  aria-label="Search snaps"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                <span
+                  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2.5 }}>
+                    <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => onCreateSnap?.()}
+                  className="pointer-events-auto flex items-center gap-1.5"
                   style={{
-                    color: '#fff',
-                    fontSize: 12,
-                    fontWeight: 700
+                    background: 'rgba(0,0,0,.35)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid rgba(255,255,255,.15)',
+                    borderRadius: 22,
+                    padding: '7px 16px',
+                    cursor: 'pointer'
                   }}
+                  aria-label="Create Snap"
                 >
-                  Create
-                </span>
-              </button>
+                  <svg
+                    viewBox="0 0 24 24"
+                    style={{
+                      width: 16,
+                      height: 16,
+                      fill: 'none',
+                      stroke: '#fff',
+                      strokeWidth: 2.5
+                    }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span
+                    style={{
+                      color: '#fff',
+                      fontSize: 13,
+                      fontWeight: 700
+                    }}
+                  >
+                    Create
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
           <div
@@ -1941,6 +2040,105 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
           ))}
         </div>
       </div>
+      {searchOpen && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+          <div className="flex items-center gap-3 px-3 pt-12 pb-2">
+            <button onClick={() => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }} style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2.5 }}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <div className="flex-1 flex items-center gap-2 bg-white/10 rounded-2xl px-4 py-3 border border-white/15">
+              <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: 'rgba(255,255,255,.4)', strokeWidth: 2.5, flexShrink: 0 }}>
+                <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
+              </svg>
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search snaps…"
+                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 15 }}
+                autoComplete="off"
+              />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(255,255,255,.15)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg viewBox="0 0 24 24" style={{ width: 12, height: 12, fill: 'none', stroke: '#fff', strokeWidth: 3 }}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-1 pt-2">
+            {!searchQuery.trim() && (
+              <div className="flex flex-col items-center justify-center pt-24 text-center px-6">
+                <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(37,99,235,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, fill: 'none', stroke: '#60a5fa', strokeWidth: 1.5 }}>
+                    <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
+                  </svg>
+                </div>
+                <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 15, fontWeight: 600 }}>Discover snaps</p>
+                <p style={{ color: 'rgba(255,255,255,.3)', fontSize: 13, marginTop: 6 }}>Search by caption or hashtag</p>
+              </div>
+            )}
+            {searchLoading && (
+              <div className="grid grid-cols-3 gap-1.5 px-1">
+                {[1,2,3,4,5,6].map(i => <div key={i} style={{ aspectRatio: '3/4', background: 'rgba(255,255,255,.04)', borderRadius: 12 }} className="animate-pulse" />)}
+              </div>
+            )}
+            {!searchLoading && searchResults.length > 0 && (
+              <div className="grid grid-cols-3 gap-1.5 px-1 pb-4">
+                {searchResults.map(snap => (
+                  <div
+                    key={snap.id}
+                    onClick={() => {
+                      setSearchOpen(false);
+                      setSearchQuery('');
+                      setSearchResults([]);
+                      let idx = d.findIndex(item => String(item.id) === String(snap.id));
+                      if (idx >= 0) handleIndexChange(idx);
+                      else { f(prev => [snap, ...prev]); handleIndexChange(0); }
+                    }}
+                    style={{ borderRadius: 12, overflow: 'hidden', cursor: 'pointer', position: 'relative' }}
+                  >
+                    {snap.media?.[0] ? (
+                      <div style={{ position: 'relative' }}>
+                        <video src={snap.media[0]} style={{ width: '100%', aspectRatio: '3/4', objectFit: 'cover', display: 'block', background: '#111' }} muted preload="metadata" />
+                        <div style={{ position: 'absolute', top: 6, left: 6, background: 'rgba(0,0,0,.7)', borderRadius: 6, padding: '2px 6px', display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: 'none', stroke: '#fff', strokeWidth: 2 }}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                          <span style={{ color: '#fff', fontSize: 9, fontWeight: 700 }}>HD</span>
+                        </div>
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,.85))', padding: '32px 8px 8px' }}>
+                          <p style={{ color: '#fff', fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{snap.username}</p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+                              <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{(snap.likes || []).length}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" /></svg>
+                              <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{(snap.comments || []).length}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ width: '100%', aspectRatio: '3/4', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#111' }}>
+                        <svg viewBox="0 0 24 24" style={{ width: 20, height: 20, fill: 'rgba(255,255,255,.15)' }}><path d="M8 5v14l11-7z" /></svg>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {!searchLoading && searchQuery.trim() && searchResults.length === 0 && (
+              <div className="flex flex-col items-center justify-center pt-24 text-center px-6">
+                <div style={{ width: 56, height: 56, borderRadius: 20, background: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <svg viewBox="0 0 24 24" style={{ width: 24, height: 24, fill: 'none', stroke: 'rgba(255,255,255,.2)', strokeWidth: 1.5 }}><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" /></svg>
+                </div>
+                <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 14, fontWeight: 600 }}>No results for "{searchQuery}"</p>
+                <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 13, marginTop: 4 }}>Try a different search term</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {l && (
         <CommentsPanel
           snap={l}
@@ -1962,13 +2160,14 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
 }
 
 // Main exported SnapsContent Component
-export default function SnapsContent() {
+export default function SnapsContent({ startSnapId }) {
   let [snaps, setSnaps] = useState([]);
   let [snapPage, setSnapPage] = useState(1);
   let [hasMoreSnaps, setHasMoreSnaps] = useState(true);
   let [loading, setLoading] = useState(true);
   let [errorMsg, setErrorMsg] = useState('');
   let [isCreatorOpen, setIsCreatorOpen] = useState(false);
+  let [startIndex, setStartIndex] = useState(0);
   let currentUser = localStorage.getItem('currentUser') || '';
 
   // Seen-posts tracking (localStorage)
@@ -1981,6 +2180,65 @@ export default function SnapsContent() {
   }
   function getSeenParam() {
     try { return Array.from(getSeenIds()).join(','); } catch { return ''; }
+  }
+
+  useEffect(() => {
+    if (!startSnapId) {
+      loadSnaps(1);
+    } else {
+      loadFeedAroundSnap(startSnapId);
+    }
+  }, [currentUser, startSnapId]);
+
+  async function loadFeedAroundSnap(snapId) {
+    try {
+      // Fetch the target snap directly
+      let res = await apiFetch(`/get-snap/${encodeURIComponent(snapId)}`);
+      if (!res.ok) {
+        setErrorMsg('Snap not found');
+        setLoading(false);
+        return;
+      }
+      let targetSnap = await res.json();
+      targetSnap.likes = Array.isArray(targetSnap.likes) ? targetSnap.likes : [];
+      targetSnap.comments = Array.isArray(targetSnap.comments) ? targetSnap.comments : [];
+
+      // Load feed
+      let seen = getSeenParam();
+      let feedRes = await apiFetch('/snaps-feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: currentUser || undefined,
+          page: 1,
+          limit: 10,
+          seenIds: seen || undefined,
+        }),
+      });
+      let feedData = await feedRes.json();
+      let feedList = (feedData.snaps || []).map(snap => ({
+        ...snap,
+        likes: Array.isArray(snap.likes) ? snap.likes : [],
+        comments: Array.isArray(snap.comments) ? snap.comments : []
+      }));
+
+      // Check if target snap is already in the feed
+      let idx = feedList.findIndex(s => String(s.id) === String(snapId));
+      if (idx === -1) {
+        feedList = [targetSnap, ...feedList];
+        idx = 0;
+      }
+
+      setSnaps(feedList);
+      setStartIndex(idx);
+      setHasMoreSnaps(feedData.hasMore !== false);
+      setSnapPage(1);
+      markSeen([snapId]);
+      setLoading(false);
+    } catch (err) {
+      setErrorMsg(String(err));
+      setLoading(false);
+    }
   }
 
   // Inject CSS styles for animations
@@ -2047,10 +2305,6 @@ export default function SnapsContent() {
     `;
     document.head.appendChild(style);
   }, []);
-
-  useEffect(() => {
-    loadSnaps(1);
-  }, [currentUser]);
 
   async function loadSnaps(pg) {
     try {

@@ -7,12 +7,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { searchUsersAPI, searchSuggestAPI, getSuggestionsFeedAPI, followAPI, friendAPI, getFollowStatusAPI, searchGeneralAPI, UserProfile, SuggestedUser } from '../../api/users';
+import { searchUsersAPI, searchSuggestAPI, getSuggestionsFeedAPI, followAPI, friendAPI, UserProfile, SuggestedUser } from '../../api/users';
 import { Post } from '../../api/posts';
-import { apiPost } from '../../api/client';
+import { apiGet } from '../../api/client';
 import { storage, KEYS } from '../../utils/storage';
 import { useNavigation } from '@react-navigation/native';
-import { timeAgo } from '../../utils/format';
+import PostCard from '../../components/PostCard';
 
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 const SUGGESTIONS_STORAGE_KEY = 'search_history';
@@ -58,7 +58,6 @@ export default function SearchScreen() {
   const [exploreSuggestions, setExploreSuggestions] = useState<SuggestedUser[]>([]);
   const [loadingExplore, setLoadingExplore] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
-  const [following, setFollowing] = useState<string[]>([]);
 
   const inputRef = useRef<TextInput>(null);
   const debouncedQuery = useDebounce(query, 260);
@@ -103,6 +102,47 @@ export default function SearchScreen() {
     }).catch(() => setLoadingExplore(false));
   }, [username]);
 
+  // Execute search
+  const doSearch = useCallback(async (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    saveHistory(trimmed);
+    setSearched(true);
+    setShowDropdown(false);
+    setLoadingResults(true);
+    setActiveTab('people');
+    try {
+      const res = await apiGet(`/general/search?query=${encodeURIComponent(trimmed)}&currentUsername=${encodeURIComponent(username || '')}`);
+      if (res.ok && res.data) {
+        const data = Array.isArray(res.data) ? res.data : [];
+        setSearchResults(data.filter((r: any) => r.type === 'user'));
+        setPostsResults(data.filter((r: any) => r.type === 'post' || r.type === 'snap' || r.type === 'event' || r.type === 'live' || r.type === 'live_ended'));
+      }
+    } catch {}
+    setLoadingResults(false);
+  }, [username, saveHistory]);
+
+  // Keyboard navigation for dropdown
+  const handleKeyDown = useCallback((key: string) => {
+    const items = suggestions.slice(0, 8);
+    if (key === 'ArrowDown') {
+      setSelectedIndex(prev => Math.min(prev + 1, items.length - 1));
+    } else if (key === 'ArrowUp') {
+      setSelectedIndex(prev => Math.max(prev - 1, -1));
+    } else if (key === 'Enter' && selectedIndex >= 0 && items[selectedIndex]) {
+      const item = items[selectedIndex];
+      if (item.username && !item.query) {
+        navigation.navigate('Profile', { username: item.username });
+      } else {
+        setQuery(item.query || item.text || '');
+        doSearch(item.query || item.text || '');
+      }
+    } else if (key === 'Escape') {
+      setShowDropdown(false);
+      inputRef.current?.blur();
+    }
+  }, [suggestions, selectedIndex, navigation, doSearch]);
+
   // Fetch suggestions (dropdown) on debounced query change
   useEffect(() => {
     if (!debouncedQuery.trim()) {
@@ -122,50 +162,53 @@ export default function SearchScreen() {
     }).catch(() => setLoadingSuggestions(false));
   }, [debouncedQuery, username]);
 
-  // Execute search
-  const doSearch = useCallback(async (q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) return;
-    saveHistory(trimmed);
-    setSearched(true);
-    setShowDropdown(false);
-    setLoadingResults(true);
-    setActiveTab('people');
-    const [usersRes, generalRes] = await Promise.all([
-      searchUsersAPI(trimmed, 20, username || undefined),
-      searchGeneralAPI(trimmed, username || undefined),
-    ]);
-    if (usersRes.ok && usersRes.data) setSearchResults(Array.isArray(usersRes.data) ? usersRes.data : []);
-    else setSearchResults([]);
-    if (generalRes.ok && generalRes.data) setPostsResults(Array.isArray(generalRes.data) ? generalRes.data.filter((r: any) => r.type !== 'user') : []);
-    else setPostsResults([]);
-    setLoadingResults(false);
-  }, [username, saveHistory]);
-
-  const handleFollow = async (targetUsername: string) => {
+  const handleRelationChange = async (targetUsername: string, action: string, profileType?: string) => {
     if (!username) { Alert.alert('Sign in', 'Log in to follow users'); return; }
     try {
-      const statusRes = await getFollowStatusAPI(username, targetUsername);
-      if (!statusRes.ok) return;
-      const isOrg = statusRes.data?.profileType !== 'individual';
-      const isConnected = statusRes.data?.status === 'following' || statusRes.data?.status === 'friended';
-
-      if (isConnected) {
-        const api = isOrg ? followAPI : friendAPI;
-        await api(targetUsername, username, isOrg ? 'unfollow' : 'unfriend');
-        setFollowing(prev => prev.filter(u => u !== targetUsername));
-      } else {
-        const api = isOrg ? followAPI : friendAPI;
-        await api(targetUsername, username, isOrg ? 'follow' : 'friend');
-        setFollowing(prev => [...prev, targetUsername]);
-      }
+      const isOrg = (profileType || '').toLowerCase() === 'organisation';
+      const endpoint = isOrg ? followAPI : friendAPI;
+      await endpoint(targetUsername, username, action);
+      setSearchResults(prev => prev.map(item => {
+        if (item.type === 'user' && item.username === targetUsername) {
+          let nextRelation = 'not_friended';
+          if (isOrg) {
+            nextRelation = action === 'follow' ? 'following' : 'not_following';
+          } else {
+            nextRelation = action === 'friend' ? 'friended' : 'not_friended';
+          }
+          return { ...item, relation: nextRelation };
+        }
+        return item;
+      }));
+      setExploreSuggestions(prev => prev.map(item => {
+        if (item.username === targetUsername) {
+          let nextRelation = 'not_friended';
+          if (isOrg) {
+            nextRelation = action === 'follow' ? 'following' : 'not_following';
+          } else {
+            nextRelation = action === 'friend' ? 'friended' : 'not_friended';
+          }
+          return { ...item, relation: nextRelation };
+        }
+        return item;
+      }));
     } catch (err) {
-      console.error('handleFollow error:', err);
+      console.error('Relation change error:', err);
     }
   };
 
+  const getSuggestionType = (item: any) => {
+    if (item.username && !item.query) return 'user';
+    if (item.query?.startsWith('#') || item.text?.startsWith('#')) return 'hashtag';
+    if (item.query?.startsWith('@') || item.text?.startsWith('@')) return 'mention';
+    return 'topic';
+  };
+
   const renderSuggestion = ({ item, index }: { item: any; index: number }) => {
-    const isUser = item.username && !item.query;
+    const type = getSuggestionType(item);
+    const isUser = type === 'user';
+    const iconName = isUser ? 'person-outline' : type === 'hashtag' ? 'pricetag-outline' : type === 'mention' ? 'at-outline' : 'search-outline';
+    const iconColor = isUser ? '#2563eb' : type === 'hashtag' ? '#7c3aed' : type === 'mention' ? '#059669' : '#d97706';
     return (
       <TouchableOpacity
         style={[s.suggestRow, index === selectedIndex && { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
@@ -179,8 +222,12 @@ export default function SearchScreen() {
           }
         }}
       >
-        {isUser && item.profile_pic && (
+        {isUser && item.profile_pic ? (
           <Image source={{ uri: item.profile_pic }} style={s.suggestAvatar} />
+        ) : (
+          <View style={[s.suggestIconWrap, { backgroundColor: iconColor + '20' }]}>
+            <Ionicons name={iconName} size={16} color={iconColor} />
+          </View>
         )}
         <View style={{ flex: 1 }}>
           <Text style={[s.suggestName, { color: colors.textPrimary }]}>
@@ -188,32 +235,46 @@ export default function SearchScreen() {
           </Text>
           {item.fullname && <Text style={[s.suggestFull, { color: colors.textSecondary }]}>{item.fullname}</Text>}
         </View>
-        <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
+        <TouchableOpacity
+          onPress={() => {
+            const val = isUser ? `@${item.username}` : (item.query || item.text || '');
+            setQuery(val);
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
 
-  const renderUser = ({ item }: { item: UserProfile }) => {
+  const renderUser = ({ item }: { item: any }) => {
     const isOwn = item.username === username;
-    const isFollowing = following.includes(item.username);
+    const isOrg = (item.profile_type || '').toLowerCase() === 'organisation';
+    const isConnected = item.relation === 'following' || item.relation === 'friended';
+    const buttonText = isOrg ? (isConnected ? 'Following' : 'Follow') : (isConnected ? 'Friends' : 'Add Friend');
+    const actionName = isOrg ? (isConnected ? 'unfollow' : 'follow') : (isConnected ? 'unfriend' : 'friend');
     return (
       <TouchableOpacity style={s.userRow} onPress={() => navigation.navigate('Profile', { username: item.username })}>
         <Image source={{ uri: item.profile_pic || DEFAULT_PIC }} style={s.userAvatar} />
         <View style={{ flex: 1 }}>
-          <Text style={[s.userName, { color: colors.textPrimary }]}>
-            <HighlightMatch text={item.fullname || item.username} query={query} />
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={[s.userName, { color: colors.textPrimary }]} numberOfLines={1}>
+              <HighlightMatch text={item.fullname || item.username} query={query} />
+            </Text>
+            {isOrg && <Text style={{ fontSize: 9, fontWeight: '800', color: '#2563eb', borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>ORG</Text>}
+          </View>
           <Text style={[s.userHandle, { color: colors.textSecondary }]}>
             <HighlightMatch text={`@${item.username}`} query={query} />
           </Text>
         </View>
         {!isOwn && (
           <TouchableOpacity
-            style={[s.followBtn, { backgroundColor: isFollowing ? (isDark ? '#334155' : '#e5e7eb') : '#2563eb' }]}
-            onPress={() => handleFollow(item.username)}
+            style={[s.followBtn, { backgroundColor: isConnected ? (isDark ? '#334155' : '#e5e7eb') : '#2563eb' }]}
+            onPress={() => handleRelationChange(item.username, actionName, item.profile_type)}
           >
-            <Text style={[s.followText, { color: isFollowing ? colors.textSecondary : '#fff' }]}>
-              {isFollowing ? 'Following' : 'Follow'}
+            <Text style={[s.followText, { color: isConnected ? colors.textSecondary : '#fff' }]}>
+              {buttonText}
             </Text>
           </TouchableOpacity>
         )}
@@ -222,15 +283,7 @@ export default function SearchScreen() {
   };
 
   const renderPost = ({ item }: { item: Post }) => (
-    <TouchableOpacity style={s.postRow} onPress={() => navigation.navigate('PostDetail', { postId: item.id })}>
-      <View style={{ flex: 1 }}>
-        <Text style={[s.postText, { color: colors.textPrimary }]} numberOfLines={2}>{item.text}</Text>
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
-          <Text style={[s.postMeta, { color: colors.textSecondary }]}>@{item.username}</Text>
-          {item.created_at && <Text style={[s.postMeta, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>}
-        </View>
-      </View>
-    </TouchableOpacity>
+    <PostCard post={item} />
   );
 
   const s = makeStyles(colors, isDark);
@@ -262,6 +315,7 @@ export default function SearchScreen() {
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
+            onKeyPress={({ nativeEvent }) => handleKeyDown(nativeEvent.key)}
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => { setQuery(''); setSearchResults([]); setSearched(false); setShowDropdown(false); }}>
@@ -275,7 +329,14 @@ export default function SearchScreen() {
       {showDropdown && (
         <View style={[s.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {loadingSuggestions ? (
-            <ActivityIndicator size="small" color={colors.primary} style={{ padding: 12 }} />
+            <View style={{ padding: 12, gap: 8 }}>
+              {[1, 2, 3].map(i => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? '#334155' : '#e5e7eb' }} />
+                  <View style={{ flex: 1, height: 12, borderRadius: 6, backgroundColor: isDark ? '#334155' : '#e5e7eb' }} />
+                </View>
+              ))}
+            </View>
           ) : (
             <FlatList
               data={suggestions.slice(0, 8)}
@@ -332,7 +393,7 @@ export default function SearchScreen() {
           )}
         </>
       ) : focused && history.length > 0 && !query.trim() ? (
-        /* Search history */
+        /* Search history as pill chips */
         <View style={s.listContent}>
           <View style={s.historyHeader}>
             <Text style={[s.historyTitle, { color: colors.textSecondary }]}>Recent</Text>
@@ -340,15 +401,19 @@ export default function SearchScreen() {
               <Text style={{ fontSize: 12, fontWeight: '600', color: '#2563eb' }}>Clear all</Text>
             </TouchableOpacity>
           </View>
-          {history.map((h, i) => (
-            <TouchableOpacity key={i} style={s.historyRow} onPress={() => { setQuery(h); doSearch(h); }}>
-              <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-              <Text style={[s.historyText, { color: colors.textPrimary }]} numberOfLines={1}>{h}</Text>
-              <TouchableOpacity onPress={() => removeHistory(h)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close" size={14} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
+          <View style={s.historyPills}>
+            {history.map((h, i) => (
+              <View key={i} style={[s.pillRow, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]}>
+                <TouchableOpacity style={s.pillTouch} onPress={() => { setQuery(h); doSearch(h); }}>
+                  <Text style={[s.pillText, { color: colors.textPrimary }]} numberOfLines={1}>{h}</Text>
+                  <Ionicons name="arrow-forward" size={12} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => removeHistory(h)} style={s.pillRemove}>
+                  <Ionicons name="close" size={12} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
         </View>
       ) : showExplore ? (
         /* Explore / Suggested creators */
@@ -359,7 +424,10 @@ export default function SearchScreen() {
           ) : (
             <View style={s.exploreGrid}>
               {exploreSuggestions.map(sug => {
-                const isFollowing = following.includes(sug.username);
+                const isOrg = (sug.profile_type || '').toLowerCase() === 'organisation';
+                const isConnected = sug.relation === 'following' || sug.relation === 'friended';
+                const btnText = isOrg ? (isConnected ? 'Following' : 'Follow') : (isConnected ? 'Friends' : 'Add Friend');
+                const actName = isOrg ? (isConnected ? 'unfollow' : 'follow') : (isConnected ? 'unfriend' : 'friend');
                 return (
                   <TouchableOpacity key={sug.username} style={[s.exploreCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb' }]} onPress={() => navigation.navigate('Profile', { username: sug.username })}>
                     <Image source={{ uri: sug.profile_pic || DEFAULT_PIC }} style={s.exploreAvatar} />
@@ -367,11 +435,11 @@ export default function SearchScreen() {
                     <Text style={[s.exploreUser, { color: colors.textSecondary }]} numberOfLines={1}>@{sug.username}</Text>
                     {sug.username !== username && (
                       <TouchableOpacity
-                        style={[s.exploreFollow, { backgroundColor: isFollowing ? (isDark ? '#334155' : '#e5e7eb') : '#2563eb' }]}
-                        onPress={() => handleFollow(sug.username)}
+                        style={[s.exploreFollow, { backgroundColor: isConnected ? (isDark ? '#334155' : '#e5e7eb') : '#2563eb' }]}
+                        onPress={() => handleRelationChange(sug.username, actName, sug.profile_type)}
                       >
-                        <Text style={[s.exploreFollowText, { color: isFollowing ? colors.textSecondary : '#fff' }]}>
-                          {isFollowing ? 'Following' : 'Follow'}
+                        <Text style={[s.exploreFollowText, { color: isConnected ? colors.textSecondary : '#fff' }]}>
+                          {btnText}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -409,6 +477,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   suggestRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
   suggestAvatar: { width: 32, height: 32, borderRadius: 16 },
+  suggestIconWrap: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   suggestName: { fontSize: 13, fontWeight: '600' },
   suggestFull: { fontSize: 11 },
   tabBar: { flexDirection: 'row', paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -421,8 +490,13 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userHandle: { fontSize: 13, marginTop: 1 },
   followBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   followText: { fontSize: 12, fontWeight: '700' },
-  historyHeader: { flexDirection: 'row', alignItems: 'center', justifyView: 'space-between', marginTop: 16, marginBottom: 8 },
+  historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 },
   historyTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  historyPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  pillRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 20, overflow: 'hidden' },
+  pillTouch: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 14, paddingVertical: 8 },
+  pillText: { fontSize: 13, fontWeight: '600', maxWidth: 160 },
+  pillRemove: { paddingHorizontal: 8, paddingVertical: 8 },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   historyText: { flex: 1, fontSize: 14 },
   sectionTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 12 },

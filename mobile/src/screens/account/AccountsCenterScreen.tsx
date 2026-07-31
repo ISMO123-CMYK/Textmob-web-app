@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +53,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       case 'profile': setActiveSub('profile'); break;
       case 'prefs': setActiveSub('prefs'); break;
       case 'danger': setActiveSub('danger'); break;
+      case 'verification': setActiveSub('verification'); break;
     }
   };
 
@@ -81,6 +83,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       case 'leaderboard': return <LeaderboardTab colors={colors} />;
       case 'profile': return <EditProfileTab profile={profileData || profile} setProfileData={setProfileData} username={username} isOrg={isOrg} colors={colors} isDark={isDark} accent={accent} />;
       case 'prefs': return <PrefsTab user={profileData || profile} setProfileData={setProfileData} username={username} colors={colors} isDark={isDark} accent={accent} />;
+      case 'verification': return <VerificationTab colors={colors} />;
       case 'danger': return <DangerTab username={username} handleLogout={handleLogout} colors={colors} isDark={isDark} />;
       default: return null;
     }
@@ -92,7 +95,6 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       items: [
         { key: 'home', label: 'Overview', icon: 'home-outline' as const },
         { key: 'monetize', label: 'Earnings', icon: 'cash-outline' as const },
-
         { key: 'analytics', label: 'Analytics', icon: 'bar-chart-outline' as const },
       ],
     },
@@ -826,6 +828,10 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
               {snap.media?.[0] && (
                 <Image source={{ uri: snap.media[0] }} style={{ width: '100%', height: '100%', opacity: 0.8 }} />
               )}
+              <View style={{ position: 'absolute', bottom: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="heart" size={10} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{snap.likes?.length || 0}</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -854,19 +860,37 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
 function GrowTab({ stats, profile, postsCount, username, isOrg, colors, setActiveSub, accent }: any) {
   const mobcoins = stats?.mobcoins ?? 0;
   const rank = stats?.rank ?? null;
+  const streak = stats?.streak ?? 0;
   const followers = (profile?.followers || []).length;
 
   const milestones = [
-    { label: '5 posts', desc: 'Publish 5 posts', done: postsCount >= 5 },
-    { label: '10 followers', desc: 'Reach 10 followers', done: followers >= 10 },
-    { label: '2,000 coins', desc: 'Earn 2,000 coins', done: mobcoins >= 2000 },
-    { label: '20 posts', desc: 'Publish 20 posts', done: postsCount >= 20 },
-    { label: '50 followers', desc: 'Reach 50 followers', done: followers >= 50 },
-    { label: '50 posts', desc: 'Reach 50 posts', done: postsCount >= 50 },
-    { label: '5,000 coins', desc: 'Earn 5,000 coins', done: mobcoins >= 5000 },
-    { label: '100 followers', desc: 'Reach 100 followers', done: followers >= 100 },
-    { label: '10,000 coins', desc: 'Earn 10,000 coins', done: mobcoins >= 10000 },
-    { label: '100 posts', desc: 'Publish 100 posts', done: postsCount >= 100 },
+    { label: '5 posts', desc: 'Publish 5 posts', done: postsCount >= 5, tab: null },
+    { label: '10 followers', desc: 'Reach 10 followers', done: followers >= 10, tab: null },
+    { label: '2,000 coins', desc: 'Earn 2,000 coins', done: mobcoins >= 2000, tab: 'monetize' },
+    { label: '20 posts', desc: 'Publish 20 posts', done: postsCount >= 20, tab: null },
+    { label: '50 followers', desc: 'Reach 50 followers', done: followers >= 50, tab: null },
+    { label: '50 posts', desc: 'Reach 50 posts', done: postsCount >= 50, tab: null },
+    { label: '5,000 coins', desc: 'Earn 5,000 coins', done: mobcoins >= 5000, tab: 'monetize' },
+    { label: '100 followers', desc: 'Reach 100 followers', done: followers >= 100, tab: null },
+    { label: '10,000 coins', desc: 'Earn 10,000 coins', done: mobcoins >= 10000, tab: 'monetize' },
+    { label: '100 posts', desc: 'Publish 100 posts', done: postsCount >= 100, tab: null },
+    { label: '250 followers', desc: 'Reach 250 followers', done: followers >= 250, tab: null },
+    { label: '25,000 coins', desc: 'Earn 25,000 coins', done: mobcoins >= 25000, tab: 'monetize' },
+    { label: '200 posts', desc: 'Publish 200 posts', done: postsCount >= 200, tab: null },
+    { label: '500 followers', desc: 'Reach 500 followers', done: followers >= 500, tab: null },
+    { label: '50,000 coins', desc: 'Earn 50,000 coins', done: mobcoins >= 50000, tab: 'monetize' },
+    { label: '500 posts', desc: 'Publish 500 posts', done: postsCount >= 500, tab: null },
+    { label: '1,000 followers', desc: 'Reach 1,000 followers', done: followers >= 1000, tab: null },
+    { label: '100,000 coins', desc: 'Earn 100,000 coins', done: mobcoins >= 100000, tab: 'monetize' },
+    { label: '1,000 posts', desc: 'Publish 1,000 posts', done: postsCount >= 1000, tab: null },
+    { label: '5,000 followers', desc: 'Reach 5,000 followers', done: followers >= 5000, tab: null },
+  ];
+
+  const tips = [
+    { icon: 'trending-up-outline', title: 'Post every day', body: 'Accounts that post daily grow 3x faster.' },
+    { icon: 'chatbubbles-outline', title: 'Reply to comments', body: "Every reply pushes your post higher in feeds." },
+    { icon: 'bar-chart-outline', title: 'Create polls', body: 'Poll posts get 2x more engagement on average.' },
+    { icon: 'videocam-outline', title: 'Go live', body: 'Live streams push you to the top of feeds.' },
   ];
 
   return (
@@ -874,7 +898,8 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, setActiv
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Milestones</Text>
       <View style={{ gap: 8, marginBottom: 16 }}>
         {milestones.map((m, i) => (
-          <View key={i} style={[styles.cardBlock, { backgroundColor: m.done ? '#ecfdf5' : colors.card, borderColor: m.done ? '#a7f3d0' : colors.border, opacity: m.done ? 1 : 0.6 }]}>
+          <TouchableOpacity key={i} onPress={() => m.done && m.tab ? setActiveSub(m.tab) : null}
+            style={[styles.cardBlock, { backgroundColor: m.done ? '#ecfdf5' : colors.card, borderColor: m.done ? '#a7f3d0' : colors.border, opacity: m.done ? 1 : 0.6 }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Ionicons name={m.done ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={m.done ? '#10b981' : colors.textSecondary} />
               <View style={{ flex: 1 }}>
@@ -883,7 +908,7 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, setActiv
               </View>
               {m.done && <Ionicons name="checkmark" size={18} color="#10b981" />}
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
       <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
@@ -892,7 +917,7 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, setActiv
             <Ionicons name="flame" size={16} color="#ea580c" />
           </View>
           <Text style={{ color: colors.textSecondary, fontSize: 10 }}>Streak</Text>
-          <Text style={{ fontWeight: '800', fontSize: 18, color: colors.textPrimary }}>{stats?.streak ?? 0}d</Text>
+          <Text style={{ fontWeight: '800', fontSize: 18, color: colors.textPrimary }}>{streak}d</Text>
         </View>
         <View style={[styles.cardBlock, { flex: 1, backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#fefce8', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
@@ -901,6 +926,30 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, setActiv
           <Text style={{ color: colors.textSecondary, fontSize: 10 }}>Rank</Text>
           <Text style={{ fontWeight: '800', fontSize: 18, color: colors.textPrimary }}>{rank ? `#${rank}` : '-'}</Text>
         </View>
+      </View>
+
+      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 }}>TIPS TO GROW FASTER</Text>
+      <View style={{ gap: 8, marginBottom: 24 }}>
+        {tips.map((tip, idx) => (
+          <View key={idx} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', gap: 12 }]}>
+            <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+              <Ionicons name={tip.icon as any} size={18} color={colors.textSecondary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 13 }}>{tip.title}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2, lineHeight: 16 }}>{tip.body}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <TouchableOpacity onPress={() => setActiveSub('composer')} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: accent, alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>New post</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+          <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>Go live</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -1154,13 +1203,17 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
 
 function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: any) {
   const { themeMode, setThemeMode } = useTheme();
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [dataSaver, setDataSaver] = useState(false);
   const [notifs, setNotifs] = useState(user?.notification_prefs || {
     likes: { inApp: true, email: true },
     comments: { inApp: true, email: true },
     mentions: { inApp: true, email: true },
     followers: { inApp: true, email: true },
+    newPost: { inApp: true, email: false },
     messages: { inApp: true, email: true },
     mobcoins: { inApp: true, email: true },
+    events: { inApp: true, email: true },
   });
   const [autoSaving, setAutoSaving] = useState(false);
 
@@ -1190,7 +1243,15 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
       title: 'Network',
       items: [
         { id: 'followers', label: 'New followers', sub: 'When someone follows you' },
+        { id: 'newPost', label: 'New posts', sub: 'Updates from people you follow' },
         { id: 'messages', label: 'Messages', sub: 'Direct messages' },
+      ],
+    },
+    {
+      title: 'Finance',
+      items: [
+        { id: 'mobcoins', label: 'Mobcoins', sub: 'When your coin balance changes' },
+        { id: 'events', label: 'Events', sub: 'Event invitations and updates' },
       ],
     },
   ];
@@ -1214,6 +1275,52 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
             {themeMode === t.value && <Ionicons name="checkmark-circle" size={18} color={accent} />}
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* Offline Mode */}
+      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, marginTop: 8 }}>DATA & OFFLINE</Text>
+      <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 13 }}>Offline Mode</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary }}>Browse cached content when offline</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              const next = !offlineMode;
+              setOfflineMode(next);
+              try { AsyncStorage.setItem('tmob_offline_mode', next ? 'true' : 'false'); } catch {}
+            }}
+            style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: offlineMode ? '#2563eb' : '#d1d5db', padding: 2, justifyContent: 'center' }}
+          >
+            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: offlineMode ? 'flex-end' : 'flex-start' }} />
+          </TouchableOpacity>
+        </View>
+        <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 8, lineHeight: 16 }}>
+          {offlineMode ? 'Content you load will be cached for offline browsing.' : 'Turn on to cache posts and snaps for offline browsing.'}
+        </Text>
+      </View>
+
+      <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 13 }}>Data Saver</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary }}>Lower quality images to save data</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              const next = !dataSaver;
+              setDataSaver(next);
+              try { AsyncStorage.setItem('tmob_data_saver', next ? 'true' : 'false'); } catch {}
+            }}
+            style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: dataSaver ? '#2563eb' : '#d1d5db', padding: 2, justifyContent: 'center' }}
+          >
+            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: dataSaver ? 'flex-end' : 'flex-start' }} />
+          </TouchableOpacity>
+        </View>
+        <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 8, lineHeight: 16 }}>
+          {dataSaver ? 'Images will use low-quality Cloudinary compression.' : 'Images load at original quality.'}
+        </Text>
       </View>
 
       <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, marginTop: 8 }}>NOTIFICATIONS</Text>

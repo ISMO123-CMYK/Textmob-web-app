@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Dimensions, Image, Modal,
+  ActivityIndicator, Dimensions, Image, Modal, Animated,
   TextInput, Alert, Share, RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,13 +10,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useIsFocused } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
 import { getFeedPostsAPI, likePostAPI, reactPostAPI, addCommentAPI, getSnapsFeedAPI, Post } from '../../api/posts';
 import { getFollowStatusAPI, followAPI, friendAPI } from '../../api/users';
 import { CATEGORIES } from '../../data/categories';
 import * as ImagePicker from 'expo-image-picker';
-import { apiPost, uploadFile, API_BASE_URL } from '../../api/client';
+import { apiGet, apiPost, uploadFile, API_BASE_URL } from '../../api/client';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
+import MentionAutocomplete from '../../components/MentionAutocomplete';
 import useProfileCache from '../../hooks/useProfileCache';
+import { ParticleBurst } from '../../utils/animations';
 import { timeAgo } from '../../utils/format';
 import { getSeenParam, markSeen } from '../../utils/seen';
 
@@ -127,6 +130,15 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
           <Ionicons name="heart" size={80} color="#ef4444" />
         </View>
       )}
+
+      {/* Pause overlay */}
+      {!isActive && (
+        <View style={styles.pauseOverlay} pointerEvents="none">
+          <View style={styles.pauseIconCircle}>
+            <Ionicons name="pause" size={32} color="#fff" />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -212,11 +224,13 @@ function SnapText({ text, expanded, onToggle }: { text: string; expanded: boolea
 function SnapItemView({ item, isActive, username, containerHeight, muted, expanded, onLike, onToggleText, onOpenComments, onOpenReactions, onOpenGift, onToggleMute, onShare }: {
   item: Post; isActive: boolean; username: string | null; containerHeight: number;
   muted: boolean; expanded: boolean;
-  onLike: () => void; onToggleText: () => void;
-  onOpenComments: () => void; onOpenReactions: () => void;
+  onLike: () => void; onToggleText: () => void; onOpenComments: () => void;
+  onOpenReactions: () => void;
   onOpenGift: () => void; onToggleMute: () => void; onShare: () => void;
 }) {
   const [likeAnim, setLikeAnim] = useState(false);
+  const [showParticles, setShowParticles] = useState(false);
+  const likeScale = useRef(new Animated.Value(1)).current;
   const profile = useProfileCache(item.username);
   const isVideo = item.media?.some(m => /\.(mp4|webm|mov)$/i.test(m));
   const mediaUrl = item.media?.[0] || '';
@@ -246,8 +260,20 @@ function SnapItemView({ item, isActive, username, containerHeight, muted, expand
 
       {/* Right side actions */}
       <View style={styles.rightActions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={onLike}>
-          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={28} color={liked ? '#ef4444' : '#fff'} />
+        <TouchableOpacity style={styles.actionBtn} onPress={() => {
+          Animated.sequence([
+            Animated.spring(likeScale, { toValue: 0.8, useNativeDriver: true, friction: 4, tension: 300 }),
+            Animated.spring(likeScale, { toValue: 1, useNativeDriver: true, friction: 3, tension: 200 }),
+          ]).start();
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          setShowParticles(true);
+          setTimeout(() => setShowParticles(false), 600);
+          onLike();
+        }}>
+          <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+            <Ionicons name={liked ? 'heart' : 'heart-outline'} size={28} color={liked ? '#ef4444' : '#fff'} />
+          </Animated.View>
+          {showParticles && <ParticleBurst color="#ef4444" size={5} count={10} />}
           <Text style={styles.actionCount}>{item.likes?.length || 0}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={onOpenComments}>
@@ -369,6 +395,22 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
   const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<any>(null);
+  const [paused, setPaused] = useState(false);
+  const [pausedAnim, setPausedAnim] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [searchSnapQuery, setSearchSnapQuery] = useState('');
+  const [searchSnapResults, setSearchSnapResults] = useState<any[]>([]);
+  const [searchingSnaps, setSearchingSnaps] = useState(false);
+  const searchSnapTimer = useRef<any>(null);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [captionCursor, setCaptionCursor] = useState(0);
+  const commentInputRef = useRef<TextInput>(null);
+  const [commentCursor, setCommentCursor] = useState(0);
 
   // Seen-posts tracking
   const viewabilityConfigCallbackRef = useRef(({ changed, viewableItems }: any) => {
@@ -437,6 +479,21 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
     }
     setCommenting(false);
   };
+
+  const handleSearchSnaps = async (q: string) => {
+    if (!q.trim()) { setSearchSnapResults([]); setSearchingSnaps(false); return; }
+    setSearchingSnaps(true);
+    try {
+      const res = await apiGet(`/snaps-search?query=${encodeURIComponent(q.trim())}&limit=12`);
+      if (res.ok && res.data) {
+        const list = Array.isArray(res.data) ? res.data : (res.data.snaps || []);
+        setSearchSnapResults(list);
+      }
+    } catch {} finally {
+      setSearchingSnaps(false);
+    }
+  };
+
   const handleShare = async (item: Post) => {
     try {
       await Share.share({
@@ -563,6 +620,9 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Snaps</Text>
         <View style={{ flexDirection: 'row', gap: 4 }}>
+          <TouchableOpacity style={styles.uploadBtn} onPress={() => setShowSearch(true)}>
+            <Ionicons name="search" size={22} color="#fff" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.uploadBtn} onPress={() => { loadSnaps(); }}>
             {loading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="refresh" size={22} color="#fff" />}
           </TouchableOpacity>
@@ -598,6 +658,57 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
         }
       />
 
+      {/* Search modal */}
+      <Modal visible={showSearch} transparent animationType="slide" onRequestClose={() => { setShowSearch(false); setSearchSnapQuery(''); setSearchSnapResults([]); }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+          <View style={[styles.commentHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => { setShowSearch(false); setSearchSnapQuery(''); setSearchSnapResults([]); }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 16 }}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={[styles.commentHeaderTitle, { color: colors.textPrimary }]}>Search Snaps</Text>
+            <View style={{ width: 50 }} />
+          </View>
+          <View style={{ padding: 12 }}>
+            <TextInput
+              style={[styles.commentInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary, fontSize: 15 }]}
+              placeholder="Search snaps..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchSnapQuery}
+              onChangeText={(t) => { setSearchSnapQuery(t); if (searchSnapTimer.current) clearTimeout(searchSnapTimer.current); searchSnapTimer.current = setTimeout(() => handleSearchSnaps(t), 300); }}
+              autoFocus
+            />
+          </View>
+          {searchingSnaps ? (
+            <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 40 }} />
+          ) : searchSnapResults.length > 0 ? (
+            <FlatList
+              data={searchSnapResults}
+              keyExtractor={(item, i) => String(item.id || i)}
+              contentContainerStyle={{ padding: 12 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={{ flexDirection: 'row', gap: 12, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}
+                  onPress={() => { setShowSearch(false); setSearchSnapQuery(''); setSearchSnapResults([]); }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.textPrimary, fontSize: 14 }} numberOfLines={2}>{item.text || 'No text'}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}>@{item.username}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>No snaps found</Text>}
+            />
+          ) : searchSnapQuery.trim() ? (
+            <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>No snaps found</Text>
+          ) : null}
+        </SafeAreaView>
+      </Modal>
+
+      {/* Page counter */}
+      {snaps.length > 0 && (
+        <View style={styles.pageCounter}>
+          <Text style={styles.pageCounterText}>{activeIndex + 1} / {snaps.length}</Text>
+        </View>
+      )}
+
       {/* Upload modal */}
       <Modal visible={showUpload} transparent animationType="fade" onRequestClose={() => setShowUpload(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUpload(false)}>
@@ -614,48 +725,121 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Create Snap Modal */}
-      <Modal visible={showCreateModal} transparent animationType="slide" onRequestClose={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); }}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); }}>
+      {/* Create Snap Modal - 3-Step Wizard */}
+      <Modal visible={showCreateModal} transparent animationType="slide" onRequestClose={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); setWizardStep(1); }}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); setWizardStep(1); }}>
           <View style={[styles.createModalContent, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
             <View style={styles.createModalHeader}>
               <Text style={[styles.createModalTitle, { color: colors.textPrimary }]}>New Snap</Text>
-              <TouchableOpacity onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); }}>
+              <TouchableOpacity onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); setWizardStep(1); }}>
                 <Ionicons name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
-            {selectedVideo && (
-              <View style={styles.createVideoPreview}>
-                <SnapVideoPreview uri={selectedVideo.uri} />
+
+            {/* Step Indicators */}
+            <View style={styles.stepIndicator}>
+              {[{ n: 1, l: 'Video' }, { n: 2, l: 'Caption' }, { n: 3, l: 'Category' }].map((s, i) => (
+                <React.Fragment key={s.n}>
+                  <View style={styles.stepDotRow}>
+                    <View style={[styles.stepDot, wizardStep >= s.n ? styles.stepDotActive : styles.stepDotInactive, { borderColor: wizardStep >= s.n ? '#2563eb' : colors.border }]}>
+                      <Text style={[styles.stepDotText, { color: wizardStep >= s.n ? '#fff' : colors.textSecondary }]}>{s.n}</Text>
+                    </View>
+                    <Text style={[styles.stepLabel, { color: wizardStep >= s.n ? colors.textPrimary : colors.textSecondary }]}>{s.l}</Text>
+                  </View>
+                  {i < 2 && <View style={[styles.stepConnector, { backgroundColor: wizardStep > s.n ? '#2563eb' : colors.border }]} />}
+                </React.Fragment>
+              ))}
+            </View>
+
+            {/* Step 1: Video */}
+            {wizardStep === 1 && (
+              <View>
+                {selectedVideo ? (
+                  <View style={styles.createVideoPreview}>
+                    <SnapVideoPreview uri={selectedVideo.uri} />
+                    <TouchableOpacity style={styles.changeVideoBtn} onPress={() => { setShowCreateModal(false); setShowUpload(true); }}>
+                      <Ionicons name="refresh" size={18} color="#fff" />
+                      <Text style={styles.changeVideoText}>Change</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={[styles.noVideoPlaceholder, { borderColor: colors.border }]}>
+                    <Ionicons name="videocam-outline" size={48} color={colors.textSecondary} />
+                    <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No video selected</Text>
+                  </View>
+                )}
+                <TouchableOpacity style={styles.postSnapBtn} onPress={() => setWizardStep(2)} disabled={!selectedVideo}>
+                  <Text style={styles.postSnapBtnText}>Next →</Text>
+                </TouchableOpacity>
               </View>
             )}
-            <TextInput
-              style={[styles.captionInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
-              placeholder="Add a caption…"
-              placeholderTextColor={colors.textSecondary}
-              value={caption}
-              onChangeText={setCaption}
-              maxLength={280}
-              multiline
-            />
-            <Text style={[styles.charCount, { color: colors.textSecondary }]}>{caption.length}/280</Text>
-            <View style={{ padding: 16, paddingTop: 0 }}>
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Categories</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {CATEGORIES.map(cat => {
-                  const isSelected = selectedCategories.includes(cat.id);
-                  return (
-                    <TouchableOpacity key={cat.id} onPress={() => setSelectedCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: isSelected ? cat.color + '30' : (isDark ? '#1e293b' : '#f3f4f6') }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: isSelected ? cat.color : colors.textSecondary }}>{cat.name}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+
+            {/* Step 2: Caption */}
+            {wizardStep === 2 && (
+              <View>
+                <View style={{ position: 'relative' }}>
+                  <TextInput
+                    ref={commentInputRef}
+                    style={[styles.captionInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
+                    placeholder="Add a caption…"
+                    placeholderTextColor={colors.textSecondary}
+                    value={caption}
+                    onChangeText={setCaption}
+                    onSelectionChange={(e) => setCaptionCursor(e.nativeEvent.selection.start)}
+                    maxLength={280}
+                    multiline
+                  />
+                  <MentionAutocomplete
+                    text={caption}
+                    cursorPosition={captionCursor}
+                    onChangeText={setCaption}
+                    colors={colors}
+                    isDark={isDark}
+                  />
+                </View>
+                <Text style={[styles.charCount, { color: colors.textSecondary }]}>{caption.length}/280</Text>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <TouchableOpacity style={[styles.postSnapBtn, { flex: 1, backgroundColor: isDark ? '#374151' : '#e5e7eb' }]} onPress={() => setWizardStep(1)}>
+                    <Text style={[styles.postSnapBtnText, { color: colors.textPrimary }]}>← Back</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.postSnapBtn, { flex: 1 }]} onPress={() => setWizardStep(3)}>
+                    <Text style={styles.postSnapBtnText}>Next →</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-            <TouchableOpacity style={styles.postSnapBtn} onPress={handleCreateSnap}>
-              <Text style={styles.postSnapBtnText}>✦ Post Snap</Text>
-            </TouchableOpacity>
+            )}
+
+            {/* Step 3: Category */}
+            {wizardStep === 3 && (
+              <View>
+                {selectedVideo && (
+                  <View style={styles.createVideoPreviewSmall}>
+                    <SnapVideoPreview uri={selectedVideo.uri} />
+                  </View>
+                )}
+                {caption ? (
+                  <Text style={[styles.captionPreview, { color: colors.textSecondary }]} numberOfLines={2}>{caption}</Text>
+                ) : null}
+                <Text style={[styles.stepSectionTitle, { color: colors.textPrimary }]}>Categories</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+                  {CATEGORIES.map(cat => {
+                    const isSelected = selectedCategories.includes(cat.id);
+                    return (
+                      <TouchableOpacity key={cat.id} onPress={() => setSelectedCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
+                        style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: isSelected ? cat.color + '30' : (isDark ? '#1e293b' : '#f3f4f6') }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: isSelected ? cat.color : colors.textSecondary }}>{cat.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <TouchableOpacity style={styles.postSnapBtn} onPress={() => { setWizardStep(1); handleCreateSnap(); }}>
+                  <Text style={styles.postSnapBtnText}>✦ Post Snap</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ paddingVertical: 10, alignItems: 'center', marginTop: 8 }} onPress={() => setWizardStep(2)}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>← Back</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -699,11 +883,22 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
               </View>
             }
           />
-          <View style={[styles.commentInputRow, { borderTopColor: colors.border, backgroundColor: colors.card }]}>
-            <TextInput style={[styles.commentInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
-              placeholder="Add a comment..." placeholderTextColor={colors.textSecondary}
-              value={commentText} onChangeText={setCommentText}
-            />
+          <View style={[styles.commentInputRow, { borderTopColor: colors.border, backgroundColor: colors.card, position: 'relative' }]}>
+            <View style={{ flex: 1, position: 'relative' }}>
+              <TextInput ref={commentInputRef}
+                style={[styles.commentInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
+                placeholder="Add a comment..." placeholderTextColor={colors.textSecondary}
+                value={commentText} onChangeText={setCommentText}
+                onSelectionChange={(e) => setCommentCursor(e.nativeEvent.selection.start)}
+              />
+              <MentionAutocomplete
+                text={commentText}
+                cursorPosition={commentCursor}
+                onChangeText={setCommentText}
+                colors={colors}
+                isDark={isDark}
+              />
+            </View>
             <TouchableOpacity style={[styles.commentSendBtn, commenting && { opacity: 0.5 }]}
               onPress={() => showComments && handleComment(showComments)} disabled={commenting || !commentText.trim()}>
               {commenting ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
@@ -787,6 +982,20 @@ const styles = StyleSheet.create({
   uploadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
   progressBarBg: { width: 200, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 8, overflow: 'hidden' },
   progressBarFill: { height: '100%', borderRadius: 2, backgroundColor: '#2563eb' },
+  stepIndicator: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20, paddingHorizontal: 16 },
+  stepDotRow: { alignItems: 'center', gap: 4 },
+  stepDot: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
+  stepDotActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  stepDotInactive: { backgroundColor: 'transparent' },
+  stepDotText: { fontSize: 12, fontWeight: '800' },
+  stepLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  stepConnector: { flex: 1, height: 2, marginHorizontal: 8, marginTop: -12, borderRadius: 1 },
+  stepSectionTitle: { fontSize: 13, fontWeight: '700', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  captionPreview: { fontSize: 13, marginBottom: 12, lineHeight: 18 },
+  changeVideoBtn: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  changeVideoText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  noVideoPlaceholder: { height: 160, borderRadius: 12, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  createVideoPreviewSmall: { height: 120, borderRadius: 10, overflow: 'hidden', marginBottom: 12, backgroundColor: '#000' },
   createModalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, minHeight: 350 },
   createModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   createModalTitle: { fontSize: 18, fontWeight: '800' },
@@ -802,6 +1011,10 @@ const styles = StyleSheet.create({
   seekIndicatorText: { color: '#fff', fontSize: 12, fontWeight: '700', marginTop: 4 },
   heartOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', zIndex: 10 },
   likeAnimFloat: { position: 'absolute', right: 65, bottom: 240, zIndex: 15, },
+  pauseOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 10 },
+  pauseIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  pageCounter: { position: 'absolute', bottom: 30, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, zIndex: 10 },
+  pageCounterText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });
 
 function makeStyles(colors: any, isDark: boolean) { return StyleSheet.create({ safe: { flex: 1 } }); }

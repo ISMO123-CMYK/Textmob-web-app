@@ -55,7 +55,7 @@ export default function RichText({ html }) {
       // Replace #hashtags
       result = result.replace(
         /#([a-zA-Z0-9_-]+)/g,
-        (match, tag) => `<a data-lexum href="/topsearch?q=${encodeURIComponent(tag)}" class="text-blue-500 font-semibold hover:underline">${match}</a>`
+        (match, tag) => `<a data-lexum href="/tag/${encodeURIComponent(tag)}" class="text-blue-500 font-semibold hover:underline">${match}</a>`
       );
 
       // Convert markdown (bold, italic, code, lists, headings, etc.)

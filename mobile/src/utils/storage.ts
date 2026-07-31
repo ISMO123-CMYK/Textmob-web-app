@@ -53,9 +53,14 @@ export async function clearStore() {
   try { await AsyncStorage.clear(); } catch { }
 }
 
+export async function getAllKeys(): Promise<string[]> {
+  try { return await AsyncStorage.getAllKeys(); } catch { return []; }
+}
+
 export const storage = {
   KEYS,
   setSecure, getSecure, removeSecure,
   setStore, getStore, removeStore,
   clearStore,
+  getAllKeys,
 };

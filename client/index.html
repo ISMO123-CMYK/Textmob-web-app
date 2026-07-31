@@ -140,6 +140,7 @@
   <meta name="note"
     content="Textmob (textmob.web.app) is not affiliated with TXTmob, TextMob SMS, or any SMS/text messaging service. Textmob is an African social network and microblogging platform founded by Ismail Gidado and Ibrahim Gidado." />
   <meta name="theme-color" content="#2563eb" />
+  <meta name="app-version" content="1.0.1" />
 
   <!-- Open Graph -->
   <meta property="og:title" content="Textmob — Africa's Microblogging Social Network " />
@@ -956,6 +957,7 @@
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         API_URL = 'http://localhost:5000';
       }
+
       try {
         window.socket = io(API_URL, { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: Infinity, reconnectionDelay: 2000 });
         window.socket.on('connect', function () { console.log('[Socket.IO] Connected:', window.socket.id); });

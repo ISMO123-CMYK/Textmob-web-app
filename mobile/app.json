@@ -22,6 +22,11 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#09090b"
       },
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#09090b"
+      },
       "package": "com.bossprogrammer20.mobile"
     },
     "extra": {

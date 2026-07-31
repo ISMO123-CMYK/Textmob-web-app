@@ -14,6 +14,8 @@ export interface UserProfile {
   notification_prefs?: any;
   profile_type?: string;
   mobcoins?: number;
+  type?: 'user' | 'post' | 'snap' | 'event' | 'live';
+  relation?: string;
 }
 
 export interface SuggestedUser {
@@ -21,6 +23,8 @@ export interface SuggestedUser {
   fullname: string;
   profile_pic: string;
   mutuals?: number;
+  profile_type?: string;
+  relation?: string;
 }
 
 export async function followAPI(username: string, currentUsername: string, action: string) {

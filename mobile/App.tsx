@@ -7,6 +7,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { SocketProvider } from './src/context/SocketContext';
+import { UploadProgressProvider } from './src/context/UploadProgressContext';
+import { initTracking } from './src/utils/analytics';
 import AuthStack from './src/navigation/AuthStack';
 import RootNavigator from './src/navigation/RootNavigator';
 
@@ -26,6 +28,7 @@ function AppNavigator() {
   useEffect(() => {
     if (appReady) {
       SplashScreen.hideAsync();
+      initTracking();
     }
   }, [appReady]);
 
@@ -54,7 +57,9 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <SocketProvider>
-            <AppNavigator />
+            <UploadProgressProvider>
+              <AppNavigator />
+            </UploadProgressProvider>
           </SocketProvider>
         </AuthProvider>
       </ThemeProvider>

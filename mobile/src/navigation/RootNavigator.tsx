@@ -21,6 +21,9 @@ const ProfileScreen = lazy(() => import('../screens/profile/ProfileScreen'));
 const ChatsScreen = lazy(() => import('../screens/chats/ChatsScreen'));
 const SearchScreen = lazy(() => import('../screens/search/SearchScreen'));
 const ActivityScreen = lazy(() => import('../screens/activity/ActivityScreen'));
+const HashtagScreen = lazy(() => import('../screens/hashtag/HashtagScreen'));
+const PostUpdateScreen = lazy(() => import('../screens/postupdate/PostUpdateScreen'));
+const CreateEventScreen = lazy(() => import('../screens/events/CreateEventScreen'));
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +59,9 @@ const LazyProfile = (props: any) => <LazyScreen Component={ProfileScreen} {...pr
 const LazyChats = (props: any) => <LazyScreen Component={ChatsScreen} {...props} />;
 const LazySearch = (props: any) => <LazyScreen Component={SearchScreen} {...props} />;
 const LazyActivity = (props: any) => <LazyScreen Component={ActivityScreen} {...props} />;
+const LazyHashtag = (props: any) => <LazyScreen Component={HashtagScreen} {...props} />;
+const LazyPostUpdate = (props: any) => <LazyScreen Component={PostUpdateScreen} {...props} />;
+const LazyCreateEvent = (props: any) => <LazyScreen Component={CreateEventScreen} {...props} />;
 
 export default function RootNavigator() {
   const { colors, isDark } = useTheme();
@@ -85,6 +91,9 @@ export default function RootNavigator() {
       <Stack.Screen name="Chats" component={LazyChats} />
       <Stack.Screen name="Search" component={LazySearch} />
       <Stack.Screen name="Activity" component={LazyActivity} />
+      <Stack.Screen name="Hashtag" component={LazyHashtag} />
+      <Stack.Screen name="PostUpdate" component={LazyPostUpdate} />
+      <Stack.Screen name="CreateEvent" component={LazyCreateEvent} />
     </Stack.Navigator>
   );
 }

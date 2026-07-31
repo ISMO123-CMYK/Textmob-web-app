@@ -10,6 +10,22 @@ import { useAuth } from '../../context/AuthContext';
 import { apiGet } from '../../api/client';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
 
+const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
+
+function avatarColor(username: string): string {
+  let h = 0;
+  for (let i = 0; i < (username || '').length; i++) h = (h * 31 + username.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function getInitials(fullname?: string, username?: string): string {
+  if (fullname) {
+    const parts = fullname.trim().split(' ');
+    return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0][0].toUpperCase();
+  }
+  return (username || '?')[0].toUpperCase();
+}
+
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 
 const MEDALS = [
@@ -19,9 +35,9 @@ const MEDALS = [
 ];
 
 const TIPS = [
-  { icon: 'create-outline' as const, title: 'Post with purpose', desc: 'Quality beats quantity. Substance gets rewarded.' },
-  { icon: 'chatbubble-ellipses-outline' as const, title: 'Be the reply they needed', desc: 'Thoughtful comments do more than likes.' },
-  { icon: 'people-outline' as const, title: 'Grow your circle', desc: 'Every connection boosts your network score.' },
+  { icon: 'create-outline' as const, title: 'Quality over quantity', desc: 'Media with a caption (7+ words) = +3. Long text (10+ words) = +2. Short text (4-9 words) = +1. Emoji-only = 0.' },
+  { icon: 'chatbubble-ellipses-outline' as const, title: 'Engage the community', desc: 'Every comment = +3. Every reaction = +0.5. Engagement is 60% of your total score.' },
+  { icon: 'calendar-outline' as const, title: 'Show up consistently', desc: 'Posting across multiple days gives a consistency bonus. Only your best 20 posts count — not volume.' },
 ];
 
 export default function HallOfFameScreen({ navigation }: { navigation: any }) {
@@ -67,9 +83,7 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Hall of Fame</Text>
-          <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>The elite minds leading Textmob this week</Text>
-        </View>
+          <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Hall of Fame</Text></View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity onPress={() => loadLeaders(true)} style={s.headerBtn}>
             <Ionicons name="refresh-outline" size={20} color={colors.textSecondary} />
@@ -100,7 +114,13 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
                 <View style={s.rowTop}>
                   <Text style={s.rankText}>#{index + 1}</Text>
                   <View style={[s.avatarContainer, medal && { borderColor: medal.ring, borderWidth: 2 }]}>
-                    <Image source={{ uri: item.profile_pic || DEFAULT_PIC }} style={s.avatar} />
+                    {(item.avatar || item.profile_pic) ? (
+                      <Image source={{ uri: item.avatar || item.profile_pic }} style={s.avatar} />
+                    ) : (
+                      <View style={[s.avatar, { backgroundColor: avatarColor(item.username), alignItems: 'center', justifyContent: 'center' }]}>
+                        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>{getInitials(item.fullname, item.username)}</Text>
+                      </View>
+                    )}
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -148,6 +168,29 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
                     <Text style={[s.evidenceDesc, { color: colors.textSecondary }]}>
                       {item.evidence?.why || 'Maintained high authentic traction across discussions.'}
                     </Text>
+                    {(item.evidence?.metrics?.length > 0) && (
+                      <View style={s.metricsGrid}>
+                        {item.evidence.metrics.map((m: any, mi: number) => (
+                          <View key={mi} style={[s.metricCard, { backgroundColor: isDark ? 'rgba(0,0,0,0.3)' : '#fff', borderColor: colors.border }]}>
+                            <Text style={s.metricLabel}>{m.label}</Text>
+                            <Text style={[s.metricValue, { color: colors.textPrimary }]}>{m.value}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    {item.evidence?.topPost && (
+                      <TouchableOpacity
+                        style={[s.featuredPost, { borderColor: colors.border }]}
+                        onPress={() => item.evidence.topPost.id && navigation.navigate('PostDetail', { postId: item.evidence.topPost.id })}
+                      >
+                        <Text style={s.featuredLabel}>FEATURED IMPACT POST</Text>
+                        <Text style={[s.featuredQuote, { color: colors.textSecondary }]}>"{item.evidence.topPost.text}"</Text>
+                        <View style={s.featuredMeta}>
+                          <Text style={s.featuredEngagement}>✦ {item.evidence.topPost.engagement || 'High Engagement'}</Text>
+                          <Text style={s.featuredAction}>Study pattern →</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>
@@ -173,8 +216,8 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
           <View style={[s.modalContent, { backgroundColor: colors.card }]}>
             <View style={s.modalHeader}>
               <View>
-                <Text style={[s.modalTitle, { color: colors.textPrimary }]}>Algorithmic Blueprints</Text>
-                <Text style={{ fontSize: 11, color: colors.textSecondary }}>How scores are compounded</Text>
+                <Text style={[s.modalTitle, { color: colors.textPrimary }]}>How to Rank</Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary }}>Quality (40%) + Engagement (60%)</Text>
               </View>
               <TouchableOpacity onPress={() => setShowRankTips(false)}>
                 <Ionicons name="close" size={20} color={colors.textSecondary} />
@@ -226,7 +269,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rankText: { fontSize: 13, fontWeight: '800', width: 24, textAlign: 'center' },
   avatarContainer: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
-  avatar: { width: '100%', height: '100%' },
+  avatar: { width: '100%', height: '100%', borderRadius: 20 },
   fullname: { fontSize: 13, fontWeight: '700' },
   medalBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
   medalText: { fontSize: 8, fontWeight: '800' },
@@ -239,6 +282,16 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   evidenceBox: { marginTop: 10, padding: 12, borderRadius: 12, borderWidth: 1 },
   evidenceTitle: { fontSize: 9, fontWeight: '800', color: '#9ca3af', letterSpacing: 0.5 },
   evidenceDesc: { fontSize: 12, marginTop: 4, lineHeight: 16 },
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  metricCard: { flex: 1, minWidth: '40%', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' },
+  metricLabel: { fontSize: 9, fontWeight: '600', color: '#9ca3af', marginBottom: 2 },
+  metricValue: { fontSize: 13, fontWeight: '900' },
+  featuredPost: { marginTop: 12, borderTopWidth: 1, borderColor: '#e5e7eb', paddingTop: 12, borderStyle: 'dashed' },
+  featuredLabel: { fontSize: 8, fontWeight: '800', color: '#9ca3af', letterSpacing: 0.8, marginBottom: 6 },
+  featuredQuote: { fontSize: 12, lineHeight: 16, fontStyle: 'italic', marginBottom: 8 },
+  featuredMeta: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  featuredEngagement: { fontSize: 10, fontWeight: '700', color: '#2563eb' },
+  featuredAction: { fontSize: 10, fontWeight: '700', color: '#2563eb' },
   emptyState: { alignItems: 'center', paddingTop: 100 },
   emptyLabel: { fontSize: 14, marginTop: 8 },
   footerNote: { fontSize: 10, fontWeight: '700', textAlign: 'center', marginVertical: 20, color: '#9ca3af', textTransform: 'uppercase' },

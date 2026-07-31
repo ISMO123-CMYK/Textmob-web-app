@@ -96,7 +96,7 @@ export default function TrendingTopics({ dark }) {
       <div>
         {hashtags.map((item, idx) => (
           <button
-            onClick={() => window.Lexum?.navigate(`/topsearch?q=${encodeURIComponent(item.tag)}`)}
+            onClick={() => window.Lexum?.navigate(`/tag/${encodeURIComponent(item.tag)}`)}
             className={`w-full flex items-center gap-3 py-2.5 ${hoverBg} active:scale-[0.98] transition-colors rounded-xl px-1 -mx-1 text-left`}
             key={`${item.tag}-${idx}`}
           >

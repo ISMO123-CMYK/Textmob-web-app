@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
-import { apiFetch } from '../../config/api';
+import { apiFetch, isDataSaver } from '../../config/api';
+import { getMediaUrl } from '../../utils/cloudinary';
+import { isOfflineMode as getOfflineMode, setOfflineMode, isOnline, getCachedFiltered } from '../../utils/cache';
 import { cn } from '../../utils/classNames';
 import useScrollDirection from '../../utils/useScrollDirection';
 import useProfileCache from '../../utils/useProfileCache';
@@ -562,6 +564,19 @@ export default function HomeFeed({ propPosts }) {
     }
   }, [posts.length > 0]);
 
+  // Try instant render from cache on mount
+  useEffect(() => {
+    if (propPosts || posts.length > 0) return;
+    const cached = getCachedFiltered('_get-posts');
+    if (cached && cached.length > 0) {
+      setPosts(cached);
+      setPage(1);
+      setHasMore(cached.length >= 10);
+      setLoading(false);
+      window.__feedState[activeTab].posts = cached;
+    }
+  }, []);
+
   // Fetch posts
   useEffect(() => {
     if (propPosts) {
@@ -690,23 +705,60 @@ export default function HomeFeed({ propPosts }) {
     setPullStart(0);
   }
 
-  // Error state
+  // Error state — show cached content underneath if available
   if (error) {
+    const isOffline = !isOnline();
+    const cachedPosts = isOffline ? getCachedFiltered('_get-posts') : null;
+    const offlineMode = getOfflineMode();
     return (
-      <div className="p-6 text-center">
-        <p className="text-sm text-red-500 mb-2">{error}</p>
-        <button 
-          onClick={() => { 
-            window.__feedState[activeTab] = { posts: [], page: 1, hasMore: true, scrollY: 0 };
-            setError(''); 
-            setPage(1); 
-            setPosts([]);
-            setLoading(true);
-          }} 
-          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          Try again
-        </button>
+      <div className="font-sans antialiased min-h-screen p-0 w-full">
+        {isOffline && (
+          <div className="p-4 text-center">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 max-w-md mx-auto">
+              <p className="text-sm font-semibold text-amber-800 mb-1">You are offline</p>
+              <p className="text-xs text-amber-700 mb-3">{error}</p>
+              {!offlineMode && (
+                <button
+                  onClick={() => { setOfflineMode(true); setError(''); setPage(1); setLoading(true); }}
+                  className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Enable Offline Mode
+                </button>
+              )}
+              <button
+                onClick={() => { setError(''); setPage(1); setLoading(true); }}
+                className="px-4 py-2 ml-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+        {!isOffline && (
+          <div className="p-6 text-center">
+            <p className="text-sm text-red-500 mb-2">{error}</p>
+            <button
+              onClick={() => {
+                window.__feedState[activeTab] = { posts: [], page: 1, hasMore: true, scrollY: 0 };
+                setError('');
+                setPage(1);
+                setPosts([]);
+                setLoading(true);
+              }}
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+        {isOffline && cachedPosts && cachedPosts.length > 0 && (
+          <div className="flex flex-col w-full max-w-2xl mx-auto md:mt-4">
+            <p className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">Showing cached content</p>
+            {cachedPosts.slice(0, 20).map((post, idx) => (
+              <PostCard key={post.id} post={post} index={idx} />
+            ))}
+          </div>
+        )}
       </div>
     );
   }

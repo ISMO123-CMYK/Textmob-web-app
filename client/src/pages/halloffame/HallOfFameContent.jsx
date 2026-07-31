@@ -138,9 +138,9 @@ export default function HallOfFameContent() {
   ];
 
   const rankTips = [
-    { d: 'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z', c: 'text-blue-600 bg-blue-50', t: 'Post with purpose', b: 'Quality beats quantity. Substance gets rewarded.' },
-    { d: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z', c: 'text-green-600 bg-green-50', t: 'Be the reply they needed', b: 'Thoughtful comments do more than likes.' },
-    { d: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75', c: 'text-purple-600 bg-purple-50', t: 'Grow your circle', b: 'Every connection boosts your network score.' }
+    { d: 'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z', c: 'text-blue-600 bg-blue-50', t: 'Quality over quantity', b: 'Media with a caption (7+ words) = +3. Long text (10+ words) = +2. Short text (4-9 words) = +1. Emoji-only = 0.' },
+    { d: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z', c: 'text-green-600 bg-green-50', t: 'Engage the community', b: 'Every comment on your post = +3. Every reaction = +0.5. The more people interact, the higher your Engagement Score (60% of total).' },
+    { d: 'M3 3h18v18H3zM21 9H3M12 15l3-3M9 12l3 3', c: 'text-purple-600 bg-purple-50', t: 'Show up consistently', b: 'Posting across multiple days gives you a consistency bonus. Only your best 20 posts count — posting 100 times won\'t help if quality isn\'t there.' },
   ];
 
   return (
@@ -151,7 +151,6 @@ export default function HallOfFameContent() {
         <div className="px-4 pt-8 pb-5 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
           <div>
             <h1 className="text-xl font-black text-gray-900 dark:text-gray-100 tracking-tight">Hall of Fame</h1>
-            <p className="text-xs font-medium text-gray-400 mt-0.5">The elite minds leading Textmob this week</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -377,8 +376,8 @@ export default function HallOfFameContent() {
             </div>
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
               <div>
-                <h3 className="text-sm font-black text-gray-900 dark:text-gray-100">Algorithmic Blueprints</h3>
-                <p className="text-xs text-gray-400 mt-0.5">How scores are compounded</p>
+                <h3 className="text-sm font-black text-gray-900 dark:text-gray-100">How to Rank</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Quality Score (40%) + Engagement Score (60%)</p>
               </div>
               <button
                 onClick={() => setShowRankTips(false)}

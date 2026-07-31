@@ -8,8 +8,20 @@ export function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+export function normalizePhone(value) {
+  if (!value) return '';
+  let cleaned = value.replace(/[\s\-\(\)]+/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '+234' + cleaned.slice(1);
+  } else if (!cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned;
+  }
+  return cleaned;
+}
+
 export function isValidPhone(value) {
-  return /^\+?[\d\s-]{10,}$/.test(value);
+  const normalized = normalizePhone(value);
+  return /^\+\d{7,15}$/.test(normalized);
 }
 
 export function isStrongPassword(value) {

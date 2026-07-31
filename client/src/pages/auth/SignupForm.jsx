@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import FormInput from '../../components/ui/FormInput';
 import PasswordStrengthIndicator from '../../components/ui/PasswordStrengthIndicator';
 import { apiFetch } from '../../config/api';
-import { isValidName, isValidEmail, isValidPhone, isStrongPassword, isValidUsername } from '../../utils/validators';
+import { isValidName, isValidEmail, isValidPhone, normalizePhone, isStrongPassword, isValidUsername } from '../../utils/validators';
 
 export default function SignupForm({ switchToLogin }) {
   const steps = [
@@ -76,7 +76,8 @@ export default function SignupForm({ switchToLogin }) {
     if (!validate()) return;
     setLoading(true);
     const body = new FormData();
-    Object.entries(form).forEach(([k, v]) => { if (v !== null && v !== '') body.append(k, v); });
+    const finalForm = { ...form, phone: normalizePhone(form.phone) };
+    Object.entries(finalForm).forEach(([k, v]) => { if (v !== null && v !== '') body.append(k, v); });
     try {
       const res = await apiFetch('/signup', { method: 'POST', body });
       const data = await res.json();

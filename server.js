@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const { GoogleGenAI } = require("@google/genai");
 const http = require("http");
@@ -70,6 +71,55 @@ async function runVerificationCleanup() {
 runVerificationCleanup();
 // Then run every hour
 setInterval(runVerificationCleanup, 60 * 60 * 1000); // 1 hour
+
+// ─── Phone number utilities ───
+// VERIPHONE_API_KEY is read from the environment (set it in Render Dashboard → Environment).
+const VERIPHONE_API_KEY = process.env.VERIPHONE_API_KEY;
+let warnedNoPhoneKey = false;
+
+function normalizePhone(raw) {
+  if (!raw) return '';
+  let cleaned = raw.replace(/[\s\-\(\)]+/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '+234' + cleaned.slice(1);
+  } else if (!cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned;
+  }
+  return cleaned;
+}
+
+async function verifyPhoneWithAPI(phone) {
+  if (!phone) return { valid: false, error: 'Phone number is required' };
+  if (!VERIPHONE_API_KEY) {
+    if (!warnedNoPhoneKey) {
+      console.warn('[PhoneVerify] VERIPHONE_API_KEY is not set — skipping phone verification. Set it in the Render environment.');
+      warnedNoPhoneKey = true;
+    }
+    return { valid: true };
+  }
+  try {
+    const normalized = normalizePhone(phone);
+    const res = await fetch(
+      'https://api.veriphone.io/v2/verify?' + new URLSearchParams({
+        key: VERIPHONE_API_KEY,
+        phone: normalized,
+      })
+    );
+    const data = await res.json();
+    if (data.status === 'error') {
+      return { valid: false, error: data.message || 'Phone verification failed' };
+    }
+    const isValid = data.phone_valid === true && data.carrier && data.carrier !== '';
+    if (!isValid) {
+      return { valid: false, error: 'Phone number is not valid' };
+    }
+    return { valid: true, normalized, data };
+  } catch (err) {
+    console.error('Phone verification error:', err);
+    return { valid: false, error: 'Phone verification service unavailable' };
+  }
+}
+// ─── End Phone utilities ───
 
 // ffmpeg-static exports the path string directly in recent versions
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -759,8 +809,6 @@ app.get("/api/live-info/:postId", (req, res) => {
 
 const authorMobcoinsCache = new Map();
 
-// Duplicated imports removed
-
 // ── Disabled User Guard ──────────────────────────────────────────────────────
 async function isUserDisabled(username) {
   if (!username) return true;
@@ -805,7 +853,7 @@ app.get("/live/:postId/:file", async (req, res) => {
 // Array of domains to ping
 const domains = [
   'https://textmob-web-app.onrender.com',
-  'https://louda-back-end.onrender.com',
+  'https://louda-uyxg.onrender.com',
   'https://astrasearch-r1re.onrender.com',
   'https://mylex.onrender.com',
   'https://textmob-provider-api-99ii.onrender.com'
@@ -1932,7 +1980,7 @@ app.post("/follow", async (req, res) => {
     const status = normAction === "follow" ? "following" : "not_following";
     const label = normAction === "follow" ? "Following" : "Follow";
 
-    try { if (normAction === "follow") { tatuEvents.push({ username: currentUsername, event: "follow", metadata: { target: username, type: "org" }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } } catch (_) {}
+    try { if (normAction === "follow") { tatuEvents.push({ username: currentUsername, event: "follow", metadata: { target: username, type: "org" }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } } catch (_) { }
     res.json({ status, label, profileType });
   } catch (err) {
     console.error("/follow error:", err);
@@ -2053,6 +2101,16 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
 
     if (existingUser) {
       return res.status(400).json({ error: "Username or Email already taken" });
+    }
+
+    // Verify phone number before allowing registration
+    if (phone && phone.trim()) {
+      const phoneCheck = await verifyPhoneWithAPI(phone);
+      if (!phoneCheck.valid) {
+        return res.status(400).json({ error: phoneCheck.error || 'Invalid phone number' });
+      }
+    } else {
+      return res.status(400).json({ error: "Phone number is required" });
     }
 
     let profilePicUrl = null;
@@ -2317,7 +2375,14 @@ async function indexPosts() {
 indexUsers();
 indexPosts();
 
-// ─── /search – user-only search (SmartSearchEngine) ───
+// Re-index search engines every 10 minutes to keep new content searchable
+setInterval(() => {
+  indexUsers();
+  indexPosts();
+  console.log("[SearchEngine] Re-indexed users and posts");
+}, 10 * 60 * 1000);
+
+// ─── /search – user-only search (SmartSearchEngine + DB ILIKE) ───
 app.get("/search", async (req, res) => {
   try {
     const { query, currentUsername } = req.query;
@@ -2337,11 +2402,14 @@ app.get("/search", async (req, res) => {
 
     const yourFriends = new Set(you.friends || []);
     const yourFollowing = new Set(you.following || []);
+    const q = query.trim().toLowerCase();
 
-    // Fetch all users for relation enrichment
+    // Fetch users with DB-level ILIKE filter
     const { data: users, error } = await supabase
       .from("users")
-      .select("username, fullname, profile_pic, profile_type, friends, followers, verified");
+      .select("username, fullname, profile_pic, profile_type, friends, followers, verified")
+      .or(`username.ilike.%${q}%,fullname.ilike.%${q}%`)
+      .limit(50);
 
     if (error) {
       return res.status(500).json({ error: "Error fetching users" });
@@ -2350,28 +2418,22 @@ app.get("/search", async (req, res) => {
     const userMap = {};
     users.forEach(u => { userMap[u.username] = u; });
 
-    // SmartSearchEngine results
+    // Score DB results with engine, then add engine-only results
     const rawResults = userSearchEngine.search(query);
-
     const results = [];
     const seen = new Set();
 
-    rawResults.forEach(r => {
-      const doc = r.doc;
-      const username = doc.metadata.username;
-      if (!username || seen.has(username)) return;
-      seen.add(username);
-
-      const u = userMap[username];
-      if (!u) return;
+    (users || []).forEach(u => {
+      if (seen.has(u.username)) return;
+      seen.add(u.username);
+      const engineMatch = rawResults.find(r => r.doc.metadata.username === u.username);
+      let score = engineMatch ? engineMatch.score : 50;
 
       const isOrg = (u.profile_type || "").toLowerCase() === "organisation";
-
-      // Apply relation/social boost to the engine score
-      let finalScore = r.score;
-      if (!isOrg && yourFriends.has(username)) finalScore *= 2;
-      if (isOrg && yourFollowing.has(username)) finalScore *= 1.5;
-      if (u.verified) finalScore *= 1.3;
+      if (!isOrg && yourFriends.has(u.username)) score *= 2;
+      if (isOrg && yourFollowing.has(u.username)) score *= 1.5;
+      if (u.verified) score *= 1.3;
+      if (u.username.toLowerCase() === q || u.fullname?.toLowerCase() === q) score *= 3;
 
       results.push({
         type: "user",
@@ -2382,7 +2444,34 @@ app.get("/search", async (req, res) => {
         relation: isOrg
           ? (yourFollowing.has(u.username) ? "following" : "not_following")
           : (yourFriends.has(u.username) ? "friended" : "not_friended"),
-        score: Math.round(finalScore)
+        score: Math.round(score)
+      });
+    });
+
+    // Engine-only results for stale index coverage
+    rawResults.forEach(r => {
+      const username = r.doc.metadata.username;
+      if (!username || seen.has(username)) return;
+      seen.add(username);
+      const u = userMap[username];
+      if (!u) return;
+
+      const isOrg = (u.profile_type || "").toLowerCase() === "organisation";
+      let score = r.score;
+      if (!isOrg && yourFriends.has(username)) score *= 2;
+      if (isOrg && yourFollowing.has(username)) score *= 1.5;
+      if (u.verified) score *= 1.3;
+
+      results.push({
+        type: "user",
+        username: u.username,
+        fullname: u.fullname,
+        profile_pic: u.profile_pic,
+        profile_type: isOrg ? "organisation" : "individual",
+        relation: isOrg
+          ? (yourFollowing.has(u.username) ? "following" : "not_following")
+          : (yourFriends.has(u.username) ? "friended" : "not_friended"),
+        score: Math.round(score)
       });
     });
 
@@ -2397,10 +2486,13 @@ app.get("/search", async (req, res) => {
 // ─── /general/search – combined user + post search (SmartSearchEngine, no limits) ───
 app.get("/general/search", async (req, res) => {
   try {
-    const { query, currentUsername } = req.query;
+    const { query, currentUsername, limit: reqLimit, offset: reqOffset } = req.query;
     if (!query || !currentUsername) {
       return res.status(400).json({ error: "Both `query` and `currentUsername` are required" });
     }
+
+    const limit = Math.min(parseInt(reqLimit, 10) || 20, 50);
+    const offset = parseInt(reqOffset, 10) || 0;
 
     const { data: you, error: youErr } = await supabase
       .from("users")
@@ -2414,11 +2506,34 @@ app.get("/general/search", async (req, res) => {
 
     const yourFriends = new Set(you.friends || []);
     const yourFollowing = new Set(you.following || []);
+    const q = query.trim().toLowerCase();
+    const now = Date.now();
 
-    // Fetch users and posts for enrichment
+    // Fetch users with DB-level ILIKE filter
+    const postsTokens = q.split(/\s+/).filter(Boolean);
+    let postsPromise;
+    if (postsTokens.length > 1) {
+      const orConds = postsTokens.map(t => `text.ilike.%${t}%`).join(',');
+      postsPromise = supabase2
+        .from("Posts")
+        .select("id, username, text, media, likes, comments, created_at, type")
+        .or(orConds)
+        .limit(limit + offset);
+    } else {
+      postsPromise = supabase2
+        .from("Posts")
+        .select("id, username, text, media, likes, comments, created_at, type")
+        .ilike("text", `%${q}%`)
+        .limit(limit + offset);
+    }
+
     const [{ data: users }, { data: posts }] = await Promise.all([
-      supabase.from("users").select("username, fullname, profile_pic, profile_type, verified"),
-      supabase2.from("Posts").select("id, username, text, media, likes, comments, created_at, type")
+      supabase
+        .from("users")
+        .select("username, fullname, profile_pic, profile_type, verified")
+        .or(`username.ilike.%${q}%,fullname.ilike.%${q}%`)
+        .limit(limit + offset),
+      postsPromise
     ]);
 
     const userMap = {};
@@ -2427,28 +2542,58 @@ app.get("/general/search", async (req, res) => {
     const postMap = {};
     (posts || []).forEach(p => { postMap[String(p.id)] = p; });
 
-    const qLower = query.toLowerCase().trim();
-    const now = Date.now();
-
-    // Search users
-    const userResults = userSearchEngine.search(query);
-    const postResults = postSearchEngine.search(query);
-
     const finalResults = [];
     const seen = new Set();
 
-    userResults.forEach(r => {
-      const username = r.doc.metadata.username;
-      if (!username || seen.has(username)) return;
-      seen.add(username);
+    // Score users: DB results first, then fall back to SmartSearchEngine for stale index
+    const userEngineResults = userSearchEngine.search(query);
+    const engineUserUsernames = new Set();
+    userEngineResults.forEach(r => {
+      const uname = r.doc.metadata.username;
+      if (uname) engineUserUsernames.add(uname);
+    });
 
-      const u = userMap[username];
+    // Prioritize DB-matched users, scored by engine if available
+    (users || []).forEach(u => {
+      if (seen.has(u.username)) return;
+      seen.add(u.username);
+
+      const engineMatch = userEngineResults.find(r => r.doc.metadata.username === u.username);
+      let score = engineMatch ? engineMatch.score : 50;
+
+      const isOrg = (u.profile_type || "").toLowerCase() === "organisation";
+      if (!isOrg && yourFriends.has(u.username)) score *= 2;
+      if (isOrg && yourFollowing.has(u.username)) score *= 1.5;
+      if (u.verified) score *= 1.3;
+
+      // Exact match boost
+      if (u.username.toLowerCase() === q || u.fullname?.toLowerCase() === q) score *= 3;
+
+      finalResults.push({
+        type: "user",
+        username: u.username,
+        fullname: u.fullname,
+        profile_pic: u.profile_pic,
+        profile_type: isOrg ? "organisation" : "individual",
+        relation: isOrg
+          ? (yourFollowing.has(u.username) ? "following" : "not_following")
+          : (yourFriends.has(u.username) ? "friended" : "not_friended"),
+        score: Math.round(score)
+      });
+    });
+
+    // Add engine-only users not matched by DB (stale index coverage)
+    userEngineResults.forEach(r => {
+      const uname = r.doc.metadata.username;
+      if (!uname || seen.has(uname)) return;
+      const u = userMap[uname];
       if (!u) return;
+      seen.add(uname);
 
       const isOrg = (u.profile_type || "").toLowerCase() === "organisation";
       let score = r.score;
-      if (!isOrg && yourFriends.has(username)) score *= 2;
-      if (isOrg && yourFollowing.has(username)) score *= 1.5;
+      if (!isOrg && yourFriends.has(uname)) score *= 2;
+      if (isOrg && yourFollowing.has(uname)) score *= 1.5;
       if (u.verified) score *= 1.3;
 
       finalResults.push({
@@ -2464,15 +2609,14 @@ app.get("/general/search", async (req, res) => {
       });
     });
 
-    postResults.forEach(r => {
-      const postId = r.doc.id;
-      if (!postId || seen.has(`post:${postId}`)) return;
-      seen.add(`post:${postId}`);
+    // Score posts
+    const postEngineResults = postSearchEngine.search(query);
+    (posts || []).forEach(p => {
+      if (seen.has(`post:${p.id}`)) return;
+      seen.add(`post:${p.id}`);
 
-      const p = postMap[String(postId)];
-      if (!p) return;
-
-      let score = r.score;
+      const engineMatch = postEngineResults.find(r => r.doc.id === String(p.id));
+      let score = engineMatch ? engineMatch.score : 50;
 
       // Engagement boost
       const likes = (p.likes || []).length;
@@ -2502,7 +2646,8 @@ app.get("/general/search", async (req, res) => {
     });
 
     finalResults.sort((a, b) => b.score - a.score);
-    res.json(finalResults);
+    const paginated = finalResults.slice(offset, offset + limit);
+    res.json(paginated);
   } catch (err) {
     console.error("General Search Error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -3430,6 +3575,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
     const snaps = snapFeedPosts || [];
 
     let userFollowing = new Set();
+    let userCategoryWeights = {};
     let seen = new Set();
     if (rawSeenIds) {
       rawSeenIds.split(',').filter(Boolean).forEach(id => seen.add(id));
@@ -3438,8 +3584,11 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
       if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
       userSnapSeenMap.get(username).forEach(id => seen.add(id));
       try {
-        const { data: me } = await supabase.from("users").select("following").eq("username", username).single();
+        const { data: me } = await supabase.from("users").select("following, feed_prefs").eq("username", username).single();
         userFollowing = new Set(me?.following || []);
+        if (me?.feed_prefs?.categoryWeights) {
+          userCategoryWeights = me.feed_prefs.categoryWeights;
+        }
       } catch { /* ignore */ }
     }
 
@@ -3473,6 +3622,16 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
       const selfPenalty = p.username === username ? 0.1 : 1.0;
       const userInfluence = 0.0;
 
+      // Category weight from feed preferences
+      let catWeight = 1.0;
+      const postCats = p.categories || [];
+      if (userCategoryWeights) {
+        for (const c of postCats) {
+          const w = userCategoryWeights[c];
+          if (w !== undefined) { catWeight = w; break; }
+        }
+      }
+
       const score = (
         (freshness * 10) +
         (velocity * 5) +
@@ -3480,7 +3639,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
         (userInfluence * 0.05) +
         boostScoreValue +
         mediaBonus
-      ) * affinityMul * seenPenalty * selfPenalty;
+      ) * affinityMul * seenPenalty * selfPenalty * catWeight;
 
       return { ...p, _score: score + (Math.random() * 0.5) };
     });
@@ -3547,6 +3706,126 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
 
   } catch (err) {
     console.error("Snap Feed Error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── GET /snaps-search – search snaps by tokenized text + username, ranked by relevance ───
+app.get("/snaps-search", async (req, res) => {
+  try {
+    const { query, username: reqUsername, page: pg } = req.query;
+    const page = Math.max(parseInt(pg, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+    const q = (query || '').trim();
+
+    if (!q) return res.json({ snaps: [], page, hasMore: false });
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // Tokenize query: match each word individually against text, plus username search
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const textConds = tokens.map(t => `text.ilike.%${t}%`);
+    const conditions = [...textConds, `username.ilike.%${q}%`].join(',');
+
+    const { data: snaps, error } = await supabase2
+      .from("Posts")
+      .select("*")
+      .eq("type", "snap")
+      .or(conditions)
+      .range(from, to);
+
+    if (error) {
+      console.error("Snaps search error:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    const now = Date.now();
+    const snapList = (snaps || []).map(s => {
+      const likes = Array.isArray(s.likes) ? s.likes.length : 0;
+      const comments = Array.isArray(s.comments) ? s.comments.length : 0;
+      const engagement = likes + comments * 3;
+
+      let score = 1;
+      // Engagement boost
+      score *= (1 + Math.log(1 + engagement) * 0.08);
+      // Recency boost
+      if (s.created_at) {
+        const created = new Date(s.created_at).getTime();
+        const ageDays = (now - created) / 86400000;
+        if (ageDays < 1) score *= 2.5;
+        else if (ageDays < 3) score *= 1.8;
+        else if (ageDays < 7) score *= 1.3;
+        else if (ageDays < 30) score *= 1.1;
+        // Tiny recency tiebreaker: ~1 day of extra score per ms
+        score += (now - created) / 1e10;
+      }
+      // Username exact-match boost
+      if (s.username && s.username.toLowerCase().includes(q.toLowerCase())) score *= 1.5;
+      // Text exact-match boost
+      if (s.text && s.text.toLowerCase().includes(q.toLowerCase())) score *= 1.3;
+
+      return { ...s, _score: score };
+    });
+
+    snapList.sort((a, b) => b._score - a._score);
+
+    const result = snapList.map(({ _score, ...s }) => ({
+      ...s,
+      likes: Array.isArray(s.likes) ? s.likes : [],
+      comments: Array.isArray(s.comments) ? s.comments : []
+    }));
+
+    res.json({ snaps: result, page, hasMore: result.length >= limit });
+  } catch (err) {
+    console.error("Snaps search error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── GET /get-snap/:id – single snap by ID with author enrichment ───
+app.get("/get-snap/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: "Snap ID is required" });
+    }
+
+    const { data: snap, error } = await supabase2
+      .from("Posts")
+      .select("*")
+      .eq("id", id)
+      .eq("type", "snap")
+      .single();
+
+    if (error || !snap) {
+      return res.status(404).json({ error: "Snap not found" });
+    }
+
+    // Enrich with author info
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("profile_pic, verified, fullname, profile_type")
+      .eq("username", snap.username)
+      .single();
+
+    if (!userError && user) {
+      snap.profile_pic = user.profile_pic;
+      snap.verified = user.verified;
+      snap.author_fullname = user.fullname;
+      snap.profile_type = user.profile_type;
+    } else {
+      snap.profile_pic = "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg";
+      snap.verified = false;
+      snap.author_fullname = snap.username;
+    }
+
+    snap.likes = Array.isArray(snap.likes) ? snap.likes : [];
+    snap.comments = Array.isArray(snap.comments) ? snap.comments : [];
+
+    res.json(snap);
+  } catch (error) {
+    console.error("Error fetching snap:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -3779,7 +4058,7 @@ ${postSummaries}`;
           const curated = ids.map(id => topCandidates.find(p => String(p.id) === String(id))).filter(Boolean);
           if (curated.length > 0) return curated;
         }
-      } catch {}
+      } catch { }
     }
 
     // Fallback: return top 15 by engagement (filtered)
@@ -4308,7 +4587,7 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
       try {
         const parsed = typeof categories === 'string' ? JSON.parse(categories) : categories;
         if (Array.isArray(parsed)) userCategories = parsed.filter(c => POST_CATEGORIES.includes(c));
-      } catch {}
+      } catch { }
     }
     if (userCategories.length === 0 && category) {
       if (POST_CATEGORIES.includes(category)) userCategories = [category];
@@ -4440,7 +4719,7 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
     (async function backgroundWork() {
       try {
         console.log("[create-post] starting backgroundWork for postId:", data.id);
-        try { tatuEvents.push({ username: username, event: "post_create", metadata: { postId: data.id, type: data.type }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } catch (_) {}
+        try { tatuEvents.push({ username: username, event: "post_create", metadata: { postId: data.id, type: data.type }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } catch (_) { }
 
         // EMIT REAL-TIME NEW POST TO ALL CONNECTED CLIENTS
         try {
@@ -4574,21 +4853,21 @@ async function createLivePostInDB(opts) {
 
     var createdRow = insertRes.data;
 
-      // Background tasks (non-blocking)
-      setTimeout(async () => {
-        // Award Mobcoins (best-effort)
-        try {
-          await updateMobcoins(
-            username.split("@").pop().trimEnd(),
-            10,
-            true,
-            "You just received 10 Mobcoins for starting a live on Textmob"
-          );
-        } catch (e) {
-          console.error("createLivePostInDB mobcoin error:", e);
-        }
+    // Background tasks (non-blocking)
+    setTimeout(async () => {
+      // Award Mobcoins (best-effort)
+      try {
+        await updateMobcoins(
+          username.split("@").pop().trimEnd(),
+          10,
+          true,
+          "You just received 10 Mobcoins for starting a live on Textmob"
+        );
+      } catch (e) {
+        console.error("createLivePostInDB mobcoin error:", e);
+      }
 
-        // Background notifications
+      // Background notifications
       try {
         await notifyConnectionsOnPost(username, text, createdRow.id);
         for (var i = 0; i < mentions.length; i++) {
@@ -5504,19 +5783,21 @@ app.get("/get-user-posts", async (req, res) => {
   }
 });
 
-app.put("/edit-post", async (req, res) => {
+app.all("/edit-post", async (req, res) => {
   try {
-    const { postId, content, comments, likes } = req.body;
+    const { postId, content, text, title, comments, likes } = req.body;
     if (!postId) {
       return res.status(400).json({ error: "postId is required" });
     }
 
     // Build update object. Only include fields that are provided.
     const updateFields = {};
-    if (content !== undefined) {
-      updateFields.text = content;
-      updateFields.hashtags = content.match(/#[\w-]+/g) || [];
+    const bodyText = content !== undefined ? content : text;
+    if (bodyText !== undefined) {
+      updateFields.text = bodyText;
+      updateFields.hashtags = bodyText.match(/#[\w-]+/g) || [];
     }
+    if (title !== undefined) updateFields.title = title;
     if (comments !== undefined) updateFields.comments = comments;
     if (likes !== undefined) updateFields.likes = likes;
 
@@ -6058,6 +6339,12 @@ app.get("/leaderboard", async (req, res) => {
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
+    const TOP_POSTS_LIMIT = 20;
+    const MEANINGFUL_MEDIA_WORDS = 7;
+    const QUALITY_TEXT_WORDS = 9;
+    const DECENT_TEXT_WORDS = 4;
+
+
     // Try cached leaderboard from MemoryDB
     if (memoryDb && memoryDb.isReady) {
       const cached = memoryDb.getCachedLeaderboard();
@@ -6106,154 +6393,121 @@ app.get("/leaderboard", async (req, res) => {
 
     const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
 
-    // Trackers for Metrics
-    const userMetrics = {};
+    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai", "bossprogrammer"];
     const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
+    const usersSet = new Set(users.map(u => u.username));
 
-    recentPosts.forEach(p => {
-      if (!p.username) return;
+    // Group and score posts per user
+    const userPostBuckets = {};
+    for (const p of recentPosts) {
+      if (!p.username || excluded.includes(p.username) || !usersSet.has(p.username)) continue;
+      if (!userPostBuckets[p.username]) userPostBuckets[p.username] = [];
 
-      // Initialize user tracker if it doesn't exist
-      if (!userMetrics[p.username]) {
-        userMetrics[p.username] = {
-          rawPostCount: 0,
-          effortPoints: 0,
-          likesCount: 0,
-          commentsCount: 0,
-          reactionsCount: 0,
-          activeDays: new Set(),
-          creatorReplies: 0,
-          topPost: null,
-          maxPostEngagementScore: -1
-        };
-      }
-
-      const meta = userMetrics[p.username];
-      meta.rawPostCount += 1;
-
-      // Track unique days worked (Consistency)
-      if (p.created_at) {
-        const dayString = new Date(p.created_at).toDateString();
-        meta.activeDays.add(dayString);
-      }
-
-      // Calculate Effort Points per post (The Grind)
       const hasMedia = p.media && p.media.length > 0;
-      const rawText = p.content || p.text || '';
+      const rawText = p.text || '';
       const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
       const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
 
-      if (hasMedia) {
-        meta.effortPoints += 3;
-      } else if (wordCount > 15) {
-        meta.effortPoints += 2;
-      } else if (wordCount > 3) {
-        meta.effortPoints += 1;
-      } else {
-        meta.effortPoints += 0.1;
-      }
+      // Quality Score (Content Score)
+      let qualityScore = 0;
+      if (hasMedia && wordCount >= MEANINGFUL_MEDIA_WORDS) qualityScore = 3;
+      else if (!hasMedia && wordCount > QUALITY_TEXT_WORDS) qualityScore = 2;
+      else if (!hasMedia && wordCount >= DECENT_TEXT_WORDS) qualityScore = 1;
 
-      // Calculate localized engagement for this specific post to see if it's their "Featured Post"
-      const pLikes = Array.isArray(p.likes) ? p.likes.length : 0;
+      // Engagement Score (all comments count, including self-comments)
+      const pComments = Array.isArray(p.comments) ? p.comments : [];
       const pReactions = Array.isArray(p.reactions) ? p.reactions.length : 0;
-      const pComments = Array.isArray(p.comments) ? p.comments.length : 0;
+      const pLikes = Array.isArray(p.likes) ? p.likes.length : 0;
+      const reactions = pReactions > 0 ? pReactions : pLikes;
+      const engagementScore = (pComments.length * 3) + (reactions * 0.5);
 
-      const postEngagementScore = (pComments * 3) + ((pReactions || pLikes) * 0.5);
+      userPostBuckets[p.username].push({
+        id: p.id,
+        text: rawText,
+        qualityScore,
+        engagementScore,
+        totalScore: qualityScore + engagementScore,
+        isLowQuality: qualityScore === 0,
+        createdAt: p.created_at,
+      });
+    }
 
-      // Update best post if this one ranks higher in raw traction
-      if (postEngagementScore > meta.maxPostEngagementScore && rawText.trim().length > 0) {
-        meta.maxPostEngagementScore = postEngagementScore;
-        meta.topPost = {
-          id: p.id,
-          text: rawText,
-          engagement: `${pComments} comments, ${pReactions || pLikes} reactions`
-        };
-      }
-
-      // Track aggregate incoming crowd reactions
-      meta.likesCount += pLikes;
-      meta.reactionsCount += pReactions;
-
-      // Parse comments for community depth and creator responses
-      if (Array.isArray(p.comments)) {
-        meta.commentsCount += pComments;
-
-        p.comments.forEach(c => {
-          if (c.username === p.username) {
-            meta.creatorReplies += 1;
-          }
-        });
-      }
-    });
-
-    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai", "bossprogrammer"];
-
-    const users7dMetrics = users
+    const leaderboardEntries = users
       .filter(u => !excluded.includes(u.username))
       .map(u => {
-        const metrics = userMetrics[u.username] || {
-          rawPostCount: 0, effortPoints: 0, likesCount: 0, commentsCount: 0, reactionsCount: 0,
-          activeDays: new Set(), creatorReplies: 0, topPost: null
-        };
+        const posts = userPostBuckets[u.username];
+        if (!posts || posts.length === 0) return null;
 
-        const totalReactions = metrics.reactionsCount > 0 ? metrics.reactionsCount : metrics.likesCount;
+        const totalPosts = posts.length;
 
-        // 🌟 HARD WORK CALCULATIONS
-        const totalActiveDays = metrics.activeDays.size;
-        const consistencyMultiplier = 1 + (totalActiveDays * 0.1);
-        const finalEffortScore = (metrics.effortPoints + (metrics.creatorReplies * 1.5)) * consistencyMultiplier;
-
-        // 🌟 COMMUNITY VIRALITY SCORE
-        const finalEngagementScore = (metrics.commentsCount * 3.0) + (totalReactions * 0.5);
-
-        // Balance 40% Hard Work/Consistency and 60% Virality/Impact
-        const finalScore = (0.4 * finalEffortScore) + (0.6 * finalEngagementScore);
-        const finalScoreRounded = Math.round(finalScore * 10) / 10;
-
-        // 🌟 DYNAMIC GENERATION OF TRUE EVIDENCE WHYS AND HOWS
-        let whyReason = "Maintained an active presence and shared direct thoughts with the community.";
-        if (metrics.creatorReplies > 3 && metrics.commentsCount > 10) {
-          whyReason = `Drove intense conversation this week. They didn't just post—they actively anchored their own comment sections with ${metrics.creatorReplies} personal responses to community questions.`;
-        } else if (totalActiveDays >= 4 && metrics.rawPostCount >= 5) {
-          whyReason = `Earned this slot through absolute consistency. Posted across ${totalActiveDays} separate days this week, keeping the timeline supplied with high-effort content.`;
-        } else if (finalEngagementScore > finalEffortScore && metrics.commentsCount > 5) {
-          whyReason = `Sparked highly interactive discussions. The crowd gravitated heavily toward their thoughts, generating deep debate in the comment feeds.`;
-        } else if (metrics.effortPoints > 8) {
-          whyReason = `Brought heavy substance to Textmob this week through deep, long-form thoughts or highly engaging media shares that raised the collective baseline.`;
+        // Track active days from all posts (consistency)
+        const activeDays = new Set();
+        for (const p of posts) {
+          if (p.createdAt) activeDays.add(new Date(p.createdAt).toDateString());
         }
+        const totalActiveDays = activeDays.size;
+        const consistencyMultiplier = 1 + (totalActiveDays * 0.1);
+
+        const lowQualityPosts = posts.filter(p => p.isLowQuality).length;
+        const lowQualityRatio = lowQualityPosts / totalPosts;
+
+        // Keep only the best N posts
+        const rankedPosts = posts
+          .filter(p => !p.isLowQuality)
+          .sort((a, b) => b.totalScore - a.totalScore)
+          .slice(0, TOP_POSTS_LIMIT);
+
+        if (rankedPosts.length === 0) return null;
+
+        const totalQualityScore = rankedPosts.reduce((s, p) => s + p.qualityScore, 0);
+        const totalEngagementScore = rankedPosts.reduce((s, p) => s + p.engagementScore, 0);
+
+        const qualityComponent = totalQualityScore * consistencyMultiplier;
+        const engagementComponent = totalEngagementScore;
+        const finalScore = Math.round(((0.4 * qualityComponent) + (0.6 * engagementComponent)) * 10) / 10;
+
+        if (finalScore <= 0) return null;
+
+        // Evidence text
+        let whyReason = "Shared content that resonated with the community this week.";
+        const qualityLabel = rankedPosts[0]?.qualityScore >= 3 ? "high-quality posts" : "engaging content";
+        if (rankedPosts.length >= 5 && lowQualityRatio <= 0.2) {
+          whyReason = `Consistently published ${rankedPosts.length} ${qualityLabel} that the community engaged with this week.`;
+        } else if (engagementComponent > qualityComponent && rankedPosts.length >= 3) {
+          whyReason = `Sparked meaningful discussions — their posts generated strong community interaction.`;
+        } else if (qualityComponent >= 15) {
+          whyReason = `Brought real substance to Textmob with well-crafted posts that raised the bar.`;
+        }
+
+        const topPost = rankedPosts[0] ? {
+          id: rankedPosts[0].id,
+          text: rankedPosts[0].text,
+          engagement: `${Math.round(rankedPosts[0].engagementScore)} pts`
+        } : null;
 
         return {
           id: u.id,
           username: u.username,
           fullname: u.fullname || '',
           avatar: u.profile_pic || '',
-          score7d: finalScoreRounded,
+          score7d: finalScore,
           evidence: {
             why: whyReason,
             metrics: [
-              { label: "Timeline Grind", value: `${metrics.rawPostCount} Posts over ${totalActiveDays} Days` },
-              { label: "Community Echo", value: `${metrics.commentsCount} Comments & ${totalReactions} Reactions` }
+              { label: "Quality Posts", value: `${rankedPosts.length} selected from ${totalPosts} total across ${totalActiveDays} days` },
+              { label: "Community Echo", value: `${Math.round(totalEngagementScore)} engagement pts` },
             ],
-            topPost: metrics.topPost || {
-              id: null,
-              text: "Consistently interacting across various community channels.",
-              engagement: "Organic Traction"
-            }
-          }
+            topPost,
+          },
         };
-      });
-
-    // Sort descending by score
-    users7dMetrics.sort((a, b) => b.score7d - a.score7d);
-
-    // Keep top 5 with non-zero points
-    const leaderboard = users7dMetrics
-      .filter(u => u.score7d > 0)
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score7d - a.score7d)
       .slice(0, 5);
 
     const result = {
       success: true,
-      leaderboard,
+      leaderboard: leaderboardEntries,
       fetchedAt: now.toISOString()
     };
 
@@ -7274,6 +7528,71 @@ app.get("/trending-hashtags", async (req, res) => {
   }
 });
 
+// ─── GET /tag/:hashtag – posts by hashtag ───
+app.get("/tag/:hashtag", async (req, res) => {
+  try {
+    const { hashtag } = req.params;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+    const tag = hashtag.toLowerCase().trim().replace(/^#/, "");
+
+    if (!tag) {
+      return res.status(400).json({ error: "Hashtag is required" });
+    }
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data: posts, error } = await supabase2
+      .from("Posts")
+      .select("id, username, text, media, likes, comments, created_at, type, hashtags, categories")
+      .contains("hashtags", JSON.stringify([`#${tag}`]))
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error("Error fetching tag posts:", error);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+
+    // Get total count
+    const { count, error: countErr } = await supabase2
+      .from("Posts")
+      .select("id", { count: "exact", head: true })
+      .contains("hashtags", JSON.stringify([`#${tag}`]));
+
+    // Enrich with author info
+    const usernames = [...new Set((posts || []).map(p => p.username))];
+    const { data: authors } = usernames.length > 0 ? await supabase
+      .from("users")
+      .select("username, profile_pic, verified, fullname")
+      .in("username", usernames) : { data: [] };
+
+    const authorMap = {};
+    (authors || []).forEach(a => { authorMap[a.username] = a; });
+
+    const enriched = (posts || []).map(p => ({
+      ...p,
+      likes: Array.isArray(p.likes) ? p.likes : [],
+      comments: Array.isArray(p.comments) ? p.comments : [],
+      profile_pic: authorMap[p.username]?.profile_pic || null,
+      verified: authorMap[p.username]?.verified || false,
+      author_fullname: authorMap[p.username]?.fullname || p.username
+    }));
+
+    res.json({
+      posts: enriched,
+      hashtag: tag,
+      page,
+      hasMore: enriched.length >= limit,
+      total: count || 0
+    });
+  } catch (err) {
+    console.error("Tag endpoint error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // -------------------------------------------------------------
 // GET/POST /get-posts
 // -------------------------------------------------------------
@@ -7804,10 +8123,11 @@ app.get("/get-suggestions-feed", async (req, res) => {
     const following = you.following || [];
     const connected = new Set(friends.concat(following).concat(username));
 
-    // Fetch all users
+    // Fetch non-connected users with limit for performance
     const { data: users, error: userErr } = await supabase
       .from("users")
-      .select("username, fullname, profile_pic, friends, followers");
+      .select("username, fullname, profile_pic, friends, followers")
+      .limit(200);
     if (userErr) throw userErr;
 
     const scored = users
@@ -9664,7 +9984,7 @@ function getWeekKey(date = new Date()) {
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(d.setDate(diff));
-  return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
 }
 
 async function gatherWeeklyActivity(username) {
@@ -10123,11 +10443,11 @@ app.get("/api/asilfcismail/data", async (req, res) => {
         const userLikes = totalLikesPerUser[u.username] || 0;
         const userComments = totalCommentsPerUser[u.username] || 0;
         const userReactions = totalReactionsPerUser[u.username] || 0;
-        
+
         // Hall of Fame Score: Content Appreciation (Likes & Reactions) + Comments + Followers + Mobcoins
         const totalContentAppreciation = userLikes + userReactions;
         const score = (totalContentAppreciation * 3) + (userComments * 2) + followers + Math.floor(coins / 50);
-        
+
         return {
           id: u.id,
           username: u.username,

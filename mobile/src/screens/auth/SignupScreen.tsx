@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { isValidEmail, isValidUsername, isValidPhone, isValidPassword, getPasswordStrength } from '../../utils/validators';
+import { isValidEmail, isValidUsername, isValidPhone, normalizePhone, isValidPassword, getPasswordStrength } from '../../utils/validators';
 
 interface Step {
   title: string;
@@ -129,7 +129,8 @@ export default function SignupScreen({ navigation }: { navigation: any }) {
     if (!validateStep()) return;
 
     const body = new FormData();
-    Object.entries(form).forEach(([k, v]) => {
+    const finalForm = { ...form, phone: normalizePhone(form.phone) };
+    Object.entries(finalForm).forEach(([k, v]) => {
       if (v !== null && v !== '') body.append(k, v);
     });
 

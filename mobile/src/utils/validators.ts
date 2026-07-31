@@ -6,8 +6,20 @@ export function isValidUsername(username: string): boolean {
   return /^[a-zA-Z0-9_]{3,30}$/.test(username);
 }
 
+export function normalizePhone(value: string): string {
+  if (!value) return '';
+  let cleaned = value.replace(/[\s\-\(\)]+/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '+234' + cleaned.slice(1);
+  } else if (!cleaned.startsWith('+')) {
+    cleaned = '+' + cleaned;
+  }
+  return cleaned;
+}
+
 export function isValidPhone(phone: string): boolean {
-  return /^[\d\s\-\(\)\+]{7,20}$/.test(phone);
+  const normalized = normalizePhone(phone);
+  return /^\+\d{7,15}$/.test(normalized);
 }
 
 export function isValidPassword(password: string): { valid: boolean; message: string } {

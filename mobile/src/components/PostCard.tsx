@@ -49,7 +49,10 @@ function RichText({ text, style }: { text: string; style?: any }) {
 function PostMenu({ visible, onClose, post, onNegativeSignal }: { visible: boolean; onClose: () => void; post: Post; onNegativeSignal?: (postId: string, signal: string, contentType: string) => void }) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
+  const navigation = useNavigation<any>();
+  const isOwnPost = username && post.username === username;
   const items = [
+    ...(isOwnPost ? [{ icon: 'create-outline' as const, label: 'Edit', edit: true }] : []),
     { icon: 'share-outline' as const, label: 'Share' },
     { icon: 'link-outline' as const, label: 'Copy link' },
     { type: 'divider' as const },
@@ -71,11 +74,13 @@ function PostMenu({ visible, onClose, post, onNegativeSignal }: { visible: boole
               <TouchableOpacity
                 key={item.label}
                 style={pmStyles.row}
-                onPress={() => {
-                  onClose();
-                  if (item.label === 'Copy link') {
-                    Alert.alert('Copied', 'Post link copied to clipboard!');
-                  } else if (item.signal) {
+                  onPress={() => {
+                    onClose();
+                    if (item.edit) {
+                      navigation.navigate('PostUpdate', { postId: String(post.id) });
+                    } else if (item.label === 'Copy link') {
+                      Alert.alert('Copied', 'Post link copied to clipboard!');
+                    } else if (item.signal) {
                     if (onNegativeSignal) {
                       onNegativeSignal(String(post.id), item.signal, post.type || 'post');
                     } else if (username) {

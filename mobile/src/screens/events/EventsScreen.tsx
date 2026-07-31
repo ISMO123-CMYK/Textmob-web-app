@@ -49,7 +49,7 @@ export default function EventsScreen() {
           <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Events</Text>
           <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>Explore community meetups and events</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('CreatePost')} style={s.createBtn}>
+        <TouchableOpacity onPress={() => navigation.navigate('CreateEvent')} style={s.createBtn}>
           <Text style={s.createBtnText}>+ Create</Text>
         </TouchableOpacity>
       </View>

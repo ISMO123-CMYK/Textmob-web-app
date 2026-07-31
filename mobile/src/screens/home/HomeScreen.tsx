@@ -124,7 +124,7 @@ export default function HomeScreen() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [pullDelta, setPullDelta] = useState(0);
   const [showFeedSettings, setShowFeedSettings] = useState(false);
-  const [feedPrefs, setFeedPrefs] = useState<{ contentTypeWeights: Record<string, number>; categoryWeights: Record<string, number> }>({ contentTypeWeights: {}, categoryWeights: {} });
+  const [feedPrefs, setFeedPrefs] = useState<{ contentTypeWeights: Record<string, number>; categoryWeights: Record<string, number>; mutedCreators?: string[]; exploreThreshold?: number }>({ contentTypeWeights: {}, categoryWeights: {}, mutedCreators: [], exploreThreshold: 0.3 });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardSelected, setOnboardSelected] = useState<string[]>([]);
   const pullStartY = useRef(0);
