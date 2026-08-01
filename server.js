@@ -6340,9 +6340,6 @@ app.get("/leaderboard", async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const TOP_POSTS_LIMIT = 20;
-    const MEANINGFUL_MEDIA_WORDS = 7;
-    const QUALITY_TEXT_WORDS = 9;
-    const DECENT_TEXT_WORDS = 4;
 
 
     // Try cached leaderboard from MemoryDB
@@ -6408,11 +6405,10 @@ app.get("/leaderboard", async (req, res) => {
       const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
       const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
 
-      // Quality Score (Content Score)
-      let qualityScore = 0;
-      if (hasMedia && wordCount >= MEANINGFUL_MEDIA_WORDS) qualityScore = 3;
-      else if (!hasMedia && wordCount > QUALITY_TEXT_WORDS) qualityScore = 2;
-      else if (!hasMedia && wordCount >= DECENT_TEXT_WORDS) qualityScore = 1;
+      // Quality Score — every post earns points, and substance scales with real text
+      let qualityScore = 1;                          // every post counts for at least 1
+      if (hasMedia) qualityScore += 1;               // media bonus
+      qualityScore += Math.floor(wordCount / 5);     // +1 per 5 words of text
 
       // Engagement Score (all comments count, including self-comments)
       const pComments = Array.isArray(p.comments) ? p.comments : [];
@@ -6427,7 +6423,6 @@ app.get("/leaderboard", async (req, res) => {
         qualityScore,
         engagementScore,
         totalScore: qualityScore + engagementScore,
-        isLowQuality: qualityScore === 0,
         createdAt: p.created_at,
       });
     }
@@ -6448,12 +6443,8 @@ app.get("/leaderboard", async (req, res) => {
         const totalActiveDays = activeDays.size;
         const consistencyMultiplier = 1 + (totalActiveDays * 0.1);
 
-        const lowQualityPosts = posts.filter(p => p.isLowQuality).length;
-        const lowQualityRatio = lowQualityPosts / totalPosts;
-
-        // Keep only the best N posts
+        // Keep only the best N posts (every post earns points, no post is dropped)
         const rankedPosts = posts
-          .filter(p => !p.isLowQuality)
           .sort((a, b) => b.totalScore - a.totalScore)
           .slice(0, TOP_POSTS_LIMIT);
 
@@ -6470,8 +6461,9 @@ app.get("/leaderboard", async (req, res) => {
 
         // Evidence text
         let whyReason = "Shared content that resonated with the community this week.";
-        const qualityLabel = rankedPosts[0]?.qualityScore >= 3 ? "high-quality posts" : "engaging content";
-        if (rankedPosts.length >= 5 && lowQualityRatio <= 0.2) {
+        const avgQuality = rankedPosts.length > 0 ? totalQualityScore / rankedPosts.length : 0;
+        const qualityLabel = avgQuality >= 2.5 ? "well-written posts" : "engaging content";
+        if (rankedPosts.length >= 5 && avgQuality >= 2) {
           whyReason = `Consistently published ${rankedPosts.length} ${qualityLabel} that the community engaged with this week.`;
         } else if (engagementComponent > qualityComponent && rankedPosts.length >= 3) {
           whyReason = `Sparked meaningful discussions — their posts generated strong community interaction.`;

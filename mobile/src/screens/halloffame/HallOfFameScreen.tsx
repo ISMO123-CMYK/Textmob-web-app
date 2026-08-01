@@ -35,9 +35,9 @@ const MEDALS = [
 ];
 
 const TIPS = [
-  { icon: 'create-outline' as const, title: 'Quality over quantity', desc: 'Media with a caption (7+ words) = +3. Long text (10+ words) = +2. Short text (4-9 words) = +1. Emoji-only = 0.' },
+  { icon: 'create-outline' as const, title: 'Quality over quantity', desc: 'Every post earns points: +1 base, +1 with media, +1 per 5 words of text. The more substance, the more points.' },
   { icon: 'chatbubble-ellipses-outline' as const, title: 'Engage the community', desc: 'Every comment = +3. Every reaction = +0.5. Engagement is 60% of your total score.' },
-  { icon: 'calendar-outline' as const, title: 'Show up consistently', desc: 'Posting across multiple days gives a consistency bonus. Only your best 20 posts count — not volume.' },
+  { icon: 'calendar-outline' as const, title: 'Show up consistently', desc: 'Posting across multiple days gives a consistency bonus. Only your best 20 posts count — every post contributes.' },
 ];
 
 export default function HallOfFameScreen({ navigation }: { navigation: any }) {

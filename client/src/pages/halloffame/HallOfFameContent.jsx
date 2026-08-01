@@ -138,9 +138,9 @@ export default function HallOfFameContent() {
   ];
 
   const rankTips = [
-    { d: 'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z', c: 'text-blue-600 bg-blue-50', t: 'Quality over quantity', b: 'Media with a caption (7+ words) = +3. Long text (10+ words) = +2. Short text (4-9 words) = +1. Emoji-only = 0.' },
+    { d: 'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z', c: 'text-blue-600 bg-blue-50', t: 'Quality over quantity', b: 'Every post earns points: +1 base, +1 with media, +1 per 5 words of text. The more substance, the more points.' },
     { d: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z', c: 'text-green-600 bg-green-50', t: 'Engage the community', b: 'Every comment on your post = +3. Every reaction = +0.5. The more people interact, the higher your Engagement Score (60% of total).' },
-    { d: 'M3 3h18v18H3zM21 9H3M12 15l3-3M9 12l3 3', c: 'text-purple-600 bg-purple-50', t: 'Show up consistently', b: 'Posting across multiple days gives you a consistency bonus. Only your best 20 posts count — posting 100 times won\'t help if quality isn\'t there.' },
+    { d: 'M3 3h18v18H3zM21 9H3M12 15l3-3M9 12l3 3', c: 'text-purple-600 bg-purple-50', t: 'Show up consistently', b: 'Posting across multiple days gives you a consistency bonus. Only your best 20 posts count — every post contributes.' },
   ];
 
   return (
