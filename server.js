@@ -1103,9 +1103,10 @@ const upload = multer({
   storage,
   limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi/;
+    const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|quicktime|octet-stream/;
     const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.test(ext) && allowedTypes.test(file.mimetype)) {
+    const mimetype = (file.mimetype || '').toLowerCase();
+    if (allowedTypes.test(ext) || allowedTypes.test(mimetype)) {
       cb(null, true);
     } else {
       cb(new Error("Only image and video files are allowed"));
@@ -3510,9 +3511,9 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
     await notifyConnectionsOnPost(username, text, data.id);
     await updateMobcoins(
       username.split("@").pop().trimEnd(),
-      +15,
+      +7,
       true,
-      `You Just Received 15 Mobcoins for creating a Snap on Textmob`
+      `You Just Received 7 Mobcoins for creating a Snap on Textmob`
     );
 
     res.json({ message: "Snap created successfully!" });
@@ -4704,9 +4705,9 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
     try {
       await updateMobcoins(
         username.split("@").pop().trimEnd(),
-        +7,
+        +10,
         true,
-        "You just received 7 Mobcoins for creating a " + type + " on Textmob"
+        "You just received 10 Mobcoins for creating a " + type + " on Textmob"
       );
     } catch (mobErr) {
       console.error("[create-post] updateMobcoins failed:", mobErr);
@@ -9614,9 +9615,9 @@ app.post(
       try {
         await updateMobcoins(
           username.split("@").pop().trim(),
-          +7,
+          +10,
           true,
-          "You just received 7 Mobcoins for creating a " + (type === 'poll' ? 'poll' : 'group post') + " on Textmob"
+          "You just received 10 Mobcoins for creating a " + (type === 'poll' ? 'poll' : 'group post') + " on Textmob"
         );
       } catch (mobErr) {
         console.error("[group-post] updateMobcoins failed:", mobErr);

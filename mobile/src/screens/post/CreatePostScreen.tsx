@@ -155,7 +155,7 @@ export default function CreatePostScreen({ route }: { route: any }) {
 
     for (const file of mediaFiles) {
       const filename = file.fileName || `media_${Date.now()}.jpg`;
-      formData.append('media', { uri: file.uri, type: file.type || 'image/jpeg', name: filename } as any);
+      formData.append('media', { uri: file.uri, type: file.mimeType || 'image/jpeg', name: filename } as any);
     }
 
     if (showPollBuilder) {

@@ -6,8 +6,8 @@
 
   <!-- Primary SEO -->
   <title>Textmob — Africa's Social Network | Connect, Share, and Earn</title>
-  <meta name="description" content="Textmob is Africa's social network. Connect with your people, share your voice, go live, and earn real rewards. Post, watch Snaps, message, get verified — all in one app built for Africa.">
-  <meta name="keywords" content="Textmob, African social network, microblogging Africa, earn money social media, MobCoins, live streaming Africa, Nigerian social media, pan-African platform, short form video Africa, get verified, blue tick, social media monetization, Snaps, Hall of Fame, Louda messaging">
+  <meta name="description" content="Textmob is Africa's social network. Connect with your people, share your voice, go live, and earn real rewards. Post, watch and share Snaps, message, get verified, explore hashtag pages, and browse offline — all in one app built for Africa.">
+  <meta name="keywords" content="Textmob, African social network, microblogging Africa, earn money social media, MobCoins, live streaming Africa, Nigerian social media, pan-African platform, short form video Africa, get verified, blue tick, social media monetization, Snaps, Hall of Fame, Louda messaging, offline mode, data saver, shareable Snaps, hashtag pages, search and discovery">
   <meta name="author" content="Textmob">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
   <link rel="canonical" href="https://textmob.web.app/about.html">
@@ -59,7 +59,7 @@
           "width": 512,
           "height": 512
         },
-        "description": "Textmob is Africa's social network and microblogging platform. Connect, share your voice, go live, earn MobCoins, message via Louda, watch Snaps, get verified — all in one app built for Africa.",
+        "description": "Textmob is Africa's social network and microblogging platform. Connect, share your voice, go live, earn MobCoins, message via Louda, watch and share Snaps, explore hashtag pages, get verified, and browse offline — all in one app built for Africa.",
         "foundingDate": "2024",
         "founder": [
           {
@@ -94,7 +94,7 @@
         "url": "https://textmob.web.app/about.html",
         "name": "About Textmob — Africa's Social Network Where Every Voice Matters",
         "isPartOf": { "@id": "https://textmob.web.app/#website" },
-        "description": "Learn more about Textmob, Africa's social network connecting communities across the continent. Founded by Ismail Gidado & Ibrahim Gidado, Textmob features posts, Snaps, live streaming, Louda messaging, and more.",
+        "description": "Learn more about Textmob, Africa's social network connecting communities across the continent. Founded by Ismail Gidado & Ibrahim Gidado, Textmob features posts, Snaps, shareable Snaps, hashtag pages, offline mode, live streaming, Louda messaging, and more.",
         "breadcrumb": { "@id": "https://textmob.web.app/#breadcrumb" },
         "inLanguage": "en"
       },
@@ -102,9 +102,9 @@
         "@type": "SoftwareApplication",
         "name": "Textmob",
         "applicationCategory": "SocialNetworkingApplication",
-        "operatingSystem": "Web, Android",
+        "operatingSystem": "Web",
         "url": "https://textmob.web.app",
-        "description": "Africa's social network — connect, post, go live, message, watch Snaps, and earn rewards.",
+        "description": "Africa's social network — connect, post, go live, message, watch and share Snaps, explore hashtags, browse offline, and earn rewards.",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "author": { "@id": "https://textmob.web.app/#organization" }
       },
@@ -135,7 +135,7 @@
             "name": "What is Textmob?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Textmob is Africa's social network and microblogging platform. It lets you post thoughts, images, and videos, go live, earn MobCoins, message friends via Louda, watch short-form Snaps videos, get verified with a blue tick, join groups, and make voice calls — all in one app built by Africans for Africa."
+              "text": "Textmob is Africa's social network and microblogging platform. It lets you post thoughts, images, and videos, go live, earn MobCoins, message friends via Louda, watch and share short-form Snaps videos, explore hashtag pages, get verified with a blue tick, and even browse offline with Data Saver mode — all in one app built by Africans for Africa."
             }
           },
           {
@@ -192,6 +192,30 @@
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "Louda is Textmob's custom messaging service designed for private communications. It features end-to-end encryption for voice notes, messages, and files, ensuring that only you and the recipient can read or listen to them."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use Textmob offline or save data?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Offline Mode lets you keep browsing cached content when your connection drops, and Data Saver reduces media usage so you spend less data while still enjoying your feed. Both are quick to toggle in the app."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I share Snaps with friends?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Absolutely. Every Snap on Textmob has its own shareable link, so you can send any Snap directly to a friend and take them straight to that exact video."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What are hashtag pages on Textmob?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Hashtags on Textmob have dedicated pages where you can explore every post, Snap, and conversation tagged under a topic — making discovery faster and deeper."
             }
           }
         ]
@@ -571,6 +595,30 @@
     @media (max-width: 560px) { .features-grid { grid-template-columns: 1fr; } }
 
     /* ═══════════════════════════════════════════════════════════════════
+       WHAT'S NEW — Latest updates
+       ═══════════════════════════════════════════════════════════════════ */
+    .whatsnew { padding: 120px 0; background: var(--white); border-top: 1px solid var(--line); }
+    .whatsnew-head { max-width: 620px; margin-bottom: 64px; }
+    .whatsnew-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+      max-width: 860px; margin: 0 auto;
+    }
+    .wn-card {
+      display: flex; gap: 18px; align-items: flex-start;
+      background: var(--milk); border: 1px solid var(--line-light);
+      border-radius: 16px; padding: 24px;
+      transition: border-color 0.3s, background 0.3s;
+    }
+    .wn-card:hover { border-color: var(--blue); background: var(--blue-glass); }
+    .wn-card .icon { margin-top: 2px; }
+    .wn-card h3 {
+      font-family: var(--font-display); font-size: 15px; font-weight: 700;
+      letter-spacing: -0.01em; margin-bottom: 4px;
+    }
+    .wn-card p { font-size: 13px; color: var(--ink-secondary); line-height: 1.6; }
+    @media (max-width: 720px) { .whatsnew-grid { grid-template-columns: 1fr; } }
+
+    /* ═══════════════════════════════════════════════════════════════════
        VERIFIED — Split panel
        ═══════════════════════════════════════════════════════════════════ */
     .verified { padding: 120px 0; border-top: 1px solid var(--line); }
@@ -839,6 +887,7 @@
       <nav class="nav-links" aria-label="Main navigation">
         <a href="#manifesto">About</a>
         <a href="#features">Features</a>
+        <a href="#whatsnew">What's New</a>
         <a href="#earn">Earn</a>
         <a href="#verified">Verified</a>
         <a href="#founders">Team</a>
@@ -852,6 +901,7 @@
   <div class="mobile-menu" id="mobile-menu">
     <a href="#manifesto" class="mm-link">About</a>
     <a href="#features" class="mm-link">Features</a>
+    <a href="#whatsnew" class="mm-link">What's New</a>
     <a href="#earn" class="mm-link">Earn</a>
     <a href="#verified" class="mm-link">Verified</a>
     <a href="#founders" class="mm-link">Team</a>
@@ -875,9 +925,6 @@
               <a href="https://textmob.web.app" class="btn btn-fill" id="hero-cta-web">
                 Get Started Free
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </a>
-              <a href="https://textmob-provider-api-99ii.onrender.com/app" class="btn btn-outline" id="hero-cta-android">
-                Download for Android
               </a>
             </div>
           </div>
@@ -968,7 +1015,7 @@
         <div class="features-head reveal-slide">
           <span class="caption">Features</span>
           <h2 id="features-heading" class="headline" style="margin-top:12px;">Everything in one place. Nothing held back.</h2>
-          <p class="body-lg" style="margin-top:12px;">Ten powerful features. Zero compromises. Every tool you need to express, earn, and grow — without leaving the app.</p>
+          <p class="body-lg" style="margin-top:12px;">Fifteen powerful features. Zero compromises. Every tool you need to express, earn, and grow — without leaving the app.</p>
         </div>
         <div class="features-grid">
 
@@ -1042,6 +1089,107 @@
             <h3>Connections</h3>
             <div class="f-sub">Build your circle</div>
             <p>Follow creators. Add friends. Discover like-minded people from Lagos to London, Nairobi to New York.</p>
+          </div>
+
+          <div class="f-card reveal-3d stagger-5">
+            <div class="icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></div>
+            <h3>Search &amp; Discovery</h3>
+            <div class="f-sub">Find anything fast</div>
+            <p>Rebuilt search surfaces users, posts, Snaps, and hashtags instantly. Hashtags now have dedicated pages for diving into the topics you love.</p>
+          </div>
+
+          <div class="f-card reveal-3d stagger-1">
+            <span class="f-card-new">New</span>
+            <div class="icon"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+            <h3>Shareable Snaps</h3>
+            <div class="f-sub">Every Snap has a link</div>
+            <p>Every Snap now gets its own shareable link. Found something worth sharing? Send it straight to a friend and drop them right on that moment.</p>
+          </div>
+
+          <div class="f-card reveal-3d stagger-2">
+            <span class="f-card-new">New</span>
+            <div class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M2 9h20"/><path d="M6 16h4"/><path d="M8 20h8"/></svg></div>
+            <h3>Offline Mode</h3>
+            <div class="f-sub">Keep browsing without data</div>
+            <p>Connection dropped? Cached content lets you keep scrolling and catch up on everything the moment you're back online.</p>
+          </div>
+
+          <div class="f-card reveal-3d stagger-3">
+            <span class="f-card-new">New</span>
+            <div class="icon"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <h3>Data Saver</h3>
+            <div class="f-sub">Spend less data</div>
+            <p>On a limited plan? Data Saver trims media usage so you enjoy the full feed without burning through your bundle.</p>
+          </div>
+
+          <div class="f-card reveal-3d stagger-4">
+            <span class="f-card-new">New</span>
+            <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
+            <h3>Trust &amp; Safety</h3>
+            <div class="f-sub">Safer, more authentic</div>
+            <p>Stronger account security and smarter spam-fighting keep Textmob real — so genuine voices win and fake engagement gets filtered out.</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── WHAT'S NEW ────────────────────────────────────────────── -->
+    <section class="whatsnew" id="whatsnew" aria-labelledby="whatsnew-heading">
+      <div class="wrap">
+        <div class="whatsnew-head reveal-slide">
+          <span class="caption">What's New</span>
+          <h2 id="whatsnew-heading" class="headline" style="margin-top:12px;">Fresh updates.<br>Built from your feedback.</h2>
+          <p class="body-lg" style="margin-top:12px;">We keep shipping. Here's what's landed recently to make Textmob faster, lighter, and safer — for everyone.</p>
+        </div>
+        <div class="whatsnew-grid">
+
+          <div class="wn-card reveal-3d">
+            <div class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M2 9h20"/><path d="M6 16h4"/><path d="M8 20h8"/></svg></div>
+            <div>
+              <h3>Offline Mode</h3>
+              <p>Keep browsing even when your connection drops. Cached content lets you continue where you left off and catch up when you're back online.</p>
+            </div>
+          </div>
+
+          <div class="wn-card reveal-3d stagger-1">
+            <div class="icon"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+            <div>
+              <h3>Data Saver</h3>
+              <p>On limited data? Data Saver reduces media usage so you spend less data while still enjoying your full feed.</p>
+            </div>
+          </div>
+
+          <div class="wn-card reveal-3d stagger-2">
+            <div class="icon"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
+            <div>
+              <h3>Shareable Snaps</h3>
+              <p>Every Snap now has its own shareable link. Send it directly to someone and take them straight to that exact Snap.</p>
+            </div>
+          </div>
+
+          <div class="wn-card reveal-3d stagger-3">
+            <div class="icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+            <div>
+              <h3>Search &amp; Discovery</h3>
+              <p>Search has been rebuilt to surface users, posts, Snaps, and hashtags faster. Hashtags now have dedicated pages for exploring related content.</p>
+            </div>
+          </div>
+
+          <div class="wn-card reveal-3d stagger-4">
+            <div class="icon"><svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 010-5C7 4 9 7 12 7s5-3 7.5-3a2.5 2.5 0 010 5H18l-6 11-6-11z"/></svg></div>
+            <div>
+              <h3>Quality-first Hall of Fame</h3>
+              <p>The Hall of Fame now rewards quality, genuine engagement, and consistency — not just who posts the most.</p>
+            </div>
+          </div>
+
+          <div class="wn-card reveal-3d stagger-5">
+            <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div>
+              <h3>Trust &amp; Safety</h3>
+              <p>Stronger account security and smarter systems against spam and artificial engagement help keep Textmob authentic.</p>
+            </div>
           </div>
 
         </div>
@@ -1210,7 +1358,7 @@
               <span class="faq-icon">+</span>
             </div>
             <div class="faq-answer">
-              <p>Textmob is Africa's microblogging and social networking platform built to amplify African voices across the continent and the diaspora. It combines standard microblogging, short-form video (Snaps), live streaming, direct messaging (Louda), and in-app monetization (MobCoins).</p>
+              <p>Textmob is Africa's microblogging and social networking platform built to amplify African voices across the continent and the diaspora. It combines standard microblogging, short-form video (Snaps), live streaming, direct messaging (Louda), hashtag pages, and in-app monetization (MobCoins).</p>
             </div>
           </div>
 
@@ -1283,6 +1431,36 @@
               <p>Louda is Textmob's custom messaging service designed for private communications. It features end-to-end encryption for voice notes, messages, and files, ensuring that only you and the recipient can read or listen to them.</p>
             </div>
           </div>
+
+          <div class="faq-item reveal-slide stagger-9">
+            <div class="faq-question">
+              <span>Can I use Textmob offline or save data?</span>
+              <span class="faq-icon">+</span>
+            </div>
+            <div class="faq-answer">
+              <p>Yes. Offline Mode lets you keep browsing cached content when your connection drops, and Data Saver reduces media usage so you spend less data while still enjoying your feed. Both are quick to toggle in the app.</p>
+            </div>
+          </div>
+
+          <div class="faq-item reveal-slide stagger-10">
+            <div class="faq-question">
+              <span>Can I share Snaps with friends?</span>
+              <span class="faq-icon">+</span>
+            </div>
+            <div class="faq-answer">
+              <p>Absolutely. Every Snap on Textmob has its own shareable link, so you can send any Snap directly to a friend and take them straight to that exact video.</p>
+            </div>
+          </div>
+
+          <div class="faq-item reveal-slide stagger-11">
+            <div class="faq-question">
+              <span>What are hashtag pages on Textmob?</span>
+              <span class="faq-icon">+</span>
+            </div>
+            <div class="faq-answer">
+              <p>Hashtags on Textmob have dedicated pages where you can explore every post, Snap, and conversation tagged under a topic — making discovery faster and deeper.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1295,7 +1473,6 @@
           <p>Connect with real people. Share your real life. Build your community. Your voice matters. Your audience is waiting. Your moment is now.</p>
           <div class="cta-actions">
             <a href="https://textmob.web.app" class="btn btn-white-fill" id="cta-final-web">Get Started on Web</a>
-            <a href="https://textmob-provider-api-99ii.onrender.com/app" class="btn-ghost-white" id="cta-final-android">Download Android App</a>
           </div>
         </div>
       </div>
@@ -1316,15 +1493,15 @@
         <div class="footer-col">
           <h4>Platform</h4>
           <a href="#features">Features</a>
+          <a href="#whatsnew">What's New</a>
           <a href="#earn">Earn Money</a>
           <a href="#verified">Get Verified</a>
           <a href="#how">How It Works</a>
           <a href="#faq">FAQ</a>
         </div>
         <div class="footer-col">
-          <h4>Apps</h4>
+          <h4>App</h4>
           <a href="https://textmob.web.app">Web App</a>
-          <a href="https://textmob-provider-api-99ii.onrender.com/app">Android</a>
         </div>
         <div class="footer-col">
           <h4>Contact</h4>

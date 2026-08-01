@@ -46,7 +46,7 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
       formData.append('caption', '');
       formData.append('media', {
         uri: result.assets[0].uri,
-        type: result.assets[0].type || 'image/jpeg',
+        type: result.assets[0].mimeType || 'image/jpeg',
         name: result.assets[0].fileName || `story_${Date.now()}.jpg`,
       } as any);
 

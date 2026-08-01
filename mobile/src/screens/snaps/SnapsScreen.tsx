@@ -508,7 +508,7 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
   const getUploadAsset = (asset: any) => ({
     uri: asset.uri,
     name: asset.fileName || `snap_${Date.now()}.mp4`,
-    type: asset.type || 'video/mp4',
+    type: asset.mimeType || 'video/mp4',
   });
 
   const checkVideoSize = (asset: any) => {
@@ -549,12 +549,11 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
   const MAX_SNAP_VIDEO_BYTES = 100 * 1024 * 1024;
 
   const handleCreateSnap = async () => {
-    if (!selectedVideo || !username) return;
+    if (!selectedVideo || !username || uploading) return;
     if (selectedVideo.fileSize && selectedVideo.fileSize > MAX_SNAP_VIDEO_BYTES) {
       Alert.alert('File too large', 'Video must be under 100 MB');
       return;
     }
-    setShowCreateModal(false);
     setUploading(true);
     setUploadProgress(0);
     try {
@@ -564,18 +563,31 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
       // Use React Native native FormData (append {uri, name, type} instead of File)
       fd.append('media', getUploadAsset(selectedVideo) as any);
       if (selectedCategories.length > 0) fd.append('categories', JSON.stringify(selectedCategories));
-      await uploadFile('/create-snap', fd, (p) => setUploadProgress(p));
+      const res = await uploadFile('/create-snap', fd, (p) => setUploadProgress(p));
+      if (!res.ok) throw new Error(res.error || 'Upload failed');
       setSelectedVideo(null);
       setCaption('');
       setSelectedCategories([]);
       setUploading(false);
+      setWizardStep(1);
+      setShowCreateModal(false);
       loadSnaps();
+      Alert.alert('Snap posted!', 'Your snap is live.');
     } catch (err) {
       console.error('Snap upload failed', err);
       setUploading(false);
       Alert.alert('Upload failed', 'Could not upload snap. Try again.');
     }
   };
+
+  const closeCreateModal = useCallback(() => {
+    if (uploading) return;
+    setShowCreateModal(false);
+    setSelectedVideo(null);
+    setCaption('');
+    setSelectedCategories([]);
+    setWizardStep(1);
+  }, [uploading]);
 
   const isFocused = useIsFocused();
   const s = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
@@ -726,16 +738,34 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
       </Modal>
 
       {/* Create Snap Modal - 3-Step Wizard */}
-      <Modal visible={showCreateModal} transparent animationType="slide" onRequestClose={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); setWizardStep(1); }}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); setWizardStep(1); }}>
+      <Modal visible={showCreateModal} transparent animationType="slide" onRequestClose={closeCreateModal}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeCreateModal}>
           <View style={[styles.createModalContent, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
             <View style={styles.createModalHeader}>
               <Text style={[styles.createModalTitle, { color: colors.textPrimary }]}>New Snap</Text>
-              <TouchableOpacity onPress={() => { setShowCreateModal(false); setSelectedVideo(null); setCaption(''); setSelectedCategories([]); setWizardStep(1); }}>
+              <TouchableOpacity onPress={closeCreateModal}>
                 <Ionicons name="close" size={24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
+            {uploading ? (
+              <View style={styles.uploadingInModal}>
+                <ActivityIndicator size="large" color="#2563eb" />
+                <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '700', marginTop: 16 }}>
+                  Uploading your snap…
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 6 }}>
+                  {uploadProgress}%
+                </Text>
+                <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: `${uploadProgress}%` }]} />
+                </View>
+                <Text style={{ color: '#f59e0b', fontSize: 12, fontWeight: '700', marginTop: 20, textAlign: 'center' }}>
+                  Please don't leave this page until the upload finishes.
+                </Text>
+              </View>
+            ) : (
+              <React.Fragment>
             {/* Step Indicators */}
             <View style={styles.stepIndicator}>
               {[{ n: 1, l: 'Video' }, { n: 2, l: 'Caption' }, { n: 3, l: 'Category' }].map((s, i) => (
@@ -840,6 +870,8 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
                 </TouchableOpacity>
               </View>
             )}
+              </React.Fragment>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -915,18 +947,6 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
         recipientFullname={showGift?.fullname}
         recipientAvatar={showGift?.profile_pic}
       />
-
-      {uploading && (
-        <View style={styles.uploadingOverlay}>
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={{ color: '#fff', marginTop: 8 }}>Uploading snap... {uploadProgress}%</Text>
-          {uploadProgress > 0 && (
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${uploadProgress}%` }]} />
-            </View>
-          )}
-        </View>
-      )}
     </View>
   );
 }
@@ -979,7 +999,7 @@ const styles = StyleSheet.create({
   commentInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderTopWidth: StyleSheet.hairlineWidth },
   commentInput: { flex: 1, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 13 },
   commentSendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
-  uploadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+  uploadingInModal: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
   progressBarBg: { width: 200, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 8, overflow: 'hidden' },
   progressBarFill: { height: '100%', borderRadius: 2, backgroundColor: '#2563eb' },
   stepIndicator: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20, paddingHorizontal: 16 },

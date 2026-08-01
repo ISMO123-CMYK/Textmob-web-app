@@ -467,16 +467,20 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
     }
   }, [isOpen, currentUpload]);
 
+  const handleClose = useCallback(() => {
+    if (!uploading) onClose();
+  }, [uploading, onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
     let escHandler = e => {
       if (e.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', escHandler);
     return () => window.removeEventListener('keydown', escHandler);
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   function handleVideoFile(file) {
     if (file) {
@@ -500,6 +504,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
       setErrorMsg('Please attach a video first.');
       return;
     }
+    if (uploading) return;
     setErrorMsg(null);
     
     let formData = new FormData();
@@ -509,19 +514,18 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
     formData.append('categories', JSON.stringify(selectedCategory ? [selectedCategory] : []));
     formData.append('media', videoFile);
 
+    setUploading(true);
     try {
-      setUploading(true);
-      startUpload(formData, (result) => {
+      await startUpload(formData, (result) => {
         onPosted?.(result);
         setVideoFile(null);
         setVideoUrl(null);
         setCaption('');
+        onClose();
       }, (err) => {
         setErrorMsg(err.message || 'Upload failed. Try again.');
       });
-      onClose();
     } catch (err) {
-      setUploading(false);
       setErrorMsg(err.message || 'Upload failed. Try again.');
     }
   }
@@ -534,7 +538,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center snap-fade">
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70" onClick={handleClose} />
       <div className="relative z-10 w-full md:max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl md:rounded-3xl snap-slide md:animate-none flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 dark:border-gray-800">
@@ -559,7 +563,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5">
@@ -570,26 +574,34 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
 
         <div className="overflow-y-auto px-5 py-5 space-y-4" style={{ overscrollBehavior: 'contain' }}>
           {uploading && (
-            <div className="flex items-center gap-3 px-3 py-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-              <svg viewBox="0 0 44 44" className="w-10 h-10 flex-shrink-0">
-                <circle cx="22" cy="22" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
-                <circle
-                  cx="22"
-                  cy="22"
-                  r={radius}
-                  fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  strokeDasharray={strokeDasharray}
-                  strokeDashoffset={strokeDashoffset}
-                  className="snap-progress-ring"
+            <div className="px-3 py-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl space-y-3">
+              <div className="flex items-center gap-3">
+                <svg viewBox="0 0 44 44" className="w-10 h-10 flex-shrink-0">
+                  <circle cx="22" cy="22" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
+                  <circle
+                    cx="22"
+                    cy="22"
+                    r={radius}
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeDasharray={strokeDasharray}
+                    strokeDashoffset={strokeDashoffset}
+                    className="snap-progress-ring"
+                  />
+                  <text x="22" y="27" textAnchor="middle" fontSize="9" fontWeight="700" fill="#2563eb">{progress}%</text>
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-blue-700 dark:text-blue-300">Uploading your snap…</p>
+                  <p className="text-[11px] text-blue-500">Please don't leave this page until the upload finishes.</p>
+                </div>
+              </div>
+              <div className="w-full h-2 bg-blue-100 dark:bg-blue-900/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
                 />
-                <text x="22" y="27" textAnchor="middle" fontSize="9" fontWeight="700" fill="#2563eb">{progress}%</text>
-              </svg>
-              <div>
-                <p className="text-xs font-bold text-blue-700 dark:text-blue-300">Uploading your snap…</p>
-                <p className="text-[11px] text-blue-500">You can close this window and browse around!</p>
               </div>
             </div>
           )}
