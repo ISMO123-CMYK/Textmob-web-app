@@ -15,7 +15,13 @@ const arg = (process.argv[2] || 'minor').toLowerCase();
 function run(cmd, args, cwd = ROOT) {
   console.log(`\n=== ${cmd} ${args.join(' ')} (in ${path.relative(ROOT, cwd) || '.'}) ===`);
   const exe = cmd === 'npx' && process.platform === 'win32' ? 'npx.cmd' : cmd;
-  const res = spawnSync(exe, args, { cwd, stdio: 'inherit', shell: false });
+  const res = spawnSync(exe, args, { cwd, stdio: 'pipe', shell: false });
+  if (res.stdout) process.stdout.write(res.stdout);
+  if (res.stderr) process.stderr.write(res.stderr);
+  if (res.error) {
+    console.error(`\nSPAWN ERROR: ${res.error.message}`);
+    process.exit(1);
+  }
   if (res.status !== 0) {
     console.error(`\nFAILED: ${cmd} ${args.join(' ')} exited with code ${res.status}`);
     process.exit(res.status || 1);
