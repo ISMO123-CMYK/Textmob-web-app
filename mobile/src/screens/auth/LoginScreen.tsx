@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Image,
   ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,9 +16,10 @@ interface SavedAccount {
   profile_pic: string;
 }
 
-export default function LoginScreen({ navigation }: { navigation: any }) {
+export default function LoginScreen({ navigation, route }: { navigation: any; route: any }) {
   const { colors, isDark } = useTheme();
   const { login, isLoading } = useAuth();
+  const redirect = route?.params?.redirect as string | undefined;
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -36,10 +37,12 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
     storage.getStore(KEYS.SAVED_ACCOUNTS).then((val) => {
       if (val) {
         try {
-          const accounts = JSON.parse(val).map((a: SavedAccount) => ({
-            ...a,
-            username: a.username.toLowerCase(),
-          }));
+          const accounts = JSON.parse(val)
+            .filter((a: SavedAccount) => a && typeof a.username === 'string')
+            .map((a: SavedAccount) => ({
+              ...a,
+              username: a.username.toLowerCase(),
+            }));
           setSavedAccounts(accounts);
         } catch { }
       }
@@ -53,18 +56,12 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
     }
     setError('');
 
-    const result = await login(id, pw);
+    const result = await login(id, pw, rememberMe);
     if (result.success) {
-      if (rememberMe) {
-        const current = [...savedAccounts];
-        if (!current.some((a) => a.username === id.toLowerCase())) {
-          current.push({
-            username: id.toLowerCase(),
-            password: pw,
-            profile_pic: '',
-          });
-          storage.setStore(KEYS.SAVED_ACCOUNTS, JSON.stringify(current));
-        }
+      if (redirect) {
+        try {
+          await storage.setStore(KEYS.PENDING_REDIRECT, JSON.stringify({ name: redirect }));
+        } catch { }
       }
     } else {
       const newAttempts = attempts + 1;
@@ -147,7 +144,11 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                       style={s.savedAccountItem}
                       onPress={() => autoLogin(acc.username, acc.password)}
                     >
-                      <View style={s.savedAvatar} />
+                      <View style={s.savedAvatar}>
+                        {acc.profile_pic ? (
+                          <Image source={{ uri: acc.profile_pic }} style={s.savedAvatarImg} />
+                        ) : null}
+                      </View>
                       <View style={{ flex: 1 }}>
                         <Text style={s.savedName}>{acc.username}</Text>
                         <Text style={s.savedHint}>Tap to sign in</Text>
@@ -321,6 +322,14 @@ function makeStyles(colors: any, isDark: boolean) {
       height: 32,
       borderRadius: 16,
       backgroundColor: colors.border,
+      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    savedAvatarImg: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
     },
     savedName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
     savedHint: { fontSize: 11, color: colors.textSecondary },

@@ -632,7 +632,7 @@ export default function SearchContent() {
               return (
                 <div
                   className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-100 transition-colors"
-                  onClick={() => window.Lexum ? window.Lexum.navigate(`/@${t.username}`) : (window.location.hash = `/@${t.username}`)}
+                  onClick={() => window.Lexum ? window.Lexum.navigate(`/@${t.username}`) : (window.location.hash = `/@${encodeURIComponent(t.username)}`)}
                   key={t.username}
                 >
                   <img src={t.profile_pic || '/assets/default-avatar.jpg'} className="w-10 h-10 rounded-full object-cover flex-shrink-0" alt={t.username} loading="lazy" />

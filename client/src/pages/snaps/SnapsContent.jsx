@@ -1458,7 +1458,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
             </div>
           )}
           <div className="flex-1 min-w-0" onClick={e => { e.stopPropagation(); onProfileClick?.(currentSnap?.username); }}>
-            <p
+            <div
               style={{
                 color: '#fff',
                 fontSize: 15,
@@ -1479,7 +1479,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
               {(currentSnap?.boost_score || 0) > 0 && (
                 <span style={{ fontSize: 9, fontWeight: 800, color: '#f59e0b', background: 'rgba(245,158,11,.15)', padding: '1px 6px', borderRadius: 10, marginLeft: 4, letterSpacing: '0.5px' }}>BOOSTED</span>
               )}
-            </p>
+            </div>
             <p
               style={{
                 color: 'rgba(255,255,255,.55)',

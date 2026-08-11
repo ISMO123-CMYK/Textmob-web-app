@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { storage, KEYS } from '../../utils/storage';
 import { isValidEmail, isValidUsername, isValidPhone, normalizePhone, isValidPassword, getPasswordStrength } from '../../utils/validators';
 
 interface Step {
@@ -44,9 +45,10 @@ const STEPS: Step[] = [
   },
 ];
 
-export default function SignupScreen({ navigation }: { navigation: any }) {
+export default function SignupScreen({ navigation, route }: { navigation: any; route: any }) {
   const { colors, isDark } = useTheme();
   const { signup, isLoading } = useAuth();
+  const redirect = route?.params?.redirect as string | undefined;
 
   const [step, setStep] = useState(0);
   const [success, setSuccess] = useState(false);
@@ -59,14 +61,14 @@ export default function SignupScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => {
     if (form.fullName && !manualUsername && step === 0) {
-      const auto = form.fullName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '').substring(0, 20);
+      const auto = form.fullName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '').substring(0, 20);
       setForm((prev) => ({ ...prev, username: auto }));
     }
   }, [form.fullName, manualUsername, step]);
 
   function updateField(name: string, value: string) {
     if (name === 'username') {
-      value = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+      value = value.toLowerCase().replace(/[^a-z0-9_]/g, '').substring(0, 30);
       setManualUsername(true);
     }
     if (name === 'phone') {
@@ -145,7 +147,12 @@ export default function SignupScreen({ navigation }: { navigation: any }) {
   async function loginAfterSignup() {
     try {
       const { login } = useAuth();
-      await login(form.username, form.password);
+      const result = await login(form.username, form.password);
+      if (result.success && redirect) {
+        try {
+          await storage.setStore(KEYS.PENDING_REDIRECT, JSON.stringify({ name: redirect }));
+        } catch { }
+      }
     } catch { }
   }
 

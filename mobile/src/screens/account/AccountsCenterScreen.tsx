@@ -1056,6 +1056,7 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
   };
 
   return (
+    <>
     <ScrollView style={{ padding: 16 }}>
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Edit Profile</Text>
 
@@ -1198,6 +1199,7 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
         </View>
       </Modal>
     </ScrollView>
+    </>
   );
 }
 

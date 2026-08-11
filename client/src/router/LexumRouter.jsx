@@ -196,23 +196,53 @@ const Lexum = (() => {
   };
 
   function navigate(path) {
-    if (path !== currentPath) {
+    const safePath = encodeNavPath(path);
+    if (safePath !== currentPath) {
       if (routeMode === 'history') {
-        history.pushState({}, '', path);
-        resolveRoute(path);
+        history.pushState({}, '', safePath);
+        resolveRoute(safePath);
       } else {
-        location.hash = path;
+        location.hash = safePath;
       }
     }
   }
 
   function specialnavigate(path) {
+    const safePath = encodeNavPath(path);
     if (routeMode === 'history') {
-      history.pushState({}, '', path);
-      resolveRoute(path);
+      history.pushState({}, '', safePath);
+      resolveRoute(safePath);
     } else {
-      location.hash = path;
+      location.hash = safePath;
     }
+  }
+
+  // Percent-encode the pathname segments before pushing into history/hash.
+  // Skips segments that are already percent-encoded so we never double-encode.
+  // Preserves query strings (anything after '?').
+  function encodeNavPath(path) {
+    if (!path) return path;
+    const str = String(path);
+    const hasQuery = str.indexOf('?') !== -1;
+    const base = hasQuery ? str.slice(0, str.indexOf('?')) : str;
+    const query = hasQuery ? str.slice(str.indexOf('?')) : '';
+    const encoded = base.split('/').map((seg) => {
+      if (!seg) return seg;
+      // Already percent-encoded? (decode returns something different) -> leave alone
+      try {
+        if (decodeURIComponent(seg) !== seg) return seg;
+      } catch {
+        // malformed % sequences (e.g. literal "%re") => treat as raw, encode below
+      }
+      // Safe unencoded path-segment characters (RFC 3986 unreserved + sub-delims)
+      if (/^[a-zA-Z0-9@._~!$&'()*+,;=:-]+$/.test(seg)) return seg;
+      try {
+        // Preserve a leading '@' so the `/@(:username)` profile route still
+        // matches after the username portion is percent-encoded.
+        return seg.startsWith('@') ? `@${encodeURIComponent(seg.slice(1))}` : encodeURIComponent(seg);
+      } catch { return seg; }
+    }).join('/');
+    return encoded + query;
   }
 
   const resolveRoute = async (path) => {

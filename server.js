@@ -16,6 +16,7 @@ const cors = require("cors");
 const fetch = require("node-fetch");
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
+const { Resend } = require("resend");
 
 // Initialize Supabase client
 const supabaseUrl = "https://apnnyqmsyxuyapamnrqg.supabase.co";
@@ -907,6 +908,10 @@ transporter.verify().then(() => {
   console.warn("⚠️ Mailer verify failed (will still attempt sends):", err && err.message ? err.message : err);
 });
 
+// Resend client — used ONLY for password reset emails (forgot-password / reset-password)
+// Nodemailer/SMTP is unreliable on Render free tier, Resend uses HTTPS API.
+const resend = new Resend(process.env.RESEND_API_KEY || "re_WEZ7aYbs_MTCCZf8HLXmBVjhzs3Et6oQU");
+
 /**
  * Fire-and-forget email sender.
  * Does NOT await transporter.sendMail — caller will not be delayed.
@@ -1151,6 +1156,33 @@ app.get("/api/verify-user", async (req, res) => {
   }
 });
 
+// --- GET /legacy-usernames -------------------------------------------------
+// Returns the exact list of usernames that contain characters a URL-safe
+// mention regex like /@[\w.-]+/ cannot match (spaces, emojis, accents, etc).
+// Clients use this list to build a precise alternation so those @mentions
+// still link to the correct profile. Cache for 60s (list is tiny; users
+// rarely get added/renamed).
+let legacyUsernamesCache = null;
+let legacyUsernamesExpiry = 0;
+app.get("/legacy-usernames", async (req, res) => {
+  try {
+    if (legacyUsernamesCache && Date.now() < legacyUsernamesExpiry) {
+      return res.json({ usernames: legacyUsernamesCache });
+    }
+    const { data: rows, error } = await supabase.from("users").select("username");
+    if (error) throw error;
+    const usernames = (rows || [])
+      .map(r => r && r.username)
+      .filter(u => u && !/^[\w.-]+$/.test(u)); // needs special mention handling
+    legacyUsernamesCache = usernames;
+    legacyUsernamesExpiry = Date.now() + 60 * 1000;
+    res.json({ usernames });
+  } catch (err) {
+    console.error("[LEGACY-USERNAMES ERROR]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 app.get("/api/check-disabled", async (req, res) => {
   try {
     const { username } = req.query;
@@ -1299,7 +1331,12 @@ app.post("/forgot-password", async (req, res) => {
 </html>`
     };
 
-    await transporter.sendMail(mailOptions);
+    await resend.emails.send({
+      from: process.env.RESEND_FROM || "onboarding@resend.dev",
+      to: user.email,
+      subject: "Password Reset Request — Textmob",
+      html: mailOptions.html
+    });
 
     res.json({ email: user.email, message: "Password reset code sent to your email" });
   } catch (error) {
@@ -1372,8 +1409,8 @@ app.post("/reset-password", async (req, res) => {
       .eq("id", resetEntry.userId)
       .single();
 
-    await transporter.sendMail({
-      from: `"Textmob" <${process.env.SMTP_USER || "sharpbrainspublishers@gmail.com"}>`,
+    await resend.emails.send({
+      from: process.env.RESEND_FROM || "onboarding@resend.dev",
       to: user.email,
       subject: "Password Reset Successful — Textmob",
       html: `<!DOCTYPE html>
@@ -2073,6 +2110,72 @@ app.post("/friend", async (req, res) => {
   }
 });
 
+// ─── Block / Unblock user ───
+app.post("/block", async (req, res) => {
+  try {
+    const { username, targetUsername, action } = req.body;
+    if (!username || !targetUsername || !action)
+      return res.status(400).json({ error: "Missing required fields" });
+    if (username === targetUsername)
+      return res.status(400).json({ error: "Cannot block yourself" });
+    if (!["block", "unblock"].includes(action))
+      return res.status(400).json({ error: "action must be 'block' or 'unblock'" });
+
+    const { data: user, error: userErr } = await supabase
+      .from("users")
+      .select("id, blocked_users")
+      .eq("username", username)
+      .single();
+    if (userErr || !user) return res.status(404).json({ error: "User not found" });
+
+    const current = Array.isArray(user.blocked_users) ? [...user.blocked_users] : [];
+    let next;
+    if (action === "block") {
+      next = current.includes(targetUsername) ? current : [...current, targetUsername];
+    } else {
+      next = current.filter(u => u !== targetUsername);
+    }
+
+    const { error: updateErr } = await supabase
+      .from("users")
+      .update({ blocked_users: next })
+      .eq("id", user.id);
+    if (updateErr) throw updateErr;
+
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { blocked_users: next });
+    }
+
+    res.json({ ok: true, blocked_users: next });
+  } catch (err) {
+    console.error("/block error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── Get blocked list ───
+app.get("/blocked-users", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "username required" });
+    const { data: user } = await supabase
+      .from("users")
+      .select("blocked_users")
+      .eq("username", username)
+      .single();
+    const blocked = user?.blocked_users || [];
+    if (!blocked.length) return res.json([]);
+    const { data: profiles } = await supabase
+      .from("users")
+      .select("username, fullname, profile_pic")
+      .in("username", blocked);
+    res.json(profiles || []);
+  } catch (err) {
+    console.error("/blocked-users error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Signup Endpoint (With Profile Picture)
 app.post("/signup", upload.single("profilePic"), async (req, res) => {
   try {
@@ -2091,6 +2194,11 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
 
     if (!fullName || !username || !password || !profile_type) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Username format validation for NEW users (existing users keep their handles)
+    if (!/^[a-z0-9_]{3,30}$/.test(username)) {
+      return res.status(400).json({ error: "Username must be 3-30 characters (lowercase letters, numbers, underscores only)" });
     }
 
     // Check if username or email already exists
@@ -2846,6 +2954,47 @@ app.post(
   }
 );
 
+// ─── Change username (remaps everywhere) ───
+function replaceInArray(arr, oldVal, newVal) {
+  if (!Array.isArray(arr)) return arr;
+  return arr.map(v => (String(v) === String(oldVal) ? newVal : v));
+}
+
+function renameCommentUsername(comments, oldVal, newVal) {
+  if (!Array.isArray(comments)) return comments;
+  let changed = false;
+  const next = comments.map(c => {
+    const n = { ...c };
+    if (String(n.username) === String(oldVal)) { n.username = newVal; changed = true; }
+    if (Array.isArray(n.replies)) {
+      const nr = renameCommentUsername(n.replies, oldVal, newVal);
+      if (nr !== n.replies) { n.replies = nr; changed = true; }
+    }
+    return n;
+  });
+  // Return the SAME reference when nothing changed so callers can cheaply
+  // detect "no comment update needed" (a `.map()` always returns a new array).
+  return changed ? next : comments;
+}
+
+async function paginateAll(client, table) {
+  let all = [];
+  let page = 0;
+  const size = 1000;
+  for (;;) {
+    const { data, error } = await client
+      .from(table)
+      .select('*')
+      .range(page * size, (page + 1) * size - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < size) break;
+    page++;
+  }
+  return all;
+}
+
 // ---- notifications-server.js (append or paste into your existing server file) ----
 // Requires: an existing `app` (Express) and `supabase` client in scope.
 // No external uuid library used. IDs are generated with Date.now + Math.random.
@@ -3399,50 +3548,61 @@ async function notifyConnectionsOnPost(username, postText, postId) {
     .eq('username', username)
     .single();
 
+  const displayName = user && user.fullname ? user.fullname : username;
+
   for (const connection of connections) {
-    // Get email for connection
-    const { data: connUser } = await supabase
-      .from('users')
-      .select('email, fullname')
-      .eq('username', connection)
-      .single();
+    try {
+      // Get email + notification prefs for connection
+      const { data: connUser } = await supabase
+        .from('users')
+        .select('email, fullname, notification_prefs')
+        .eq('username', connection)
+        .single();
 
-    // In-app notification
-    await addNotification(connection, {
-      id: Date.now() + Math.random(),
-      message: `${user.fullname || username} just created a new post: "${postText.slice(0, 80)}..."`,
-      read: false,
-      link: `/post/${postId}`,
-      timestamp: new Date().toISOString(),
-      type: 'newPost',
-      sender: username,
-    });
+      const prefs = connUser ? connUser.notification_prefs || DEFAULT_NOTIFICATION_PREFS : DEFAULT_NOTIFICATION_PREFS;
+      const typePrefs = prefs.newPost || DEFAULT_NOTIFICATION_PREFS.newPost || { inApp: true, email: true };
 
-    // Email notification
-    if (connUser && connUser.email) {
-      await sendNotificationEmail(
-        connUser.email,
-        `${user.fullname || username} posted on Textmob`,
-        `
-        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${user.fullname || username}</strong> just shared something new on Textmob.</p>
-        <div style="margin:0 0 16px;padding:12px 16px;background-color:#f8fafc;border-left:3px solid #2563eb;border-radius:8px;font-size:14px;line-height:1.5;color:#334155;">${postText.length > 180 ? postText.slice(0, 180) + "..." : postText}</div>
-        <table role="presentation" cellpadding="0" cellspacing="0">
-          <tr>
-            <td align="center" style="background-color:#2563eb;border-radius:8px;">
-              <a href="https://textmob.web.app/post/${postId}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Post</a>
-            </td>
-          </tr>
-        </table>
-        `
-      );
-    }
+      // In-app notification (respects 'New posts' pref)
+      if (typePrefs.inApp) {
+        await addNotification(connection, {
+          id: Date.now() + Math.random(),
+          message: `${displayName} just created a new post: "${postText.slice(0, 80)}..."`,
+          read: false,
+          link: `/post/${postId}`,
+          timestamp: new Date().toISOString(),
+          type: 'newPost',
+          sender: username,
+        });
 
-    // Real-time (Socket.io, optional)
-    if (onlineUsers[connection]) {
-      onlineUsers[connection].emit('new-notification', {
-        message: `${user.fullname || username} just created a new post!`,
-        link: `/post/${postId}`,
-      });
+        // Real-time (Socket.io)
+        if (onlineUsers[connection]) {
+          onlineUsers[connection].emit('new-notification', {
+            message: `${displayName} just created a new post!`,
+            link: `/post/${postId}`,
+          });
+        }
+      }
+
+      // Email notification (respects 'New posts' pref — default email is OFF)
+      if (typePrefs.email && connUser && connUser.email) {
+        await sendNotificationEmail(
+          connUser.email,
+          `${displayName} posted on Textmob`,
+          `
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;"><strong>${displayName}</strong> just shared something new on Textmob.</p>
+          <div style="margin:0 0 16px;padding:12px 16px;background-color:#f8fafc;border-left:3px solid #2563eb;border-radius:8px;font-size:14px;line-height:1.5;color:#334155;">${postText.length > 180 ? postText.slice(0, 180) + "..." : postText}</div>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" style="background-color:#2563eb;border-radius:8px;">
+                <a href="https://textmob.web.app/post/${postId}" style="display:inline-block;padding:10px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">View Post</a>
+              </td>
+            </tr>
+          </table>
+          `
+        );
+      }
+    } catch (err) {
+      console.error(`[notifyConnectionsOnPost] failed for ${connection}:`, err && err.message);
     }
   }
 }
@@ -3507,14 +3667,24 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
       memoryDb.upsertPost(data);
     }
 
-    // Notify followers (same as post)
-    await notifyConnectionsOnPost(username, text, data.id);
-    await updateMobcoins(
-      username.split("@").pop().trimEnd(),
-      +7,
-      true,
-      `You Just Received 7 Mobcoins for creating a Snap on Textmob`
-    );
+    // Background tasks (non-blocking) so posting returns instantly
+    setTimeout(async () => {
+      try {
+        await notifyConnectionsOnPost(username, text, data.id);
+      } catch (e) {
+        console.error("[create-snap] notify error:", e && e.message);
+      }
+      try {
+        await updateMobcoins(
+          username.split("@").pop().trimEnd(),
+          +7,
+          true,
+          `You Just Received 7 Mobcoins for creating a Snap on Textmob`
+        );
+      } catch (e) {
+        console.error("[create-snap] mobcoins error:", e && e.message);
+      }
+    }, 0);
 
     res.json({ message: "Snap created successfully!" });
   } catch (error) {
@@ -3561,6 +3731,9 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
     const limit = parseInt(params.limit, 10) || 12;
     const page = parseInt(params.page, 10) || 1;
 
+    // Client-supplied blocked list (localStorage)
+    const clientBlockedUsers = Array.isArray(params.blockedUsers) ? params.blockedUsers.map(u => String(u).toLowerCase()) : [];
+
     const { data: snapFeedPosts, error } = await supabase2
       .from("Posts")
       .select("*")
@@ -3576,6 +3749,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
     const snaps = snapFeedPosts || [];
 
     let userFollowing = new Set();
+    let blockedUsers = new Set();
     let userCategoryWeights = {};
     let seen = new Set();
     if (rawSeenIds) {
@@ -3585,8 +3759,10 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
       if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
       userSnapSeenMap.get(username).forEach(id => seen.add(id));
       try {
-        const { data: me } = await supabase.from("users").select("following, feed_prefs").eq("username", username).single();
+        const { data: me } = await supabase.from("users").select("following, feed_prefs, blocked_users").eq("username", username).single();
         userFollowing = new Set(me?.following || []);
+        blockedUsers = new Set((me?.blocked_users || []).map(u => String(u).toLowerCase()));
+        clientBlockedUsers.forEach(u => blockedUsers.add(u));
         if (me?.feed_prefs?.categoryWeights) {
           userCategoryWeights = me.feed_prefs.categoryWeights;
         }
@@ -3596,7 +3772,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
     const now = Date.now();
     const HOUR = 3600000;
 
-    const scored = snaps.map(p => {
+    const scored = snaps.filter(p => !blockedUsers.has(p.username)).map(p => {
       const ageMs = now - new Date(p.created_at).getTime();
       const ageHours = Math.max(0.1, ageMs / HOUR);
       const likes = (p.likes || []).length;
@@ -3620,7 +3796,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
       const mediaBonus = (p.media && p.media.length > 0) ? 2.0 : 0;
 
       const seenPenalty = seen.has(String(p.id)) ? 0.00001 : 1.0;
-      const selfPenalty = p.username === username ? 0.1 : 1.0;
+      const selfPenalty = p.username === username ? 0.01 : 1.0;
       const userInfluence = 0.0;
 
       // Category weight from feed preferences
@@ -4872,16 +5048,11 @@ async function createLivePostInDB(opts) {
       try {
         await notifyConnectionsOnPost(username, text, createdRow.id);
         for (var i = 0; i < mentions.length; i++) {
-          var mentionedUser = mentions[i];
-          var notification = {
-            id: Date.now(),
-            message: username + " mentioned you in a live post",
-            read: false,
+          await triggerNotification(mentions[i], 'mentions', {
+            msg: username + " mentioned you in a live post",
             link: "/post/" + createdRow.id,
-            type: 'mention',
             sender: username,
-          };
-          await addNotification(mentionedUser, notification);
+          });
         }
       } catch (e) {
         console.error("createLivePostInDB background notify error:", e);
@@ -7596,6 +7767,9 @@ app.post("/get-posts", express.json(), async (req, res) => {
     const limit = parseInt(params.limit, 10) || 10;
     const pg = parseInt(page, 10) || 1;
 
+    // Client-supplied blocked list (stored in localStorage, no /block route)
+    const clientBlockedUsers = Array.isArray(params.blockedUsers) ? params.blockedUsers.map(u => String(u).toLowerCase()) : [];
+
     const isPublic = !username;
     const POST_LIMIT = isPublic ? 500 : 300;
 
@@ -7612,9 +7786,10 @@ app.post("/get-posts", express.json(), async (req, res) => {
           .single();
         userFollowing = new Set(me?.following || []);
         userFriends = new Set(me?.friends || []);
-        blockedUsers = new Set(me?.blocked_users || []);
+        blockedUsers = new Set((me?.blocked_users || []).map(u => String(u).toLowerCase()));
       } catch { /* non-fatal */ }
     }
+    clientBlockedUsers.forEach(u => blockedUsers.add(u));
 
     const isColdStart = !isPublic && userFollowing.size === 0 && userFriends.size === 0;
 
@@ -7662,8 +7837,8 @@ app.post("/get-posts", express.json(), async (req, res) => {
       // Liked penalty: absolute kill if user has already liked this post
       const likedPenalty = (ctx.username && Array.isArray(post.likes) && post.likes.includes(ctx.username)) ? 0 : 1.0;
 
-      // Self penalty: don't show own posts
-      const selfPenalty = post.username === ctx.username ? 0.1 : 1.0;
+      // Self penalty: essentially never show own posts unless feed is nearly empty
+      const selfPenalty = post.username === ctx.username ? 0.01 : 1.0;
 
       // Negative signal suppression
       let negPenalty = 1.0;
@@ -7933,7 +8108,8 @@ app.post("/get-posts", express.json(), async (req, res) => {
       if (meResult?.data) {
         userFollowing = new Set(meResult.data.following || []);
         userFriends = new Set(meResult.data.friends || []);
-        blockedUsers = new Set(meResult.data.blocked_users || []);
+        blockedUsers = new Set((meResult.data.blocked_users || []).map(u => String(u).toLowerCase()));
+        clientBlockedUsers.forEach(u => blockedUsers.add(u));
       }
       fetchedPosts = postsResult.data || [];
     } catch {
@@ -8253,10 +8429,18 @@ app.post('/events', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // Update memoryDB immediately
-  if (memoryDb && memoryDb.isReady && data) {
-    memoryDb.upsertPost(data);
-  }
+    // Update memoryDB immediately
+    if (memoryDb && memoryDb.isReady && data) {
+      memoryDb.upsertPost(data);
+    }
+
+    // Index new post in search engine immediately
+    try {
+      const docText = `${data.text || ''} ${data.username} ${Array.isArray(data.hashtags) ? data.hashtags.join(' ') : ''} ${Array.isArray(data.categories) ? data.categories.join(' ') : ''}`;
+      postSearchEngine.indexDocument(String(data.id), docText, { id: data.id, username: data.username, text: data.text, created_at: data.created_at, type: data.type });
+    } catch (idxErr) {
+      console.error("[create-post] search index error:", idxErr);
+    }
 
   res.json({ event: data });
 });
@@ -9419,7 +9603,21 @@ app.get('/feed', async (req, res) => {
     }
 
     const allPosts = [].concat(personalPosts || [], groupPosts);
-    const ranked = allPosts.sort(function (a, b) {
+
+    // Hide posts from users the viewer has blocked
+    let blockedUsernames = new Set();
+    const clientBlocked = (req.query.blocked || '').toString().split(',').filter(Boolean).map(u => String(u).toLowerCase());
+    if (username) {
+      const { data: me } = await supabase
+        .from("users")
+        .select("blocked_users")
+        .eq("username", username)
+        .single();
+      blockedUsernames = new Set((me?.blocked_users || []).map(u => String(u).toLowerCase()));
+    }
+    clientBlocked.forEach(u => blockedUsernames.add(u));
+
+    const ranked = allPosts.filter(p => p && !blockedUsernames.has(p.username)).sort(function (a, b) {
       if (a.created_at !== b.created_at) return new Date(b.created_at) - new Date(a.created_at);
       var aLikes = a.likes ? a.likes.length : 0;
       var bLikes = b.likes ? b.likes.length : 0;
@@ -9709,20 +9907,14 @@ app.post(
 
           // Then mention notifications (best-effort, don't await)
           for (var j = 0; j < mentions.length; j++) {
-            var mentionedUser = mentions[j];
             try {
-              var notification = {
-                id: Date.now(),
-                message: username + " mentioned you in a post",
-                read: false,
+              triggerNotification(mentions[j], 'mentions', {
+                msg: username + " mentioned you in a post",
                 link: "/post/" + data.id,
-                timestamp: new Date().toISOString(),
-                type: 'mention',
                 sender: username,
-              };
-              addNotification(mentionedUser, notification).catch(function () { });
+              }).catch(function () { });
             } catch (addNotifErr2) {
-              console.error("[group-post] addNotification failed for", mentionedUser, addNotifErr2);
+              console.error("[group-post] addNotification failed for", mentions[j], addNotifErr2);
             }
           }
 
@@ -10929,6 +11121,64 @@ app.get("/api/user/boosted-posts", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── App version / update channel ─────────────────────────────
+let appVersionCache = null;
+let appVersionExpiry = 0;
+app.get("/api/app-version", async (req, res) => {
+  try {
+    if (appVersionCache && Date.now() < appVersionExpiry) {
+      return res.json(appVersionCache);
+    }
+    const { data, error } = await supabase
+      .from("app_versions")
+      .select("*")
+      .eq("id", "current")
+      .single();
+    if (error) {
+      console.error("[app-version] fetch error:", error.message);
+      return res.json({ version: null });
+    }
+    appVersionCache = {
+      version: (data && data.version) || null,
+      apk_url: (data && data.apk_url) || "",
+      notes: (data && data.notes) || "",
+      published_at: (data && data.published_at) || null,
+      grace_days: (data && data.grace_days) || 7
+    };
+    appVersionExpiry = Date.now() + 30 * 1000;
+    res.json(appVersionCache);
+  } catch (err) {
+    console.error("[app-version] error:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/admin/app-version", async (req, res) => {
+  try {
+    const { version, apk_url, notes, grace_days } = req.body || {};
+    if (!version) return res.status(400).json({ error: "version required" });
+    const grace = Math.max(1, parseInt(grace_days, 10) || 7);
+    const { error } = await supabase.from("app_versions").upsert({
+      id: "current",
+      version: String(version),
+      apk_url: apk_url || "",
+      notes: notes || "",
+      grace_days: grace,
+      published_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: "id" });
+    if (error) throw error;
+    appVersionCache = null;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[admin app-version] error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Serve the distributable APK (drop thetextmobapp.apk into public/apk/)
+app.use("/apk", express.static(path.join(__dirname, "public", "apk")));
 
 // Fallback catch-all route for SPA routing
 app.use((req, res) => {

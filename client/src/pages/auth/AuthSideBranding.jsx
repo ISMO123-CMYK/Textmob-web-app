@@ -12,10 +12,10 @@ export default function AuthSideBranding() {
       </div>
       <div className="flex flex-col gap-3">
         {[
-          { emoji: '🔥', text: 'Trending topics in real-time' },
-          { emoji: '⚡', text: 'Instant messaging and snaps' },
-          { emoji: '🎯', text: 'Connect with your community' },
-          { emoji: '💎', text: 'Earn Mobcoins for being active' },
+          { emoji: '', text: 'Trending topics in real-time' },
+          { emoji: '', text: 'Instant messaging and snaps' },
+          { emoji: '', text: 'Connect with your community' },
+          { emoji: '', text: 'Live streaming to your crew in realtime' },
         ].map((item, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3 bg-white border border-gray-100 rounded-2xl">
             <span className="text-lg">{item.emoji}</span>

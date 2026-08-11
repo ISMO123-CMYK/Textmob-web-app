@@ -49,24 +49,24 @@ export async function getProfileAPI(username: string) {
 }
 
 export async function updateProfileAPI(username: string, formData: FormData) {
-  return apiPost<User>(`/profile/${username}/update`, formData);
+  return apiPost<User>(`/profile/${encodeURIComponent(username)}/update`, formData);
 }
 
 export async function changePasswordAPI(username: string, currentPassword: string, newPassword: string) {
-  return apiPost<{ success: boolean; message: string }>(`/profile/${username}/change-password`, {
+  return apiPost<{ success: boolean; message: string }>(`/profile/${encodeURIComponent(username)}/change-password`, {
     currentPassword,
     newPassword,
   });
 }
 
 export async function updateProfileTypeAPI(username: string, profileType: string) {
-  return apiPost<{ profile_type: string }>(`/profile/${username}/update-type`, {
+  return apiPost<{ profile_type: string }>(`/profile/${encodeURIComponent(username)}/update-type`, {
     profile_type: profileType,
   });
 }
 
 export async function updateNotificationPrefsAPI(username: string, prefs: any) {
-  return apiPost<{ ok: boolean }>(`/profile/${username}/notification-prefs`, {
+  return apiPost<{ ok: boolean }>(`/profile/${encodeURIComponent(username)}/notification-prefs`, {
     notification_prefs: prefs,
   });
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import NotificationBanner from './NotificationBanner';
+import SaveCredentialsBanner from '../ui/SaveCredentialsBanner';
 import { SnapUploadProvider } from '../../utils/SnapUploadContext';
 import { apiFetch } from '../../config/api';
 import { fetchProfile } from '../../utils/useProfileCache';
@@ -147,7 +148,13 @@ export default function AppWrapper({ children }) {
         if (existsRes.ok) {
           const existsData = await existsRes.json();
           if (existsData.exists === false) {
+            // User no longer exists on the server — drop the session cleanly.
             localStorage.clear();
+            try {
+              if (!localStorage.getItem('pendingRedirect')) {
+                localStorage.setItem('pendingRedirect', window.location.pathname + window.location.search);
+              }
+            } catch {}
             window.location.href = '/auth';
             return;
           }
@@ -180,11 +187,12 @@ export default function AppWrapper({ children }) {
     <SnapUploadProvider>
       <NotificationBanner username={username} />
       {children}
+      {username && <SaveCredentialsBanner />}
       <AuthPromptModal
         show={authPrompt.show}
         message={authPrompt.message}
         onCancel={() => setAuthPrompt({ show: false, message: '' })}
-        onLogin={() => { setAuthPrompt({ show: false, message: '' }); window.Lexum?.navigate('/auth'); }}
+        onLogin={() => { setAuthPrompt({ show: false, message: '' }); try { if (!localStorage.getItem('pendingRedirect')) localStorage.setItem('pendingRedirect', window.location.pathname + window.location.search); } catch {} window.Lexum?.navigate('/auth'); }}
       />
     </SnapUploadProvider>
   );

@@ -1,6 +1,27 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import { useTheme } from '../context/ThemeContext';
+import { apiGet } from '../api/client';
+
+let legacyListCache: string[] | null = null;
+let legacyListPromise: Promise<string[]> | null = null;
+
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function loadLegacyUsernames(): Promise<string[]> {
+  if (legacyListCache) return Promise.resolve(legacyListCache);
+  if (!legacyListPromise) {
+    legacyListPromise = apiGet<{ usernames: string[] }>('/legacy-usernames')
+      .then(r => {
+        legacyListCache = Array.isArray(r.data?.usernames) ? r.data.usernames : [];
+        return legacyListCache;
+      })
+      .catch(() => (legacyListCache = []));
+  }
+  return legacyListPromise;
+}
 
 function convertMarkdown(text: string): string {
   const lines = text.split('\n');
@@ -77,6 +98,13 @@ export default function SafeHTML({
   style?: React.CSSProperties;
 }) {
   const { colors } = useTheme();
+  const [legacyList, setLegacyList] = useState<string[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    loadLegacyUsernames().then(list => { if (active) setLegacyList(list); });
+    return () => { active = false; };
+  }, []);
 
   if (!text) return null;
 
@@ -85,14 +113,23 @@ export default function SafeHTML({
   let processed = text;
 
   if (!isHTML) {
+    // Legacy special-character usernames first in the alternation so a name like
+    // "Peace 🕊️" is matched whole instead of being clobbered by @[\w.-]+.
+    const mentionRx = legacyList.length
+      ? new RegExp(`(^|\\s)@(?:${legacyList.map(escapeRegExp).join('|')}|([\\w.-]+))`, 'gm')
+      : /(^|\s)(@[\w.-]+)/gm;
+
     processed = convertMarkdown(processed);
     processed = processed
       .replace(/[ \t]+$/gm, '')
       .replace(/\n{3,}/g, '\n\n')
       .replace(/(?:\r\n|\r|\n)/g, '<br />')
       .replace(
-        /(^|\s)(@[\w.-]+)/g,
-        '$1<a href="mention://$2" style="color:#2563eb;font-weight:700;text-decoration:none;">$2</a>'
+        mentionRx,
+        (match: string, boundary: string, legacyOrGeneric: string) =>
+          legacyOrGeneric !== undefined
+            ? `${boundary}<a href="mention://@${legacyOrGeneric}" style="color:#2563eb;font-weight:700;text-decoration:none;">@${legacyOrGeneric}</a>`
+            : `${boundary}<a href="mention://${match.trim()}" style="color:#2563eb;font-weight:700;text-decoration:none;">${match.trim()}</a>`
       )
       .replace(
         /(^|\s)(#[\w-]+)/g,

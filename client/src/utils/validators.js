@@ -35,5 +35,5 @@ export function isStrongPassword(value) {
 }
 
 export function isValidUsername(value) {
-  return /^[a-z0-9]+$/.test(value.toLowerCase()) && value.length > 0;
+  return /^[a-z0-9_]{3,30}$/.test(value.toLowerCase());
 }

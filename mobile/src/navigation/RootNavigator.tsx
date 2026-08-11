@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
 
 import MainTabs from './MainTabs';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const PostDetailScreen = lazy(() => import('../screens/post/PostDetailScreen'));
 const CreatePostScreen = lazy(() => import('../screens/post/CreatePostScreen'));
@@ -37,9 +38,11 @@ function ScreenFallback() {
 
 function LazyScreen({ Component, ...rest }: { Component: React.LazyExoticComponent<any>; [key: string]: any }) {
   return (
-    <Suspense fallback={<ScreenFallback />}>
-      <Component {...rest} />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<ScreenFallback />}>
+        <Component {...rest} />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
@@ -74,7 +77,7 @@ export default function RootNavigator() {
         animation: 'slide_from_right',
       }}
     >
-      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="MainTabs">{props => <ErrorBoundary><MainTabs {...props} /></ErrorBoundary>}</Stack.Screen>
       <Stack.Screen name="PostDetail" component={LazyPostDetail} />
       <Stack.Screen name="CreatePost" component={LazyCreatePost} />
       <Stack.Screen name="Snaps" component={LazySnaps} />

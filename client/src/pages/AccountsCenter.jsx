@@ -3,6 +3,7 @@ import { apiFetch, getCurrentUser } from '../config/api';
 import { cn } from '../utils/classNames';
 import BottomSheet from '../components/ui/BottomSheet';
 import SkeletonRow from '../components/ui/SkeletonRow';
+import Toggle from '../components/ui/Toggle';
 import RichText from '../components/ui/RichText';
 import AutocompleteDropdown from '../components/layout/AutocompleteDropdown';
 import NavIcons from '../utils/navIcons';
@@ -695,8 +696,8 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
     }
   }
 
-
   return (
+    <>
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
 
@@ -855,6 +856,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
         </div>
       </BottomSheet>
     </div>
+    </>
   );
 }
 
@@ -1507,10 +1509,12 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
         {autoSaving && <span className="text-xs text-blue-600 animate-pulse">Saving...</span>}
       </div>
 
-      {/* Theme */}
+      {/* Appearance */}
+      <p className="text-sm font-semibold text-gray-700">Appearance</p>
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100">
           <p className="text-sm font-medium text-gray-900">Theme</p>
+          <p className="text-xs text-gray-400">Choose how Textmob looks for you</p>
         </div>
         {themes.map((theme, idx) => (
           <button key={theme.value} onClick={() => setDarkMode(theme.value)} className={cn('w-full flex items-center gap-3 px-4 py-3 transition-colors text-left hover:bg-gray-50', idx < themes.length - 1 ? 'border-b border-gray-100' : '')}>
@@ -1536,16 +1540,14 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
               <p className="text-sm font-medium text-gray-900">Offline Mode</p>
               <p className="text-xs text-gray-400">Browse cached posts and snaps when offline</p>
             </div>
-            <div
-              onClick={() => {
-                const next = !offlineMode;
+            <Toggle
+              checked={offlineMode}
+              onChange={(next) => {
                 setOfflineMode(next);
                 localStorage.setItem('tmob_offline_mode', next ? 'true' : 'false');
               }}
-              className={'w-11 h-6 rounded-full relative p-0.5 cursor-pointer transition-colors ' + (offlineMode ? 'bg-blue-600' : 'bg-gray-300')}
-            >
-              <div className={'w-5 h-5 bg-white rounded-full shadow-sm transition-transform ' + (offlineMode ? 'translate-x-5' : 'translate-x-0')} />
-            </div>
+              label="Offline Mode"
+            />
           </div>
           <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
             {offlineMode
@@ -1562,16 +1564,14 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
               <p className="text-sm font-medium text-gray-900">Data Saver</p>
               <p className="text-xs text-gray-400">Load lower-quality images to save mobile data</p>
             </div>
-            <div
-              onClick={() => {
-                const next = !dataSaver;
+            <Toggle
+              checked={dataSaver}
+              onChange={(next) => {
                 setDataSaver(next);
                 localStorage.setItem('tmob_data_saver', next ? 'true' : 'false');
               }}
-              className={'w-11 h-6 rounded-full relative p-0.5 cursor-pointer transition-colors ' + (dataSaver ? 'bg-blue-600' : 'bg-gray-300')}
-            >
-              <div className={'w-5 h-5 bg-white rounded-full shadow-sm transition-transform ' + (dataSaver ? 'translate-x-5' : 'translate-x-0')} />
-            </div>
+              label="Data Saver"
+            />
           </div>
           <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
             {dataSaver
@@ -1590,7 +1590,7 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
           <div className="divide-y divide-gray-100">
             {section.items.map(item => {
               const prefVal = notifs[item.id] || { inApp: true, email: true };
-              return (
+return (
                 <div key={item.id} className="p-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">{item.icon}</div>
@@ -1615,12 +1615,16 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
 
 function ToggleBtn({ active, label, onClick, accent }) {
   return (
-    <button onClick={onClick} className={cn('flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all', active ? cn('bg-blue-50 border-blue-200 text-blue-700') : 'bg-gray-50 border-gray-200 text-gray-400')}>
-      <div className={cn('w-7 h-4 rounded-full relative p-0.5 transition-colors', active ? 'bg-blue-600' : 'bg-gray-300')}>
-        <div className={cn('w-3 h-3 bg-white rounded-full shadow-sm transition-transform', active ? 'translate-x-3' : 'translate-x-0')} />
-      </div>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      className={cn('flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all cursor-pointer select-none', active ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300')}
+    >
+      <Toggle checked={active} onChange={onClick} size="sm" label={label} />
       {label}
-    </button>
+    </div>
   );
 }
 

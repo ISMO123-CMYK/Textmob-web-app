@@ -9,6 +9,7 @@ export default function LoginForm({
   savedAccounts,
   onAutoLogin,
   onRemoveAccount,
+  redirect,
 }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -36,14 +37,40 @@ export default function LoginForm({
         return;
       }
       if (rememberMe) {
-        const saved = JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]');
-        if (!saved.some((a) => a.username === data.user.username)) {
-          saved.push({
-            username: data.user.username.toLowerCase(),
-            password: pw,
-            profile_pic: data.user.profile_pic || '',
-          });
-          localStorage.setItem('textmobSavedAccounts', JSON.stringify(saved));
+        let saved = [];
+        try {
+          const raw = JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]');
+          if (Array.isArray(raw)) saved = raw;
+        } catch {}
+        const u = String(data.user?.username || '').toLowerCase();
+        const entry = {
+          username: u,
+          password: pw,
+          profile_pic: data.user?.profile_pic || '',
+        };
+        if (!saved.some((a) => String(a?.username || '').toLowerCase() === u)) {
+          saved.push(entry);
+        } else {
+          saved = saved.map((a) => String(a?.username || '').toLowerCase() === u ? { ...a, ...entry } : a);
+        }
+        localStorage.setItem('textmobSavedAccounts', JSON.stringify(saved));
+        try { localStorage.removeItem('credentialsBannerDismissed'); localStorage.removeItem('pendingCredentials'); } catch {}
+      } else {
+        let saved = [];
+        try {
+          const raw = JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]');
+          if (Array.isArray(raw)) saved = raw;
+        } catch {}
+        const u = String(data.user.username || '').toLowerCase();
+        if (!saved.some((a) => String(a.username || '').toLowerCase() === u)) {
+          try {
+            localStorage.setItem('credentialsBannerDismissed', 'false');
+            localStorage.setItem('pendingCredentials', JSON.stringify({
+              username: data.user.username.toLowerCase(),
+              password: pw,
+              profile_pic: data.user.profile_pic || '',
+            }));
+          } catch {}
         }
       }
       localStorage.setItem('currentUser', data.user.username);
@@ -55,7 +82,13 @@ export default function LoginForm({
         following: { posts: [], page: 1, hasMore: true, scrollY: 0 }
       };
 
-      window.location.href = '/';
+      // Wipe API response cache so cached posts/suggestions from the previous user never render
+      try {
+        Object.keys(localStorage).filter(k => k.startsWith('tmob_cache_')).forEach(k => localStorage.removeItem(k));
+      } catch {}
+
+      try { localStorage.removeItem('pendingRedirect'); } catch {}
+      window.location.href = redirect || '/';
     } catch {
       // ignore
     } finally {

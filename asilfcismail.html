@@ -243,6 +243,21 @@
         .post-mini .pm-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
         .post-mini .pm-meta{font-size:11px;color:var(--dim);white-space:nowrap}
 
+        /* App version */
+        .app-version-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .app-version-grid .full{grid-column:1/-1}
+        .app-version-label{font-size:12px;font-weight:600;color:var(--dim);margin-bottom:6px;display:block}
+        .app-version-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:var(--bg)}
+        .app-version-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-light)}
+        .app-version-meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+        .app-version-chip{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--dim)}
+        .app-version-chip b{color:var(--text);font-size:14px;font-weight:700}
+        .app-version-chip .cv{color:var(--primary);font-size:18px;font-weight:800}
+        .app-version-chip.live b{color:var(--success)}
+        .app-version-chip.warn b{color:var(--warning)}
+        .app-version-note{background:var(--primary-light);color:var(--primary);padding:12px 14px;border-radius:10px;font-size:12px;margin-bottom:16px;line-height:1.5}
+        .app-version-safe{margin-top:12px;font-size:11px;color:var(--dim)}
+
         /* Loading */
         .loading-screen{
             position:fixed;inset:0;background:var(--card);z-index:2000;
@@ -283,6 +298,9 @@
             </div>
             <div class="nav-item" data-tab="verification" onclick="switchTab('verification')">
                 <span class="icon">&#10003;</span> Verification
+            </div>
+            <div class="nav-item" data-tab="app" onclick="switchTab('app')">
+                <span class="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> App Updates
             </div>
         </div>
         <div class="nav-section">
@@ -440,6 +458,43 @@
                 <div class="content-stats" id="contentStatsGrid"></div>
             </div>
         </div>
+
+        <!-- APP UPDATES -->
+        <div id="section-app" class="section">
+            <div class="section-card">
+                <div class="card-header">
+                    <h3>App Version &amp; Update Channel</h3>
+                    <div style="font-size:12px;color:var(--dim)">Publish a new build — every app checks this on launch</div>
+                </div>
+                <div style="padding:20px">
+                    <div id="appVersionBox"></div>
+                    <form onsubmit="event.preventDefault();saveAppVersion()">
+                        <div class="app-version-grid">
+                            <div>
+                                <label class="app-version-label">New app version</label>
+                                <input class="app-version-input" id="appVersionInput" placeholder="e.g. 1.1" />
+                            </div>
+                            <div>
+                                <label class="app-version-label">Update grace period (days)</label>
+                                <input class="app-version-input" id="appGraceDays" type="number" min="1" value="7" placeholder="7" />
+                            </div>
+                            <div class="full">
+                                <label class="app-version-label">APK download URL</label>
+                                <input class="app-version-input" id="appApkUrl" placeholder="leave empty for /apk/thetextmobapp.apk" />
+                            </div>
+                            <div class="full">
+                                <label class="app-version-label">Release notes (shown to users in the update prompt)</label>
+                                <textarea class="app-version-input" id="appNotes" rows="3" placeholder="What's new in this version..."></textarea>
+                            </div>
+                            <div class="full">
+                                <button type="submit" class="btn btn-primary" style="padding:10px 22px;font-size:13px"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px"><path d="M16 11H7"/><path d="M11 7l-4 4 4 4"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg>Publish update</button>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="app-version-safe">Users on the new version see nothing. Users on older versions see a reminder until the grace deadline, then a blocking update screen.</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -508,7 +563,8 @@ function switchTab(tab){
 
     const labels={users:['Users','Manage all platform users'],posts:['Posts','Moderate platform content'],
         payouts:['Payouts','Process withdrawal requests'],eligible:['Eligible','Users eligible for withdrawal'],
-        verification:['Verification','Review verification requests'],halloffame:['Hall of Fame','Top users & analytics']};
+        verification:['Verification','Review verification requests'],halloffame:['Hall of Fame','Top users & analytics'],
+        app:['App Updates','Version & update channel']};
     const [t,s]=labels[tab]||['Dashboard',''];
     setPageTitle(t,s);
 
@@ -517,12 +573,60 @@ function switchTab(tab){
     if(tab==='eligible') renderEligible();
     if(tab==='verification') fetchVerificationRequests();
     if(tab==='posts') fetchAndRenderPosts();
+    if(tab==='app') loadAppVersion();
 }
 
 function refreshCurrentTab(){
     const active = document.querySelector('.nav-item.active');
     if(active) switchTab(active.dataset.tab);
     fetchData();
+}
+
+async function loadAppVersion(){
+    try{
+        const r=await fetch('/api/app-version');
+        const v=await r.json();
+        const box=document.getElementById('appVersionBox');
+        const defaultApk=window.location.origin+'/apk/thetextmobapp.apk';
+        if(!v || !v.version){
+            box.innerHTML='<div class="app-version-note">No version published yet. Enter a version below and press Publish to create the first release.</div>';
+            return;
+        }
+        const published= v.published_at ? new Date(v.published_at) : null;
+        const grace=(v.grace_days||7);
+        const deadline= published ? new Date(published.getTime()+grace*86400000) : null;
+        const daysLeft= deadline ? Math.max(0,Math.ceil((deadline-Date.now())/86400000)) : null;
+        const chips=[
+            '<div class="app-version-chip">Serve&nbsp; <b class="cv">v'+v.version+'</b></div>',
+            published?'<div class="app-version-chip">Published&nbsp; <b>'+published.toLocaleDateString()+'</b></div>':'',
+            deadline?'<div class="app-version-chip">Deadline&nbsp; <b>'+deadline.toLocaleDateString()+'</b></div>':'',
+            daysLeft!==null?'<div class="app-version-chip" style="border-color:'+(daysLeft<=2?'var(--error)':'var(--border)')+'">'+(daysLeft===0?'<b style="color:var(--error)">EXPIRED</b>':'<b style="color:'+(daysLeft<=2?'var(--error)':'var(--warning)')+'">'+daysLeft+' days left</b>')+'</div>':'',
+            v.apk_url?'<div class="app-version-chip"><a href="'+v.apk_url+'" target="_blank">APK link</a></div>':''
+        ].join('');
+        const notesHtml= v.notes ? '<div class="app-version-note">'+v.notes.replace(/</g,'&lt;')+'</div>' : '';
+        box.innerHTML=chips+notesHtml;
+        document.getElementById('appVersionInput').value=v.version;
+        document.getElementById('appGraceDays').value=grace;
+        document.getElementById('appApkUrl').value=v.apk_url||'';
+        document.getElementById('appNotes').value=v.notes||'';
+    }catch(e){console.error(e)}
+}
+
+async function saveAppVersion(){
+    const version=document.getElementById('appVersionInput').value.trim();
+    if(!version) return alert('Version is required');
+    const payload={
+        version:version,
+        apk_url:document.getElementById('appApkUrl').value.trim(),
+        notes:document.getElementById('appNotes').value.trim(),
+        grace_days:parseInt(document.getElementById('appGraceDays').value)||7
+    };
+    if(!confirm('Publish v'+payload.version+'? App users will be prompted to update.')) return;
+    try{
+        const r=await fetch('/api/admin/app-version',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        if(r.ok){alert('Update published');loadAppVersion()}
+        else alert((await r.json()).error||'Failed');
+    }catch(e){alert('Error')}
 }
 
 async function fetchData(){
@@ -785,6 +889,7 @@ document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('clic
 
 fetchData();
 fetchVerificationRequests();
+loadAppVersion();
 </script>
 </body>
 </html>

@@ -1,8 +1,32 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useWindowDimensions, Linking } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { apiGet } from '../api/client';
+
+// Legacy usernames contain chars (spaces, emojis, accents...) that the standard
+// /@[\w.-]+/ mention regex cannot match. We fetch the exact list from the server
+// and build a precise alternation so those @mentions still link to their profile.
+let legacyListCache: string[] | null = null;
+let legacyListPromise: Promise<string[]> | null = null;
+
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function loadLegacyUsernames(): Promise<string[]> {
+  if (legacyListCache) return Promise.resolve(legacyListCache);
+  if (!legacyListPromise) {
+    legacyListPromise = apiGet<{ usernames: string[] }>('/legacy-usernames')
+      .then(r => {
+        legacyListCache = Array.isArray(r.data?.usernames) ? r.data.usernames : [];
+        return legacyListCache;
+      })
+      .catch(() => (legacyListCache = []));
+  }
+  return legacyListPromise;
+}
 
 function convertMarkdown(html: string): string {
   // Block-level conversions (applied line-by-line)
@@ -86,10 +110,17 @@ function convertMarkdown(html: string): string {
   return s;
 }
 
-export default function SafeHTML({ text, style }: { text: string; style?: any }) {
+export default React.memo(function SafeHTML({ text, style }: { text: string; style?: any }) {
   const { width } = useWindowDimensions();
   const { colors, isDark } = useTheme();
   const navigation = useNavigation<any>();
+  const [legacyList, setLegacyList] = useState<string[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    loadLegacyUsernames().then(list => { if (active) setLegacyList(list); });
+    return () => { active = false; };
+  }, []);
 
   if (!text) return null;
 
@@ -107,15 +138,26 @@ export default function SafeHTML({ text, style }: { text: string; style?: any })
 
       p = convertMarkdown(p);
 
+      // Single combined pass: legacy special-character usernames first in the
+      // alternation so a name like "Peace 🕊️" is matched whole instead of being
+      // clobbered by the generic @[\w.-]+ branch.
+      const mentionRx = legacyList.length
+        ? new RegExp(`@(?:${legacyList.map(escapeRegExp).join('|')}|([\\w.-]+))`, 'g')
+        : /@([\w.-]+)/g;
+
       p = p
-        .replace(/(@[\w.-]+)/g, '<a href="app://profile/$1">$1</a>')
+        .replace(mentionRx, (match: string, genericMatch: string) =>
+          genericMatch !== undefined
+            ? `<a href="app://profile/${genericMatch}">@${genericMatch}</a>`
+            : `<a href="app://profile/${match.slice(1)}">${match}</a>`
+        )
         .replace(/(#[\w-]+)/g, '<a href="app://search/$1">$1</a>')
         .replace(/(https?:\/\/[^\s<>"']+[^\s<>"',.!?;:])/g, '<a href="$1">$1</a>')
         .replace(/[ \t]+$/gm, '')
         .replace(/(?:\r\n|\r|\n)/g, '<br />');
     }
     return p;
-  }, [text]);
+  }, [text, legacyList]);
 
   const tagsStyles = useMemo(() => ({
     body: {
@@ -209,4 +251,4 @@ export default function SafeHTML({ text, style }: { text: string; style?: any })
       }}
     />
   );
-}
+});

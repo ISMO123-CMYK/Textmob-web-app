@@ -17,9 +17,29 @@ export default function Sidebar() {
   const menuRef = useRef(null);
   const createMenuRef = useRef(null);
 
+  const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+
   useEffect(() => {
-    setSavedAccounts(JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]').map(a => ({ ...a, username: a.username?.toLowerCase() })));
+    const load = () => {
+      let arr = [];
+      try {
+        const raw = JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]');
+        if (Array.isArray(raw)) arr = raw;
+      } catch {}
+      setSavedAccounts(arr.map(a => ({ ...a, username: a.username?.toLowerCase(), profile_pic: a.profile_pic || '' })));
+    };
+    load();
+    window.addEventListener('storage', load);
+    return () => window.removeEventListener('storage', load);
   }, []);
+
+  async function removeSavedAccount(username) {
+    try {
+      const next = savedAccounts.filter(a => a.username !== username);
+      localStorage.setItem('textmobSavedAccounts', JSON.stringify(next));
+      setSavedAccounts(next);
+    } catch {}
+  }
 
   async function switchAccount(username, password) {
     try {
@@ -31,6 +51,9 @@ export default function Sidebar() {
       if (!res.ok) { window.showNotification?.({ title:'Login Failed', message: data.error, type:'error' }); return; }
       localStorage.setItem('currentUser', data.user.username);
       window.__feedState = { activeTab:'foryou', foryou:{posts:[],page:1,hasMore:true,scrollY:0}, following:{posts:[],page:1,hasMore:true,scrollY:0} };
+      try {
+        Object.keys(localStorage).filter(k => k.startsWith('tmob_cache_')).forEach(k => localStorage.removeItem(k));
+      } catch {}
       window.location.href = '/';
     } catch(e) { window.showNotification?.({ title:'Error', message:e.message, type:'error' }); }
   }
@@ -134,7 +157,7 @@ export default function Sidebar() {
         {/* Header */}
         <div className={cn('flex items-center px-4 pt-4 pb-2', collapsed ? 'justify-center' : 'justify-between')}>
           {!collapsed && <span className="text-sm font-bold text-gray-900 tracking-tight">Textmob</span>}
-          <button onClick={() => setCollapsed(v => !v)} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <button onClick={() => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem('sidebar-collapsed', JSON.stringify(next)); } catch {} }} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d={collapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7'} />
             </svg>
@@ -171,11 +194,24 @@ export default function Sidebar() {
                     </button>
                   </div>
                   {savedAccounts.map(acc => (
-                    <button key={acc.username} onClick={() => switchAccount(acc.username, acc.password)} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">{acc.username.slice(0,2).toUpperCase()}</div>
-                      <span className="font-semibold flex-1 text-left">@{acc.username}</span>
-                      <span className="text-blue-600 text-xs font-bold">Switch</span>
-                    </button>
+                    <div key={acc.username} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
+                      <button onClick={() => switchAccount(acc.username, acc.password)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                        {acc.profile_pic ? (
+                          <img src={acc.profile_pic} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100" loading="lazy" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">{acc.username.slice(0, 2).toUpperCase()}</div>
+                        )}
+                        <span className="font-semibold flex-1 truncate">@{acc.username}</span>
+                        <span className="text-blue-600 text-xs font-bold">Switch</span>
+                      </button>
+                      <button
+                        onClick={() => removeSavedAccount(acc.username)}
+                        aria-label={`Remove ${acc.username}`}
+                        className="w-5 h-5 flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                      </button>
+                    </div>
                   ))}
                   {savedAccounts.length === 0 && <p className="px-4 py-3 text-xs text-gray-400">No saved accounts</p>}
                 </>

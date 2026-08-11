@@ -9,17 +9,27 @@ import NotificationToast from '../../components/ui/NotificationToast';
 import { apiFetch } from '../../config/api';
 
 export default function AuthPage() {
+  const [redirect, setRedirect] = useState(() => {
+    try { return localStorage.getItem('pendingRedirect') || '/'; } catch { return '/'; }
+  });
   const [view, setView] = useState('login');
   const [savedAccounts, setSavedAccounts] = useState([]);
   const [showManage, setShowManage] = useState(false);
 
   useEffect(() => {
     const loadAccounts = () => {
+      let arr = [];
+      try {
+        const raw = JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]');
+        if (Array.isArray(raw)) arr = raw;
+      } catch {}
       setSavedAccounts(
-        JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]').map((a) => ({
-          ...a,
-          username: a.username.toLowerCase(),
-        }))
+        arr
+          .filter((a) => a && typeof a.username === 'string')
+          .map((a) => ({
+            ...a,
+            username: a.username.toLowerCase(),
+          }))
       );
     };
     loadAccounts();
@@ -55,7 +65,7 @@ export default function AuthPage() {
         following: { posts: [], page: 1, hasMore: true, scrollY: 0 }
       };
 
-      window.location.href = '/';
+      window.location.href = redirect || '/';
     } catch (e) {
       window.showNotification({ title: 'Login Failed', message: e.message, type: 'error' });
     }
@@ -85,6 +95,7 @@ export default function AuthPage() {
                 savedAccounts={savedAccounts}
                 onAutoLogin={autoLogin}
                 onRemoveAccount={removeAccount}
+                redirect={redirect}
               />
             )}
             {view === 'signup' && <SignupForm switchToLogin={() => setView('login')} />}

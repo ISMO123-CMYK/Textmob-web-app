@@ -35,6 +35,7 @@
     "node-summarizer": "^1.0.7",
     "nodemailer": "^8.0.4",
     "pushy": "^4.0.2",
+    "resend": "^6.18.1",
     "socket.io": "^4.5.1",
     "streamifier": "^0.1.1"
   },

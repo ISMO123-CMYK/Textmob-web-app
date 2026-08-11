@@ -33,13 +33,13 @@ export default function AboutScreen({ navigation }: { navigation: any }) {
           Textmob is a social media platform for sharing thoughts, photos, videos, and connecting with people around the world.
         </Text>
 
-        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.com/privacy')}>
+        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.web.app/privacy.html')}>
           <Text style={s.linkText}>Privacy Policy</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.com/terms')}>
+        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.web.app/terms.html')}>
           <Text style={s.linkText}>Terms of Service</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.com/contact')}>
+        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob..web.app/about.html')}>
           <Text style={s.linkText}>Contact Support</Text>
         </TouchableOpacity>
       </ScrollView>

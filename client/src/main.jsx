@@ -40,6 +40,7 @@ import CreateLiveMobile from './pages/live/CreateLiveMobile';
 import CreateLiveDesktop from './pages/live/CreateLiveDesktop';
 import AccountsCenter from './pages/AccountsCenter';
 import AboutPage from './pages/about/AboutPage';
+import InstallPage from './pages/InstallPage';
 
 // Initialize feed state (matches Zn's __feedState from bundle)
 window.__feedState = window.__feedState || {
@@ -76,6 +77,7 @@ Lexum.init({
     { path: '/create-live', responsive: { mobile: CreateLiveMobile, desktop: CreateLiveDesktop } },
     { path: '/accountscenter', component: AccountsCenter },
     { path: '/about', component: AboutPage },
+    { path: '/install', component: InstallPage },
   ],
   wrapper: AppWrapper,
 });

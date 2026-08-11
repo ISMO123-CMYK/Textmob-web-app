@@ -7,8 +7,8 @@ import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 
 export type AuthStackParamList = {
   Onboarding: undefined;
-  Login: undefined;
-  Signup: undefined;
+  Login: { redirect?: string } | undefined;
+  Signup: { redirect?: string } | undefined;
   ForgotPassword: undefined;
 };
 

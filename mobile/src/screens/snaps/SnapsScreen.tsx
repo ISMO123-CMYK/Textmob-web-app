@@ -221,12 +221,13 @@ function SnapText({ text, expanded, onToggle }: { text: string; expanded: boolea
   );
 }
 
-function SnapItemView({ item, isActive, username, containerHeight, muted, expanded, onLike, onToggleText, onOpenComments, onOpenReactions, onOpenGift, onToggleMute, onShare }: {
+const SnapItemView = React.memo(function SnapItemView({ item, isActive, username, containerHeight, muted, expanded, onLike, onToggleText, onOpenComments, onOpenReactions, onOpenGift, onToggleMute, onShare }: {
   item: Post; isActive: boolean; username: string | null; containerHeight: number;
   muted: boolean; expanded: boolean;
-  onLike: () => void; onToggleText: () => void; onOpenComments: () => void;
-  onOpenReactions: () => void;
-  onOpenGift: () => void; onToggleMute: () => void; onShare: () => void;
+  onLike: (id: string | number) => void; onToggleText: (id: string | number) => void;
+  onOpenComments: (id: string | number) => void;
+  onOpenReactions: (id: string | number) => void;
+  onOpenGift: (item: Post) => void; onToggleMute: () => void; onShare: (item: Post) => void;
 }) {
   const [likeAnim, setLikeAnim] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
@@ -240,7 +241,7 @@ function SnapItemView({ item, isActive, username, containerHeight, muted, expand
   return (
     <View style={[styles.snapContainer, { height: containerHeight }]}>
       {isActive && isVideo ? (
-        <SnapVideoPlayer mediaUrl={mediaUrl} isActive={isActive} isMuted={muted} onDoubleTap={() => { onLike(); setLikeAnim(true); setTimeout(() => setLikeAnim(false), 600); }} />
+        <SnapVideoPlayer mediaUrl={mediaUrl} isActive={isActive} isMuted={muted} onDoubleTap={() => { onLike(item.id); setLikeAnim(true); setTimeout(() => setLikeAnim(false), 600); }} />
       ) : mediaUrl ? (
         <Image source={{ uri: mediaUrl }} style={styles.snapVideo} />
       ) : (
@@ -268,7 +269,7 @@ function SnapItemView({ item, isActive, username, containerHeight, muted, expand
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           setShowParticles(true);
           setTimeout(() => setShowParticles(false), 600);
-          onLike();
+          onLike(item.id);
         }}>
           <Animated.View style={{ transform: [{ scale: likeScale }] }}>
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={28} color={liked ? '#ef4444' : '#fff'} />
@@ -276,21 +277,21 @@ function SnapItemView({ item, isActive, username, containerHeight, muted, expand
           {showParticles && <ParticleBurst color="#ef4444" size={5} count={10} />}
           <Text style={styles.actionCount}>{item.likes?.length || 0}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={onOpenComments}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => onOpenComments(item.id)}>
           <Ionicons name="chatbubble-ellipses-outline" size={26} color="#fff" />
           <Text style={styles.actionCount}>{item.comments?.length || 0}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={onOpenReactions}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => onOpenReactions(item.id)}>
           <Ionicons name="happy-outline" size={26} color="#fff" />
           <Text style={styles.actionCount} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={onOpenGift}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => onOpenGift(item)}>
           <Ionicons name="gift-outline" size={26} color="#fbbf24" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={onToggleMute}>
           <Ionicons name={muted ? 'volume-mute-outline' : 'volume-high-outline'} size={26} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={onShare}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => onShare(item)}>
           <Ionicons name="share-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -319,7 +320,7 @@ function SnapItemView({ item, isActive, username, containerHeight, muted, expand
           <SnapFollowButton targetUsername={item.username} currentUsername={username} />
         </View>
         {item.text ? (
-          <SnapText text={item.text} expanded={expanded} onToggle={onToggleText} />
+          <SnapText text={item.text} expanded={expanded} onToggle={() => onToggleText(item.id)} />
         ) : null}
       </View>
 
@@ -333,7 +334,7 @@ function SnapItemView({ item, isActive, username, containerHeight, muted, expand
       )}
     </View>
   );
-}
+});
 
 function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUsername: string; onPress: (username: string) => void }) {
   const profile = useProfileCache(comment.username);
@@ -370,11 +371,13 @@ function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUser
   );
 }
 
-export default function SnapsScreen({ navigation }: { navigation: any }) {
+export default function SnapsScreen({ navigation, route }: { navigation: any; route?: any }) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
   const insets = useSafeAreaInsets();
   const [containerHeight, setContainerHeight] = useState(SCREEN_HEIGHT);
+  const sharedVideo = route?.params?.sharedVideo as { uri: string; name?: string; type?: string } | undefined;
+  const sharedCaption = route?.params?.sharedCaption as string | undefined;
 
   const [snaps, setSnaps] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -426,6 +429,19 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
 
   useEffect(() => { loadSnaps(1); }, []);
 
+  // Video shared into the app from another app (Share to Textmob / deep link)
+  useEffect(() => {
+    if (sharedVideo && sharedVideo.uri) {
+      setSelectedVideo({
+        uri: sharedVideo.uri,
+        fileName: sharedVideo.name || `snap_${Date.now()}.mp4`,
+        mimeType: sharedVideo.type || 'video/mp4',
+      });
+      if (typeof sharedCaption === 'string') setCaption(sharedCaption);
+      setShowCreateModal(true);
+    }
+  }, [sharedVideo, sharedCaption]);
+
   const loadSnaps = async (pg: number = 1, append: boolean = false) => {
     if (!append) setLoading(true);
     const seen = getSeenParam();
@@ -443,11 +459,11 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
     if (!loading && hasMoreSnaps) loadSnaps(snapPage + 1, true);
   };
 
-  const handleLike = async (postId: string | number) => {
+  const handleLike = useCallback(async (postId: string | number) => {
     if (!username) { Alert.alert('Sign in', 'Log in to like'); return; }
     setSnaps(prev => prev.map(p => p.id === postId ? { ...p, likes: p.likes?.includes(username) ? p.likes.filter(u => u !== username) : [...(p.likes || []), username] } : p));
     await likePostAPI(String(postId), username).catch(() => { });
-  };
+  }, [username]);
 
   const handleNegativeSignal = (postId: string, signalType: string, contentType: string) => {
     if (!username) return;
@@ -494,7 +510,7 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const handleShare = async (item: Post) => {
+  const handleShare = useCallback(async (item: Post) => {
     try {
       await Share.share({
         message: `Check out this snap by @${item.username} on Textmob!\nhttps://louda.web.app/snaps?id=${item.id}`,
@@ -502,7 +518,7 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
     } catch (error) {
       if (error && (error as any).message !== 'User did not share') console.error(error);
     }
-  };
+  }, []);
 
 
   const getUploadAsset = (asset: any) => ({
@@ -592,6 +608,14 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
   const isFocused = useIsFocused();
   const s = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
+  const toggleSnapText = useCallback((id: string | number) => {
+    setExpandedText(prev => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+  const openComments = useCallback((id: string | number) => setShowComments(id), []);
+  const openReactions = useCallback((id: string | number) => setShowReactions(id), []);
+  const openGift = useCallback((item: Post) => setShowGift(item), []);
+  const toggleMute = useCallback(() => setMuted(m => !m), []);
+
   const renderItem = useCallback(({ item, index }: { item: Post; index: number }) => {
     const expanded = expandedText[item.id];
     return (
@@ -602,16 +626,16 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
         containerHeight={containerHeight}
         muted={muted}
         expanded={expanded}
-        onLike={() => handleLike(item.id)}
-        onToggleText={() => setExpandedText(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-        onOpenComments={() => setShowComments(item.id)}
-        onOpenReactions={() => setShowReactions(item.id)}
-        onOpenGift={() => setShowGift(item)}
-        onToggleMute={() => setMuted(!muted)}
-        onShare={() => handleShare(item)}
+        onLike={handleLike}
+        onToggleText={toggleSnapText}
+        onOpenComments={openComments}
+        onOpenReactions={openReactions}
+        onOpenGift={openGift}
+        onToggleMute={toggleMute}
+        onShare={handleShare}
       />
     );
-  }, [activeIndex, isFocused, muted, username, containerHeight, expandedText, handleLike, handleShare]);
+  }, [activeIndex, isFocused, muted, username, containerHeight, expandedText, handleLike, handleShare, toggleSnapText, openComments, openReactions, openGift, toggleMute]);
 
   if (loading) {
     return (
@@ -739,8 +763,9 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
 
       {/* Create Snap Modal - 3-Step Wizard */}
       <Modal visible={showCreateModal} transparent animationType="slide" onRequestClose={closeCreateModal}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeCreateModal}>
-          <View style={[styles.createModalContent, { backgroundColor: colors.card }]} onStartShouldSetResponder={() => true}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeCreateModal} />
+          <View style={[styles.createModalContent, { backgroundColor: colors.card }]}>
             <View style={styles.createModalHeader}>
               <Text style={[styles.createModalTitle, { color: colors.textPrimary }]}>New Snap</Text>
               <TouchableOpacity onPress={closeCreateModal}>
@@ -873,7 +898,7 @@ export default function SnapsScreen({ navigation }: { navigation: any }) {
               </React.Fragment>
             )}
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
       {/* Reactions modal */}
@@ -977,6 +1002,7 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
   uploadBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, gap: 12 },
   uploadOption: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 12 },
   uploadOptionText: { fontSize: 16, fontWeight: '600' },

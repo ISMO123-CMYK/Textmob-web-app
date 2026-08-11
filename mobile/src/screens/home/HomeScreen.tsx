@@ -17,6 +17,7 @@ import { apiPost, apiGet, API_BASE_URL } from '../../api/client';
 import { storage, KEYS } from '../../utils/storage';
 import { getSeenParam, markSeen } from '../../utils/seen';
 import MobileHeader from '../../components/MobileHeader';
+import SaveCredentialsBanner from '../../components/SaveCredentialsBanner';
 
 import { CATEGORIES, CATEGORY_IDS } from '../../data/categories';
 import type { Category } from '../../data/categories';
@@ -124,6 +125,8 @@ export default function HomeScreen() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [pullDelta, setPullDelta] = useState(0);
   const [showFeedSettings, setShowFeedSettings] = useState(false);
+  const [feedSettingsTab, setFeedSettingsTab] = useState<'categories' | 'blocked'>('categories');
+  const [blockedList, setBlockedList] = useState<any[]>([]);
   const [feedPrefs, setFeedPrefs] = useState<{ contentTypeWeights: Record<string, number>; categoryWeights: Record<string, number>; mutedCreators?: string[]; exploreThreshold?: number }>({ contentTypeWeights: {}, categoryWeights: {}, mutedCreators: [], exploreThreshold: 0.3 });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardSelected, setOnboardSelected] = useState<string[]>([]);
@@ -150,9 +153,10 @@ export default function HomeScreen() {
   useEffect(() => { pageRef.current = page; }, [page]);
   useEffect(() => { postsRef.current = posts; }, [posts]);
 
-  // Save/restore feed state
+  // Save/restore feed state (keyed per user so a username change forces a fresh fetch)
   useEffect(() => {
-    const key = `${KEYS.FEED_STATE}_${tab}`;
+    if (!username) return;
+    const key = `${KEYS.FEED_STATE}_${username}_${tab}`;
     storage.getStore(key).then(saved => {
       if (saved) {
         try {
@@ -177,7 +181,14 @@ export default function HomeScreen() {
         }));
       }
     };
-  }, [tab]);
+  }, [tab, username]);
+
+  // Purge legacy unkeyed feed state from previous app versions
+  useEffect(() => {
+    if (!username) return;
+    storage.removeStore(`${KEYS.FEED_STATE}_foryou`);
+    storage.removeStore(`${KEYS.FEED_STATE}_following`);
+  }, [username]);
 
   // Load feed preferences from the server and localStorage
   useEffect(() => {
@@ -213,6 +224,24 @@ export default function HomeScreen() {
     }
   }, [username]);
 
+  // Consume a pending redirect (e.g. user logged in from a protected screen)
+  useEffect(() => {
+    if (!username) return;
+    storage.getStore(KEYS.PENDING_REDIRECT).then((val) => {
+      if (!val) return;
+      storage.removeStore(KEYS.PENDING_REDIRECT);
+      try {
+        const pending = JSON.parse(val);
+        if (pending && pending.name) {
+          const { name, params } = pending;
+          setTimeout(() => {
+            try { navigation.navigate(name, params); } catch { }
+          }, 600);
+        }
+      } catch { }
+    });
+  }, [username]);
+
   async function saveFeedPrefs(updates: Partial<typeof feedPrefs>) {
     const newPrefs = { ...feedPrefs, ...updates };
     setFeedPrefs(newPrefs);
@@ -224,17 +253,36 @@ export default function HomeScreen() {
     }
   }
 
+  const loadBlockedUsers = useCallback(async () => {
+    try {
+      const list: string[] = JSON.parse((await storage.getStore(KEYS.BLOCKED_USERS)) || '[]');
+      setBlockedList(list.map((u) => ({ username: u })));
+    } catch {
+      setBlockedList([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showFeedSettings) {
+      loadBlockedUsers();
+    }
+  }, [showFeedSettings, loadBlockedUsers]);
+
   const fetchPosts = useCallback(async (pageNum: number, isRefresh = false) => {
     setLoading(true);
     setError('');
     try {
       const seen = getSeenParam();
+      const blockedRaw = await storage.getStore(KEYS.BLOCKED_USERS);
+      let blockedArr: string[] = [];
+      try { blockedArr = JSON.parse(blockedRaw || '[]'); } catch { }
       const res = await getFeedPostsAPI({
         username: username || undefined,
         tab,
         page: pageNum,
         limit: 10,
         seenIds: seen || undefined,
+        blockedUsers: blockedArr,
       });
       if (res.ok && res.data) {
         const filtered = (Array.isArray(res.data) ? res.data : []).filter(p => p && !isGroupPost(p));
@@ -359,6 +407,31 @@ export default function HomeScreen() {
     apiPost('/negative-signal', { username, postId, signalType, contentType }).catch(() => {});
   }, [username]);
 
+  // Blocked user — remove their posts everywhere and invalidate cached feed state
+  const handleBlocked = useCallback((blockedUsername: string) => {
+    setPosts(prev => prev.filter(p => p.username !== blockedUsername));
+    setNewPosts(prev => prev.filter(p => p.username !== blockedUsername));
+    setLiveStreams(prev => prev.filter(p => p.username !== blockedUsername));
+    storage.removeStore(`${KEYS.FEED_STATE}_${username}_foryou`);
+    storage.removeStore(`${KEYS.FEED_STATE}_${username}_following`);
+    setBlockedList(prev => prev.some(u => u.username === blockedUsername) ? prev : [...prev, { username: blockedUsername }]);
+  }, [username]);
+
+  const unblock = useCallback(async (targetUsername: string) => {
+    try {
+      const list: string[] = JSON.parse((await storage.getStore(KEYS.BLOCKED_USERS)) || '[]');
+      const next = list.filter(u => String(u).toLowerCase() !== String(targetUsername).toLowerCase());
+      await storage.setStore(KEYS.BLOCKED_USERS, JSON.stringify(next));
+    } catch { }
+    setBlockedList(prev => prev.filter(u => u.username !== targetUsername));
+    if (username) {
+      storage.removeStore(`${KEYS.FEED_STATE}_${username}_foryou`);
+      storage.removeStore(`${KEYS.FEED_STATE}_${username}_following`);
+    }
+    setPage(1);
+    fetchPosts(1, true);
+  }, [fetchPosts, username]);
+
   // Comment
   const handleComment = useCallback(async (postId: string | number, text: string) => {
     if (!username || !text.trim()) return;
@@ -409,7 +482,7 @@ export default function HomeScreen() {
     if (!username && newTab === 'following') return;
     if (tab === newTab) return;
     // Save current state
-    storage.setStore(`${KEYS.FEED_STATE}_${tab}`, JSON.stringify({ posts, page, hasMore }));
+    storage.setStore(`${KEYS.FEED_STATE}_${username}_${tab}`, JSON.stringify({ posts, page, hasMore }));
     setTab(newTab);
     setNewPosts([]);
     setPage(1);
@@ -470,10 +543,13 @@ export default function HomeScreen() {
     setSugFetched(true);
     getFeedPostsAPI({ username, tab: 'foryou', page: 1, limit: 1 }).then(() => {
       if (active) {
-        fetch(`${API_BASE_URL}/get-suggestions-feed?username=${encodeURIComponent(username)}`)
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 15000);
+        fetch(`${API_BASE_URL}/get-suggestions-feed?username=${encodeURIComponent(username)}`, { signal: controller.signal })
           .then(r => r.json())
           .then(data => { if (active) setSuggestions(Array.isArray(data) ? data : []); })
-          .catch(() => active && setSuggestions([]));
+          .catch(() => active && setSuggestions([]))
+          .finally(() => clearTimeout(t));
       }
     });
     return () => { active = false; };
@@ -488,6 +564,10 @@ export default function HomeScreen() {
     fetchPosts(1, true);
   }
 
+  const toggleReactions = useCallback((id: string | number) => {
+    setReactionsOpenFor(prev => (prev === id ? null : id));
+  }, []);
+
   // Render post with suggestion slots
   const renderPost = useCallback(({ item, index }: { item: Post; index: number }) => {
     const showSuggestion = (index + 1) % 5 === 0 && suggestions.length > 0;
@@ -498,18 +578,19 @@ export default function HomeScreen() {
           isActive={isFocused && index === activeIndex}
           viewerCount={liveCounts[String(item.id)] || 0}
           reactionCounts={reactionCountsCache}
-          onReactionToggle={(id) => setReactionsOpenFor(reactionsOpenFor === id ? null : id)}
+          onReactionToggle={toggleReactions}
           onVotePoll={handlePollVote}
           onComment={handleComment}
           onLike={handleLike}
           onReact={handleReact}
+          onBlocked={handleBlocked}
           showViewButton
           showCommentInput
         />
         {showSuggestion && <SuggestionSlot suggestions={suggestions} slotIndex={Math.floor(index / 5)} />}
       </View>
     );
-  }, [isFocused, activeIndex, liveCounts, reactionCountsCache, reactionsOpenFor, suggestions, handlePollVote, handleComment, handleLike, handleReact]);
+  }, [isFocused, activeIndex, liveCounts, reactionCountsCache, suggestions, toggleReactions, handlePollVote, handleComment, handleLike, handleReact, handleBlocked]);
 
   const s = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
@@ -590,6 +671,7 @@ export default function HomeScreen() {
       {/* Header */}
       <MobileHeader navigation={navigation} />
 
+      {username && <SaveCredentialsBanner />}
 
       {/* Tabs */}
       <View style={[s.tabBar, { backgroundColor: colors.card }]}>
@@ -629,6 +711,7 @@ export default function HomeScreen() {
               onComment={handleComment}
               onLike={handleLike}
               onReact={handleReact}
+              onBlocked={handleBlocked}
               showViewButton
               showCommentInput
             />
@@ -776,51 +859,78 @@ export default function HomeScreen() {
           <View style={[modalStyles.sheet, { backgroundColor: colors.card }]}>
             <View style={modalStyles.handle} />
             <Text style={[modalStyles.title, { color: colors.textPrimary }]}>Feed Preferences</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              {(['categories', 'blocked'] as const).map(t => (
+                <TouchableOpacity key={t} onPress={() => setFeedSettingsTab(t)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: feedSettingsTab === t ? colors.textPrimary : (isDark ? '#1e293b' : '#f3f4f6'), borderWidth: 1, borderColor: feedSettingsTab === t ? 'transparent' : (isDark ? '#334155' : '#e2e8f0') }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: feedSettingsTab === t ? (isDark ? '#1e293b' : '#fff') : colors.textSecondary }}>{t === 'categories' ? 'Categories' : `Blocked (${blockedList.length})`}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             <ScrollView style={{ maxHeight: 400 }}>
-              <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Pick categories you want to see more of</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                {CATEGORIES.map(cat => {
-                  const isSelected = (feedPrefs.categoryWeights[cat.id] || 1) > 1;
-                  return (
-                    <TouchableOpacity
-                      key={cat.id}
-                      onPress={() => {
-                        const current = feedPrefs.categoryWeights[cat.id] ?? 1;
-                        saveFeedPrefs({ categoryWeights: { ...feedPrefs.categoryWeights, [cat.id]: current > 1 ? 1.0 : 3.0 } });
-                      }}
-                      style={{
-                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
-                        backgroundColor: isSelected ? cat.color : (isDark ? '#1e293b' : '#f3f4f6'),
-                        borderWidth: 1, borderColor: isSelected ? cat.color : (isDark ? '#334155' : '#e2e8f0'),
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#fff' : colors.textSecondary }}>{cat.name}</Text>
+              {feedSettingsTab === 'categories' && (<>
+                <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Pick categories you want to see more of</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {CATEGORIES.map(cat => {
+                    const isSelected = (feedPrefs.categoryWeights[cat.id] || 1) > 1;
+                    return (
+                      <TouchableOpacity
+                        key={cat.id}
+                        onPress={() => {
+                          const current = feedPrefs.categoryWeights[cat.id] ?? 1;
+                          saveFeedPrefs({ categoryWeights: { ...feedPrefs.categoryWeights, [cat.id]: current > 1 ? 1.0 : 3.0 } });
+                        }}
+                        style={{
+                          paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+                          backgroundColor: isSelected ? cat.color : (isDark ? '#1e293b' : '#f3f4f6'),
+                          borderWidth: 1, borderColor: isSelected ? cat.color : (isDark ? '#334155' : '#e2e8f0'),
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#fff' : colors.textSecondary }}>{cat.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Content type</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                  {['live', 'media', 'poll', 'text'].map(ct => {
+                    const isSelected = (feedPrefs.contentTypeWeights[ct] || 1) > 1;
+                    return (
+                      <TouchableOpacity
+                        key={ct}
+                        onPress={() => {
+                          const current = feedPrefs.contentTypeWeights[ct] || 1;
+                          saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [ct]: current > 1 ? 1.0 : 3.0 } });
+                        }}
+                        style={{
+                          paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+                          backgroundColor: isSelected ? '#2563eb' : (isDark ? '#1e293b' : '#f3f4f6'),
+                          borderWidth: 1, borderColor: isSelected ? '#2563eb' : (isDark ? '#334155' : '#e2e8f0'),
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#fff' : colors.textSecondary }}>{ct}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>)}
+              {feedSettingsTab === 'blocked' && (
+                blockedList.length === 0 ? (
+                  <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 }}>No blocked users</Text>
+                ) : blockedList.map((u: any) => (
+                  <View key={u.username} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                      <Image source={{ uri: u.profile_pic || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg' }} style={{ width: 32, height: 32, borderRadius: 16 }} />
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }} numberOfLines={1}>@{u.username}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => {
+                      unblock(u.username);
+                    }} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textPrimary }}>Unblock</Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
-              <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Content type</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                {['live', 'media', 'poll', 'text'].map(ct => {
-                  const isSelected = (feedPrefs.contentTypeWeights[ct] || 1) > 1;
-                  return (
-                    <TouchableOpacity
-                      key={ct}
-                      onPress={() => {
-                        const current = feedPrefs.contentTypeWeights[ct] || 1;
-                        saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [ct]: current > 1 ? 1.0 : 3.0 } });
-                      }}
-                      style={{
-                        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
-                        backgroundColor: isSelected ? '#2563eb' : (isDark ? '#1e293b' : '#f3f4f6'),
-                        borderWidth: 1, borderColor: isSelected ? '#2563eb' : (isDark ? '#334155' : '#e2e8f0'),
-                      }}
-                    >
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#fff' : colors.textSecondary }}>{ct}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                  </View>
+                ))
+              )}
             </ScrollView>
             <TouchableOpacity onPress={() => setShowFeedSettings(false)} style={[modalStyles.doneBtn, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Done</Text>

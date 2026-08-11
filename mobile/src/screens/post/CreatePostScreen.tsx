@@ -46,14 +46,16 @@ export default function CreatePostScreen({ route }: { route: any }) {
   const { username } = useAuth();
   const profile = useProfileCache(username || '');
   const navigation = useNavigation<any>();
-  const quotePostId = route?.params?.quotePostId;
+  const quotePostId = route?.params?.quotePostId || route?.params?.quoteId;
+  const sharedText = route?.params?.sharedText;
+  const sharedMedia = route?.params?.sharedMedia as { uri: string; name: string; type: string }[] | undefined;
 
-  const [text, setText] = useState('');
+  const [text, setText] = useState(sharedText || '');
   const [parsed, setParsed] = useState('');
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const inputRef = useRef<TextInput>(null);
-  const [media, setMedia] = useState<string[]>([]);
-  const [mediaFiles, setMediaFiles] = useState<any[]>([]);
+  const [media, setMedia] = useState<string[]>(() => (sharedMedia || []).map(m => m.uri));
+  const [mediaFiles, setMediaFiles] = useState<any[]>(() => (sharedMedia || []).map(m => ({ uri: m.uri, fileName: m.name || `shared_${Date.now()}`, mimeType: m.type || 'image/jpeg' })));
   const [loading, setLoading] = useState(false);
   const [mentionResults, setMentionResults] = useState<UserProfile[]>([]);
   const [showMentions, setShowMentions] = useState(false);

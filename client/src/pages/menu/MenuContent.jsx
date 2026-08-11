@@ -221,6 +221,12 @@ export default function MenuContent() {
             href: '/halloffame',
           },
           {
+            label: 'Install the App',
+            description: 'Get Textmob on your Android phone',
+            Icon: NavIcons.Download,
+            href: '/install',
+          },
+          {
             label: 'What’s New',
             description: 'New features you should try',
             Icon: NavIcons.Info,

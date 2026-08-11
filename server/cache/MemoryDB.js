@@ -68,6 +68,30 @@ class MemoryDB {
 
   // ─── User Methods ───
 
+  async reload() {
+    console.log('[MemoryDB] Reloading all data from Supabase...');
+    try {
+      const [usersData, postsData] = await Promise.all([
+        this.fetchAllPaginated(this.supabase, 'users'),
+        this.fetchAllPaginated(this.supabase2, 'Posts'),
+      ]);
+      if (usersData) this.users = usersData;
+      if (postsData) this.posts = postsData;
+
+      const disabledUsernames = new Set(
+        this.users.filter(u => String(u.disabled) === "true").map(u => u.username)
+      );
+      if (disabledUsernames.size > 0) {
+        this.posts = this.posts.filter(p => !disabledUsernames.has(p.username));
+      }
+
+      this.loadSeenMaps();
+      console.log(`[MemoryDB] Reloaded ${this.users.length} users, ${this.posts.length} posts`);
+    } catch (error) {
+      console.error('[MemoryDB] Reload failed:', error);
+    }
+  }
+
   findUser(username) {
     return this.users.find(u => u.username === username);
   }

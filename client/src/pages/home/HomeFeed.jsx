@@ -10,6 +10,21 @@ import { CATEGORIES } from '../../data/categories';
 
 const allCategories = CATEGORIES.map(c => c.id);
 
+/* ─── blocked users localStorage helpers ─── */
+const BLOCKED_KEY = 'textmobBlockedUsers';
+function getBlockedUsers() {
+  try { return JSON.parse(localStorage.getItem(BLOCKED_KEY) || '[]'); } catch { return []; }
+}
+function addBlocked(username) {
+  let arr = getBlockedUsers();
+  if (!arr.includes(username)) { arr.push(username); localStorage.setItem(BLOCKED_KEY, JSON.stringify(arr)); }
+}
+function removeBlocked(username) {
+  let arr = getBlockedUsers().filter(u => u !== username);
+  localStorage.setItem(BLOCKED_KEY, JSON.stringify(arr));
+  return arr;
+}
+
 /* ─── seen-posts tracking (rr/ir/ar/or) ─── */
 const SEEN_KEY = '__tmob_viewed_ids';
 function getSeenIds() {
@@ -117,6 +132,28 @@ export default function HomeFeed({ propPosts }) {
   const [sugFetched, setSugFetched] = useState(false);
   const [reactionsOpenFor, setReactionsOpenFor] = useState(null);
   const [reactionCountsCache, setReactionCountsCache] = useState({});
+  const [blockedUsers, setBlockedUsers] = useState(() => getBlockedUsers());
+
+  useEffect(() => {
+    function onBlock(e) {
+      let u = e.detail?.username;
+      if (u) {
+        addBlocked(u);
+        setBlockedUsers(getBlockedUsers());
+        setPosts(prev => prev.filter(p => p.username !== u));
+        setNewPosts(prev => prev.filter(p => p.username !== u));
+        if (window.__feedState) {
+          ['foryou', 'following'].forEach(tab => {
+            if (window.__feedState[tab]) {
+              window.__feedState[tab].posts = (window.__feedState[tab].posts || []).filter(p => p.username !== u);
+            }
+          });
+        }
+      }
+    }
+    window.addEventListener('user-blocked', onBlock);
+    return () => window.removeEventListener('user-blocked', onBlock);
+  }, []);
 
   const hasMoreRef = useRef(hasMore);
   const loadingRef = useRef(loading);
@@ -264,6 +301,8 @@ export default function HomeFeed({ propPosts }) {
   function FeedSettingsPanel() {
     if (!showFeedSettings) return null;
     const contentTypes = ['live', 'media', 'poll', 'text'];
+    const [activeTab, setActiveTab] = useState('categories');
+    const [blockedList, setBlockedList] = useState([]);
 
     // Load from localStorage, fallback to feedPrefs
     const [selectedCats, setSelectedCats] = useState(() => {
@@ -275,6 +314,12 @@ export default function HomeFeed({ propPosts }) {
         .filter(([, w]) => w > 1)
         .map(([k]) => k);
     });
+
+    useEffect(() => {
+      if (showFeedSettings) {
+        setBlockedList(getBlockedUsers().map(u => ({ username: u })));
+      }
+    }, [showFeedSettings]);
 
     function toggleCat(catId) {
       setSelectedCats(prev => {
@@ -296,53 +341,86 @@ export default function HomeFeed({ propPosts }) {
               <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
           </div>
+          <div className="flex gap-2 mb-4">
+            {['categories', 'blocked'].map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={cn('px-3 py-1.5 rounded-full text-xs font-semibold transition-all border', activeTab === tab ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-transparent' : 'text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400')}>
+                {tab === 'categories' ? 'Categories' : `Blocked (${blockedList.length})`}
+              </button>
+            ))}
+          </div>
           <div className="space-y-4">
-            <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-3">Pick categories you want to see more of</p>
-              <div className="flex flex-wrap gap-2">
-                {CATEGORIES.map(cat => {
-                  const isSelected = selectedCats.includes(cat.id);
-                  return (
+            {activeTab === 'categories' && (<>
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-3">Pick categories you want to see more of</p>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map(cat => {
+                    const isSelected = selectedCats.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => toggleCat(cat.id)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border',
+                          isSelected
+                            ? 'text-white border-transparent'
+                            : 'text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
+                        )}
+                        style={isSelected ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
+                      >
+                        {cat.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
+                <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2">Content type preference</p>
+                <div className="flex flex-wrap gap-2">
+                  {contentTypes.map(t => (
                     <button
-                      key={cat.id}
-                      onClick={() => toggleCat(cat.id)}
+                      key={t}
+                      onClick={() => {
+                        const current = feedPrefs.contentTypeWeights[t] || 1;
+                        const next = current >= 3.0 ? 1.0 : 3.0;
+                        saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [t]: next } });
+                      }}
                       className={cn(
-                        'px-3 py-1.5 rounded-full text-xs font-semibold transition-all border',
-                        isSelected
-                          ? 'text-white border-transparent'
-                          : 'text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500'
+                        'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+                        (feedPrefs.contentTypeWeights[t] || 1) > 1
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
                       )}
-                      style={isSelected ? { backgroundColor: cat.color, borderColor: cat.color } : {}}
                     >
-                      {cat.name}
+                      {t}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold mb-2">Content type preference</p>
-              <div className="flex flex-wrap gap-2">
-                {contentTypes.map(t => (
-                  <button
-                    key={t}
-                    onClick={() => {
-                      const current = feedPrefs.contentTypeWeights[t] || 1;
-                      const next = current >= 3.0 ? 1.0 : 3.0;
-                      saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [t]: next } });
-                    }}
-                    className={cn(
-                      'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
-                      (feedPrefs.contentTypeWeights[t] || 1) > 1
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-                    )}
-                  >
-                    {t}
-                  </button>
-                ))}
+            </>)}
+            {activeTab === 'blocked' && (
+              <div>
+                {blockedList.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-6">No blocked users</p>
+                ) : (
+                  <div className="space-y-2">
+                    {blockedList.map(u => (
+                      <div key={u.username} className="flex items-center justify-between gap-3 py-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img src={u.profile_pic || DEFAULT_PIC} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">@{u.username}</p>
+                        </div>
+                        <button onClick={() => {
+                          let remaining = removeBlocked(u.username);
+                          setBlockedList(remaining.map(u => ({ username: u })));
+                          setPosts(prev => [...prev]);
+                        }} className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex-shrink-0">Unblock</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -393,7 +471,8 @@ export default function HomeFeed({ propPosts }) {
   useEffect(() => {
     if (!window.socket || !isLoggedIn) return;
     let handler = p => {
-      if (p.username !== user.username && !isGroupPost(p)) {
+      let blocked = getBlockedUsers();
+      if (p.username !== user.username && !isGroupPost(p) && !blocked.includes(p.username)) {
         setNewPosts(prev => [p, ...prev]);
       }
     };
@@ -603,6 +682,7 @@ export default function HomeFeed({ propPosts }) {
             page: pg,
             limit: 10,
             seenIds: seen || undefined,
+            blockedUsers: getBlockedUsers(),
           }),
         });
         if (!res.ok) throw Error('Failed to load posts');
@@ -690,6 +770,7 @@ export default function HomeFeed({ propPosts }) {
           page: 1,
           limit: 10,
           seenIds: seen || undefined,
+          blockedUsers: getBlockedUsers(),
         }),
       }).then(r => r.json()).then(data => {
           let filtered = (Array.isArray(data) ? data : []).filter(p => !isGroupPost(p));

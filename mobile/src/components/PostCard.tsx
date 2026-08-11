@@ -14,6 +14,7 @@ import {
   votePollAPI, Post, Comment, Reaction,
 } from '../api/posts';
 import { apiGet, apiPost } from '../api/client';
+import { storage, KEYS } from '../utils/storage';
 import { getProfileAPI } from '../api/auth';
 import { timeAgo } from '../utils/format';
 import GiftCoinsModal from './GiftCoinsModal';
@@ -46,7 +47,7 @@ import SafeHTML from './SafeHTML';
 function RichText({ text, style }: { text: string; style?: any }) {
   return <SafeHTML text={text} style={style} />;
 }
-function PostMenu({ visible, onClose, post, onNegativeSignal }: { visible: boolean; onClose: () => void; post: Post; onNegativeSignal?: (postId: string, signal: string, contentType: string) => void }) {
+function PostMenu({ visible, onClose, post, onNegativeSignal, onBlocked }: { visible: boolean; onClose: () => void; post: Post; onNegativeSignal?: (postId: string, signal: string, contentType: string) => void; onBlocked?: (blockedUsername: string) => void }) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
   const navigation = useNavigation<any>();
@@ -58,6 +59,10 @@ function PostMenu({ visible, onClose, post, onNegativeSignal }: { visible: boole
     { type: 'divider' as const },
     { icon: 'eye-off-outline' as const, label: 'Not interested', signal: 'not_interested' },
     { icon: 'close-circle-outline' as const, label: 'Hide', signal: 'hide' },
+    ...(!isOwnPost ? [
+      { type: 'divider' as const },
+      { icon: 'ban-outline' as const, label: 'Block', block: true },
+    ] : []),
     { type: 'divider' as const },
     { icon: 'flag-outline' as const, label: 'Report', danger: true },
   ];
@@ -80,6 +85,23 @@ function PostMenu({ visible, onClose, post, onNegativeSignal }: { visible: boole
                       navigation.navigate('PostUpdate', { postId: String(post.id) });
                     } else if (item.label === 'Copy link') {
                       Alert.alert('Copied', 'Post link copied to clipboard!');
+                    } else if (item.block) {
+                      Alert.alert('Block user', `Block @${post.username}? You won't see their posts anymore.`, [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Block', style: 'destructive', onPress: () => {
+                          if (!username || !post.username || username === post.username) return;
+                          (async () => {
+                            let list: string[] = [];
+                            try { list = JSON.parse((await storage.getStore(KEYS.BLOCKED_USERS)) || '[]'); } catch {}
+                            const lower = post.username.toLowerCase();
+                            if (!list.some(u => String(u).toLowerCase() === lower)) {
+                              list.push(post.username);
+                              await storage.setStore(KEYS.BLOCKED_USERS, JSON.stringify(list));
+                            }
+                            onBlocked?.(post.username);
+                          })();
+                        }},
+                      ]);
                     } else if (item.signal) {
                     if (onNegativeSignal) {
                       onNegativeSignal(String(post.id), item.signal, post.type || 'post');
@@ -593,6 +615,7 @@ interface PostCardProps {
   onLike?: (postId: string | number) => void;
   onReact?: (postId: string | number, reaction: string, etext: string) => void;
   onNegativeSignal?: (postId: string, signal: string, contentType: string) => void;
+  onBlocked?: (blockedUsername: string) => void;
 }
 
 export function PostSkeleton() {
@@ -712,7 +735,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
 const PostCard = React.memo(function PostCard({
   post, isActive, showViewButton, showCommentInput, viewerCount = 0,
   reactionCounts: externalReactionCounts, onReactionToggle,
-  onVotePoll, onComment, onLike, onReact, onNegativeSignal,
+  onVotePoll, onComment, onLike, onReact, onNegativeSignal, onBlocked,
 }: PostCardProps) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
@@ -854,7 +877,7 @@ const PostCard = React.memo(function PostCard({
             <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
-        <PostMenu visible={menuOpen} onClose={() => setMenuOpen(false)} post={post} onNegativeSignal={onNegativeSignal} />
+        <PostMenu visible={menuOpen} onClose={() => setMenuOpen(false)} post={post} onNegativeSignal={onNegativeSignal} onBlocked={onBlocked} />
       </View>
 
       {/* Text */}

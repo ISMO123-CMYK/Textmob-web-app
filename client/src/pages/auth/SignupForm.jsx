@@ -44,13 +44,13 @@ export default function SignupForm({ switchToLogin }) {
 
   useEffect(() => {
     if (form.fullName && !manualUsername && step === 0) {
-      const auto = form.fullName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '').substring(0, 20);
+      const auto = form.fullName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9_]/g, '').substring(0, 20);
       setForm((prev) => ({ ...prev, username: auto }));
     }
   }, [form.fullName, manualUsername, step]);
 
   function updateField(name, value) {
-    if (name === 'username') { value = value.toLowerCase().replace(/[^a-z0-9]/g, ''); setManualUsername(true); }
+    if (name === 'username') { value = value.toLowerCase().replace(/[^a-z0-9_]/g, '').substring(0, 30); setManualUsername(true); }
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 

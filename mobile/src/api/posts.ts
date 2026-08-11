@@ -53,6 +53,7 @@ export interface FeedParams {
   page?: number;
   limit?: number;
   seenIds?: string;
+  blockedUsers?: string[];
 }
 
 export async function getFeedPostsAPI(params: FeedParams) {

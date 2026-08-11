@@ -6,7 +6,7 @@ import timeAgo from '../../utils/timeAgo';
 import RichText from './RichText';
 import { SnapPlayer } from '../../pages/snaps/SnapsContent';
 import GiftCoinsModal from './GiftCoinsModal';
-import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag } from 'lucide-react';
+import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban } from 'lucide-react';
 
 /* ─── constants ─── */
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
@@ -55,6 +55,7 @@ function DotsIcon() {
 
 /* ─── Un – post options menu ─── */
 function PostMenu({ post, open, setOpen, navigate, onNegativeSignal }) {
+  const isOwnPost = post.username === localStorage.currentUser;
   const menuItems = [
     { label: 'Save post', icon: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z' },
     { label: 'Share', icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
@@ -62,6 +63,10 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal }) {
     { type: 'divider' },
     { label: 'Not interested', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636', signal: 'not_interested' },
     { label: 'Hide', icon: 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21', signal: 'hide' },
+    ...(isOwnPost ? [] : [
+      { type: 'divider' },
+      { label: 'Block', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636', block: true },
+    ]),
     { type: 'divider' },
     { label: 'Report', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', danger: true }
   ];
@@ -85,6 +90,18 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal }) {
                     navigator.clipboard.writeText(`https://textmob.web.app/post/${post.id}`);
                   } else if (item.signal && onNegativeSignal) {
                     onNegativeSignal(post.id, item.signal, post.type || 'post');
+                  } else if (item.block && localStorage.currentUser) {
+                    if (post.username === localStorage.currentUser) return;
+                    if (!confirm(`Block @${post.username}? You won't see their posts anymore.`)) return;
+                    try {
+                      let key = 'textmobBlockedUsers';
+                      let arr = JSON.parse(localStorage.getItem(key) || '[]');
+                      if (!arr.includes(post.username)) arr.push(post.username);
+                      localStorage.setItem(key, JSON.stringify(arr));
+                    } catch {}
+                    window.dispatchEvent(new CustomEvent('user-blocked', { detail: { username: post.username } }));
+                    setOpen(false);
+                    return;
                   }
                   setOpen(false);
                 }}
@@ -102,6 +119,7 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal }) {
                     {item.label === 'Not interested' && <ThumbsDown className="w-4 h-4 stroke-current" strokeWidth={2} />}
                     {item.label === 'Hide' && <EyeOff className="w-4 h-4 stroke-current" strokeWidth={2} />}
                     {item.label === 'Report' && <Flag className="w-4 h-4 stroke-current" strokeWidth={2} />}
+                    {item.label === 'Block' && <Ban className="w-4 h-4 stroke-current" strokeWidth={2} />}
                   </div>
                 )}
                 {item.label}
