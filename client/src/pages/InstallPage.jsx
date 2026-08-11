@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 /* ---------------------------------------------------------
    Textmob — Install onboarding (design-system rebuild)
@@ -263,7 +264,7 @@ export default function InstallPage() {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch('/api/app-version');
+        const res = await fetch(`${API_BASE_URL}/api/app-version`);
         const data = await res.json();
         if (alive && data && data.version) setInfo(data);
       } catch { /* defaults are fine */ }
