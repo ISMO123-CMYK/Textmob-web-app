@@ -12,10 +12,9 @@ const ROOT = path.join(__dirname, '..');
 const MOBILE = path.join(ROOT, 'mobile');
 const arg = (process.argv[2] || 'minor').toLowerCase();
 
-function run(cmd, args, cwd = ROOT) {
-  console.log(`\n=== ${cmd} ${args.join(' ')} (in ${path.relative(ROOT, cwd) || '.'}) ===`);
-  const exe = cmd === 'npx' && process.platform === 'win32' ? 'npx.cmd' : cmd;
-  const res = spawnSync(exe, args, { cwd, stdio: 'pipe', shell: false });
+function run(cmdLine, cwd = ROOT) {
+  console.log(`\n=== ${cmdLine} (in ${path.relative(ROOT, cwd) || '.'}) ===`);
+  const res = spawnSync('cmd.exe', ['/d', '/s', '/c', cmdLine], { cwd, stdio: 'pipe' });
   if (res.stdout) process.stdout.write(res.stdout);
   if (res.stderr) process.stderr.write(res.stderr);
   if (res.error) {
@@ -23,7 +22,23 @@ function run(cmd, args, cwd = ROOT) {
     process.exit(1);
   }
   if (res.status !== 0) {
-    console.error(`\nFAILED: ${cmd} ${args.join(' ')} exited with code ${res.status}`);
+    console.error(`\nFAILED: ${cmdLine} exited with code ${res.status}`);
+    process.exit(res.status || 1);
+  }
+  return res;
+}
+
+function runGit(args, cwd = ROOT) {
+  console.log(`\n=== git ${args.join(' ')} (in ${path.relative(ROOT, cwd) || '.'}) ===`);
+  const res = spawnSync('git', args, { cwd, stdio: 'pipe' });
+  if (res.stdout) process.stdout.write(res.stdout);
+  if (res.stderr) process.stderr.write(res.stderr);
+  if (res.error) {
+    console.error(`\nSPAWN ERROR: ${res.error.message}`);
+    process.exit(1);
+  }
+  if (res.status !== 0) {
+    console.error(`\nFAILED: git ${args.join(' ')} exited with code ${res.status}`);
     process.exit(res.status || 1);
   }
   return res;
@@ -40,18 +55,18 @@ if (!fs.existsSync(path.join(MOBILE, 'package.json'))) {
 }
 
 if (arg !== 'skip-bump') {
-  run('node', ['bump-version.js', arg]);
+  run(`node bump-version.js ${arg}`);
 }
 
 const changes = gitStatus();
 if (!changes) {
-  console.log('\nNothing to commit — tree is clean.');
+  console.log('\nNothing to commit - tree is clean.');
 } else {
   const message = process.argv[3] || `Release build (auto): ${new Date().toISOString().slice(0, 10)}`;
-  run('git', ['add', '-A']);
-  run('git', ['commit', '-m', message]);
+  runGit(['add', '-A']);
+  runGit(['commit', '-m', message]);
 }
 
-run('npx', ['eas', 'build', '-p', 'android', '--profile', 'production'], MOBILE);
+run('npx eas build -p android --profile production', MOBILE);
 
 console.log('\nDone. Next: download the APK, replace public/apk/thetextmobapp.apk, then publish from the admin panel.');
