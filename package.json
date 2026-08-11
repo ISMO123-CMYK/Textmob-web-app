@@ -8,6 +8,7 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node server.js",
     "client": "npm run dev --prefix client",
+    "build-apk": "node scripts/build-apk.js",
     "detect-farmers": "node detect-farmers.js"
   },
   "keywords": [],
