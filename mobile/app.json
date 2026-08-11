@@ -3,6 +3,7 @@
     "name": "Textmob",
     "slug": "mobile",
     "version": "1.0.0",
+    "scheme": "textmob",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
