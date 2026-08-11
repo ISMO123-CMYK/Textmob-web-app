@@ -2,7 +2,7 @@
   "expo": {
     "name": "Textmob",
     "slug": "mobile",
-    "version": "1.0.0",
+    "version": "1.1",
     "scheme": "textmob",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -28,7 +28,8 @@
         "resizeMode": "cover",
         "backgroundColor": "#09090b"
       },
-      "package": "com.bossprogrammer20.mobile"
+      "package": "com.bossprogrammer20.mobile",
+      "versionCode": 2
     },
     "extra": {
       "eas": {
@@ -40,8 +41,15 @@
       [
         "expo-share-intent",
         {
-          "androidIntentFilters": ["text/*", "image/*", "video/*"],
-          "androidMultiIntentFilters": ["image/*", "video/*"]
+          "androidIntentFilters": [
+            "text/*",
+            "image/*",
+            "video/*"
+          ],
+          "androidMultiIntentFilters": [
+            "image/*",
+            "video/*"
+          ]
         }
       ]
     ]
