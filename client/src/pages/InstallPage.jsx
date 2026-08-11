@@ -1,10 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 /* ---------------------------------------------------------
-   Textmob — Install onboarding
-   Monochrome milky-glass, progressive one-step-at-a-time flow.
-   Each step explains what's about to happen and shows a drawn
-   mockup of the exact screen the person is about to see.
+   Textmob — Install onboarding (design-system rebuild)
+   Tokens: utilities/design-system/*.json
+   Colors #2563eb primary · #f8fafc bg · #ffffff card ·
+   Outfit type · 4px spacing scale · 8px button radius.
+   Interactive: animated download, live progress rail,
+   per-step completion, keyboard nav, prominent guidelines.
 --------------------------------------------------------- */
 
 function isAndroid() {
@@ -12,46 +14,72 @@ function isAndroid() {
   return /android/i.test(navigator.userAgent || '');
 }
 
-// ---- Small icon set (line icons, no shadows, no gradients) ----
+// ---- Line icon set (design-system neutral strokes) ----
 const Icon = {
   download: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
     </svg>
   ),
   shield: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M12 21c5-2 8-6 8-11V6l-8-3-8 3v4c0 5 3 9 8 11Z" />
     </svg>
   ),
+  shieldAlert: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 21c5-2 8-6 8-11V6l-8-3-8 3v4c0 5 3 9 8 11Z" />
+      <path d="M12 8v4" /><path d="M12 15.5v.5" />
+    </svg>
+  ),
   file: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5" />
     </svg>
   ),
   spark: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />
     </svg>
   ),
   check: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="m4 12 5 5L20 6" />
     </svg>
   ),
-  arrowRight: (p) => (
+  checkCircle: (p) => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="12" cy="12" r="9" /><path d="m8.5 12 2.5 2.5 5-5" />
+    </svg>
+  ),
+  arrowRight: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M5 12h14" /><path d="m13 6 6 6-6 6" />
     </svg>
   ),
+  arrowLeft: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M19 12H5" /><path d="m11 18-6-6 6-6" />
+    </svg>
+  ),
+  eye: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z" /><circle cx="12" cy="12" r="2.8" />
+    </svg>
+  ),
   bell: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" /><path d="M10 21a2 2 0 0 0 4 0" />
     </svg>
   ),
   folder: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" />
+    </svg>
+  ),
+  refresh: (p) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M20 11a8 8 0 1 0-2.34 6" /><path d="M20 5v6h-6" />
     </svg>
   ),
   toggle: (p) => (
@@ -68,10 +96,10 @@ function MockDownloadBar() {
     <div className="mock-screen">
       <div className="mock-statusbar" />
       <div className="mock-notif">
-        <div className="mock-notif-icon"><Icon.download className="w-4 h-4" /></div>
+        <div className="mock-notif-icon mock-notif-icon--ok"><Icon.check className="w-4 h-4" /></div>
         <div className="mock-notif-text">
-          <div className="mock-notif-title">textmob.apk</div>
-          <div className="mock-notif-sub">Download complete · 41 MB</div>
+          <div className="mock-notif-title">Download complete</div>
+          <div className="mock-notif-sub">41 MB · Ready to install</div>
         </div>
       </div>
       <div className="mock-tray" />
@@ -83,12 +111,12 @@ function MockPermission() {
   return (
     <div className="mock-screen mock-screen--sheet">
       <div className="mock-sheet">
-        <div className="mock-sheet-icon"><Icon.shield className="w-6 h-6" /></div>
+        <div className="mock-sheet-icon mock-sheet-icon--primary"><Icon.shield className="w-5 h-5" /></div>
         <div className="mock-sheet-title">Install unknown apps</div>
         <div className="mock-sheet-body">Allow Chrome to install this app</div>
         <div className="mock-sheet-row">
           <span>Allow from this source</span>
-          <Icon.toggle className="w-9 h-9 mock-accent" />
+          <span className="mock-toggle mock-toggle--on"><span /></span>
         </div>
       </div>
     </div>
@@ -116,8 +144,9 @@ function MockOpenApp() {
     <div className="mock-screen">
       <div className="mock-statusbar" />
       <div className="mock-open-wrap">
-        <div className="mock-app-badge mock-app-badge--lg">T</div>
+        <div className="mock-check-badge"><Icon.check className="w-7 h-7" /></div>
         <div className="mock-open-title">Textmob installed</div>
+        <div className="mock-open-sub">Enjoy the app, it's all yours</div>
         <div className="mock-btn mock-btn--solid mock-btn--wide">Open</div>
       </div>
     </div>
@@ -127,55 +156,108 @@ function MockOpenApp() {
 const STEPS = [
   {
     key: 'download',
-    eyebrow: 'Step 1',
+    eyebrow: 'Step 1 of 4',
     title: 'Download the app file',
-    lead: "Tap the download button below. Textmob isn't on the Play Store yet, so you're getting the app file directly from us, the same file, just skipping the store.",
-    whatYouSee: "Your download starts right away. Watch the notification shade at the top of your screen, it'll show \"textmob.apk\" downloading, then \"Download complete\" once it's ready.",
+    lead: "Textmob isn't on the Play Store yet, so you get the app file directly from us — the same file, just skipping the store.",
+    notes: [
+      {
+        kind: 'blue',
+        icon: Icon.eye,
+        title: 'Watch your notification shade',
+        body: 'Tap the button below and the download starts right away. You\u2019ll see "textmob.apk" downloading, then "Download complete" when it\u2019s ready.',
+      },
+      {
+        kind: 'gray',
+        icon: Icon.folder,
+        title: 'Where the file goes',
+        body: 'The file saves to your Downloads folder. If the download is interrupted, just tap the button again — it resumes where it left off.',
+      },
+    ],
     mock: MockDownloadBar,
     mockCaption: 'Your notification shade',
     icon: Icon.download,
+    short: 'Download',
   },
   {
     key: 'permission',
-    eyebrow: 'Step 2',
+    eyebrow: 'Step 2 of 4',
     title: 'Let your phone know this is okay',
-    lead: "Android blocks app files that don't come from the Play Store by default. That's a safety setting, not a problem with Textmob, you just need to allow it once for your browser.",
-    whatYouSee: "A screen appears asking to install unknown apps. Tap into the settings it offers, find the toggle next to your browser's name, and switch it on. Then go back.",
-    whatYouSeeDetail: 'If Google Play Protect shows a warning after this, tap "Install anyway" or "More details → Install anyway." That warning shows up for any app outside the Play Store, it isn\'t specific to Textmob.',
+    lead: "Android blocks app files that don't come from the Play Store by default. That's a safety setting — not a problem with Textmob — you just allow it once for your browser.",
+    notes: [
+      {
+        kind: 'blue',
+        icon: Icon.eye,
+        title: 'What you\u2019ll see',
+        body: 'A screen asks to install unknown apps. Tap into the settings it offers, flip the toggle next to your browser\u2019s name, then go back.',
+      },
+      {
+        kind: 'amber',
+        icon: Icon.shieldAlert,
+        title: 'Play Protect warning? That\u2019s normal',
+        body: 'If Google Play Protect shows a warning, tap "Install anyway" or "More details \u2192 Install anyway." Every app outside the Play Store triggers this, it isn\u2019t specific to Textmob.',
+      },
+    ],
     mock: MockPermission,
     mockCaption: 'The permission screen',
     icon: Icon.shield,
+    short: 'Allow install',
   },
   {
     key: 'install',
-    eyebrow: 'Step 3',
+    eyebrow: 'Step 3 of 4',
     title: 'Open the file and install',
-    lead: "Now open the file you downloaded. If you already switched apps, pull down your notification shade and tap the download again, or open it from your Downloads folder.",
-    whatYouSee: 'A small card appears showing the Textmob icon and asking "Do you want to install this app?" Tap Install, and give it a few seconds to finish.',
-    whatYouSeeDetail: "Already had an older Textmob installed? This card will say \"Update\" instead of \"Install\", same thing, same tap.",
+    lead: "Pull down your notification shade and tap the finished download — or open it from your Downloads folder.",
+    notes: [
+      {
+        kind: 'blue',
+        icon: Icon.eye,
+        title: 'What you\u2019ll see',
+        body: 'A small card appears with the Textmob icon, asking "Do you want to install this app?" Tap Install and give it a few seconds.',
+      },
+      {
+        kind: 'green',
+        icon: Icon.refresh,
+        title: 'Updating an older version?',
+        body: 'If you already had Textmob installed, the card says "Update" instead of "Install" — same thing, same tap.',
+      },
+    ],
     mock: MockInstallConfirm,
     mockCaption: 'The install prompt',
     icon: Icon.file,
+    short: 'Install file',
   },
   {
     key: 'open',
-    eyebrow: 'Step 4',
+    eyebrow: 'Step 4 of 4',
     title: "You're in",
-    lead: "That's it, Textmob is on your phone now. Tap Open to jump straight in, or find the Textmob icon in your app drawer any time.",
-    whatYouSee: 'The same account, posts, snaps, and chats you already know from the browser are right there. Nothing to set up again.',
-    whatYouSeeDetail: 'When a new version of the app is ready, Textmob will let you know inside the app and walk you through updating. No need to come back here.',
+    lead: "That's it — Textmob is on your phone. Tap Open to jump straight in, or find the Textmob icon in your app drawer any time.",
+    notes: [
+      {
+        kind: 'blue',
+        icon: Icon.spark,
+        title: 'Everything is already there',
+        body: 'Your account, posts, snaps, and chats are right there. Nothing to set up again.',
+      },
+      {
+        kind: 'green',
+        icon: Icon.bell,
+        title: 'Updates handle themselves',
+        body: 'When a new version is ready, Textmob tells you inside the app and walks you through it. You never need to come back to this page.',
+      },
+    ],
     mock: MockOpenApp,
     mockCaption: 'Your home screen',
     icon: Icon.spark,
+    short: "You're in",
   },
 ];
 
 export default function InstallPage() {
   const [info, setInfo] = useState(null);
   const [current, setCurrent] = useState(0);
-  const [visited, setVisited] = useState([0]);
+  const [done, setDone] = useState(() => new Set());
+  const cardRef = useRef(null);
   const android = isAndroid();
-  const railRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -193,16 +275,41 @@ export default function InstallPage() {
   const apkUrl = info?.apk_url || (typeof window !== 'undefined' ? `${window.location.origin}/apk/thetextmobapp.apk` : '#');
   const graceDays = info?.grace_days || 7;
 
-  const goTo = (i) => {
-    const clamped = Math.max(0, Math.min(STEPS.length - 1, i));
-    setCurrent(clamped);
-    setVisited((v) => (v.includes(clamped) ? v : [...v, clamped]));
+  const goTo = useCallback((i) => {
+    setCurrent((prev) => Math.max(0, Math.min(STEPS.length - 1, i)));
+  }, []);
+
+  const complete = useCallback((i) => {
+    setDone((d) => new Set(d).add(i));
+  }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'ArrowRight') goTo((current) => current + 1);
+      if (e.key === 'ArrowLeft') goTo((current) => current - 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [goTo]);
+
+  // On mobile, keep the active card in view
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth <= 720) {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [current]);
+
+  const markDone = (i) => {
+    complete(i);
+    if (i < STEPS.length - 1) goTo(i + 1);
   };
 
   const step = STEPS[current];
   const StepMock = step.mock;
   const isFirst = current === 0;
   const isLast = current === STEPS.length - 1;
+  const pct = Math.round((done.size / STEPS.length) * 100);
 
   return (
     <div className="tm-root">
@@ -219,24 +326,32 @@ export default function InstallPage() {
       </header>
 
       <main className="tm-main">
-        {/* Intro, shown only conceptually via progress rail */}
         <section className="tm-hero">
           <span className="tm-eyebrow">Install on Android</span>
-          <h1>Let's get Textmob on your phone</h1>
+          <h1>Get Textmob on your phone</h1>
           <p className="tm-hero-sub">
-            Four short steps. We'll tell you exactly what to expect on each one, so nothing on your screen catches you off guard.
+            Four short steps — about three minutes. We show you exactly what each screen looks like before you reach it.
           </p>
           <div className="tm-pillrow">
             {version && <span className="tm-pill">Version {version}</span>}
             <span className="tm-pill">Android 8.0 and up</span>
+            <span className="tm-pill">41 MB</span>
             <span className="tm-pill">Free</span>
           </div>
         </section>
 
-        {/* Progress rail */}
-        <nav className="tm-rail" ref={railRef} aria-label="Install steps">
+        {/* Progress bar */}
+        <div className="tm-progress-wrap" aria-label={`${pct}% complete`}>
+          <div className="tm-progress">
+            <div className="tm-progress-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="tm-progress-label">{done.size} of {STEPS.length} steps done</span>
+        </div>
+
+        {/* Progress rail — jump to any step */}
+        <nav className="tm-rail" aria-label="Install steps">
           {STEPS.map((s, i) => {
-            const state = i === current ? 'active' : visited.includes(i) ? 'done' : 'upcoming';
+            const state = i === current ? 'active' : done.has(i) ? 'done' : 'upcoming';
             return (
               <button
                 key={s.key}
@@ -245,66 +360,82 @@ export default function InstallPage() {
                 aria-current={i === current ? 'step' : undefined}
               >
                 <span className="tm-rail-dot">
-                  {visited.includes(i) && i !== current ? <Icon.check className="w-3.5 h-3.5" /> : i + 1}
+                  {done.has(i) ? <Icon.check className="w-3 h-3" /> : i + 1}
                 </span>
-                <span className="tm-rail-label">{s.title}</span>
+                <span className="tm-rail-label">{s.short}</span>
               </button>
             );
           })}
         </nav>
 
+        {done.size === STEPS.length && (
+          <div className="tm-banner">
+            <Icon.checkCircle className="w-5 h-5" />
+            All steps complete — Textmob is ready to use.
+          </div>
+        )}
+
         {/* Active step card */}
-        <section className="tm-stepcard" key={step.key}>
+        <section className="tm-stepcard" ref={cardRef} key={step.key}>
           <div className="tm-stepcard-grid">
             <div className="tm-stepcard-text">
-              <span className="tm-eyebrow tm-eyebrow--muted">{step.eyebrow} of {STEPS.length}</span>
+              <span className="tm-eyebrow">{step.eyebrow}</span>
               <h2>{step.title}</h2>
               <p className="tm-lead">{step.lead}</p>
 
-              <div className="tm-whatyousee">
-                <div className="tm-whatyousee-head">
-                  <span className="tm-whatyousee-icon"><step.icon className="w-4 h-4" /></span>
-                  What you'll see
-                </div>
-                <p>{step.whatYouSee}</p>
-                {step.whatYouSeeDetail && <p className="tm-whatyousee-detail">{step.whatYouSeeDetail}</p>}
+              {/* Prominent guideline callouts */}
+              <div className="tm-notes">
+                {step.notes.map((n, i) => (
+                  <div key={i} className={`tm-note-card tm-note-card--${n.kind}`}>
+                    <div className="tm-note-icon"><n.icon className="w-4 h-4" /></div>
+                    <div>
+                      <div className="tm-note-card-title">{n.title}</div>
+                      <p>{n.body}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              {isFirst && (
-                <a
-                  href={apkUrl}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="tm-btn tm-btn--primary"
-                  onClick={() => { if (current === 0) setTimeout(() => goTo(1), 400); }}
-                >
-                  <Icon.download className="w-4 h-4" />
-                  Download for Android
-                </a>
-              )}
 
               <div className="tm-stepnav">
                 {!isFirst && (
                   <button className="tm-btn tm-btn--ghost" onClick={() => goTo(current - 1)}>
+                    <Icon.arrowLeft className="w-4 h-4" />
                     Back
                   </button>
                 )}
-                {!isLast ? (
-                  <button className="tm-btn tm-btn--dark" onClick={() => goTo(current + 1)}>
-                    {isFirst ? "I've downloaded it" : 'Next step'}
-                    <Icon.arrowRight className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <a href={apkUrl} download className="tm-btn tm-btn--dark">
+
+                {isFirst ? (
+                  <a
+                    href={apkUrl}
+                    download
+                    className="tm-btn tm-btn--primary tm-btn--pulse"
+                    onClick={() => { complete(0); setTimeout(() => goTo(1), 900); }}
+                  >
+                    <Icon.download className="w-4 h-4" />
+                    Download for Android
+                  </a>
+                ) : isLast ? (
+                  <a href="/" className="tm-btn tm-btn--primary">
                     Open Textmob
                     <Icon.arrowRight className="w-4 h-4" />
                   </a>
+                ) : (
+                  <button className="tm-btn tm-btn--primary" onClick={() => markDone(current)}>
+                    Done — next step
+                    <Icon.arrowRight className="w-4 h-4" />
+                  </button>
                 )}
               </div>
 
+              {isLast && (
+                <a href={apkUrl} download target="_blank" rel="noopener noreferrer" className="tm-redownload">
+                  <Icon.refresh className="w-4 h-4" />
+                  Re-download the APK
+                </a>
+              )}
+
               {android && isFirst && (
-                <p className="tm-hint">You're already on Android, so this will work right on this device.</p>
+                <p className="tm-hint">You're on Android already, so this works right on this device.</p>
               )}
             </div>
 
@@ -322,10 +453,10 @@ export default function InstallPage() {
         <section className="tm-note">
           <div className="tm-note-icon"><Icon.bell className="w-4 h-4" /></div>
           <div>
-            <div className="tm-note-title">Updates work the same way, automatically</div>
+            <div className="tm-note-title">Updates work the same way — automatically</div>
             <p>
-              Textmob checks for a new version every time you open it. When one's ready, you'll get
-              {' '}{graceDays} days to update from inside the app, no need to come back to this page.
+              Textmob checks for a new version every time you open it. When one's ready, you get{' '}
+              {graceDays} days to update from inside the app — no need to come back here.
               Old install files clear themselves out, so nothing piles up in your storage.
             </p>
           </div>
@@ -352,213 +483,259 @@ function Blobs() {
 }
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 
 .tm-root {
-  --ink: #0f0f10;
-  --paper: #f7f6f4;
-  --paper-2: #efeee9;
-  --line: rgba(15,15,16,0.10);
-  --line-soft: rgba(15,15,16,0.06);
-  --glass: rgba(255,255,255,0.55);
-  --glass-dark: rgba(17,17,17,0.88);
-  --muted: rgba(15,15,16,0.55);
-  --muted-2: rgba(15,15,16,0.38);
+  /* ── design-system tokens (utilities/design-system) ── */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-soft: rgba(37, 99, 235, 0.08);
+  --primary-soft-2: rgba(37, 99, 235, 0.14);
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --text-1: #0f172a;
+  --text-2: #64748b;
+  --text-3: #94a3b8;
+  --success: #10b981;
+  --success-soft: rgba(16, 185, 129, 0.1);
+  --warning: #b45309;
+  --warning-soft: rgba(245, 158, 11, 0.13);
+  --danger: #ef4444;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   position: relative;
   min-height: 100vh;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: 'Manrope', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: 'Outfit', 'Inter', sans-serif;
   overflow-x: hidden;
 }
 .tm-root * { box-sizing: border-box; }
-.tm-root h1, .tm-root h2 { font-family: 'Sora', 'Manrope', sans-serif; letter-spacing: -0.02em; margin: 0; }
+.tm-root h1, .tm-root h2 { letter-spacing: -0.02em; margin: 0; }
 
 .tm-blobs { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-.tm-blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.35; background: #d8d6cf; animation: drift 22s ease-in-out infinite; }
-.tm-blob--a { width: 480px; height: 480px; top: -160px; left: -140px; animation-delay: 0s; }
-.tm-blob--b { width: 380px; height: 380px; top: 30%; right: -160px; background: #cfcdc4; animation-delay: -7s; }
-.tm-blob--c { width: 420px; height: 420px; bottom: -180px; left: 20%; background: #e3e1d9; animation-delay: -14s; }
+.tm-blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.5; background: var(--primary-soft); animation: drift 24s ease-in-out infinite; }
+.tm-blob--a { width: 460px; height: 460px; top: -180px; left: -160px; }
+.tm-blob--b { width: 380px; height: 380px; top: 25%; right: -180px; background: rgba(16, 185, 129, 0.1); animation-delay: -8s; }
+.tm-blob--c { width: 420px; height: 420px; bottom: -200px; left: 15%; background: rgba(99, 102, 241, 0.09); animation-delay: -16s; }
 @keyframes drift {
-  0%, 100% { transform: translate(0,0); }
-  50% { transform: translate(30px, -20px); }
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -24px); }
 }
-@media (prefers-reduced-motion: reduce) { .tm-blob { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tm-blob, .tm-btn--pulse { animation: none; } }
 
-.tm-nav { position: sticky; top: 0; z-index: 30; display: flex; justify-content: center; padding: 16px 20px 0; }
+.tm-nav { position: sticky; top: 12px; z-index: 30; display: flex; justify-content: center; padding: 0 16px; }
 .tm-nav-inner {
-  width: 100%; max-width: 760px; display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 18px; border-radius: 999px;
-  background: var(--glass); backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%);
-  border: 1px solid var(--line);
+  width: 100%; max-width: 640px; display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
-.tm-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-family: 'Sora', sans-serif; font-size: 15px; }
+.tm-brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; }
 .tm-brand-mark {
-  width: 30px; height: 30px; border-radius: 10px; background: var(--ink); color: var(--paper);
-  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; font-family: 'Sora', sans-serif;
+  width: 30px; height: 30px; border-radius: 8px; background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;
 }
-.tm-nav-back { font-size: 13px; font-weight: 600; color: var(--muted); text-decoration: none; }
-.tm-nav-back:hover { color: var(--ink); }
+.tm-nav-back { font-size: 13px; font-weight: 600; color: var(--primary); text-decoration: none; }
+.tm-nav-back:hover { color: var(--primary-hover); }
 
-.tm-main { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 56px 20px 40px; }
+.tm-main { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; padding: 48px 16px 40px; }
 
 .tm-eyebrow {
-  display: inline-block; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
-  font-weight: 700; color: rgba(15,15,16,0.45); margin-bottom: 14px;
+  display: inline-block; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  font-weight: 700; color: var(--primary); margin-bottom: 12px;
 }
-.tm-eyebrow--muted { margin-bottom: 10px; color: rgba(15,15,16,0.4); }
 
-.tm-hero { text-align: center; padding: 0 6px 8px; }
-.tm-hero h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 800; line-height: 1.08; }
-.tm-hero-sub { margin: 14px auto 0; max-width: 460px; color: var(--muted); font-size: 15.5px; line-height: 1.55; }
+.tm-hero { text-align: center; padding: 0 4px 4px; }
+.tm-hero h1 { font-size: clamp(28px, 5vw, 38px); font-weight: 800; line-height: 1.1; }
+.tm-hero-sub { margin: 12px auto 0; max-width: 440px; color: var(--text-2); font-size: 15px; line-height: 1.6; }
 .tm-pillrow { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
 .tm-pill {
-  font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 999px;
-  background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(14px);
+  font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--border); color: var(--text-2);
 }
 
-.tm-rail {
-  display: flex; gap: 6px; margin: 34px 0 20px; padding: 6px;
-  background: var(--glass); border: 1px solid var(--line); border-radius: 20px;
-  backdrop-filter: blur(20px) saturate(140%); overflow-x: auto;
+.tm-progress-wrap { display: flex; align-items: center; gap: 12px; margin: 28px 0 12px; }
+.tm-progress { flex: 1; height: 6px; border-radius: 999px; background: rgba(15, 23, 42, 0.06); overflow: hidden; }
+.tm-progress-fill {
+  height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), #4f83ec);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
+.tm-progress-label { font-size: 12px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+
+.tm-rail { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 20px; padding: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-sm); }
 .tm-rail-step {
-  flex: 1 1 0; min-width: 84px; display: flex; flex-direction: column; align-items: center; gap: 8px;
-  padding: 12px 8px; border-radius: 14px; border: none; background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 4px; border-radius: 8px; border: none; background: transparent; cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease;
 }
-.tm-rail-step:hover { background: rgba(15,15,16,0.04); }
-.tm-rail-step--active { background: var(--ink); }
+.tm-rail-step:hover { background: var(--primary-soft); }
 .tm-rail-dot {
   width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 800; border: 1.5px solid var(--line);
-  color: var(--muted); background: rgba(255,255,255,0.6);
+  font-size: 12px; font-weight: 700; border: 1.5px solid var(--border);
+  color: var(--text-2); background: var(--card); transition: all 0.25s ease;
 }
-.tm-rail-step--active .tm-rail-dot { background: var(--paper); color: var(--ink); border-color: var(--paper); }
-.tm-rail-step--done .tm-rail-dot { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.tm-rail-label {
-  font-size: 11px; font-weight: 700; text-align: center; line-height: 1.25; color: var(--muted-2);
+.tm-rail-step--active .tm-rail-dot { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
+.tm-rail-step--done .tm-rail-dot { background: var(--success); color: #fff; border-color: var(--success); }
+.tm-rail-label { font-size: 11px; font-weight: 700; text-align: center; line-height: 1.25; color: var(--text-2); }
+.tm-rail-step--active .tm-rail-label { color: var(--primary); font-weight: 800; }
+.tm-rail-step--done .tm-rail-label { color: var(--text-1); }
+
+.tm-banner {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 12px 16px;
+  background: var(--success-soft); border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 12px; color: #047857; font-size: 13.5px; font-weight: 700;
+  animation: rise 0.4s ease both;
 }
-.tm-rail-step--active .tm-rail-label { color: var(--paper); }
-.tm-rail-step--done .tm-rail-label { color: var(--ink); }
 
 .tm-stepcard {
-  background: var(--glass); border: 1px solid var(--line); border-radius: 28px;
-  backdrop-filter: blur(26px) saturate(140%); -webkit-backdrop-filter: blur(26px) saturate(140%);
-  padding: 8px; animation: rise 0.4s ease both;
+  background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: var(--shadow-md); padding: 8px; scroll-margin-top: 88px;
+  animation: rise 0.4s ease both;
 }
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.tm-stepcard-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 8px; align-items: stretch; }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.tm-stepcard-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 8px; align-items: stretch; }
 @media (max-width: 720px) { .tm-stepcard-grid { grid-template-columns: 1fr; } }
 
-.tm-stepcard-text { padding: 30px 30px 26px; }
-.tm-stepcard-text h2 { font-size: 24px; font-weight: 800; margin-bottom: 12px; }
-.tm-lead { color: rgba(15,15,16,0.68); font-size: 15px; line-height: 1.6; margin: 0 0 20px; }
+.tm-stepcard-text { padding: 28px 28px 24px; }
+.tm-stepcard-text h2 { font-size: 23px; font-weight: 800; margin-bottom: 10px; }
+.tm-lead { color: var(--text-2); font-size: 14.5px; line-height: 1.6; margin: 0 0 20px; }
 
-.tm-whatyousee {
-  background: rgba(255,255,255,0.55); border: 1px solid var(--line-soft); border-radius: 18px;
-  padding: 16px 18px; margin-bottom: 22px;
+/* ── Prominent guideline callouts ── */
+.tm-notes { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+.tm-note-card {
+  display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px;
+  border-radius: 12px; border: 1px solid transparent;
 }
-.tm-whatyousee-head {
-  display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 800;
-  text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink); margin-bottom: 8px;
-}
-.tm-whatyousee-icon {
-  width: 22px; height: 22px; border-radius: 7px; background: var(--ink); color: var(--paper);
+.tm-note-card--blue { background: var(--primary-soft); border-color: var(--primary-soft-2); }
+.tm-note-card--amber { background: var(--warning-soft); border-color: rgba(245, 158, 11, 0.35); }
+.tm-note-card--green { background: var(--success-soft); border-color: rgba(16, 185, 129, 0.35); }
+.tm-note-card--gray { background: rgba(15, 23, 42, 0.04); border-color: var(--border); }
+.tm-note-card--blue .tm-note-icon { background: var(--primary); }
+.tm-note-card--amber .tm-note-icon { background: #f59e0b; }
+.tm-note-card--green .tm-note-icon { background: var(--success); }
+.tm-note-card--gray .tm-note-icon { background: var(--text-2); }
+.tm-note-icon {
+  width: 28px; height: 28px; border-radius: 8px; color: #fff;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.tm-whatyousee p { margin: 0; font-size: 13.5px; line-height: 1.6; color: rgba(15,15,16,0.62); }
-.tm-whatyousee-detail { margin-top: 8px !important; padding-top: 8px; border-top: 1px solid var(--line-soft); color: rgba(15,15,16,0.5) !important; }
+.tm-note-card-title { font-size: 13.5px; font-weight: 800; color: var(--text-1); margin-bottom: 3px; }
+.tm-note-card p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-2); }
 
 .tm-stepnav { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
-.tm-hint { margin: 12px 0 0; font-size: 12.5px; color: var(--muted-2); }
+.tm-hint { margin: 12px 0 0; font-size: 12.5px; color: var(--text-3); }
+.tm-redownload {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 12px;
+  font-size: 13px; font-weight: 700; color: var(--primary); text-decoration: none;
+}
+.tm-redownload:hover { color: var(--primary-hover); }
 
+/* ── design-system button (height 40, radius 8, weight 600) ── */
 .tm-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  font-size: 14px; font-weight: 700; padding: 13px 22px; border-radius: 999px;
-  border: 1px solid transparent; cursor: pointer; text-decoration: none;
-  transition: transform 0.15s ease, background 0.2s ease;
+  height: 40px; padding: 0 20px; border-radius: 8px;
+  font-size: 14px; font-weight: 600; border: 1px solid transparent; cursor: pointer;
+  text-decoration: none; transition: background 0.2s ease, transform 0.1s ease;
 }
 .tm-btn:active { transform: scale(0.97); }
-.tm-btn--primary { background: var(--ink); color: var(--paper); margin-bottom: 16px; width: 100%; }
-.tm-btn--primary:hover { background: #232323; }
-.tm-btn--dark { background: var(--ink); color: var(--paper); }
-.tm-btn--dark:hover { background: #232323; }
-.tm-btn--ghost { background: rgba(255,255,255,0.5); color: var(--ink); border-color: var(--line); }
-.tm-btn--ghost:hover { background: rgba(255,255,255,0.8); }
-.tm-btn--wide { width: 100%; }
+.tm-btn:disabled { opacity: 0.85; cursor: default; }
+.tm-btn--primary { background: var(--primary); color: #fff; }
+.tm-btn--primary:hover:not(:disabled) { background: var(--primary-hover); }
+.tm-btn--ghost { background: transparent; color: var(--text-2); border-color: var(--border); }
+.tm-btn--ghost:hover { background: var(--bg); }
+.tm-btn--pulse { animation: pulse 2.2s ease-in-out infinite; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45); }
+  55% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+}
 
 .tm-stepcard-visual {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  padding: 26px 22px; background: rgba(15,15,16,0.03); border-radius: 22px; margin: 8px;
+  padding: 24px 20px; background: rgba(15, 23, 42, 0.03); border-radius: 12px; margin: 8px;
 }
-.tm-mock-caption { font-size: 11.5px; font-weight: 700; color: var(--muted-2); letter-spacing: 0.02em; }
+.tm-mock-caption { font-size: 11.5px; font-weight: 700; color: var(--text-3); letter-spacing: 0.02em; }
 
 .mock-phone {
-  width: 210px; height: 400px; border-radius: 34px; background: var(--glass-dark);
-  border: 6px solid var(--ink); position: relative; overflow: hidden;
-  box-shadow: none;
+  width: 205px; height: 395px; border-radius: 24px; background: #0f172a;
+  border: 5px solid #0f172a; position: relative; overflow: hidden;
+  box-shadow: var(--shadow-lg);
 }
-.mock-phone-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 70px; height: 18px; background: var(--ink); border-radius: 0 0 12px 12px; z-index: 5; }
+.mock-phone-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 70px; height: 17px; background: #0f172a; border-radius: 0 0 12px 12px; z-index: 5; }
 
-.mock-screen { position: absolute; inset: 0; background: #fbfaf8; display: flex; flex-direction: column; }
-.mock-statusbar { height: 26px; background: #fbfaf8; }
+.mock-screen { position: absolute; inset: 0; background: #f8fafc; display: flex; flex-direction: column; }
+.mock-statusbar { height: 26px; background: #f8fafc; }
 .mock-notif {
-  margin: 30px 10px 0; padding: 12px; border-radius: 14px; background: #fff;
-  border: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px;
-  animation: slideDown 0.5s ease both;
+  margin: 28px 10px 0; padding: 12px; border-radius: 12px; background: #fff;
+  border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+  display: flex; align-items: center; gap: 10px; animation: slideDown 0.5s ease both;
 }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-.mock-notif-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.mock-notif-title { font-size: 11px; font-weight: 800; color: var(--ink); }
-.mock-notif-sub { font-size: 9.5px; color: var(--muted); margin-top: 1px; }
-.mock-tray { margin-top: auto; height: 90px; background: repeating-linear-gradient(0deg, transparent, transparent 100%); border-top: 1px solid var(--line-soft); }
+.mock-notif-icon {
+  width: 28px; height: 28px; border-radius: 8px; background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.mock-notif-icon--ok { background: var(--success); }
+.mock-notif-text { flex: 1; min-width: 0; }
+.mock-notif-title { font-size: 11px; font-weight: 800; color: var(--text-1); }
+.mock-notif-sub { font-size: 9.5px; color: var(--text-2); margin-top: 1px; }
+.mock-tray { margin-top: auto; height: 80px; border-top: 1px solid var(--border); }
 
-.mock-screen--sheet { justify-content: flex-end; background: rgba(15,15,16,0.35); }
+.mock-screen--sheet { justify-content: flex-end; background: rgba(15, 23, 42, 0.4); }
 .mock-sheet {
-  background: #fff; border-radius: 22px 22px 0 0; padding: 22px 18px 26px;
+  background: #fff; border-radius: 20px 20px 0 0; padding: 22px 18px 26px;
   display: flex; flex-direction: column; align-items: center; text-align: center;
   animation: slideUp 0.4s ease both;
 }
-.mock-sheet--tight { padding-top: 26px; }
+.mock-sheet--tight { padding-top: 24px; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-.mock-sheet-icon { width: 40px; height: 40px; border-radius: 12px; background: var(--paper-2); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-.mock-sheet-title { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
-.mock-sheet-body { font-size: 10.5px; color: var(--muted); margin-bottom: 14px; line-height: 1.4; }
+.mock-sheet-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+.mock-sheet-icon--primary { background: var(--primary-soft); color: var(--primary); }
+.mock-sheet-title { font-size: 13px; font-weight: 800; color: var(--text-1); margin-bottom: 4px; }
+.mock-sheet-body { font-size: 10.5px; color: var(--text-2); margin-bottom: 14px; line-height: 1.4; }
 .mock-sheet-row {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 4px; border-top: 1px solid var(--line-soft); font-size: 10.5px; font-weight: 700; color: var(--ink);
+  padding: 10px 4px; border-top: 1px solid var(--border); font-size: 10.5px; font-weight: 700; color: var(--text-1);
 }
-.mock-accent { color: var(--ink); }
+.mock-toggle { width: 34px; height: 20px; border-radius: 999px; background: rgba(15, 23, 42, 0.12); position: relative; transition: background 0.25s ease; }
+.mock-toggle--on { background: var(--primary); }
+.mock-toggle span { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); transition: left 0.25s ease; }
+.mock-toggle--on span { left: 16px; }
 
 .mock-app-badge {
-  width: 44px; height: 44px; border-radius: 13px; background: var(--ink); color: #fff;
-  display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px;
-  font-family: 'Sora', sans-serif; margin-bottom: 10px;
+  width: 46px; height: 46px; border-radius: 13px; background: linear-gradient(135deg, var(--primary), #1e40af);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 19px; margin-bottom: 10px;
 }
-.mock-app-badge--lg { width: 60px; height: 60px; border-radius: 18px; font-size: 24px; margin-bottom: 16px; }
 
 .mock-btn-row { display: flex; gap: 8px; width: 100%; margin-top: 4px; }
 .mock-btn {
-  flex: 1; padding: 9px 0; border-radius: 999px; font-size: 10.5px; font-weight: 800; text-align: center;
+  flex: 1; padding: 9px 0; border-radius: 8px; font-size: 10.5px; font-weight: 700; text-align: center;
 }
-.mock-btn--ghost { color: var(--muted); background: var(--paper-2); }
-.mock-btn--solid { color: #fff; background: var(--ink); }
+.mock-btn--ghost { color: var(--text-2); background: #f1f5f9; }
+.mock-btn--solid { color: #fff; background: var(--primary); }
+.mock-btn--wide { flex: none; width: 100%; }
 
 .mock-open-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 20px; animation: fadeIn 0.5s ease both; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.mock-open-title { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 18px; }
+.mock-check-badge {
+  width: 58px; height: 58px; border-radius: 50%; background: var(--success-soft); color: var(--success);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+}
+.mock-open-title { font-size: 14px; font-weight: 800; color: var(--text-1); margin-bottom: 3px; }
+.mock-open-sub { font-size: 10.5px; color: var(--text-2); margin-bottom: 16px; }
 
 .tm-note {
-  display: flex; gap: 14px; align-items: flex-start; margin-top: 22px; padding: 20px 22px;
-  border-radius: 22px; background: var(--glass-dark); color: var(--paper);
-  backdrop-filter: blur(20px);
+  display: flex; gap: 14px; align-items: flex-start; margin-top: 20px; padding: 18px 20px;
+  border-radius: 12px; background: var(--card); border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
-.tm-note-icon { width: 30px; height: 30px; border-radius: 10px; background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tm-note > .tm-note-icon { background: var(--primary-soft); color: var(--primary); }
 .tm-note-title { font-weight: 800; font-size: 13.5px; margin-bottom: 4px; }
-.tm-note p { margin: 0; font-size: 13px; line-height: 1.6; color: rgba(247,246,244,0.7); }
+.tm-note p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text-2); }
 
-.tm-footer { text-align: center; margin-top: 40px; font-size: 12px; color: var(--muted-2); }
-.tm-footer a { color: var(--ink); font-weight: 700; text-decoration: none; }
+.tm-footer { text-align: center; margin-top: 36px; font-size: 12px; color: var(--text-3); }
+.tm-footer a { color: var(--primary); font-weight: 700; text-decoration: none; }
 .tm-footer a:hover { text-decoration: underline; }
 `;

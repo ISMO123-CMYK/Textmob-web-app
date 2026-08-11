@@ -396,6 +396,14 @@
       transition: background 0.2s; margin-left: 10px;
     }
     .nav-cta:hover { background: var(--blue-hover); }
+    .nav-cta-outline {
+      padding: 8px 18px; border-radius: 10px;
+      background: transparent; color: var(--blue);
+      border: 1.5px solid var(--blue);
+      font-family: var(--font-display); font-size: 13px; font-weight: 600;
+      transition: all 0.2s; margin-left: 10px;
+    }
+    .nav-cta-outline:hover { background: var(--blue); color: #fff; }
     .nav-burger {
       display: none; width: 36px; height: 36px;
       align-items: center; justify-content: center; border-radius: 8px;
@@ -417,7 +425,7 @@
       margin: 20px 0 0 0; text-align: center; padding: 14px; border-radius: 12px;
     }
     @media (max-width: 768px) {
-      .nav-links, .nav > .nav-inner > .nav-cta { display: none !important; }
+      .nav-links, .nav > .nav-inner > .nav-cta, .nav > .nav-inner > .nav-cta-outline { display: none !important; }
       .nav-burger { display: flex; }
     }
 
@@ -892,6 +900,7 @@
         <a href="#verified">Verified</a>
         <a href="#founders">Team</a>
       </nav>
+      <a href="/install" class="nav-cta nav-cta-outline">Download Android App</a>
       <a href="https://textmob.web.app" class="nav-cta">Open App</a>
       <button class="nav-burger" id="nav-burger" aria-label="Menu" aria-expanded="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -905,6 +914,7 @@
     <a href="#earn" class="mm-link">Earn</a>
     <a href="#verified" class="mm-link">Verified</a>
     <a href="#founders" class="mm-link">Team</a>
+    <a href="/install" class="nav-cta nav-cta-outline">Download Android App</a>
     <a href="https://textmob.web.app" class="nav-cta">Open App</a>
   </div>
 
@@ -925,6 +935,10 @@
               <a href="https://textmob.web.app" class="btn btn-fill" id="hero-cta-web">
                 Get Started Free
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              <a href="/install" class="btn btn-outline" id="hero-cta-apk">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+                Download Android App
               </a>
             </div>
           </div>
@@ -1263,6 +1277,12 @@
             </div>
           </div>
         </div>
+        <div class="how-cta reveal-slide stagger-3" style="text-align:center; margin-top:56px;">
+          <a href="/install" class="btn btn-fill" id="how-cta-apk">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+            Download the Android App
+          </a>
+        </div>
       </div>
     </section>
 
@@ -1353,6 +1373,16 @@
         
         <div class="faq-grid">
           <div class="faq-item reveal-slide stagger-1">
+            <div class="faq-question">
+              <span>How do I get the Textmob app on Android?</span>
+              <span class="faq-icon">+</span>
+            </div>
+            <div class="faq-answer">
+              <p>Textmob is available as a direct APK download. Visit <a href="/install" style="color:var(--blue); font-weight:600;">textmob.web.app/install</a> and follow the four quick steps — download the file, allow the install permission, open the file, and you're in.</p>
+            </div>
+          </div>
+
+          <div class="faq-item reveal-slide stagger-2">
             <div class="faq-question">
               <span>What is Textmob?</span>
               <span class="faq-icon">+</span>
@@ -1473,6 +1503,10 @@
           <p>Connect with real people. Share your real life. Build your community. Your voice matters. Your audience is waiting. Your moment is now.</p>
           <div class="cta-actions">
             <a href="https://textmob.web.app" class="btn btn-white-fill" id="cta-final-web">Get Started on Web</a>
+            <a href="/install" class="btn btn-ghost-white" id="cta-final-apk">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+              Download Android App
+            </a>
           </div>
         </div>
       </div>
@@ -1502,6 +1536,7 @@
         <div class="footer-col">
           <h4>App</h4>
           <a href="https://textmob.web.app">Web App</a>
+          <a href="/install">Android App</a>
         </div>
         <div class="footer-col">
           <h4>Contact</h4>
