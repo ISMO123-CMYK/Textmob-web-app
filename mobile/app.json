@@ -34,6 +34,9 @@
         "projectId": "cd3ed21d-7bd6-4b73-b893-1fbc3a9b67de"
       }
     },
-    "owner": "bossprogrammer20"
+    "owner": "bossprogrammer20",
+    "plugins": [
+      "expo-share-intent"
+    ]
   }
 }
