@@ -37,7 +37,13 @@
     },
     "owner": "bossprogrammer20",
     "plugins": [
-      "expo-share-intent"
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["text/*", "image/*", "video/*"],
+          "androidMultiIntentFilters": ["image/*", "video/*"]
+        }
+      ]
     ]
   }
 }

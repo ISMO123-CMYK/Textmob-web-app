@@ -4,17 +4,11 @@ import { View, StyleSheet, Text, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
-import ErrorBoundary from '../components/ErrorBoundary';
 
 import HomeScreen from '../screens/home/HomeScreen';
 import HallOfFameScreen from '../screens/halloffame/HallOfFameScreen';
 import SnapsScreen from '../screens/snaps/SnapsScreen';
 import MenuScreen from '../screens/menu/MenuScreen';
-
-const SafeHome = (props: any) => <ErrorBoundary><HomeScreen {...props} /></ErrorBoundary>;
-const SafeFame = (props: any) => <ErrorBoundary><HallOfFameScreen {...props} /></ErrorBoundary>;
-const SafeSnaps = (props: any) => <ErrorBoundary><SnapsScreen {...props} /></ErrorBoundary>;
-const SafeMenu = (props: any) => <ErrorBoundary><MenuScreen {...props} /></ErrorBoundary>;
 
 const Tab = createBottomTabNavigator();
 
@@ -47,7 +41,7 @@ export default function MainTabs({ navigation }: { navigation: any }) {
       >
         <Tab.Screen
           name="Home"
-          component={SafeHome}
+          component={HomeScreen}
           options={{
             tabBarLabel: 'Home',
             tabBarIcon: ({ color, focused }) => (
@@ -59,7 +53,7 @@ export default function MainTabs({ navigation }: { navigation: any }) {
         />
         <Tab.Screen
           name="Fame"
-          component={SafeFame}
+          component={HallOfFameScreen}
           options={{
             tabBarLabel: 'Fame',
             tabBarIcon: ({ color, focused }) => (
@@ -89,7 +83,7 @@ export default function MainTabs({ navigation }: { navigation: any }) {
         />
         <Tab.Screen
           name="Snaps"
-          component={SafeSnaps}
+          component={SnapsScreen}
           options={{
             tabBarLabel: 'Snaps',
             tabBarStyle: { display: 'none' },
