@@ -2,7 +2,7 @@
   "expo": {
     "name": "Textmob",
     "slug": "mobile",
-    "version": "1.1",
+    "version": "1.2",
     "scheme": "textmob",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,7 +29,7 @@
         "backgroundColor": "#09090b"
       },
       "package": "com.bossprogrammer20.mobile",
-      "versionCode": 2
+      "versionCode": 3
     },
     "extra": {
       "eas": {
@@ -38,6 +38,7 @@
     },
     "owner": "bossprogrammer20",
     "plugins": [
+      "./plugins/withInstallPackages",
       [
         "expo-share-intent",
         {
