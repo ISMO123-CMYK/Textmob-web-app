@@ -4,6 +4,7 @@ import {
   ScrollView, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -11,6 +12,7 @@ export default function AboutScreen({ navigation }: { navigation: any }) {
   const { colors, isDark } = useTheme();
 
   const s = makeStyles(colors, isDark);
+  const appVersion = (Constants.expoConfig && Constants.expoConfig.version) || '';
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
@@ -26,7 +28,7 @@ export default function AboutScreen({ navigation }: { navigation: any }) {
         <View style={s.logoArea}>
           <Ionicons name="phone-portrait" size={64} color={colors.textPrimary} />
           <Text style={[s.appName, { color: colors.textPrimary }]}>Textmob</Text>
-          <Text style={[s.version, { color: colors.textSecondary }]}>Version 1.0.0</Text>
+          <Text style={[s.version, { color: colors.textSecondary }]}>Version {appVersion || '1.0.0'}</Text>
         </View>
 
         <Text style={[s.description, { color: colors.textSecondary }]}>

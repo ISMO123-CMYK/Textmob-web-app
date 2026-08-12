@@ -10,6 +10,8 @@ import { CATEGORIES } from '../../data/categories';
 
 const allCategories = CATEGORIES.map(c => c.id);
 
+const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+
 /* ─── blocked users localStorage helpers ─── */
 const BLOCKED_KEY = 'textmobBlockedUsers';
 function getBlockedUsers() {
@@ -46,7 +48,6 @@ function isGroupPost(p) {
 /* ─── $n – suggestion card ─── */
 function SuggestionCard({ sug }) {
   const currentUser = localStorage.currentUser;
-  const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
   const navigate = path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path);
 
   return (

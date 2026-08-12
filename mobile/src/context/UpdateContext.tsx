@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import {
-  Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform,
+  Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Linking,
 } from 'react-native';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -14,6 +14,7 @@ const SNOOZE_KEY = 'UPDATE_SNOOZE_UNTIL';
 const SNOOZE_MS = 24 * 60 * 60 * 1000;
 const APK_FILENAME = 'textmob-update.apk';
 const GRANT_READ_URI_PERMISSION = 1;
+const GRANT_WRITE_URI_PERMISSION = 2;
 
 interface UpdateInfo {
   version: string;
@@ -65,6 +66,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
   const [forced, setForced] = useState(false);
   const [visible, setVisible] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [installing, setInstalling] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
@@ -124,6 +126,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     setDownloading(true);
     setError(null);
     setProgress(0);
+    setInstalling(false);
     try {
       if (!FileSystem.cacheDirectory) throw new Error('No cache directory');
       const localUri = FileSystem.cacheDirectory + APK_FILENAME;
@@ -142,17 +145,40 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
       const result = await download.downloadAsync();
       if (!result || (!result.uri && !(result as any).status)) throw new Error('Download failed');
 
+      const info = await FileSystem.getInfoAsync(localUri);
+      if (!info.exists || !info.size || info.size < 1024 * 1024) {
+        throw new Error('Downloaded file is incomplete or invalid.');
+      }
+
+      setInstalling(true);
       const contentUri = await FileSystem.getContentUriAsync(localUri);
-      setVisible(false);
-      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+      const res = await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
         data: contentUri,
-        flags: GRANT_READ_URI_PERMISSION,
+        flags: GRANT_READ_URI_PERMISSION | GRANT_WRITE_URI_PERMISSION,
         type: 'application/vnd.android.package-archive',
       });
       setDownloading(false);
+      setInstalling(false);
+      if (res?.resultCode === 0) {
+        setError('The install did not complete. Try "Update now" again, or use "Download manually" below.');
+      } else {
+        setVisible(false);
+      }
     } catch (err: any) {
       setDownloading(false);
-      setError(err?.message || 'Download failed. Check your connection and try again.');
+      setInstalling(false);
+      setVisible(true);
+      const msg = err?.message || 'Update failed. Check your connection and try again.';
+      setError(msg.startsWith('Error:') ? msg : `Update failed: ${msg}`);
+    }
+  };
+
+  const downloadManually = async () => {
+    if (!updateInfo?.apk_url) return;
+    try {
+      await Linking.openURL(updateInfo.apk_url);
+    } catch {
+      setError('Could not open the download link.');
     }
   };
 
@@ -196,7 +222,9 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
                   <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: accent }]} />
                 </View>
                 <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-                  Downloading {Math.round(progress * 100)}%
+                  {installing
+                    ? 'Download complete — opening installer...'
+                    : `Downloading ${Math.round(progress * 100)}%`}
                 </Text>
               </View>
             ) : (
@@ -216,6 +244,11 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
                     <Text style={styles.btnPrimaryText}>Update now</Text>
                   </TouchableOpacity>
                 </View>
+                <TouchableOpacity onPress={downloadManually} style={styles.manualWrap}>
+                  <Text style={[styles.manualText, { color: colors.textSecondary }]}>
+                    Install not working? Download the APK manually
+                  </Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -298,6 +331,17 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 20,
     width: '100%',
+  },
+  manualWrap: {
+    marginTop: 14,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  manualText: {
+    fontSize: 11.5,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   btn: {
     flex: 1,
