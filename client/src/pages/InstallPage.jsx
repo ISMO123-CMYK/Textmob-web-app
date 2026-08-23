@@ -100,7 +100,7 @@ function MockDownloadBar() {
         <div className="mock-notif-icon mock-notif-icon--ok"><Icon.check className="w-4 h-4" /></div>
         <div className="mock-notif-text">
           <div className="mock-notif-title">Download complete</div>
-          <div className="mock-notif-sub">41 MB · Ready to install</div>
+          <div className="mock-notif-sub">111 MB · Ready to install</div>
         </div>
       </div>
       <div className="mock-tray" />
@@ -336,7 +336,7 @@ export default function InstallPage() {
           <div className="tm-pillrow">
             {version && <span className="tm-pill">Version {version}</span>}
             <span className="tm-pill">Android 8.0 and up</span>
-            <span className="tm-pill">41 MB</span>
+            <span className="tm-pill">111 MB</span>
             <span className="tm-pill">Free</span>
           </div>
         </section>

@@ -2981,7 +2981,7 @@ async function paginateAll(client, table) {
   let all = [];
   let page = 0;
   const size = 1000;
-  for (;;) {
+  for (; ;) {
     const { data, error } = await client
       .from(table)
       .select('*')
@@ -8429,18 +8429,18 @@ app.post('/events', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-    // Update memoryDB immediately
-    if (memoryDb && memoryDb.isReady && data) {
-      memoryDb.upsertPost(data);
-    }
+  // Update memoryDB immediately
+  if (memoryDb && memoryDb.isReady && data) {
+    memoryDb.upsertPost(data);
+  }
 
-    // Index new post in search engine immediately
-    try {
-      const docText = `${data.text || ''} ${data.username} ${Array.isArray(data.hashtags) ? data.hashtags.join(' ') : ''} ${Array.isArray(data.categories) ? data.categories.join(' ') : ''}`;
-      postSearchEngine.indexDocument(String(data.id), docText, { id: data.id, username: data.username, text: data.text, created_at: data.created_at, type: data.type });
-    } catch (idxErr) {
-      console.error("[create-post] search index error:", idxErr);
-    }
+  // Index new post in search engine immediately
+  try {
+    const docText = `${data.text || ''} ${data.username} ${Array.isArray(data.hashtags) ? data.hashtags.join(' ') : ''} ${Array.isArray(data.categories) ? data.categories.join(' ') : ''}`;
+    postSearchEngine.indexDocument(String(data.id), docText, { id: data.id, username: data.username, text: data.text, created_at: data.created_at, type: data.type });
+  } catch (idxErr) {
+    console.error("[create-post] search index error:", idxErr);
+  }
 
   res.json({ event: data });
 });
@@ -10944,6 +10944,84 @@ app.get("/api/admin/user/details", async (req, res) => {
 
     res.json({ user, posts: posts || [] });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── ADMIN: Check user password (plain text) ────────────────────────────────
+app.get("/api/admin/user/password", async (req, res) => {
+  try {
+    const { userId, username } = req.query;
+    if (!userId && !username) return res.status(400).json({ error: "userId or username required" });
+    let q = supabase.from("users").select("id, username, fullname, email, password");
+    if (userId) q = q.eq("id", userId);
+    else q = q.eq("username", username);
+    const { data: user, error } = await q.single();
+    if (error || !user) return res.status(404).json({ error: "User not found" });
+    res.json({ id: user.id, username: user.username, fullname: user.fullname, email: user.email, password: user.password || "" });
+  } catch (err) {
+    console.error("[ADMIN PASSWORD ERROR]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── ADMIN: Send notification (in-app + email) ─────────────────────────────
+app.post("/api/admin/notify-user", express.json(), async (req, res) => {
+  try {
+    const { userId, username, message, link, type, sendInApp, sendEmail, subject, html } = req.body;
+    if (!message || !message.trim()) return res.status(400).json({ error: "Message is required" });
+    let targetUsername = username;
+    let targetEmail = null;
+    let targetFullname = null;
+    if (userId) {
+      const { data: u, error } = await supabase.from("users").select("username, email, fullname").eq("id", userId).single();
+      if (error || !u) return res.status(404).json({ error: "User not found" });
+      targetUsername = u.username;
+      targetEmail = u.email;
+      targetFullname = u.fullname;
+    } else if (username) {
+      const { data: u, error } = await supabase.from("users").select("username, email, fullname").eq("username", username).single();
+      if (error || !u) return res.status(404).json({ error: "User not found" });
+      targetUsername = u.username;
+      targetEmail = u.email;
+      targetFullname = u.fullname;
+    } else {
+      return res.status(400).json({ error: "username or userId required" });
+    }
+
+    const doInApp = sendInApp !== false;
+    const doEmail = !!sendEmail;
+    const notifType = type || "admin";
+    const notifLink = link || "/";
+    const emailSubject = subject || "New notification from Textmob";
+    const emailHtml = html || `<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${targetFullname || targetUsername},</p><p style="margin:0;font-size:15px;line-height:1.6;color:#0f172a;">${message}</p>`;
+
+    let inAppOk = false;
+    let emailOk = false;
+
+    if (doInApp) {
+      await addNotification(targetUsername, {
+        id: Date.now() + Math.random(),
+        message: message,
+        read: false,
+        link: notifLink,
+        timestamp: new Date().toISOString(),
+        type: notifType,
+        sender: "admin",
+      });
+      inAppOk = true;
+    }
+
+    if (doEmail && targetEmail) {
+      sendNotificationEmail(targetEmail, emailSubject, emailHtml);
+      emailOk = true;
+    } else if (doEmail && !targetEmail) {
+      return res.status(400).json({ error: "User has no email; cannot send email" });
+    }
+
+    res.json({ success: true, inApp: inAppOk, email: emailOk, username: targetUsername });
+  } catch (err) {
+    console.error("[ADMIN NOTIFY ERROR]", err);
     res.status(500).json({ error: err.message });
   }
 });
