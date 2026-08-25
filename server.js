@@ -17,7 +17,7 @@ const fetch = require("node-fetch");
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 const { Resend } = require("resend");
-const DevPay = require("devpay-sdk/devpay");
+const DevPay = require("./utilities/devpay");
 const crypto = require("crypto");
 
 // Initialize Supabase client

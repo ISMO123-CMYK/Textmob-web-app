@@ -21,7 +21,6 @@
     "body-parser": "^1.20.2",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
-    "devpay-sdk": "github:bossprogrammer275/devpay-sdk",
     "dotenv": "^16.3.1",
     "express": "^4.21.2",
     "express-session": "^1.17.3",
