@@ -43,6 +43,8 @@ const K = {
   TrendUp: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
   Danger: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>,
   Video: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>,
+  CheckCircle: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>,
+  Image: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>,
 };
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
@@ -69,6 +71,7 @@ const NAV = [
   },
   {
     section: 'Settings', items: [
+      { key: 'verification', label: 'Get Verified', icon: K.CheckCircle },
       { key: 'profile', label: 'Edit Profile', icon: K.Profile },
       { key: 'prefs', label: 'Preferences', icon: K.Prefs },
       { key: 'danger', label: 'Log Out', icon: K.Logout },
@@ -272,11 +275,11 @@ export default function AccountsCenter() {
 
         <main className="flex-1 overflow-y-auto p-4 max-w-2xl w-full mx-auto">
           {activeTab === 'home' && <OverviewTab profile={profile} stats={stats} posts={posts} setTab={setActiveTab} isOrg={isOrg} accent={accent} accentText={accentText} />}
-          {activeTab === 'monetize' && <MonetizationTab username={username} stats={stats} isOrg={isOrg} accent={accent} showAlert={showAlert} />}
+          {activeTab === 'monetize' && <MonetizationTab username={username} stats={stats} isOrg={isOrg} accent={accent} verified={!!profile?.verified} setTab={setActiveTab} showAlert={showAlert} />}
           {activeTab === 'analytics' && <AnalyticsTab posts={posts} stats={stats} profile={profile} isOrg={isOrg} accentText={accentText} />}
           {activeTab === 'composer' && <ComposerTab username={username} setTab={setActiveTab} isOrg={isOrg} accent={accent} />}
           {activeTab === 'profile' && <EditProfileTab profile={profile} setProfile={setProfile} username={username} isOrg={isOrg} accent={accent} accentText={accentText} />}
-          {activeTab === 'verification' && <VerificationTab />}
+          {activeTab === 'verification' && <VerificationTab username={username} accent={accent} setTab={setActiveTab} />}
           {activeTab === 'posts' && <PostsTab posts={posts} setPosts={setPosts} username={username} setTab={setActiveTab} />}
           {activeTab === 'snaps' && <SnapsTab posts={posts} setPosts={setPosts} username={username} setTab={setActiveTab} isOrg={isOrg} accent={accent} accentText={accentText} />}
           {activeTab === 'grow' && <GrowTab stats={stats} profile={profile} username={username} isOrg={isOrg} setTab={setActiveTab} accent={accent} />}
@@ -294,21 +297,158 @@ export default function AccountsCenter() {
   );
 }
 
-// New VerificationTab
-function VerificationTab() {
+// ─── Verification ─────────────────────────────────────────────────────────────
+function VerificationTab({ username, accent, setTab }) {
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function checkStatus() {
+      if (!username) { setLoading(false); return; }
+      try {
+        const res = await apiFetch(`/api/devpay/verification-status?username=${encodeURIComponent(username)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setStatus(data);
+        }
+      } catch (e) {
+        console.error('Verification status fetch error:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkStatus();
+  }, [username]);
+
+  const handlePay = async () => {
+    setPaying(true);
+    setError(null);
+    try {
+      const res = await apiFetch('/api/devpay/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json();
+      if (res.ok && (data?.url || data?.checkoutUrl)) {
+        window.location.href = data.url || data.checkoutUrl;
+      } else {
+        setError(data?.error || 'Failed to start payment. Please try again.');
+        setPaying(false);
+      }
+    } catch (e) {
+      setError('Network error. Please try again.');
+      setPaying(false);
+    }
+  };
+
+  const isActive = status?.verified;
+  const daysLeft = status?.verified_until
+    ? Math.max(0, Math.ceil((new Date(status.verified_until).getTime() - Date.now()) / 86400000))
+    : 0;
+
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-gray-900">Get Verified</h2>
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
-          <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Get Verified</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Stand out with a blue tick badge on your profile</p>
+      </div>
+
+      {loading ? (
+        <div className="bg-white border border-gray-200 rounded-2xl p-12 flex flex-col items-center justify-center">
+          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-xs font-semibold text-gray-500">Checking verification status...</p>
         </div>
-        <p className="text-sm text-gray-600 mb-4">Contact us on WhatsApp to get verified.</p>
-        <a href="https://wa.me/2347087421125" target="_blank" rel="noopener noreferrer"
-           className="inline-flex items-center gap-2 h-12 px-6 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-all">
-          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.716.875 5.233 2.356 7.301L.758 23.625a.75.75 0 00.866.964l5.084-1.09A11.934 11.934 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22.5a10.456 10.456 0 01-5.36-1.476.75.75 0 00-.587-.084l-3.595.771 1.226-3.17a.75.75 0 00-.084-.769A10.422 10.422 0 011.5 12c0-5.79 4.71-10.5 10.5-10.5S22.5 6.21 22.5 12 17.79 22.5 12 22.5z"/></svg>
-          Chat on WhatsApp
-        </a>
+      ) : isActive ? (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 text-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
+            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-blue-900">You're Verified!</h3>
+            <p className="text-xs text-blue-700 mt-1 font-medium">
+              {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : 'Expiring soon.'}
+            </p>
+          </div>
+          <span className="inline-block bg-blue-100/80 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">
+            Renews at ₦500 / month
+          </span>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+              <svg viewBox="0 0 24 24" className="w-7 h-7 fill-none" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">Get Verified on Textmob</h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+              Stand out with a blue tick badge. Build trust, credibility, and gain increased visibility in feeds.
+            </p>
+          </div>
+
+          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+            <div className="flex justify-between text-xs text-gray-600 font-medium">
+              <span>Verified Badge</span>
+              <span className="font-bold text-gray-900">Blue Tick</span>
+            </div>
+            <div className="flex justify-between text-xs text-gray-600 font-medium">
+              <span>Duration</span>
+              <span className="font-bold text-gray-900">1 Month</span>
+            </div>
+            <div className="border-t border-gray-200 pt-3 flex justify-between items-baseline">
+              <span className="text-sm font-semibold text-gray-900">Total</span>
+              <span className="text-2xl font-black text-blue-600">₦500</span>
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handlePay}
+            disabled={paying}
+            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {paying ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Redirecting to payment...</span>
+              </>
+            ) : (
+              <span>Pay ₦500 Now</span>
+            )}
+          </button>
+
+          <p className="text-[11px] text-gray-400 text-center">
+            🔒 Secure payment powered by DevPay.
+          </p>
+        </div>
+      )}
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+        <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">What you get</h4>
+        <ul className="space-y-2.5">
+          {[
+            'Blue verified tick badge on your profile and next to your name in feeds',
+            'Increased trust and credibility in the African creator community',
+            'Priority placement in search and topic discovery feeds',
+            'Eligibility for creator reward boosts and special perks',
+          ].map((perk, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-xs text-gray-600 leading-relaxed">
+              <span className="text-blue-600 font-bold mt-0.5">✓</span>
+              <span>{perk}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -329,15 +469,24 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
   return (
     <div className="space-y-4">
       {!profile?.verified && (
-        <a href="https://wa.me/2347087421125" target="_blank" rel="noopener noreferrer"
-           className="bg-white border border-blue-100 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition-all">
-          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl">{K.Check}</div>
-          <div className="flex-1">
+        <div
+          onClick={() => setTab('verification')}
+          className="bg-white border border-blue-100 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer"
+        >
+          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl flex-shrink-0">
+            {K.CheckCircle || K.Check}
+          </div>
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-gray-900">Unlock your potential</p>
             <p className="text-xs text-gray-500">Get a blue tick to increase trust and visibility.</p>
           </div>
-          <span className="h-9 px-4 bg-blue-600 text-white rounded-lg text-xs font-bold inline-flex items-center">Contact Us</span>
-        </a>
+          <button
+            onClick={(e) => { e.stopPropagation(); setTab('verification'); }}
+            className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold inline-flex items-center flex-shrink-0"
+          >
+            Get Verified
+          </button>
+        </div>
       )}
       {!isOrg && (
         <div className="bg-white border border-purple-100 rounded-2xl p-5 flex items-center gap-4">
@@ -435,7 +584,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
 }
 
 // ─── 2. Monetization ─────────────────────────────────────────────────────────
-function MonetizationTab({ username, stats, isOrg, accent }) {
+function MonetizationTab({ username, stats, isOrg, accent, verified, setTab, showAlert }) {
   const [balance, setBalance] = useState(stats?.mobcoins || 0);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -448,6 +597,7 @@ function MonetizationTab({ username, stats, isOrg, accent }) {
 
   useEffect(() => {
     async function load() {
+      if (!username) return;
       const res = await apiFetch(`/api/user/payouts?userId=${encodeURIComponent(username)}`);
       if (res.ok) setPayouts(await res.json());
       setLoading(false);
@@ -475,6 +625,51 @@ function MonetizationTab({ username, stats, isOrg, accent }) {
     } catch (err) { setStatus({ ok: false, text: err.message }); }
     finally { setSubmitting(false); }
   };
+
+  if (!verified) {
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Earnings</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Creator monetization & rewards</p>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center flex flex-col items-center justify-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
+            <svg viewBox="0 0 24 24" className="w-7 h-7 fill-none" stroke="currentColor" strokeWidth="2.5">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+          </div>
+          <div className="space-y-1.5 max-w-sm mx-auto">
+            <h3 className="text-lg font-bold text-gray-900">Verification Required</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Earnings, creator rewards, and payouts are only accessible to verified accounts. Get your blue tick to unlock monetization.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2.5 w-full max-w-xs pt-2">
+            <button
+              onClick={() => setTab?.('verification')}
+              className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+            >
+              Get Verified Now
+            </button>
+            <a
+              href="https://wa.me/2347087421125"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 h-11 border border-gray-200 hover:bg-gray-50 active:scale-[0.98] text-gray-700 text-xs font-semibold rounded-xl flex items-center justify-center transition-all"
+            >
+              Contact Support
+            </a>
+          </div>
+          <p className="text-[11px] text-gray-400">
+            Verified users can cash out MobCoins directly to bank accounts and airtime.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -596,6 +791,8 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(profile?.profile_pic || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg');
+  const [coverPreview, setCoverPreview] = useState(profile?.cover_photo || '');
+  const [coverSaving, setCoverSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState(null);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -608,9 +805,62 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
   const [migrationModalOpen, setMigrationModalOpen] = useState(false);
   const [modeSaving, setModeSaving] = useState(false);
 
+  useEffect(() => {
+    if (profile?.cover_photo !== undefined) {
+      setCoverPreview(profile.cover_photo || '');
+    }
+  }, [profile?.cover_photo]);
+
   function handlePhotoChange(e) {
     const file = e.target.files[0];
     if (file) { setPhotoFile(file); setPhotoPreview(URL.createObjectURL(file)); }
+  }
+
+  async function handleCoverChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverPreview(URL.createObjectURL(file));
+    setCoverSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append('coverPhoto', file);
+      const res = await apiFetch(`/profile/${username}/cover-photo`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to upload cover photo');
+      if (data.cover_photo) {
+        setCoverPreview(data.cover_photo);
+        setProfile(prev => ({ ...prev, cover_photo: data.cover_photo }));
+      }
+      setStatusMsg({ text: 'Cover photo updated!', ok: true });
+    } catch (err) {
+      setStatusMsg({ text: err.message || 'Failed to upload cover photo', ok: false });
+    } finally {
+      setCoverSaving(false);
+    }
+  }
+
+  async function handleCoverRemove() {
+    if (!confirm('Remove cover photo?')) return;
+    setCoverSaving(true);
+    try {
+      const res = await apiFetch(`/profile/${username}/cover-photo/remove`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to remove cover photo');
+      }
+      setCoverPreview('');
+      setProfile(prev => ({ ...prev, cover_photo: '' }));
+      setStatusMsg({ text: 'Cover photo removed', ok: true });
+    } catch (err) {
+      setStatusMsg({ text: err.message || 'Failed to remove cover photo', ok: false });
+    } finally {
+      setCoverSaving(false);
+    }
   }
 
   async function handleProfileUpdate(e) {
@@ -710,6 +960,48 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
             Change photo
             <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </label>
+        </div>
+      </div>
+
+      {/* Cover Photo */}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="relative h-28 md:h-36 bg-gray-100">
+          {coverPreview ? (
+            <img src={coverPreview} alt="Cover" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+              <span className="mb-1">{K.Image || K.Camera}</span>
+              <span className="text-xs font-medium">No cover photo</span>
+            </div>
+          )}
+          {coverSaving && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs font-semibold">
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+              Uploading...
+            </div>
+          )}
+        </div>
+        <div className="p-3.5 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Cover photo</p>
+            <p className="text-xs text-gray-400">Recommended 1200 × 400px</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className={cn("h-8 px-3.5 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-colors", isOrg ? "border-purple-600 text-purple-600 hover:bg-purple-50" : "border-blue-600 text-blue-600 hover:bg-blue-50")}>
+              {coverPreview ? 'Change' : 'Add'}
+              <input type="file" accept="image/*" className="hidden" onChange={handleCoverChange} disabled={coverSaving} />
+            </label>
+            {coverPreview && (
+              <button
+                type="button"
+                onClick={handleCoverRemove}
+                disabled={coverSaving}
+                className="h-8 px-3 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Remove
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

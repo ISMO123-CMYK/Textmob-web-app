@@ -25,7 +25,7 @@ export default function Sidebar() {
       try {
         const raw = JSON.parse(localStorage.getItem('textmobSavedAccounts') || '[]');
         if (Array.isArray(raw)) arr = raw;
-      } catch {}
+      } catch { }
       setSavedAccounts(arr.map(a => ({ ...a, username: a.username?.toLowerCase(), profile_pic: a.profile_pic || '' })));
     };
     load();
@@ -38,7 +38,7 @@ export default function Sidebar() {
       const next = savedAccounts.filter(a => a.username !== username);
       localStorage.setItem('textmobSavedAccounts', JSON.stringify(next));
       setSavedAccounts(next);
-    } catch {}
+    } catch { }
   }
 
   async function switchAccount(username, password) {
@@ -48,14 +48,14 @@ export default function Sidebar() {
         body: JSON.stringify({ identifier: username, password }),
       });
       const data = await res.json();
-      if (!res.ok) { window.showNotification?.({ title:'Login Failed', message: data.error, type:'error' }); return; }
+      if (!res.ok) { window.showNotification?.({ title: 'Login Failed', message: data.error, type: 'error' }); return; }
       localStorage.setItem('currentUser', data.user.username);
-      window.__feedState = { activeTab:'foryou', foryou:{posts:[],page:1,hasMore:true,scrollY:0}, following:{posts:[],page:1,hasMore:true,scrollY:0} };
+      window.__feedState = { activeTab: 'foryou', foryou: { posts: [], page: 1, hasMore: true, scrollY: 0 }, following: { posts: [], page: 1, hasMore: true, scrollY: 0 } };
       try {
         Object.keys(localStorage).filter(k => k.startsWith('tmob_cache_')).forEach(k => localStorage.removeItem(k));
-      } catch {}
+      } catch { }
       window.location.href = '/';
-    } catch(e) { window.showNotification?.({ title:'Error', message:e.message, type:'error' }); }
+    } catch (e) { window.showNotification?.({ title: 'Error', message: e.message, type: 'error' }); }
   }
 
   const currentUser = localStorage.getItem('currentUser');
@@ -94,7 +94,7 @@ export default function Sidebar() {
     { Icon: NavIcons.Home, label: 'Home', badge: null, to: '/' },
     { Icon: NavIcons.Snaps, label: 'Snaps', badge: null, to: '/snaps' },
     { Icon: NavIcons.Search, label: 'Discover', badge: null, to: '/topsearch' },
-    { Icon: NavIcons.Live, label: 'Go Live', badge: null, to: '/live' },
+    { Icon: NavIcons.Live, label: 'Go Live', badge: null, to: '/create-live' },
 
     { Icon: NavIcons.Messages, label: 'Louda', badge: loudaUnread || null, to: '/chats' },
     { Icon: NavIcons.Leaderboard, label: 'Hall of Fame', badge: null, to: '/halloffame' },
@@ -157,7 +157,7 @@ export default function Sidebar() {
         {/* Header */}
         <div className={cn('flex items-center px-4 pt-4 pb-2', collapsed ? 'justify-center' : 'justify-between')}>
           {!collapsed && <span className="text-sm font-bold text-gray-900 tracking-tight">Textmob</span>}
-          <button onClick={() => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem('sidebar-collapsed', JSON.stringify(next)); } catch {} }} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <button onClick={() => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem('sidebar-collapsed', JSON.stringify(next)); } catch { } }} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d={collapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7'} />
             </svg>
@@ -216,33 +216,33 @@ export default function Sidebar() {
                   {savedAccounts.length === 0 && <p className="px-4 py-3 text-xs text-gray-400">No saved accounts</p>}
                 </>
               ) : (
-              <>
-                <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
-                  <img src={pic} alt={name} className="w-8 h-8 rounded-full object-cover" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-gray-900 truncate">{name}</p>
-                    <p className="text-[11px] text-gray-400 truncate">@{username}</p>
+                <>
+                  <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                    <img src={pic} alt={name} className="w-8 h-8 rounded-full object-cover" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-gray-900 truncate">{name}</p>
+                      <p className="text-[11px] text-gray-400 truncate">@{username}</p>
+                    </div>
                   </div>
-                </div>
-                {profileMenuItems.map(({ label, to, icon }) => (
-                  <a href={to} data-lexum={true} role="menuitem" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => setMenuOpen(false)} key={label}>
-                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current text-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
-                    {label}
-                  </a>
-                ))}
-                <div className="border-t border-gray-100">
-                  <button role="menuitem" onClick={() => { setShowAccountSwitcher(true); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current text-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                    Switch account
-                  </button>
-                </div>
-                <div className="border-t border-gray-200">
-                  <button role="menuitem" onClick={() => { localStorage.removeItem('currentUser'); window.Lexum?.navigate('/auth'); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors">
-                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                    Log out
-                  </button>
-                </div>
-              </>
+                  {profileMenuItems.map(({ label, to, icon }) => (
+                    <a href={to} data-lexum={true} role="menuitem" className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors" onClick={() => setMenuOpen(false)} key={label}>
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current text-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
+                      {label}
+                    </a>
+                  ))}
+                  <div className="border-t border-gray-100">
+                    <button role="menuitem" onClick={() => { setShowAccountSwitcher(true); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current text-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      Switch account
+                    </button>
+                  </div>
+                  <div className="border-t border-gray-200">
+                    <button role="menuitem" onClick={() => { localStorage.removeItem('currentUser'); window.Lexum?.navigate('/auth'); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                      Log out
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           )}

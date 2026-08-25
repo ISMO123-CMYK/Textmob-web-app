@@ -11347,7 +11347,7 @@ app.post("/api/devpay/checkout", express.json(), async (req, res) => {
       description: "Textmob Verified Badge (1 Month)",
       metadata: {
         username: user.username,
-        user_id: user.id,
+        textmob_user_id: user.id,
         type: "verification",
       },
     });
@@ -11378,10 +11378,10 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
 
   try {
     const { metadata, amount, reference } = data;
-    const { user_id, username, type } = metadata || {};
+    const { textmob_user_id, username, type } = metadata || {};
 
-    if (!user_id || !username) {
-      console.error("[DEVPAy WEBHOOK] Missing user_id or username in metadata");
+    if (!textmob_user_id || !username) {
+      console.error("[DEVPAy WEBHOOK] Missing textmob_user_id or username in metadata");
       return res.status(200).send('OK');
     }
 
@@ -11406,7 +11406,7 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
     const { data: existingReq } = await supabase
       .from("verification_requests")
       .select("id")
-      .eq("user_id", user_id)
+      .eq("user_id", textmob_user_id)
       .eq("status", "ACCEPTED")
       .gt("verified_until", new Date().toISOString())
       .single();
@@ -11423,7 +11423,7 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
     } else {
       // Create new verification request
       await supabase.from("verification_requests").insert([{
-        user_id: user_id,
+        user_id: textmob_user_id,
         status: "ACCEPTED",
         verified_until: verifiedUntil.toISOString(),
         created_at: new Date().toISOString(),
@@ -11435,7 +11435,7 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
     await supabase
       .from("users")
       .update({ verified: true })
-      .eq("id", user_id);
+      .eq("id", textmob_user_id);
 
     // Send notification
     await triggerNotification(username, "verification", {
