@@ -5,6 +5,7 @@ import { SnapUploadProvider } from '../../utils/SnapUploadContext';
 import { apiFetch } from '../../config/api';
 import { fetchProfile } from '../../utils/useProfileCache';
 import AuthPromptModal from '../ui/AuthPromptModal';
+import { showCelebration } from '../ui/CelebrationOverlay';
 
 const STYLES = {
   overlay: {
@@ -179,6 +180,13 @@ export default function AppWrapper({ children }) {
     window.showAuthPrompt = (message) => {
       setAuthPrompt({ show: true, message: message || '' });
     };
+  }, []);
+
+  // 300 users celebration — only on home page
+  useEffect(() => {
+    if (window.location.pathname === '/') {
+      showCelebration();
+    }
   }, []);
 
   if (isDisabled) return <DisabledScreen />;

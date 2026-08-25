@@ -17,6 +17,8 @@ const fetch = require("node-fetch");
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 const { Resend } = require("resend");
+const DevPay = require("devpay-sdk/devpay");
+const crypto = require("crypto");
 
 // Initialize Supabase client
 const supabaseUrl = "https://apnnyqmsyxuyapamnrqg.supabase.co";
@@ -700,10 +702,10 @@ function pushLiveChunk(postId, chunk) {
 function cleanupDeadStream(state, res) {
   try {
     state.activeStreams.delete(res);
-  } catch { }
+  } catch (e) { /* ignore */ }
   try {
     res.end();
-  } catch { }
+  } catch (e) { /* ignore */ }
 }
 
 app.post(
@@ -784,7 +786,7 @@ app.get("/api/live-stream/:postId", (req, res) => {
     console.error("live-stream error:", err);
     try {
       res.status(500).json({ error: err.message });
-    } catch { }
+    } catch (e) { /* ignore */ }
   }
 });
 // Optional: endpoint to check stream health / metadata
@@ -796,8 +798,8 @@ app.get("/api/live-info/:postId", (req, res) => {
 
     res.json({
       ok: true,
-      hasInit: state.initChunks.length > 0,
-      initCount: state.initChunks.length,
+      hasInit: state.initChunk !== null,
+      initCount: state.initChunk ? 1 : 0,
       mediaChunkCount: state.mediaChunks.length,
       viewerCount: state.activeStreams.size,
       lastSeenAt: state.lastSeenAt,
@@ -1062,6 +1064,13 @@ cloudinary.config({
   api_secret: '48g6aAx6fyU5JdRdhqkQgiBJ7zc',
 });
 
+// --- DevPay SDK Initialization ---
+const devpay = new DevPay({
+  appId: '69db6c60003a4693c61d',
+  secret: '61d92bd984bdd72ddce77c5cd2b7c4d258f4cfb63f1d143176573ee78defbe28',
+  gatewayUrl: 'https://app-devpay.onrender.com',
+});
+
 app.use(express.json());
 async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin update", link = "/wallet", extraMsg = "") {
   const { data: user, error: userErr } = await supabase
@@ -1128,7 +1137,9 @@ const resetCodes = [];
 // Function to clean expired codes
 const cleanExpiredCodes = () => {
   const now = Date.now();
-  resetCodes.length = resetCodes.filter(code => code.expiresAt > now).length;
+  const valid = resetCodes.filter(code => code.expiresAt > now);
+  resetCodes.length = 0;
+  resetCodes.push(...valid);
 };
 
 // --- TURN Server Credentials (Metered.live) ---
@@ -1655,8 +1666,9 @@ app.get("/p/:id", async (req, res) => {
         "@type": "Event",
         "name": post.title || `Event by ${post.username}`,
         "description": (post.text || "").slice(0, 300),
-        "startDate": post.startDate || undefined,
-        "endDate": post.endDate || undefined,
+        "startDate": post.startDate || null,
+        "endDate": post.endDate || null,
+        "location": { "@type": "Place", "name": "Online" },
         "url": postUrl
       };
     } else {
@@ -1666,7 +1678,7 @@ app.get("/p/:id", async (req, res) => {
         "headline": post.title || `Post by ${post.username}`,
         "author": { "@type": "Person", "name": post.username },
         "datePublished": post.created_at || undefined,
-        "image": (post.media && post.media[0]) || undefined,
+        "image": (Array.isArray(post.media) && post.media[0]) || undefined,
         "articleBody": (post.text || "").slice(0, 300),
         "url": postUrl
       };
@@ -1806,6 +1818,8 @@ app.get("/sitemap.xml", async (req, res) => {
       indexXml += `<sitemap><loc>${escapeXml(`${SITE_URL}/sitemap-users-${i}.xml`)}</loc><lastmod>${nowIso}</lastmod></sitemap>\n`;
     }
 
+    indexXml += `<sitemap><loc>${escapeXml(`${SITE_URL}/sitemap-static.xml`)}</loc><lastmod>${nowIso}</lastmod></sitemap>\n`;
+
     indexXml += "</sitemapindex>";
     cacheSet(cacheKey, indexXml);
     res.set("Content-Type", "application/xml");
@@ -1891,6 +1905,32 @@ app.get("/sitemap-users-:page.xml", async (req, res) => {
     console.error("sitemap users error", err);
     res.status(500).send("<?xml version=\"1.0\" encoding=\"UTF-8\"?><error>Server error</error>");
   }
+});
+
+app.get("/sitemap-static.xml", (req, res) => {
+  const cacheKey = "sitemap_static";
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    res.set("Content-Type", "application/xml");
+    return res.send(cached);
+  }
+  const SPA = SPA_HOST;
+  const nowIso = new Date().toISOString();
+  const staticUrls = [
+    { loc: SPA + "/", lastmod: nowIso, changefreq: "daily", priority: "1.0" },
+    { loc: SPA + "/about.html", lastmod: nowIso, changefreq: "monthly", priority: "0.9" },
+    { loc: SPA + "/terms.html", lastmod: nowIso, changefreq: "monthly", priority: "0.6" },
+    { loc: SPA + "/privacy.html", lastmod: nowIso, changefreq: "monthly", priority: "0.6" },
+    { loc: SPA + "/auth", lastmod: nowIso, changefreq: "monthly", priority: "0.7" }
+  ];
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+  for (const u of staticUrls) {
+    xml += urlEntry(u);
+  }
+  xml += "</urlset>";
+  cacheSet(cacheKey, xml);
+  res.set("Content-Type", "application/xml");
+  res.send(xml);
 });
 
 // ---------- SITEMAP REFRESH (cache clear) ----------
@@ -2246,7 +2286,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
           password,
           profile_pic: profilePicUrl || "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg",
           followers: [],
-          following: ["textmobofficial", "textmobai"],
+          following: [],
           friends: [],
           notifications: [],
           biography: biography || "Biography not set",
@@ -2295,7 +2335,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
         password,
         profile_pic: profilePicUrl || "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg",
         followers: [],
-        following: ["textmobofficial", "textmobai"],
+        following: [],
         friends: [],
         notifications: [],
         biography: biography || "Biography not set",
@@ -2837,7 +2877,7 @@ app.get("/profile/:username", async (req, res) => {
     const [userRes, countRes] = await Promise.all([
       supabase
         .from("users")
-        .select("fullname, username,following, followers, friends, email, phone, userType, profile_pic, biography, notifications, profile_type, notification_prefs, feed_prefs, verified")
+        .select("fullname, username,following, followers, friends, email, phone, userType, profile_pic, biography, notifications, profile_type, notification_prefs, feed_prefs, verified, cover_photo")
         .eq("username", username)
         .single(),
       supabase2
@@ -2853,10 +2893,43 @@ app.get("/profile/:username", async (req, res) => {
         profile_pic: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg',
         notifications: [],
         post_count: 0,
+        total_likes: 0,
         error: "User not found"
       });
     }
-    res.json({ ...user, post_count: countRes.count || 0 });
+
+    // Calculate total likes across all posts for this user (for profile page)
+    let total_likes = 0;
+    try {
+      if (memoryDb && memoryDb.isReady) {
+        const userPosts = memoryDb.posts.filter(p => p.username === username);
+        for (const p of userPosts) {
+          if (Array.isArray(p.likes)) total_likes += p.likes.length;
+        }
+      } else {
+        // Fallback: fetch likes arrays with pagination
+        let from = 0;
+        const pageSize = 1000;
+        while (true) {
+          const { data: postsSlice, error: sliceErr } = await supabase2
+            .from("Posts")
+            .select("likes")
+            .eq("username", username)
+            .range(from, from + pageSize - 1);
+          if (sliceErr) break;
+          if (!postsSlice || postsSlice.length === 0) break;
+          for (const p of postsSlice) {
+            if (Array.isArray(p.likes)) total_likes += p.likes.length;
+          }
+          if (postsSlice.length < pageSize) break;
+          from += pageSize;
+        }
+      }
+    } catch (e) {
+      console.error("[profile total_likes] error:", e?.message);
+    }
+
+    res.json({ ...user, post_count: countRes.count || 0, total_likes });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -2953,6 +3026,78 @@ app.post(
     }
   }
 );
+
+// --- Cover Photo Upload ---
+app.post(
+  "/profile/:username/cover-photo",
+  upload.single("coverPhoto"),
+  async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { data: user, error: userError } = await supabase
+        .from("users")
+        .select("id, cover_photo")
+        .eq("username", username)
+        .single();
+
+      if (userError || !user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "cover-photos", resource_type: "auto", transformation: [{ width: 1200, height: 400, crop: "fill" }] },
+          (error, result) => error ? reject(error) : resolve(result)
+        );
+        streamifier.createReadStream(req.file.buffer).pipe(stream);
+      });
+
+      const coverPhotoUrl = uploadResult.secure_url;
+
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ cover_photo: coverPhotoUrl })
+        .eq("username", username);
+
+      if (updateError) throw updateError;
+
+      if (memoryDb && memoryDb.isReady) {
+        memoryDb.updateUser(username, { cover_photo: coverPhotoUrl });
+      }
+
+      res.json({ cover_photo: coverPhotoUrl });
+    } catch (error) {
+      console.error("Cover Photo Upload Error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+// --- Remove Cover Photo ---
+app.post("/profile/:username/cover-photo/remove", async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { error } = await supabase
+      .from("users")
+      .update({ cover_photo: "" })
+      .eq("username", username);
+
+    if (error) throw error;
+
+    if (memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { cover_photo: "" });
+    }
+
+    res.json({ cover_photo: "" });
+  } catch (error) {
+    console.error("Cover Photo Remove Error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 // ─── Change username (remaps everywhere) ───
 function replaceInArray(arr, oldVal, newVal) {
@@ -4235,7 +4380,7 @@ ${postSummaries}`;
           const curated = ids.map(id => topCandidates.find(p => String(p.id) === String(id))).filter(Boolean);
           if (curated.length > 0) return curated;
         }
-      } catch { }
+      } catch (e) { /* ignore */ }
     }
 
     // Fallback: return top 15 by engagement (filtered)
@@ -4764,7 +4909,7 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
       try {
         const parsed = typeof categories === 'string' ? JSON.parse(categories) : categories;
         if (Array.isArray(parsed)) userCategories = parsed.filter(c => POST_CATEGORIES.includes(c));
-      } catch { }
+      } catch (e) { /* ignore */ }
     }
     if (userCategories.length === 0 && category) {
       if (POST_CATEGORIES.includes(category)) userCategories = [category];
@@ -5220,13 +5365,13 @@ function cleanupRoomMembers(roomState, postId) {
       for (const viewerSocketId of Array.from(roomState.viewers)) {
         try {
           deleteSocketJoin(viewerSocketId, postId);
-        } catch { }
+        } catch (e) { /* ignore */ }
       }
     }
     if (roomState?.host) {
       try {
         deleteSocketJoin(roomState.host, postId);
-      } catch { }
+      } catch (e) { /* ignore */ }
     }
   } catch (e) {
     console.warn("cleanupRoomMembers failed", e);
@@ -5328,7 +5473,7 @@ io.on("connection", function (socket) {
       socket.data.username = hsUser;
       if (typeof addUserSocket === "function") addUserSocket(hsUser, socket.id);
     }
-  } catch { }
+  } catch (e) { /* ignore */ }
 
   // allow clients to identify themselves after connection
   socket.on("identify", function (username) {
@@ -5336,7 +5481,7 @@ io.on("connection", function (socket) {
       if (!username) return;
       socket.data.username = username;
       if (typeof addUserSocket === "function") addUserSocket(username, socket.id);
-    } catch { }
+    } catch (e) { /* ignore */ }
   });
 
   // host heartbeat
@@ -5652,7 +5797,7 @@ io.on("connection", function (socket) {
         if (socket.data && socket.data.username && typeof removeUserSocket === "function") {
           removeUserSocket(socket.data.username, socket.id);
         }
-      } catch { }
+      } catch (e) { /* ignore */ }
 
       const joined = socketJoins.get(socket.id);
       if (!joined) return;
@@ -5672,7 +5817,7 @@ io.on("connection", function (socket) {
           s.viewers.delete(socket.id);
           try {
             io.to(s.room).emit("viewerCountUpdate", { postId, count: s.viewers.size });
-          } catch { }
+          } catch (e) { /* ignore */ }
         }
 
         deleteSocketJoin(socket.id, postId);
@@ -6508,11 +6653,6 @@ app.post("/api/redeem", async (req, res) => {
 app.get("/leaderboard", async (req, res) => {
   try {
     const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const TOP_POSTS_LIMIT = 20;
-
 
     // Try cached leaderboard from MemoryDB
     if (memoryDb && memoryDb.isReady) {
@@ -6530,143 +6670,55 @@ app.get("/leaderboard", async (req, res) => {
         profile_pic: u.profile_pic,
         username: u.username,
         fullname: u.fullname,
-        mobcoins: u.mobcoins,
         followers: u.followers,
-        created_at: u.created_at,
-        biography: u.biography,
-        profile_type: u.profile_type,
       }));
       posts = memoryDb.posts.map(p => ({
         id: p.id,
         username: p.username,
-        type: p.type,
         likes: p.likes,
-        comments: p.comments,
-        created_at: p.created_at,
-        text: p.text,
-        media: p.media,
-        reactions: p.reactions,
       }));
     } else {
       users = await fetchAll(
         supabase,
         "users",
-        "id, profile_pic, username, fullname, mobcoins, followers, created_at, biography, profile_type"
+        "id, profile_pic, username, fullname, followers"
       );
       posts = await fetchAll(
         supabase2,
         "Posts",
-        "id, username, type, likes, comments, created_at, text, media, reactions"
+        "id, username, likes"
       );
     }
 
-    const recentPosts = posts.filter(p => p.created_at && new Date(p.created_at) >= sevenDaysAgo);
+    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai", "bossprogrammer", "believersspot"];
 
-    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai", "bossprogrammer"];
-    const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
-    const usersSet = new Set(users.map(u => u.username));
-
-    // Group and score posts per user
-    const userPostBuckets = {};
-    for (const p of recentPosts) {
-      if (!p.username || excluded.includes(p.username) || !usersSet.has(p.username)) continue;
-      if (!userPostBuckets[p.username]) userPostBuckets[p.username] = [];
-
-      const hasMedia = p.media && p.media.length > 0;
-      const rawText = p.text || '';
-      const textWithoutEmojis = rawText.replace(emojiRegex, '').trim();
-      const wordCount = textWithoutEmojis.split(/\s+/).filter(w => w.length > 0).length;
-
-      // Quality Score — every post earns points, and substance scales with real text
-      let qualityScore = 1;                          // every post counts for at least 1
-      if (hasMedia) qualityScore += 1;               // media bonus
-      qualityScore += Math.floor(wordCount / 5);     // +1 per 5 words of text
-
-      // Engagement Score (all comments count, including self-comments)
-      const pComments = Array.isArray(p.comments) ? p.comments : [];
-      const pReactions = Array.isArray(p.reactions) ? p.reactions.length : 0;
-      const pLikes = Array.isArray(p.likes) ? p.likes.length : 0;
-      const reactions = pReactions > 0 ? pReactions : pLikes;
-      const engagementScore = (pComments.length * 3) + (reactions * 0.5);
-
-      userPostBuckets[p.username].push({
-        id: p.id,
-        text: rawText,
-        qualityScore,
-        engagementScore,
-        totalScore: qualityScore + engagementScore,
-        createdAt: p.created_at,
-      });
+    // Aggregate total likes per username (all time)
+    const likesByUser = {};
+    for (const p of posts) {
+      if (!p.username) continue;
+      const cnt = Array.isArray(p.likes) ? p.likes.length : 0;
+      likesByUser[p.username] = (likesByUser[p.username] || 0) + cnt;
     }
 
     const leaderboardEntries = users
       .filter(u => !excluded.includes(u.username))
       .map(u => {
-        const posts = userPostBuckets[u.username];
-        if (!posts || posts.length === 0) return null;
-
-        const totalPosts = posts.length;
-
-        // Track active days from all posts (consistency)
-        const activeDays = new Set();
-        for (const p of posts) {
-          if (p.createdAt) activeDays.add(new Date(p.createdAt).toDateString());
-        }
-        const totalActiveDays = activeDays.size;
-        const consistencyMultiplier = 1 + (totalActiveDays * 0.1);
-
-        // Keep only the best N posts (every post earns points, no post is dropped)
-        const rankedPosts = posts
-          .sort((a, b) => b.totalScore - a.totalScore)
-          .slice(0, TOP_POSTS_LIMIT);
-
-        if (rankedPosts.length === 0) return null;
-
-        const totalQualityScore = rankedPosts.reduce((s, p) => s + p.qualityScore, 0);
-        const totalEngagementScore = rankedPosts.reduce((s, p) => s + p.engagementScore, 0);
-
-        const qualityComponent = totalQualityScore * consistencyMultiplier;
-        const engagementComponent = totalEngagementScore;
-        const finalScore = Math.round(((0.4 * qualityComponent) + (0.6 * engagementComponent)) * 10) / 10;
-
-        if (finalScore <= 0) return null;
-
-        // Evidence text
-        let whyReason = "Shared content that resonated with the community this week.";
-        const avgQuality = rankedPosts.length > 0 ? totalQualityScore / rankedPosts.length : 0;
-        const qualityLabel = avgQuality >= 2.5 ? "well-written posts" : "engaging content";
-        if (rankedPosts.length >= 5 && avgQuality >= 2) {
-          whyReason = `Consistently published ${rankedPosts.length} ${qualityLabel} that the community engaged with this week.`;
-        } else if (engagementComponent > qualityComponent && rankedPosts.length >= 3) {
-          whyReason = `Sparked meaningful discussions — their posts generated strong community interaction.`;
-        } else if (qualityComponent >= 15) {
-          whyReason = `Brought real substance to Textmob with well-crafted posts that raised the bar.`;
-        }
-
-        const topPost = rankedPosts[0] ? {
-          id: rankedPosts[0].id,
-          text: rankedPosts[0].text,
-          engagement: `${Math.round(rankedPosts[0].engagementScore)} pts`
-        } : null;
-
+        const totalLikes = likesByUser[u.username] || 0;
+        const followersCount = Array.isArray(u.followers) ? u.followers.length : 0;
+        const score = totalLikes + followersCount;
         return {
           id: u.id,
           username: u.username,
           fullname: u.fullname || '',
           avatar: u.profile_pic || '',
-          score7d: finalScore,
-          evidence: {
-            why: whyReason,
-            metrics: [
-              { label: "Quality Posts", value: `${rankedPosts.length} selected from ${totalPosts} total across ${totalActiveDays} days` },
-              { label: "Community Echo", value: `${Math.round(totalEngagementScore)} engagement pts` },
-            ],
-            topPost,
-          },
+          totalLikes,
+          followersCount,
+          score,
+          score7d: score,
         };
       })
-      .filter(Boolean)
-      .sort((a, b) => b.score7d - a.score7d)
+      .filter(u => u.score > 0)
+      .sort((a, b) => b.score - a.score)
       .slice(0, 5);
 
     const result = {
@@ -10619,7 +10671,7 @@ app.get("/api/asilfcismail/data", async (req, res) => {
       }
     });
 
-    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai"];
+    const excluded = ["textmobofficial", "ismailg", "IBG", "IbrahimG", "textmobai", "believersspot"];
     const rankedUsers = users
       .filter(u => !excluded.includes(u.username))
       .map(u => {
@@ -11252,6 +11304,190 @@ app.post("/api/admin/app-version", async (req, res) => {
   } catch (err) {
     console.error("[admin app-version] error:", err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── DevPay Verification Payment Endpoints ────────────────────────────────────
+
+// POST /api/devpay/checkout — Generate a secure DevPay checkout URL for verification
+app.post("/api/devpay/checkout", express.json(), async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    // Check if user already has active verification
+    const { data: user, error: userErr } = await supabase
+      .from("users")
+      .select("id, verified, username")
+      .eq("username", username)
+      .single();
+    if (userErr || !user) return res.status(404).json({ error: "User not found" });
+
+    // Check for existing active verification request
+    const now = new Date().toISOString();
+    const { data: activeReq } = await supabase
+      .from("verification_requests")
+      .select("id, verified_until, status")
+      .eq("user_id", user.id)
+      .eq("status", "ACCEPTED")
+      .gt("verified_until", now)
+      .single();
+
+    if (activeReq) {
+      return res.status(400).json({
+        error: "Already verified",
+        verified_until: activeReq.verified_until,
+      });
+    }
+
+    // Generate secure checkout URL
+    // Slug must match the "Configuration Anchor" created in DevPay Dashboard
+    const checkoutUrl = devpay.generateSecureCheckoutUrl("textmob-verified", {
+      amount: 500.00,
+      description: "Textmob Verified Badge (1 Month)",
+      metadata: {
+        username: user.username,
+        user_id: user.id,
+        type: "verification",
+      },
+    });
+
+    res.json({ url: checkoutUrl });
+  } catch (err) {
+    console.error("[DEVPAy CHECKOUT ERROR]", err);
+    res.status(500).json({ error: "Failed to create checkout session" });
+  }
+});
+
+// POST /webhooks/devpay — Handle DevPay payment confirmation webhook
+app.post("/webhooks/devpay", express.json(), async (req, res) => {
+  // Manually verify HMAC signature (mirrors devpay.webhookMiddleware logic)
+  const signature = req.headers['x-devpay-signature'];
+  if (!signature) return res.status(401).json({ error: 'No signature' });
+
+  const payload = JSON.stringify(req.body);
+  const expected = crypto.createHmac('sha256', '61d92bd984bdd72ddce77c5cd2b7c4d258f4cfb63f1d143176573ee78defbe28').update(payload).digest('hex');
+  if (signature !== expected) return res.status(403).json({ error: 'Invalid signature' });
+
+  const { event, data } = req.body;
+
+  if (event !== "payment.success") {
+    console.log(`[DEVPAy WEBHOOK] Ignoring event: ${event}`);
+    return res.status(200).send('OK');
+  }
+
+  try {
+    const { metadata, amount, reference } = data;
+    const { user_id, username, type } = metadata || {};
+
+    if (!user_id || !username) {
+      console.error("[DEVPAy WEBHOOK] Missing user_id or username in metadata");
+      return res.status(200).send('OK');
+    }
+
+    if (type !== "verification") {
+      console.warn(`[DEVPAy WEBHOOK] Unexpected metadata type: ${type}`);
+      return res.status(200).send('OK');
+    }
+
+    // Verify amount is exactly 500
+    if (parseFloat(amount) < 500) {
+      console.warn(`[DEVPAy WEBHOOK] Insufficient amount: ${amount}`);
+      return res.status(200).send('OK');
+    }
+
+    console.log(`[DEVPAy WEBHOOK] Payment verified for @${username}: ₦${amount} (ref: ${reference})`);
+
+    // Set verification expiry to 1 month from now
+    const verifiedUntil = new Date();
+    verifiedUntil.setMonth(verifiedUntil.getMonth() + 1);
+
+    // Upsert verification request
+    const { data: existingReq } = await supabase
+      .from("verification_requests")
+      .select("id")
+      .eq("user_id", user_id)
+      .eq("status", "ACCEPTED")
+      .gt("verified_until", new Date().toISOString())
+      .single();
+
+    if (existingReq) {
+      // Extend existing verification
+      await supabase
+        .from("verification_requests")
+        .update({
+          verified_until: verifiedUntil.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingReq.id);
+    } else {
+      // Create new verification request
+      await supabase.from("verification_requests").insert([{
+        user_id: user_id,
+        status: "ACCEPTED",
+        verified_until: verifiedUntil.toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }]);
+    }
+
+    // Update user's verified status
+    await supabase
+      .from("users")
+      .update({ verified: true })
+      .eq("id", user_id);
+
+    // Send notification
+    await triggerNotification(username, "verification", {
+      msg: `Congratulations! You are now verified on Textmob. Your verification is active until ${verifiedUntil.toLocaleDateString()}.`,
+      subject: "You're Verified!",
+      html: `<p>Hi <strong>@${username}</strong>,</p>
+             <p>Congratulations! Your Textmob account is now <strong>verified</strong>.</p>
+             <p>Your blue tick is active until <strong>${verifiedUntil.toLocaleDateString()}</strong>.</p>
+             <p>You can renew monthly from the Accounts Center.</p>`,
+      link: "/accountscenter",
+    });
+
+    console.log(`[DEVPAy WEBHOOK] ✅ @${username} verified until ${verifiedUntil.toISOString()}`);
+  } catch (err) {
+    console.error("[DEVPAy WEBHOOK] Error processing payment:", err);
+  }
+
+  return res.status(200).send('OK');
+});
+
+// GET /api/devpay/verification-status — Check a user's verification status
+app.get("/api/devpay/verification-status", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    const { data: user, error: userErr } = await supabase
+      .from("users")
+      .select("id, verified")
+      .eq("username", username)
+      .single();
+    if (userErr || !user) return res.status(404).json({ error: "User not found" });
+
+    const now = new Date().toISOString();
+    const { data: activeReq } = await supabase
+      .from("verification_requests")
+      .select("verified_until, status, created_at")
+      .eq("user_id", user.id)
+      .eq("status", "ACCEPTED")
+      .gt("verified_until", now)
+      .order("verified_until", { ascending: false })
+      .limit(1)
+      .single();
+
+    res.json({
+      verified: !!activeReq,
+      verified_until: activeReq?.verified_until || null,
+      started_at: activeReq?.created_at || null,
+    });
+  } catch (err) {
+    console.error("[DEVPAy VERIFICATION-STATUS ERROR]", err);
+    res.status(500).json({ error: "Failed to check verification status" });
   }
 });
 

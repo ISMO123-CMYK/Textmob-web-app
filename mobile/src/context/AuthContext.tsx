@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     mountedRef.current = true;
+    const failSafe = setTimeout(() => { if (mountedRef.current) setIsChecking(false); }, 2500);
     (async () => {
       try {
         const stored = await storage.getSecure(KEYS.CURRENT_USER);
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Instantly set minimal cached user so splash hides immediately
           const cachedProfileRaw = await storage.getStore('CACHED_USER_PROFILE_' + stored);
           let cachedProfile: User | null = null;
-          try { cachedProfile = cachedProfileRaw ? JSON.parse(cachedProfileRaw) : null; } catch { }
+          try { cachedProfile = cachedProfileRaw ? JSON.parse(cachedProfileRaw) : null; } catch (e) { /* ignore */ }
           if (cachedProfile && cachedProfile.username && mountedRef.current) {
             setUser(cachedProfile);
           } else if (mountedRef.current) {
@@ -66,17 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           getProfileAPI(stored).then(profileRes => {
             if (!mountedRef.current) return;
             if (profileRes.ok && profileRes.data) {
-              // The profile endpoint 200s with { error: "User not found" } and no
-              // username when the account no longer exists — treat it as logged out
-              // instead of keeping a ghost session.
               if (profileRes.data.username) {
                 setUser(profileRes.data);
                 storage.setStore('CACHED_USER_PROFILE_' + stored, JSON.stringify(profileRes.data));
                 return;
               }
             }
-            // User no longer exists on the server (only if the response wasn't a
-            // network failure) → drop the session so the app lands on Login.
             if (profileRes.status && profileRes.status !== 0) {
               setUser(null);
               storage.removeSecure(KEYS.CURRENT_USER).catch(() => {});
@@ -86,10 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }).catch(() => {});
         }
-      } catch { }
+      } catch (e) { /* ignore */ }
+      clearTimeout(failSafe);
       if (mountedRef.current) setIsChecking(false);
     })();
-    return () => { mountedRef.current = false; };
+    return () => { mountedRef.current = false; clearTimeout(failSafe); };
   }, []);
 
   const login = useCallback(async (identifier: string, password: string, rememberMe?: boolean) => {
@@ -101,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profile_pic = u.profile_pic || '';
         const savedRaw = await storage.getStore(KEYS.SAVED_ACCOUNTS);
         let saved: { username?: string; password?: string; profile_pic?: string }[] = [];
-        try { saved = JSON.parse(savedRaw || '[]'); } catch { }
+        try { saved = JSON.parse(savedRaw || '[]'); } catch (e) { /* ignore */ }
         const alreadySaved = saved.some((a) => (a.username || '').toLowerCase() === u.username.toLowerCase());
 
         if (rememberMe) {
@@ -143,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (pw) {
           const savedRaw = await storage.getStore(KEYS.SAVED_ACCOUNTS);
           let saved: { username?: string }[] = [];
-          try { saved = JSON.parse(savedRaw || '[]'); } catch { }
+          try { saved = JSON.parse(savedRaw || '[]'); } catch (e) { /* ignore */ }
           if (!saved.some((a) => (a.username || '').toLowerCase() === u.username.toLowerCase())) {
             await storage.setStore(KEYS.PENDING_CREDENTIALS, JSON.stringify({ username: u.username, password: pw, profile_pic: u.profile_pic || '' }));
           }

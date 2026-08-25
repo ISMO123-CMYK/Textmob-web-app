@@ -65,7 +65,7 @@ export default function SearchScreen() {
   // Load search history
   useEffect(() => {
     storage.getStore(SUGGESTIONS_STORAGE_KEY).then(raw => {
-      if (raw) try { setHistory(JSON.parse(raw)); } catch {}
+      if (raw) try { setHistory(JSON.parse(raw)); } catch (e) { /* ignore */ }
     });
   }, []);
 
@@ -118,7 +118,7 @@ export default function SearchScreen() {
         setSearchResults(data.filter((r: any) => r.type === 'user'));
         setPostsResults(data.filter((r: any) => r.type === 'post' || r.type === 'snap' || r.type === 'event' || r.type === 'live' || r.type === 'live_ended'));
       }
-    } catch {}
+    } catch (e) { /* ignore */ }
     setLoadingResults(false);
   }, [username, saveHistory]);
 

@@ -45,7 +45,7 @@ export default function GiftCoinsModal({
       if (res.ok && res.data) {
         setBalance(res.data.mobcoins ?? 0);
       }
-    } catch {}
+    } catch (e) { /* ignore */ }
   }
 
   function handlePackClick(value: number) {

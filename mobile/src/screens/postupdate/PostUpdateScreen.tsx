@@ -41,7 +41,7 @@ export default function PostUpdateScreen({ route, navigation }: any) {
       if (res.ok) {
         navigation.goBack();
       }
-    } catch {} finally {
+    } catch (e) { /* ignore */ } finally {
       setSaving(false);
     }
   }

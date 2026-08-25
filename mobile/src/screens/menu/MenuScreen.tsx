@@ -25,7 +25,7 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
       if (val) {
         try {
           setSavedAccounts(JSON.parse(val).map((a: any) => ({ ...a, username: a.username?.toLowerCase() })));
-        } catch {}
+        } catch (e) { /* ignore */ }
       }
     });
   }, []);

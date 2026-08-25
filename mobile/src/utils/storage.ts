@@ -17,19 +17,28 @@ export const KEYS = {
   VIEWED_IDS: '__tmob_viewed_ids',
 };
 
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let t: any;
+  const timeout = new Promise<T>((resolve) => { t = setTimeout(() => resolve(fallback), ms); });
+  return Promise.race([p.finally(() => clearTimeout(t)), timeout]);
+}
+
 export async function setSecure(key: string, value: string) {
   try {
-    await SecureStore.setItemAsync(key, value);
+    await withTimeout(SecureStore.setItemAsync(key, value), 1500, undefined as any);
   } catch {
-    try { await AsyncStorage.setItem(key, value); } catch { }
+    try { await AsyncStorage.setItem(key, value); } catch (e) { /* ignore */ }
   }
 }
 
 export async function getSecure(key: string): Promise<string | null> {
   try {
-    return await SecureStore.getItemAsync(key);
+    const v = await withTimeout(SecureStore.getItemAsync(key), 1200, null as any);
+    if (v !== null) return v;
+    // timeout or null -> try AsyncStorage fallback quickly
+    try { return await withTimeout(AsyncStorage.getItem(key), 500, null); } catch { return null; }
   } catch {
-    try { return await AsyncStorage.getItem(key); } catch { return null; }
+    try { return await withTimeout(AsyncStorage.getItem(key), 500, null); } catch { return null; }
   }
 }
 
@@ -37,24 +46,24 @@ export async function removeSecure(key: string) {
   try {
     await SecureStore.deleteItemAsync(key);
   } catch {
-    try { await AsyncStorage.removeItem(key); } catch { }
+    try { await AsyncStorage.removeItem(key); } catch (e) { /* ignore */ }
   }
 }
 
 export async function setStore(key: string, value: string) {
-  try { await AsyncStorage.setItem(key, value); } catch { }
+  try { await AsyncStorage.setItem(key, value); } catch (e) { /* ignore */ }
 }
 
 export async function getStore(key: string): Promise<string | null> {
-  try { return await AsyncStorage.getItem(key); } catch { return null; }
+  try { return await withTimeout(AsyncStorage.getItem(key), 1000, null); } catch { return null; }
 }
 
 export async function removeStore(key: string) {
-  try { await AsyncStorage.removeItem(key); } catch { }
+  try { await AsyncStorage.removeItem(key); } catch (e) { /* ignore */ }
 }
 
 export async function clearStore() {
-  try { await AsyncStorage.clear(); } catch { }
+  try { await AsyncStorage.clear(); } catch (e) { /* ignore */ }
 }
 
 export async function getAllKeys(): Promise<string[]> {

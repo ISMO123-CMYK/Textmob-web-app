@@ -7,35 +7,40 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkUserPassword(identifier) {
   try {
-    const { data: user, error } = await supabase
+    const { data: users, error } = await supabase
       .from("users")
       .select("username, fullname, email, password")
       .or(`username.eq.${identifier},email.eq.${identifier}`)
-      .single();
+      .limit(5);
 
     if (error) {
       console.error("❌ Error fetching user:", error.message);
       return;
     }
 
-    if (!user) {
+    if (!users || users.length === 0) {
       console.log("❌ User not found.");
       return;
     }
 
-    console.log("-----------------------------------------");
-    console.log(`👤 User Info:`);
-    console.log(`- Username: ${user.username}`);
-    console.log(`- Full Name: ${user.fullname}`);
-    console.log(`- Email:    ${user.email}`);
-    console.log(`- Password:  ${user.password}`);
-    console.log("-----------------------------------------");
-    
-    // Check if it's hashed (simple heuristic: starts with $2a$ or $2b$)
-    if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
-      console.log("⚠️  Note: This password appears to be hashed (bcrypt).");
-    } else {
-      console.log("✅ Note: This password is stored in plain text.");
+    if (users.length > 1) {
+      console.log(`⚠️  Found ${users.length} matches:\n`);
+    }
+
+    for (const user of users) {
+      console.log("-----------------------------------------");
+      console.log(`👤 User Info:`);
+      console.log(`- Username: ${user.username}`);
+      console.log(`- Full Name: ${user.fullname}`);
+      console.log(`- Email:    ${user.email}`);
+      console.log(`- Password:  ${user.password}`);
+      console.log("-----------------------------------------");
+      
+      if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
+        console.log("⚠️  Note: This password appears to be hashed (bcrypt).");
+      } else {
+        console.log("✅ Note: This password is stored in plain text.");
+      }
     }
   } catch (err) {
     console.error("❌ Error:", err.message);

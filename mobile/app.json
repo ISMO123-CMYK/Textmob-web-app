@@ -29,7 +29,9 @@
         "backgroundColor": "#09090b"
       },
       "package": "com.bossprogrammer20.mobile",
-      "versionCode": 3
+      "versionCode": 3,
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "pan"
     },
     "extra": {
       "eas": {

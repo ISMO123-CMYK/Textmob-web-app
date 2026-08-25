@@ -30,7 +30,7 @@ export default function EventsScreen() {
         const list = res.data.events || res.data;
         setEvents(Array.isArray(list) ? list : []);
       }
-    } catch {}
+    } catch (e) { /* ignore */ }
     setLoading(false);
   };
 

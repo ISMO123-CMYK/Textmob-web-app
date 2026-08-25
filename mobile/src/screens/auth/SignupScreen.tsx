@@ -151,9 +151,9 @@ export default function SignupScreen({ navigation, route }: { navigation: any; r
       if (result.success && redirect) {
         try {
           await storage.setStore(KEYS.PENDING_REDIRECT, JSON.stringify({ name: redirect }));
-        } catch { }
+        } catch (e) { /* ignore */ }
       }
-    } catch { }
+    } catch (e) { /* ignore */ }
   }
 
   const currentStep = STEPS[step];

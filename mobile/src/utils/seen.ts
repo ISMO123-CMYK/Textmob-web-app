@@ -34,7 +34,7 @@ async function persist() {
   dirty = false;
   try {
     await storage.setStore(KEYS.VIEWED_IDS, JSON.stringify(Array.from(seenIdsCache)));
-  } catch {}
+  } catch (e) { /* ignore */ }
 }
 
 function scheduleFlush() {
@@ -74,7 +74,10 @@ export function resetSeen() {
   scheduleFlush();
 }
 
-// Inline init
-if (!seenInitPromise) {
-  seenInitPromise = init();
+// Lazy init — do not block JS thread at import. Init on first use, non-blocking.
+export function initSeenBackground() {
+  if (!seenInitPromise) seenInitPromise = init();
+  return seenInitPromise;
 }
+// Kick off in next tick, not current import tick, to avoid thundering herd with AuthContext
+setTimeout(() => { initSeenBackground().catch(() => {}); }, 0);

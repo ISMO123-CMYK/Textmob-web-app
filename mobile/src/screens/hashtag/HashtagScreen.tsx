@@ -41,7 +41,7 @@ export default function HashtagScreen({ route, navigation }: any) {
         if (reset) setPage(1);
         else setPage(pageNum);
       }
-    } catch {} finally {
+    } catch (e) { /* ignore */ } finally {
       setLoading(false);
       setLoadingMore(false);
     }

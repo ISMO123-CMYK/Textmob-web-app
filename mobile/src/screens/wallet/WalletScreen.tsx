@@ -63,7 +63,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
         setBalance(walletRes.data.mobcoins || 0);
       }
       if (payoutsRes.ok) setPayouts(payoutsRes.data || []);
-    } catch {}
+    } catch (e) { /* ignore */ }
     setLoading(false);
   };
 

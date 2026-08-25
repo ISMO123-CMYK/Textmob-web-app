@@ -16,7 +16,7 @@ export async function initCache() {
       }
       await storage.setStore(CACHE_PREFIX + 'version', CURRENT_VERSION);
     }
-  } catch {}
+  } catch (e) { /* ignore */ }
 }
 
 async function getAllCacheKeys(): Promise<string[]> {
@@ -91,7 +91,7 @@ export async function cacheData(key: string, data: any) {
         data,
       }));
     }
-  } catch {}
+  } catch (e) { /* ignore */ }
 }
 
 export async function getCached(key: string): Promise<any | null> {
@@ -117,7 +117,7 @@ export async function markSeen(ids: string[]) {
     ids.forEach(id => existing.add(String(id)));
     const arr = Array.from(existing).slice(-2000);
     await storage.setStore(KEYS.VIEWED_IDS, JSON.stringify(arr));
-  } catch {}
+  } catch (e) { /* ignore */ }
 }
 
 export async function filterSeen(items: any[]): Promise<any[]> {

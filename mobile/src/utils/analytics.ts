@@ -21,13 +21,15 @@ async function getUsername(): Promise<string | null> {
 
 function getDeviceInfo() {
   const { width, height } = Dimensions.get('window');
+  let tz: string | undefined;
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { tz = undefined; }
   return {
     platform: Platform.OS,
     osVersion: Platform.Version,
     deviceType: Platform.OS === 'web' ? 'web' : 'mobile',
-    screen: `${width}x${height}`,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    language: Platform.OS === 'web' ? navigator.language : undefined,
+    screen: `${width || 390}x${height || 800}`,
+    timezone: tz,
+    language: Platform.OS === 'web' ? (navigator as any)?.language : undefined,
   };
 }
 

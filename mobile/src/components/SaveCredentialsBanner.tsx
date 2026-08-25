@@ -30,7 +30,7 @@ export default function SaveCredentialsBanner({ onDismiss }: SaveCredentialsBann
       if (dismissed === 'true') { setPending(null); return; }
       const val = await storage.getStore(KEYS.PENDING_CREDENTIALS);
       if (val) {
-        try { setPending(JSON.parse(val)); } catch { }
+        try { setPending(JSON.parse(val)); } catch (e) { /* ignore */ }
       } else {
         setPending(null);
       }

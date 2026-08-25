@@ -22,12 +22,10 @@ export interface LeaderboardEntry {
   username: string;
   fullname: string;
   avatar: string;
+  score: number;
   score7d: number;
-  evidence?: {
-    why: string;
-    topPost: any;
-    metrics: { label: string; value: string | number }[];
-  };
+  totalLikes: number;
+  followersCount: number;
 }
 
 export async function getWalletAPI(userId: string) {

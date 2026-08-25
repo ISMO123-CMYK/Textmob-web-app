@@ -19,7 +19,7 @@ export const linking = {
       Profile: {
         path: ':username',
         parse: { username: (v: string) => v.replace(/^@/, '') },
-        stringify: { username: (v: string) => `@${v}` },
+        stringify: { username: (v: string) => v.replace(/^@/, '') },
       },
       Hashtag: 'tag/:hashtag',
       LiveView: 'live/:postId',

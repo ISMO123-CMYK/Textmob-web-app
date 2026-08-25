@@ -77,7 +77,7 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
           })));
         }
       }
-    } catch {}
+    } catch (e) { /* ignore */ }
   };
 
   const handleSelect = (s: Suggestion) => {

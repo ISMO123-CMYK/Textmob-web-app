@@ -73,7 +73,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
   const renderSubScreen = () => {
     switch (activeSub) {
       case 'home': return <OverviewTab username={username} profile={profile} profileData={profileData} stats={stats} posts={posts} isOrg={isOrg} colors={colors} isDark={isDark} setActiveSub={setActiveSub} accent={accent} />;
-      case 'monetize': return <MonetizationTab username={username} stats={stats} isOrg={isOrg} colors={colors} isDark={isDark} />;
+      case 'monetize': return <MonetizationTab username={username} stats={stats} isOrg={isOrg} colors={colors} isDark={isDark} verified={!!effectiveProfile?.verified} setActiveSub={setActiveSub} />;
 
       case 'analytics': return <AnalyticsTab posts={posts} stats={stats} profile={profile} isOrg={isOrg} colors={colors} />;
       case 'composer': return <ComposerTab username={username} posts={posts} setPosts={setPosts} colors={colors} isDark={isDark} setActiveSub={setActiveSub} />;
@@ -83,7 +83,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       case 'leaderboard': return <LeaderboardTab colors={colors} />;
       case 'profile': return <EditProfileTab profile={profileData || profile} setProfileData={setProfileData} username={username} isOrg={isOrg} colors={colors} isDark={isDark} accent={accent} />;
       case 'prefs': return <PrefsTab user={profileData || profile} setProfileData={setProfileData} username={username} colors={colors} isDark={isDark} accent={accent} />;
-      case 'verification': return <VerificationTab colors={colors} />;
+      case 'verification': return <VerificationTab colors={colors} username={username} />;
       case 'danger': return <DangerTab username={username} handleLogout={handleLogout} colors={colors} isDark={isDark} />;
       default: return null;
     }
@@ -116,6 +116,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
     {
       label: 'Settings',
       items: [
+        { key: 'verification', label: 'Get Verified', icon: 'checkmark-circle-outline' as const },
         { key: 'profile', label: 'Edit Profile', icon: 'person-outline' as const },
         { key: 'prefs', label: 'Preferences', icon: 'settings-outline' as const },
         { key: 'danger', label: 'Log Out', icon: 'log-out-outline' as const },
@@ -218,16 +219,16 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
   return (
     <ScrollView style={{ padding: 16 }}>
       {!profile?.verified && (
-        <TouchableOpacity onPress={() => Linking.openURL('https://wa.me/2347087421125')} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#bfdbfe', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+        <TouchableOpacity onPress={() => setActiveSub('verification')} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#bfdbfe', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary }}>Get verified</Text>
-            <Text style={{ fontSize: 11, color: colors.textSecondary }}>Contact us on WhatsApp</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary }}>Get a blue tick to increase trust</Text>
           </View>
           <View style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Contact</Text>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Get Verified</Text>
           </View>
         </TouchableOpacity>
       )}
@@ -311,7 +312,7 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
   );
 }
 
-function MonetizationTab({ username, stats, isOrg, colors, isDark }: any) {
+function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, setActiveSub }: any) {
   const accentBg = isOrg ? '#7c3aed' : '#2563eb';
   const [balance, setBalance] = useState(stats?.mobcoins || 0);
   const [payouts, setPayouts] = useState<any[]>([]);
@@ -350,6 +351,31 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark }: any) {
   };
 
   const ngnValue = (balance * 0.1).toLocaleString();
+
+  if (!verified) {
+    return (
+      <ScrollView style={{ padding: 16 }}>
+        <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 24, alignItems: 'center' }}>
+          <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Ionicons name="lock-closed" size={22} color="#2563eb" />
+          </View>
+          <Text style={{ fontWeight: '800', fontSize: 14, color: colors.textPrimary, marginBottom: 4 }}>Verification required</Text>
+          <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18, maxWidth: 260 }}>
+            Earnings and payouts are only available to verified accounts. Get your blue tick to unlock monetization.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 16, width: '100%' }}>
+            <TouchableOpacity onPress={() => setActiveSub?.('verification')} style={{ flex: 1, height: 44, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>Get verified</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL('https://wa.me/2347087421125')} style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 12 }}>Contact support</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 12 }}>Verified users can cash out MobCoins.</Text>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={{ padding: 16 }}>
@@ -450,24 +476,137 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark }: any) {
   );
 }
 
-function VerificationTab({ colors }: any) {
+function VerificationTab({ colors, username }: any) {
+  const [status, setStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  useEffect(() => {
+    async function checkStatus() {
+      try {
+        const res = await apiGet(`/api/devpay/verification-status?username=${encodeURIComponent(username)}`);
+        if (res.ok) setStatus(res.data);
+      } catch (e) {}
+      setLoading(false);
+    }
+    checkStatus();
+  }, [username]);
+
+  const handlePay = async () => {
+    setPaying(true);
+    try {
+      const res = await apiPost('/api/devpay/checkout', { username });
+      if (res.ok && res.data?.url) {
+        Linking.openURL(res.data.url);
+      } else {
+        Alert.alert('Error', res.data?.error || 'Failed to start payment. Please try again.');
+        setPaying(false);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Network error. Please try again.');
+      setPaying(false);
+    }
+  };
+
+  const isActive = status?.verified;
+  const daysLeft = status?.verified_until
+    ? Math.max(0, Math.ceil((new Date(status.verified_until).getTime() - Date.now()) / 86400000))
+    : 0;
+
   return (
     <ScrollView style={{ padding: 16 }}>
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Get Verified</Text>
-      <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, alignItems: 'center', paddingVertical: 32 }]}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-          <Ionicons name="checkmark-circle" size={28} color="#2563eb" />
+
+      {showSuccess && (
+        <View style={[styles.cardBlock, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', alignItems: 'center', paddingVertical: 24, marginBottom: 12 }]}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Ionicons name="checkmark" size={24} color="#16a34a" />
+          </View>
+          <Text style={{ fontWeight: '700', fontSize: 14, color: '#166534', marginBottom: 4 }}>Payment Confirmed!</Text>
+          <Text style={{ color: '#15803d', fontSize: 12, textAlign: 'center', paddingHorizontal: 16 }}>Your verified badge is now active.</Text>
         </View>
-        <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20, paddingHorizontal: 16 }}>
-          Contact us on WhatsApp to get verified.
-        </Text>
-        <TouchableOpacity
-          style={{ backgroundColor: '#25D366', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-          onPress={() => Linking.openURL('https://wa.me/2347087421125')}
-        >
-          <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Chat on WhatsApp</Text>
-        </TouchableOpacity>
+      )}
+
+      {isActive && (
+        <View style={[styles.cardBlock, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe', alignItems: 'center', paddingVertical: 24, marginBottom: 12 }]}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Ionicons name="checkmark-circle" size={24} color="#2563eb" />
+          </View>
+          <Text style={{ fontWeight: '700', fontSize: 14, color: '#1e40af', marginBottom: 4 }}>You're Verified!</Text>
+          <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center', marginBottom: 8 }}>
+            {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : 'Expiring soon.'}
+          </Text>
+          <View style={{ backgroundColor: '#dbeafe', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+            <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '600' }}>Renews at ₦500/month</Text>
+          </View>
+        </View>
+      )}
+
+      {!isActive && !loading && (
+        <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={{ alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Ionicons name="checkmark-circle" size={28} color="#2563eb" />
+            </View>
+            <Text style={{ fontWeight: '700', fontSize: 16, color: colors.textPrimary, marginBottom: 4 }}>Get Verified on Textmob</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20 }}>Stand out with a blue tick. Build trust and credibility.</Text>
+
+            <View style={{ width: '100%', backgroundColor: colors.isDark ? '#1a1a2e' : '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>Verified Badge</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>Blue Tick</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>Duration</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>1 Month</Text>
+              </View>
+              <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>Total</Text>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#2563eb' }}>₦500</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={handlePay}
+              disabled={paying}
+              style={{ width: '100%', height: 48, backgroundColor: paying ? '#93c5fd' : '#2563eb', borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
+            >
+              {paying ? (
+                <>
+                  <ActivityIndicator size="small" color="#fff" />
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Redirecting to payment...</Text>
+                </>
+              ) : (
+                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Pay ₦500 Now</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.isDark ? '#1a1a2e' : '#f8fafc' }}>
+            <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'center' }}>Secure payment powered by DevPay.</Text>
+          </View>
+        </View>
+      )}
+
+      {loading && (
+        <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, alignItems: 'center', paddingVertical: 32 }]}>
+          <ActivityIndicator size="large" color="#2563eb" />
+        </View>
+      )}
+
+      <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 12 }]}>
+        <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary, marginBottom: 12, paddingHorizontal: 16 }}>What you get</Text>
+        {[
+          'Blue verified tick on your profile',
+          'Higher trust in search results',
+          'Priority in suggested users',
+          'Visible credibility badge on posts',
+        ].map((item, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 10 }}>
+            <Ionicons name="checkmark" size={14} color="#2563eb" />
+            <Text style={{ fontSize: 13, color: colors.textSecondary }}>{item}</Text>
+          </View>
+        ))}
       </View>
     </ScrollView>
   );
@@ -629,7 +768,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
         try {
           const res = await apiDelete(`/delete-post?postId=${encodeURIComponent(postId)}`);
           if (res.ok) setPosts((prev: any[]) => prev.filter((p: any) => p.id !== postId));
-        } catch { }
+        } catch (e) { /* ignore */ }
         finally { setDeletingId(null); }
       }},
     ]);
@@ -810,7 +949,7 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
         setPosts((prev: any[]) => prev.filter((p: any) => p.id !== snapId));
         setPreview(null);
       }
-    } catch { }
+    } catch (e) { /* ignore */ }
   };
 
   return (
@@ -985,6 +1124,40 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
   const [migrationModal, setMigrationModal] = useState(false);
   const [modeSaving, setModeSaving] = useState(false);
 
+  const [coverFile, setCoverFile] = useState<any>(null);
+  const [coverPreview, setCoverPreview] = useState(profile?.cover_photo || '');
+  const [coverSaving, setCoverSaving] = useState(false);
+
+  const handleCoverPick = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: false });
+    if (!result.canceled && result.assets?.[0]) {
+      const asset = result.assets[0];
+      setCoverFile(asset);
+      setCoverPreview(asset.uri);
+      // Upload immediately
+      setCoverSaving(true);
+      try {
+        const formData = new FormData();
+        formData.append('coverPhoto', { uri: asset.uri, type: asset.mimeType || 'image/jpeg', name: asset.fileName || 'cover.jpg' } as any);
+        const res = await apiPost(`/profile/${encodeURIComponent(username || '')}/cover-photo`, formData);
+        if (res?.cover_photo) {
+          setCoverPreview(res.cover_photo);
+          invalidateProfileCache(username);
+        }
+      } catch (e) { console.error('Cover upload failed', e); }
+      setCoverSaving(false);
+    }
+  };
+
+  const handleCoverRemove = async () => {
+    try {
+      await apiPost(`/profile/${encodeURIComponent(username || '')}/cover-photo/remove`, {});
+      setCoverPreview('');
+      setCoverFile(null);
+      invalidateProfileCache(username);
+    } catch (e) { console.error('Cover remove failed', e); }
+  };
+
   const handlePhotoPick = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: true });
     if (!result.canceled && result.assets?.[0]) {
@@ -1067,6 +1240,36 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
           <Text style={{ color: accent, fontSize: 12, fontWeight: '600', marginTop: 4 }}>Change photo</Text>
         </View>
       </TouchableOpacity>
+
+      <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, padding: 0, overflow: 'hidden' }]}>
+        <View style={{ height: 100, backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }}>
+          {coverPreview ? (
+            <Image source={{ uri: coverPreview }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          ) : (
+            <View style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="image-outline" size={28} color={colors.textSecondary} />
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 4 }}>No cover photo</Text>
+            </View>
+          )}
+          {coverSaving && <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#fff" /></View>}
+        </View>
+        <View style={{ flexDirection: 'row', padding: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+          <View>
+            <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 13 }}>Cover photo</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>Recommended 1200 x 400px</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity onPress={handleCoverPick} style={{ backgroundColor: accent, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 }}>
+              <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{coverPreview ? 'Change' : 'Add'}</Text>
+            </TouchableOpacity>
+            {coverPreview ? (
+              <TouchableOpacity onPress={handleCoverRemove} style={{ borderWidth: 1, borderColor: '#ef4444', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 }}>
+                <Text style={{ color: '#ef4444', fontSize: 11, fontWeight: '700' }}>Remove</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      </View>
 
       <TouchableOpacity onPress={() => setModeModal(true)} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1291,7 +1494,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
             onPress={() => {
               const next = !offlineMode;
               setOfflineMode(next);
-              try { AsyncStorage.setItem('tmob_offline_mode', next ? 'true' : 'false'); } catch {}
+              try { AsyncStorage.setItem('tmob_offline_mode', next ? 'true' : 'false'); } catch (e) { /* ignore */ }
             }}
             style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: offlineMode ? '#2563eb' : '#d1d5db', padding: 2, justifyContent: 'center' }}
           >
@@ -1313,7 +1516,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
             onPress={() => {
               const next = !dataSaver;
               setDataSaver(next);
-              try { AsyncStorage.setItem('tmob_data_saver', next ? 'true' : 'false'); } catch {}
+              try { AsyncStorage.setItem('tmob_data_saver', next ? 'true' : 'false'); } catch (e) { /* ignore */ }
             }}
             style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: dataSaver ? '#2563eb' : '#d1d5db', padding: 2, justifyContent: 'center' }}
           >

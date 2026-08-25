@@ -168,7 +168,7 @@ export default function HomeScreen() {
             setLoading(false);
             return;
           }
-        } catch {}
+        } catch (e) { /* ignore */ }
       }
       fetchPosts(1, true);
     });
@@ -203,7 +203,7 @@ export default function HomeScreen() {
             CATEGORIES.forEach(c => { weights[c.id] = prefs.includes(c.id) ? 3.0 : 1.0; });
             setFeedPrefs(prev => ({ ...prev, categoryWeights: weights }));
           }
-        } catch {}
+        } catch (e) { /* ignore */ }
       }
     });
     // Also load from server
@@ -235,10 +235,10 @@ export default function HomeScreen() {
         if (pending && pending.name) {
           const { name, params } = pending;
           setTimeout(() => {
-            try { navigation.navigate(name, params); } catch { }
+            try { navigation.navigate(name, params); } catch (e) { /* ignore */ }
           }, 600);
         }
-      } catch { }
+      } catch (e) { /* ignore */ }
     });
   }, [username]);
 
@@ -275,7 +275,7 @@ export default function HomeScreen() {
       const seen = getSeenParam();
       const blockedRaw = await storage.getStore(KEYS.BLOCKED_USERS);
       let blockedArr: string[] = [];
-      try { blockedArr = JSON.parse(blockedRaw || '[]'); } catch { }
+      try { blockedArr = JSON.parse(blockedRaw || '[]'); } catch (e) { /* ignore */ }
       const res = await getFeedPostsAPI({
         username: username || undefined,
         tab,
@@ -357,7 +357,7 @@ export default function HomeScreen() {
         const data = res.data.reactions ? computeReactionData(res.data.reactions, username) : { counts: (res.data as any).counts || {}, userReaction: (res.data as any).userReaction || null };
         setReactionCountsCache(c => ({ ...c, [String(postId)]: data }));
       }
-    } catch {}
+    } catch (e) { /* ignore */ }
   }
 
   // Process reactions from post data
@@ -422,7 +422,7 @@ export default function HomeScreen() {
       const list: string[] = JSON.parse((await storage.getStore(KEYS.BLOCKED_USERS)) || '[]');
       const next = list.filter(u => String(u).toLowerCase() !== String(targetUsername).toLowerCase());
       await storage.setStore(KEYS.BLOCKED_USERS, JSON.stringify(next));
-    } catch { }
+    } catch (e) { /* ignore */ }
     setBlockedList(prev => prev.filter(u => u.username !== targetUsername));
     if (username) {
       storage.removeStore(`${KEYS.FEED_STATE}_${username}_foryou`);
@@ -523,7 +523,7 @@ export default function HomeScreen() {
       if (res.ok && res.data) {
         setLiveStreams(Array.isArray(res.data) ? res.data : []);
       }
-    } catch {} finally {
+    } catch (e) { /* ignore */ } finally {
       setLiveLoading(false);
     }
   }, [username]);
@@ -755,7 +755,7 @@ export default function HomeScreen() {
           windowSize={5}
           maxToRenderPerBatch={10}
           initialNumToRender={5}
-          removeClippedSubviews={true}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }

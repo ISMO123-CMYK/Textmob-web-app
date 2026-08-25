@@ -11,4 +11,4 @@ Disallow: /logout
 Disallow: /chats
 Disallow: /wallet
 
-Sitemap: https://textmob.web.app/sitemap.xml
+Sitemap: https://textmob-provider-api-99ii.onrender.com/sitemap.xml

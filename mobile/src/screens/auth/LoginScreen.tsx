@@ -44,7 +44,7 @@ export default function LoginScreen({ navigation, route }: { navigation: any; ro
               username: a.username.toLowerCase(),
             }));
           setSavedAccounts(accounts);
-        } catch { }
+        } catch (e) { /* ignore */ }
       }
     });
   }
@@ -61,7 +61,7 @@ export default function LoginScreen({ navigation, route }: { navigation: any; ro
       if (redirect) {
         try {
           await storage.setStore(KEYS.PENDING_REDIRECT, JSON.stringify({ name: redirect }));
-        } catch { }
+        } catch (e) { /* ignore */ }
       }
     } else {
       const newAttempts = attempts + 1;

@@ -23,8 +23,10 @@ import { getFollowStatusAPI, followAPI, friendAPI } from '../api/users';
 import { SnapVideoPlayer } from '../screens/snaps/SnapsScreen';
 
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+function getScreenDims() {
+  const { width, height } = Dimensions.get('window');
+  return { SCREEN_WIDTH: width || 390, SCREEN_HEIGHT: height || 800 };
+}
 
 const REACTIONS = [
   { r: '❤️', t: 'love' }, { r: '😂', t: 'funny' }, { r: '🔥', t: 'fire' },
@@ -92,7 +94,7 @@ function PostMenu({ visible, onClose, post, onNegativeSignal, onBlocked }: { vis
                           if (!username || !post.username || username === post.username) return;
                           (async () => {
                             let list: string[] = [];
-                            try { list = JSON.parse((await storage.getStore(KEYS.BLOCKED_USERS)) || '[]'); } catch {}
+                            try { list = JSON.parse((await storage.getStore(KEYS.BLOCKED_USERS)) || '[]'); } catch (e) { /* ignore */ }
                             const lower = post.username.toLowerCase();
                             if (!list.some(u => String(u).toLowerCase() === lower)) {
                               list.push(post.username);
@@ -229,6 +231,7 @@ const qStyles = StyleSheet.create({
 
 function VideoThumbnail({ uri, aspectRatio, noMargin, onPress }: { uri: string; aspectRatio: number; noMargin?: boolean; onPress: () => void }) {
   const [imgError, setImgError] = useState(false);
+  const { SCREEN_HEIGHT } = getScreenDims();
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -657,7 +660,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
       await Share.share({
         message: `Check out this snap by @${post.username} on Textmob!\nhttps://louda.web.app/snaps?id=${post.id}`,
       });
-    } catch { }
+    } catch (e) { /* ignore */ }
   };
 
   return (

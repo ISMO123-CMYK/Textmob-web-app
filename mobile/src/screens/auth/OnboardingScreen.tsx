@@ -9,7 +9,7 @@ import { useFonts, SpaceGrotesk_700Bold, SpaceGrotesk_600SemiBold } from '@expo-
 import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { storage, KEYS } from '../../utils/storage';
 
-const { width } = Dimensions.get('window');
+const { width } = (() => { const w = Dimensions.get('window').width; return { width: w || 390 }; })();
 
 const slides = [
   {

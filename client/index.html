@@ -60,12 +60,6 @@
         const isSystemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
         const shouldBeDark = mode === "dark" ? true : mode === "light" ? false : isSystemDark;
 
-        if (shouldBeDark) {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
-
         safeCallDarkReader(() => {
           try { if (window.DarkReader && typeof window.DarkReader.setFetchMethod === "function") { window.DarkReader.setFetchMethod(window.fetch); } } catch (e) { }
           if (shouldBeDark) {
@@ -140,7 +134,7 @@
   <meta name="note"
     content="Textmob (textmob.web.app) is not affiliated with TXTmob, TextMob SMS, or any SMS/text messaging service. Textmob is an African social network and microblogging platform founded by Ismail Gidado and Ibrahim Gidado." />
   <meta name="theme-color" content="#2563eb" />
-  <meta name="app-version" content="1.0.1" />
+  <meta name="app-version" content="1.0.2" />
 
   <!-- Open Graph -->
   <meta property="og:title" content="Textmob — Africa's Microblogging Social Network " />
@@ -188,7 +182,7 @@
           "height": 512
         },
         "description": "Textmob is Africa's #1 microblogging and social networking platform. Post, go live, earn MobCoins convertible to real cash, message via Louda, watch Snaps, get verified with a blue tick — all in one app built for Africa.",
-        "foundingDate": "2024",
+        "foundingDate": "2024-01-01",
         "founder": [
           {
             "@type": "Person",
@@ -253,8 +247,8 @@
         },
         "geo": {
           "@type": "GeoCoordinates",
-          "latitude": "6.5244",
-          "longitude": "3.3792"
+          "latitude": 6.5244,
+          "longitude": 3.3792
         },
         "areaServed": [
           {"@type": "City", "name": "Lagos"},
@@ -297,7 +291,7 @@
           "@type": "Offer",
           "price": "0",
           "priceCurrency": "USD",
-          "availability": "https://schema.org/InStock"
+          "availability": "InStock"
         },
         "creator": { "@id": "https://textmob.web.app/#organization" },
         "featureList": [
@@ -310,16 +304,6 @@
           "Hall of Fame — Weekly leaderboard for top creators",
           "Wallet — In-app wallet to track and withdraw MobCoins earnings",
         ]
-      },
-      {
-        "@type": "SoftwareApplication",
-        "name": "Textmob",
-        "applicationCategory": "SocialNetworkingApplication",
-        "operatingSystem": "Web, Android",
-        "url": "https://textmob.web.app",
-        "description": "Africa's social network — post, go live, earn MobCoins, message, watch Snaps, get verified.",
-        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-        "author": { "@id": "https://textmob.web.app/#organization" }
       },
       {
         "@type": "FAQPage",

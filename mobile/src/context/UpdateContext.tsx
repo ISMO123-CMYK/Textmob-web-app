@@ -56,7 +56,7 @@ async function deleteStaleApk() {
         await FileSystem.deleteAsync(FileSystem.cacheDirectory + name, { idempotent: true }).catch(() => {});
       }
     }
-  } catch {}
+  } catch (e) { /* ignore */ }
 }
 
 export function UpdateProvider({ children }: { children: ReactNode }) {
@@ -98,13 +98,13 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
           try {
             const snooze = Number(await storage.getStore(SNOOZE_KEY)) || 0;
             if (Date.now() < snooze) return;
-          } catch {}
+          } catch (e) { /* ignore */ }
         }
 
         setUpdateInfo(info);
         setForced(isForced);
         setVisible(true);
-      } catch {}
+      } catch (e) { /* ignore */ }
     })();
   }, []);
 
@@ -113,7 +113,7 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     setVisible(false);
     try {
       await storage.setStore(SNOOZE_KEY, String(Date.now() + SNOOZE_MS));
-    } catch {}
+    } catch (e) { /* ignore */ }
   };
 
   const startUpdate = async () => {

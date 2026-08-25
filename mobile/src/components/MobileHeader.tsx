@@ -40,7 +40,7 @@ export default function MobileHeader({
       if (res.ok && res.data) {
         setUnreadNotifications(res.data.filter(n => !n.read).length);
       }
-    } catch {}
+    } catch (e) { /* ignore */ }
   }, [username]);
 
   // Initial fetch + poll every 30s (was 6s)

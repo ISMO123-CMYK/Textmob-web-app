@@ -23,7 +23,8 @@ import { ParticleBurst } from '../../utils/animations';
 import { timeAgo } from '../../utils/format';
 import { getSeenParam, markSeen } from '../../utils/seen';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SCREEN_WIDTH = Dimensions.get('window').width || 390;
+const SCREEN_HEIGHT = Dimensions.get('window').height || 800;
 const EMOJIS = ['❤️', '😂', '🔥', '👍', '😍', '😢', '😡', '🎉', '🙏', '💀', '🤣', '😭', '🥰', '😘', '😎', '🤩', '💯', '✨', '🫡', '🫶'];
 const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
 const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
@@ -43,7 +44,7 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
   playerRef.current = player;
 
   useEffect(() => {
-    try { player.muted = isMuted; } catch {}
+    try { player.muted = isMuted; } catch (e) { /* ignore */ }
   }, [isMuted, player]);
 
   useEffect(() => {
@@ -53,9 +54,9 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
       } else {
         player.pause();
       }
-    } catch {}
+    } catch (e) { /* ignore */ }
     return () => {
-      try { player.pause(); } catch {}
+      try { player.pause(); } catch (e) { /* ignore */ }
     };
   }, [isActive, player]);
 
@@ -505,7 +506,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
         const list = Array.isArray(res.data) ? res.data : (res.data.snaps || []);
         setSearchSnapResults(list);
       }
-    } catch {} finally {
+    } catch (e) { /* ignore */ } finally {
       setSearchingSnaps(false);
     }
   };

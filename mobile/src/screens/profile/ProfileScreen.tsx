@@ -103,7 +103,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         clearApiCache();
       }
       profile && setProfile({ ...profile, followers: action === 'follow' ? [...(profile.followers || []), currentUser] : (profile.followers || []).filter((u: string) => u !== currentUser) });
-    } catch {}
+    } catch (e) { /* ignore */ }
     setFollowLoading(false);
   };
 
@@ -158,7 +158,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
       } else {
         setHasMorePosts(false);
       }
-    } catch {}
+    } catch (e) { /* ignore */ }
     await loadFollowStatus();
     isLoadingRef.current = false;
     setRefreshing(false);
@@ -278,7 +278,11 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
   const ListHeader = () => (
     <View>
       <View style={s.coverWrap}>
-        <Image source={{ uri: DEFAULT_PIC }} style={s.coverFallback} />
+        {profile?.cover_photo ? (
+          <Image source={{ uri: profile.cover_photo }} style={s.coverImage} />
+        ) : (
+          <Image source={{ uri: DEFAULT_PIC }} style={s.coverFallback} />
+        )}
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={18} color="#fff" />
         </TouchableOpacity>
@@ -385,6 +389,10 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
             <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(profile?.post_count ?? posts.length)}</Text>
             <Text style={[s.statLabel, { color: colors.textSecondary }]}>Posts</Text>
           </View>
+          <View style={s.statItem}>
+            <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(profile?.total_likes ?? posts.reduce((s,p)=>s+(Array.isArray((p as any).likes)?(p as any).likes.length:0),0))}</Text>
+            <Text style={[s.statLabel, { color: colors.textSecondary }]}>Likes</Text>
+          </View>
         </View>
       </View>
 
@@ -475,6 +483,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   skeletonAvatar: { width: 80, height: 80, borderRadius: 40 },
   skeletonBtn: { width: 96, height: 32, borderRadius: 16, marginBottom: 16 },
   coverWrap: { height: 144, position: 'relative', backgroundColor: '#e5e7eb' },
+  coverImage: { width: '100%', height: '100%', resizeMode: 'cover' as const },
   coverFallback: { width: '100%', height: '100%', opacity: 0.3 },
   backBtn: { position: 'absolute', top: 8, left: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
   profileSection: { paddingHorizontal: 16, marginTop: -40 },
