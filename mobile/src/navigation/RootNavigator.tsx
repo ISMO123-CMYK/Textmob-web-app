@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
 
 import MainTabs from './MainTabs';
+const HomeLauncherScreen = lazy(() => import('../screens/home/HomeLauncherScreen'));
 
 const PostDetailScreen = lazy(() => import('../screens/post/PostDetailScreen'));
 const CreatePostScreen = lazy(() => import('../screens/post/CreatePostScreen'));
@@ -24,6 +25,8 @@ const ActivityScreen = lazy(() => import('../screens/activity/ActivityScreen'));
 const HashtagScreen = lazy(() => import('../screens/hashtag/HashtagScreen'));
 const PostUpdateScreen = lazy(() => import('../screens/postupdate/PostUpdateScreen'));
 const CreateEventScreen = lazy(() => import('../screens/events/CreateEventScreen'));
+const SavedPostsScreen = lazy(() => import('../screens/saved/SavedPostsScreen'));
+const DiscussionsScreen = lazy(() => import('../screens/discussions/DiscussionsScreen'));
 
 const Stack = createNativeStackNavigator();
 
@@ -62,6 +65,16 @@ const LazyActivity = (props: any) => <LazyScreen Component={ActivityScreen} {...
 const LazyHashtag = (props: any) => <LazyScreen Component={HashtagScreen} {...props} />;
 const LazyPostUpdate = (props: any) => <LazyScreen Component={PostUpdateScreen} {...props} />;
 const LazyCreateEvent = (props: any) => <LazyScreen Component={CreateEventScreen} {...props} />;
+const LazySavedPosts = (props: any) => <LazyScreen Component={SavedPostsScreen} {...props} />;
+const LazyDiscussions = (props: any) => {
+  const { route, navigation } = props;
+  const roomId = route?.params?.roomId;
+  const onBack = () => navigation.goBack();
+  const onProfile = (id: string) => navigation.navigate('Discussions', { roomId: id });
+  const onUser = (u: string) => navigation.navigate('Profile', { username: u });
+  return <LazyScreen Component={DiscussionsScreen} roomId={roomId} onBack={onBack} onProfile={roomId ? onUser : onProfile} />;
+};
+const LazyHomeLauncher = (props: any) => <LazyScreen Component={HomeLauncherScreen} {...props} />;
 
 export default function RootNavigator() {
   const { colors, isDark } = useTheme();
@@ -75,6 +88,7 @@ export default function RootNavigator() {
       }}
     >
       <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="HomeLauncher" component={LazyHomeLauncher} />
       <Stack.Screen name="PostDetail" component={LazyPostDetail} />
       <Stack.Screen name="CreatePost" component={LazyCreatePost} />
       <Stack.Screen name="Snaps" component={LazySnaps} />
@@ -94,6 +108,8 @@ export default function RootNavigator() {
       <Stack.Screen name="Hashtag" component={LazyHashtag} />
       <Stack.Screen name="PostUpdate" component={LazyPostUpdate} />
       <Stack.Screen name="CreateEvent" component={LazyCreateEvent} />
+      <Stack.Screen name="SavedPosts" component={LazySavedPosts} />
+      <Stack.Screen name="Discussions" component={LazyDiscussions} initialParams={{}} />
     </Stack.Navigator>
   );
 }

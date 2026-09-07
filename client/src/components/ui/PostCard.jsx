@@ -13,6 +13,50 @@ const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v17460959
 const U = { navigate: path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path) };
 const isVideo = e => /\.(mp4|webm|ogg)$/i.test(String(e || ''));
 
+function wrapText(ctx, text, maxWidth) {
+  const lines = [];
+  const paragraphs = text.split('\n');
+  for (const para of paragraphs) {
+    const words = para.split(' ');
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
 /* ─── VerifiedBadge ─── */
 function VerifiedBadge({ className = "w-3.5 h-3.5" }) {
  return (
@@ -54,12 +98,42 @@ function DotsIcon() {
 }
 
 /* ─── Un – post options menu ─── */
-function PostMenu({ post, open, setOpen, navigate, onNegativeSignal }) {
+function PostMenu({ post, open, setOpen, navigate, onNegativeSignal, onGift, onDownloadImage }) {
+  useEffect(() => {
+    if (!open) return;
+    const style = document.createElement('style');
+    style.textContent = `@keyframes sheetSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, [open]);
  const isOwnPost = post.username === localStorage.currentUser;
- const menuItems = [
- { label: 'Save post', icon: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z' },
- { label: 'Share', icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
- { label: 'Copy link', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
+ const [isSaved, setIsSaved] = useState(() => {
+   try {
+     const saved = JSON.parse(localStorage.getItem('textmob_saved_posts') || '[]');
+     return Array.isArray(saved) && saved.map(String).includes(String(post.id));
+   } catch { return false; }
+ });
+
+ const toggleSave = () => {
+   try {
+     let saved = [];
+     try { saved = JSON.parse(localStorage.getItem('textmob_saved_posts') || '[]'); } catch {}
+     if (!Array.isArray(saved)) saved = [];
+     const idStr = String(post.id);
+     const idx = saved.indexOf(idStr);
+     if (idx >= 0) { saved.splice(idx, 1); setIsSaved(false); }
+     else { saved.push(idStr); setIsSaved(true); }
+     localStorage.setItem('textmob_saved_posts', JSON.stringify(saved));
+   } catch {}
+ };
+
+  const canDownload = !post.type || post.type === 'post' || post.type === 'poll';
+  const menuItems = [
+  { label: isSaved ? 'Unsave post' : 'Save post', icon: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z', onClick: toggleSave },
+  ...(canDownload ? [{ label: 'Download image', icon: 'download', onClick: 'download' }] : []),
+  ...(isOwnPost ? [] : [{ label: 'Gift Mobcoins', icon: 'gift', onClick: 'gift' }]),
+  { label: 'Share', icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
+  { label: 'Copy link', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
  { type: 'divider' },
  { label: 'Not interested', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636', signal: 'not_interested' },
  { label: 'Hide', icon: 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21', signal: 'hide' },
@@ -71,62 +145,113 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal }) {
  { label: 'Report', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', danger: true }
  ];
 
- return (
+  return (
  <div className="relative flex-shrink-0">
  <FollowButtonInline targetUsername={post.username} currentUsername={localStorage.currentUser} onUpdate={() => { }} />
  <button onClick={() => setOpen(!open)} className="p-2 -mr-2 rounded-full hover:bg-gray-100 transition text-gray-400 " aria-label="Post options">
  <DotsIcon />
  </button>
+ {/* Mobile: bottom sheet */}
  {open && (
- <div className="absolute top-8 right-0 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-30 min-w-[148px]" onMouseLeave={() => setOpen(false)}>
- {menuItems.map((item) => {
- if (item.type === 'divider') {
- return <div key={Math.random()} className="border-t border-gray-100 my-1" />;
- }
- return (
- <button
- onClick={() => {
- if (item.label === 'Copy link') {
- navigator.clipboard.writeText(`https://textmob.web.app/post/${post.id}`);
- } else if (item.signal && onNegativeSignal) {
- onNegativeSignal(post.id, item.signal, post.type || 'post');
- } else if (item.block && localStorage.currentUser) {
- if (post.username === localStorage.currentUser) return;
- if (!confirm(`Block @${post.username}? You won't see their posts anymore.`)) return;
- try {
- let key = 'textmobBlockedUsers';
- let arr = JSON.parse(localStorage.getItem(key) || '[]');
- if (!arr.includes(post.username)) arr.push(post.username);
- localStorage.setItem(key, JSON.stringify(arr));
- } catch {}
- window.dispatchEvent(new CustomEvent('user-blocked', { detail: { username: post.username } }));
- setOpen(false);
- return;
- }
- setOpen(false);
- }}
- className={cn(
- 'flex items-center gap-3 w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition',
- item.danger ? 'text-red-500' : item.signal ? 'text-gray-500 ' : 'text-gray-700 '
+   <div className="md:hidden fixed inset-0 z-50 flex items-end" onClick={() => setOpen(false)}>
+     <div className="absolute inset-0 bg-black/40" />
+     <div className="relative w-full bg-white rounded-t-2xl shadow-2xl pb-safe" style={{ animation: 'sheetSlideUp 0.25s ease-out' }} onClick={e => e.stopPropagation()}>
+       <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mt-3" />
+       <div className="py-2">
+       {menuItems.map((item) => {
+         if (item.type === 'divider') {
+           return <div key={Math.random()} className="border-t border-gray-100 my-1 mx-4" />;
+         }
+         return (
+           <button
+             onClick={() => {
+               if (item.onClick === 'gift') { onGift?.(); setOpen(false); return; }
+               if (item.onClick === 'download') { onDownloadImage?.(); setOpen(false); return; }
+               if (item.onClick) { item.onClick(); }
+               else if (item.label === 'Copy link') {
+                 navigator.clipboard.writeText(`https://textmob.web.app/post/${post.id}`);
+               } else if (item.signal && onNegativeSignal) {
+                 onNegativeSignal(post.id, item.signal, post.type || 'post');
+               } else if (item.block && localStorage.currentUser) {
+                 if (post.username === localStorage.currentUser) return;
+                 if (!confirm(`Block @${post.username}? You won't see their posts anymore.`)) return;
+                 try { let key = 'textmobBlockedUsers'; let arr = JSON.parse(localStorage.getItem(key) || '[]'); if (!arr.includes(post.username)) arr.push(post.username); localStorage.setItem(key, JSON.stringify(arr)); } catch {}
+                 window.dispatchEvent(new CustomEvent('user-blocked', { detail: { username: post.username } }));
+               }
+               setOpen(false);
+             }}
+             className={cn('flex items-center gap-3 w-full text-left px-5 py-3.5 text-[15px] transition', item.danger ? 'text-red-500' : item.signal ? 'text-gray-500' : 'text-gray-700')}
+             key={item.label}
+           >
+             {item.icon && (
+               <div className="w-5 h-5 flex-shrink-0">
+                 {item.label === 'Save post' && <Bookmark className={cn("w-5 h-5", isSaved ? "fill-current" : "stroke-current")} strokeWidth={isSaved ? 0 : 2} />}
+                 {item.label === 'Unsave post' && <Bookmark className="w-5 h-5 fill-current" strokeWidth={0} />}
+                 {item.label === 'Copy link' && <Link className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                 {item.label === 'Share' && <Share2 className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                 {item.label === 'Not interested' && <ThumbsDown className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                 {item.label === 'Hide' && <EyeOff className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                 {item.label === 'Report' && <Flag className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                 {item.label === 'Block' && <Ban className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                 {item.icon === 'gift' && <Gift className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                 {item.icon === 'download' && <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>}
+               </div>
+             )}
+             {item.label}
+           </button>
+         );
+       })}
+       </div>
+     </div>
+   </div>
  )}
- key={item.label}
- >
- {item.icon && (
- <div className="w-4 h-4 flex-shrink-0">
- {item.label === 'Save post' && <Bookmark className="w-4 h-4 stroke-current" strokeWidth={2} />}
- {item.label === 'Copy link' && <Link className="w-4 h-4 stroke-current" strokeWidth={2} />}
- {item.label === 'Share' && <Share2 className="w-4 h-4 stroke-current" strokeWidth={2} />}
- {item.label === 'Not interested' && <ThumbsDown className="w-4 h-4 stroke-current" strokeWidth={2} />}
- {item.label === 'Hide' && <EyeOff className="w-4 h-4 stroke-current" strokeWidth={2} />}
- {item.label === 'Report' && <Flag className="w-4 h-4 stroke-current" strokeWidth={2} />}
- {item.label === 'Block' && <Ban className="w-4 h-4 stroke-current" strokeWidth={2} />}
- </div>
- )}
- {item.label}
- </button>
- );
- })}
- </div>
+ {/* Desktop: wider dropdown */}
+ {open && (
+   <div className="hidden md:block absolute top-8 right-0 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-30 w-72" onMouseLeave={() => setOpen(false)}>
+   {menuItems.map((item) => {
+     if (item.type === 'divider') {
+       return <div key={Math.random()} className="border-t border-gray-100 my-1" />;
+     }
+     return (
+       <button
+         onClick={() => {
+           if (item.onClick === 'gift') { onGift?.(); setOpen(false); return; }
+           if (item.onClick === 'download') { onDownloadImage?.(); setOpen(false); return; }
+           if (item.onClick) { item.onClick(); }
+           else if (item.label === 'Copy link') {
+             navigator.clipboard.writeText(`https://textmob.web.app/post/${post.id}`);
+           } else if (item.signal && onNegativeSignal) {
+             onNegativeSignal(post.id, item.signal, post.type || 'post');
+           } else if (item.block && localStorage.currentUser) {
+             if (post.username === localStorage.currentUser) return;
+             if (!confirm(`Block @${post.username}? You won't see their posts anymore.`)) return;
+             try { let key = 'textmobBlockedUsers'; let arr = JSON.parse(localStorage.getItem(key) || '[]'); if (!arr.includes(post.username)) arr.push(post.username); localStorage.setItem(key, JSON.stringify(arr)); } catch {}
+             window.dispatchEvent(new CustomEvent('user-blocked', { detail: { username: post.username } }));
+           }
+           setOpen(false);
+         }}
+         className={cn('flex items-center gap-3 w-full text-left px-4 py-3 text-sm hover:bg-gray-50 transition', item.danger ? 'text-red-500' : item.signal ? 'text-gray-500' : 'text-gray-700')}
+         key={item.label}
+       >
+         {item.icon && (
+           <div className="w-4 h-4 flex-shrink-0">
+             {item.label === 'Save post' && <Bookmark className={cn("w-4 h-4", isSaved ? "fill-current" : "stroke-current")} strokeWidth={isSaved ? 0 : 2} />}
+             {item.label === 'Unsave post' && <Bookmark className="w-4 h-4 fill-current" strokeWidth={0} />}
+             {item.label === 'Copy link' && <Link className="w-4 h-4 stroke-current" strokeWidth={2} />}
+             {item.label === 'Share' && <Share2 className="w-4 h-4 stroke-current" strokeWidth={2} />}
+             {item.label === 'Not interested' && <ThumbsDown className="w-4 h-4 stroke-current" strokeWidth={2} />}
+             {item.label === 'Hide' && <EyeOff className="w-4 h-4 stroke-current" strokeWidth={2} />}
+             {item.label === 'Report' && <Flag className="w-4 h-4 stroke-current" strokeWidth={2} />}
+             {item.label === 'Block' && <Ban className="w-4 h-4 stroke-current" strokeWidth={2} />}
+             {item.icon === 'gift' && <Gift className="w-4 h-4 stroke-current" strokeWidth={2} />}
+             {item.icon === 'download' && <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>}
+           </div>
+         )}
+         {item.label}
+       </button>
+     );
+   })}
+   </div>
  )}
  </div>
  );
@@ -193,7 +318,7 @@ function FollowButtonInline({ targetUsername, currentUsername, onUpdate }) {
 }
 
 /* ─── Wn – post header ─── */
-function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen, navigate, onNegativeSignal }) {
+function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen, navigate, onNegativeSignal, onGift, onDownloadImage }) {
  let groupId = post.type?.startsWith('group-post-') ? post.type.replace('group-post-', '') : null;
  let groupInfo = groupId ? groupProfiles[groupId] : null;
  const phGuest = !localStorage.currentUser;
@@ -241,7 +366,7 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
  <span className="text-[11px] text-gray-400 leading-none">{timeAgo(post.created_at)}</span>
  </div>
  </div>
- <PostMenu post={post} open={menuOpen} setOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} />
+ <PostMenu post={post} open={menuOpen} setOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} onGift={onGift} onDownloadImage={onDownloadImage} />
  </div>
  );
 }
@@ -442,7 +567,6 @@ function useMentions(value, inputRef) {
 function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate, reactionsOpenFor, setReactionsOpenFor, authorProfile }) {
  const [showInput, setShowInput] = useState(false);
  const [text, setText] = useState('');
- const [showGiftModal, setShowGiftModal] = useState(false);
  const liked = post.likes.includes(currentUser);
  const inputRef = useRef(null);
  const { suggestions, setSuggestions, activeIndex, setActiveIndex, queryInfo, setQueryInfo } = useMentions(text, inputRef);
@@ -512,15 +636,6 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
  <Repeat2 className="w-4 h-4 stroke-current" strokeWidth={2} />
  </button>
 
- {/* Gift Mobcoins */}
- <button
- onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to send gifts'); return; } setShowGiftModal(true); }}
- className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
- aria-label="Send Gift"
- >
- <Gift className="w-4 h-4 stroke-current" strokeWidth={2} />
- </button>
-
  {/* Reaction */}
  <button
  onClick={(e) => { e.stopPropagation(); if (!currentUser) { window.showAuthPrompt?.('Log in to react'); return; } setReactionsOpenFor(reactionsOpenFor === post.id ? null : post.id); }}
@@ -530,27 +645,15 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
  <SmilePlus className="w-4 h-4 stroke-current" strokeWidth={2} />
  </button>
 
- {/* View */}
- {showViewButton && (
+ {/* View count — clickable */}
  <button
- onClick={() => abNavigate(`/post/${post.id}`, 'Create an account to view posts')}
+ onClick={() => navigate(`/post/${post.id}`)}
  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-400 hover:bg-gray-100 transition-colors"
  >
  <Eye className="w-4 h-4 stroke-current" strokeWidth={1.5} />
- <span className="hidden sm:inline">View</span>
+ <span>{(() => { const v = Array.isArray(post.views) ? post.views.length : 0; return v >= 1000 ? (v / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : v; })()}</span>
  </button>
- )}
  </div>
-
- {/* Gift Mobcoins Modal */}
- <GiftCoinsModal
- open={showGiftModal}
- onClose={() => setShowGiftModal(false)}
- recipientUsername={post.username}
- recipientAvatar={authorProfile?.profile_pic}
- recipientFullname={authorProfile?.fullname}
- postId={post.id}
- />
 
  {/* Comment input */}
  {showCommentInput && showInput && !currentUser && (
@@ -1175,17 +1278,166 @@ const PostCard = ({
  onNavigate,
  onNegativeSignal
 }) => {
- const [menuOpen, setMenuOpen] = useState(false);
- const authorProfile = useProfileCache(post.username);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(false);
+  const authorProfile = useProfileCache(post.username);
  const currentUser = localStorage.currentUser;
  const isGuest = !currentUser;
  const navigate = onNavigate || (path => U.navigate(path));
  const authNavigate = (path, msg) => {
  if (isGuest) { window.showAuthPrompt?.(msg || 'Create an account to interact'); return; }
- navigate(path);
- };
+  navigate(path);
+  };
 
- // Snap type
+  // Download post as image — text + image posts only
+  const handleDownloadImage = async () => {
+    const W = 1080, PAD = 60;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Strip HTML tags from text
+    const tmpDiv = document.createElement('div');
+    tmpDiv.innerHTML = post.text || '';
+    const cleanText = tmpDiv.textContent || tmpDiv.innerText || '';
+
+    // Measure text first
+    ctx.font = '32px "Space Grotesk", system-ui, sans-serif';
+    const textLines = wrapText(ctx, cleanText, W - PAD * 2);
+    const textHeight = cleanText ? textLines.length * 44 + 10 : 0;
+
+    // Load image if present
+    let img = null;
+    const imageUrl = post.media?.[0];
+    if (imageUrl && /\.(jpg|jpeg|png|gif|webp)/i.test(imageUrl)) {
+      img = await loadImage(imageUrl);
+    }
+
+    // Load profile pic
+    const profilePicUrl = authorProfile?.profile_pic || DEFAULT_PIC;
+    const profilePic = await loadImage(profilePicUrl);
+
+    // Format actual date
+    const date = new Date(post.created_at);
+    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    const imgH = img ? Math.min((img.height / img.width) * (W - PAD * 2), 600) : 0;
+    const headerH = 70;
+    const footerH = 50;
+    const totalH = PAD + headerH + 20 + textHeight + (imgH > 0 ? 20 + imgH : 0) + 20 + footerH + PAD;
+    canvas.width = W;
+    canvas.height = totalH;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, totalH);
+
+    // Profile pic (circle)
+    const picSize = 48;
+    const picX = PAD;
+    const picY = PAD + (headerH - picSize) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(picX + picSize / 2, picY + picSize / 2, picSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    if (profilePic) {
+      ctx.drawImage(profilePic, picX, picY, picSize, picSize);
+    } else {
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillRect(picX, picY, picSize, picSize);
+    }
+    ctx.restore();
+
+    // Name + verified badge + time
+    const textX = PAD + picSize + 14;
+    const isVerified = post.verified === true;
+    ctx.fillStyle = '#111827';
+    ctx.font = 'bold 24px "Space Grotesk", system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    const nameText = authorProfile?.fullname || post.username;
+    ctx.fillText(nameText, textX, PAD + headerH / 2 - 12);
+    const nameWidth = ctx.measureText(nameText).width;
+    if (isVerified) {
+      // Draw blue verified checkmark next to name
+      const vx = textX + nameWidth + 8;
+      const vy = PAD + headerH / 2 - 12;
+      const vr = 9;
+      ctx.fillStyle = '#2563eb';
+      ctx.beginPath();
+      ctx.arc(vx + vr, vy, vr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(vx + vr - 4, vy);
+      ctx.lineTo(vx + vr - 1, vy + 3);
+      ctx.lineTo(vx + vr + 5, vy - 3);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '20px "Space Grotesk", system-ui, sans-serif';
+    ctx.fillText(`@${post.username} · ${dateStr} · ${timeStr}`, textX, PAD + headerH / 2 + 14);
+
+    // Divider
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, PAD + headerH);
+    ctx.lineTo(W - PAD, PAD + headerH);
+    ctx.stroke();
+
+    // Post text
+    ctx.fillStyle = '#111827';
+    ctx.font = '32px "Space Grotesk", system-ui, sans-serif';
+    ctx.textBaseline = 'top';
+    let y = PAD + headerH + 20;
+    for (const line of textLines) {
+      ctx.fillText(line, PAD, y);
+      y += 44;
+    }
+
+    // Image
+    if (img) {
+      y += 20;
+      const drawW = W - PAD * 2;
+      const drawH = Math.min((img.height / img.width) * drawW, 600);
+      ctx.save();
+      roundRect(ctx, PAD, y, drawW, drawH, 12);
+      ctx.clip();
+      ctx.drawImage(img, PAD, y, drawW, drawH);
+      ctx.restore();
+      y += drawH;
+    }
+
+    // Footer
+    y += 20;
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.beginPath();
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(W - PAD, y);
+    ctx.stroke();
+    y += 30;
+    ctx.fillStyle = '#2563eb';
+    ctx.font = 'bold 22px "Space Grotesk", system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('t..', PAD, y);
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '18px "Space Grotesk", system-ui, sans-serif';
+    ctx.fillText('textmob.web.app', PAD + 50, y);
+
+    // Download
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `textmob-${post.username}-${post.id}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  };
+
+  // Snap type
  if (post.type === 'snap') {
  return <SnapEmbed post={post} currentUser={currentUser} handleLike={handleLike} />;
  }
@@ -1205,7 +1457,7 @@ const PostCard = ({
  // Default post (text, poll, media)
  return (
  <div className="bg-white px-4 pt-4 pb-4">
- <PostHeader post={post} authorProfile={authorProfile} groupProfiles={groupProfiles} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} />
+ <PostHeader post={post} authorProfile={authorProfile} groupProfiles={groupProfiles} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} onGift={() => currentUser && setShowGiftModal(true)} onDownloadImage={handleDownloadImage} />
  {post.text && <PostText text={post.text} />}
  {post.type === 'poll' && post.options && <PollContent post={post} handlePollVote={handlePollVote} />}
  {post.media?.length > 0 && (
@@ -1221,6 +1473,7 @@ const PostCard = ({
  <ReactionsBar postId={post.id} reactionCountsCache={reactionCountsCache} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} handleReact={handleReact} />
  <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} authorProfile={authorProfile} />
  <div className="h-2 bg-gray-50 -mx-4 mt-4" />
+ <GiftCoinsModal open={showGiftModal} onClose={() => setShowGiftModal(false)} recipientUsername={post.username} recipientAvatar={authorProfile?.profile_pic} recipientFullname={authorProfile?.fullname} postId={post.id} />
  </div>
  );
 };

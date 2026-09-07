@@ -34,23 +34,6 @@ app.get("/api/turn-credentials", async (req, res) => {
   }
 });
 
-// GET /users/check-milestone
-app.get("/users/check-milestone", async (req, res) => {
-  try {
-    const { data: users, error } = await supabase
-      .from("users")
-      .select("id, fullname, username, created_at")
-      .order("created_at", { ascending: true });
-    if (error) return res.status(500).json({ error: "Failed to fetch users" });
-    const totalUsers = users.length;
-    const milestone = totalUsers % 100 === 0 && totalUsers !== 0;
-    res.json({ users, totalUsers, showCelebration: milestone, celebrationTimestamp: milestone ? new Date() : null });
-  } catch (err) {
-    console.error("Error fetching users:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 // GET /users
 app.get("/users", async (req, res) => {
   try {

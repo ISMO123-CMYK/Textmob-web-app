@@ -6,7 +6,7 @@ import RichText from '../../components/ui/RichText';
 import useProfileCache from '../../utils/useProfileCache';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
-function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, followingUsernames = [] }) {
+function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, followingUsernames = [], postRead = true }) {
  const profile = useProfileCache(cmt.username);
  const ciGuest = !localStorage.currentUser;
  const currentUser = localStorage.currentUser;
@@ -53,10 +53,14 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  </button>
  )}
  {replies.length > 0 && (
- <button onClick={() => setShowReplies(!showReplies)} className="text-[11px] font-semibold text-gray-400 hover:text-blue-500 transition-colors">
- {showReplies ? 'Hide' : 'View'} {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
- </button>
- )}
+  <button
+  onClick={() => { if (postRead) setShowReplies(!showReplies); }}
+  className={cn("text-[11px] font-semibold transition-colors", postRead ? "text-gray-400 hover:text-blue-500 cursor-pointer" : "text-gray-300 cursor-default")}
+  title={postRead ? "" : "Scroll to read the post first"}
+  >
+  {showReplies ? 'Hide' : 'View'} {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+  </button>
+  )}
  </div>
  )}
  {showReplyInput && currentUser && (
@@ -78,8 +82,8 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  </div>
  )}
  {showReplies && replies.map((r, i) => (
- <CommentItem key={r.id || i} cmt={r} postId={postId} postOwner={postOwner} onReply={onReply} onDelete={onDelete} depth={depth + 1} followingUsernames={followingUsernames} />
- ))}
+  <CommentItem key={r.id || i} cmt={r} postId={postId} postOwner={postOwner} onReply={onReply} onDelete={onDelete} depth={depth + 1} followingUsernames={followingUsernames} postRead={postRead} />
+  ))}
  </div>
  </div>
  );
@@ -228,12 +232,23 @@ export default function PostContent() {
  const [reactionsOpenFor, setReactionsOpenFor] = useState(null);
  const [reactionsCache, setReactionsCache] = useState({});
  const [followingUsernames, setFollowingUsernames] = useState([]);
+ const [postRead, setPostRead] = useState(false);
+ const commentsRef = useRef(null);
 
  useEffect(() => {
- const cu = localStorage.currentUser;
- if (!cu) return;
- apiFetch(`/get-user-following?username=${encodeURIComponent(cu)}`).then(r => r.ok ? r.json() : []).then(d => setFollowingUsernames(Array.isArray(d) ? d : [])).catch(() => {});
+  const cu = localStorage.currentUser;
+  if (!cu) return;
+  apiFetch(`/get-user-following?username=${encodeURIComponent(cu)}`).then(r => r.ok ? r.json() : []).then(d => setFollowingUsernames(Array.isArray(d) ? d : [])).catch(() => {});
  }, []);
+
+ useEffect(() => {
+  if (!commentsRef.current) return;
+  const observer = new IntersectionObserver(([entry]) => {
+  if (entry.isIntersecting) { setPostRead(true); observer.disconnect(); }
+  }, { threshold: 0.1 });
+  observer.observe(commentsRef.current);
+  return () => observer.disconnect();
+ }, [loading]);
 
  const postId = window.location.pathname.split('/post/')[1] || '';
 
@@ -264,9 +279,14 @@ export default function PostContent() {
  let data = await res.json();
  if (!active) return;
 
- setPost(data);
+  setPost(data);
 
- if (Array.isArray(data.reactions)) {
+  // Track view via socket
+  if (window.socket && localStorage.currentUser) {
+    window.socket.emit('post_view', { postId: data.id, username: localStorage.currentUser });
+  }
+
+  if (Array.isArray(data.reactions)) {
  setReactionsCache(c => ({
  ...c,
  [String(data.id)]: computeReactionData(data.reactions, localStorage.currentUser)
@@ -332,23 +352,18 @@ export default function PostContent() {
  const toggleLike = (id) => {
  if (!localStorage.currentUser) { window.showAuthPrompt?.('Log in to like posts'); return; }
  let username = localStorage.currentUser;
- let prevSnapshot = null;
- setPost(prev => {
- if (!prev || prev.id !== id) return prev;
- let liked = prev.likes.includes(username);
- prevSnapshot = prev.likes;
- return {
- ...prev,
- likes: liked ? prev.likes.filter(u => u !== username) : [...prev.likes, username]
- };
- });
- apiFetch('/like-post', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({ postId: id, username })
- }).catch(() => {
- setPost(prev => prev?.id === id ? { ...prev, likes: prevSnapshot || [] } : prev);
- });
+  let prevSnapshot = null;
+  setPost(prev => {
+  if (!prev || prev.id !== id) return prev;
+  let liked = prev.likes.includes(username);
+  prevSnapshot = prev.likes;
+  return {
+  ...prev,
+  likes: liked ? prev.likes.filter(u => u !== username) : [...prev.likes, username]
+  };
+  });
+  const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/like-post' : 'https://textmob-provider-api-99ii.onrender.com/like-post';
+  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: id, username }), keepalive: true }).catch(() => {});
  };
 
  const handleComment = async (id, text) => {
@@ -523,13 +538,13 @@ export default function PostContent() {
  </div>
  )}
  {post.comments && post.comments.length > 0 && (
- <div className="px-4 pb-6 space-y-4">
- <p className="text-xs font-bold uppercase tracking-widest text-gray-400 pt-2">Comments</p>
- {[...post.comments].reverse().map((c, i) => (
- <CommentItem key={c.id || i} cmt={c} postId={post.id} postOwner={post.username} onReply={handleReply} onDelete={handleDeleteComment} followingUsernames={followingUsernames} />
- ))}
- </div>
- )}
+  <div ref={commentsRef} className="px-4 pb-6 space-y-4">
+  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 pt-2">Comments</p>
+  {[...post.comments].reverse().map((c, i) => (
+  <CommentItem key={c.id || i} cmt={c} postId={post.id} postOwner={post.username} onReply={handleReply} onDelete={handleDeleteComment} followingUsernames={followingUsernames} postRead={postRead} />
+  ))}
+  </div>
+  )}
  </div>
  );
 }

@@ -1483,7 +1483,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
       </View>
 
       {/* Offline Mode */}
-      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, marginTop: 8 }}>DATA & OFFLINE</Text>
+      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, marginTop: 16 }}>DATA & OFFLINE</Text>
       <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
           <View style={{ flex: 1 }}>

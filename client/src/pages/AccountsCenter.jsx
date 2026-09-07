@@ -1267,6 +1267,9 @@ function PostsTab({ posts, setPosts, username, setTab }) {
           <div className="flex items-center gap-4 text-xs text-gray-400">
             <span className="flex items-center gap-1"><span className="text-red-500">{K.Heart}</span>{post.likes?.length || 0} likes</span>
             <span className="flex items-center gap-1"><span className="text-blue-500">{K.Chat}</span>{post.comments?.length || 0} comments</span>
+            <span className="flex items-center gap-1"><span className="text-gray-500">
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current inline" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><circle cx="12" cy="12" r="3" /></svg>
+            </span>{Array.isArray(post.views) ? post.views.length : 0} views</span>
             {post.type === 'poll' && <span className="bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-0.5 rounded-full">Poll</span>}
           </div>
 

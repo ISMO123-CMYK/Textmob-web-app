@@ -91,7 +91,9 @@ export default function MobileHeader({
       </TouchableOpacity>
 
       {/* Center: Branding Logo */}
-      <Text style={s.logo}>{title}</Text>
+      <TouchableOpacity onPress={() => navigation.navigate('HomeLauncher')} activeOpacity={0.7}>
+        <Text style={s.logo}>{title}</Text>
+      </TouchableOpacity>
 
       {/* Right: Actions */}
       <View style={s.actions}>

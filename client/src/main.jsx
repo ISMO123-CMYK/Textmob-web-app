@@ -5,6 +5,9 @@ import AppWrapper from './components/layout/AppWrapper';
 // Pages
 import HomeMobile from './pages/home/HomeMobile';
 import HomeDesktop from './pages/home/HomeDesktop';
+import SavedPostsMobile from './pages/home/SavedPostsMobile';
+import SavedPostsDesktop from './pages/home/SavedPostsDesktop';
+import Discussions from './pages/discussions/Discussions';
 import AuthPage from './pages/auth/AuthPage';
 import ChatsComingSoon from './pages/ChatsComingSoon';
 import ActivityMobile from './pages/activity/ActivityMobile';
@@ -53,8 +56,9 @@ window.__feedState = window.__feedState || {
 Lexum.init({
   root: 'app',
   mode: 'history',
-  routes: [
+    routes: [
     { path: '/', responsive: { mobile: HomeMobile, desktop: HomeDesktop } },
+    { path: '/feed', responsive: { mobile: HomeMobile, desktop: HomeDesktop } },
     { path: '/auth', component: AuthPage },
     { path: '/chats', responsive: { mobile: ChatsComingSoon, desktop: ChatsComingSoon } },
     { path: '/activity', responsive: { mobile: ActivityMobile, desktop: ActivityDesktop } },
@@ -75,6 +79,9 @@ Lexum.init({
     { path: '/make-post/:quoteId', responsive: { mobile: MakePostMobile, desktop: MakePostDesktop } },
     { path: '/make-post', responsive: { mobile: MakePostMobile, desktop: MakePostDesktop } },
     { path: '/create-live', responsive: { mobile: CreateLiveMobile, desktop: CreateLiveDesktop } },
+    { path: '/saved', responsive: { mobile: SavedPostsMobile, desktop: SavedPostsDesktop } },
+    { path: '/discussions', component: Discussions },
+    { path: '/discussions/:roomId', component: Discussions },
     { path: '/accountscenter', component: AccountsCenter },
     { path: '/about', component: AboutPage },
     { path: '/install', component: InstallPage },

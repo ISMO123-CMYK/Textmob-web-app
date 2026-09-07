@@ -27,7 +27,7 @@ export default function MobileNav() {
   }, []);
 
   const navItems = [
-    { name: 'Home', icon: NavIcons.Home, to: '/' },
+    { name: 'Feed', icon: NavIcons.Feed, to: '/' },
     { name: 'Fame', icon: NavIcons.Leaderboard, to: '/halloffame' },
     { name: 'Snaps', icon: NavIcons.Snaps, to: '/snaps' },
     { name: 'Louda', icon: NavIcons.Messages, to: '/chats', badge: loudaUnread },

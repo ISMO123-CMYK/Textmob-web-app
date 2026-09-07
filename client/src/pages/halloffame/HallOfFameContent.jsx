@@ -18,16 +18,18 @@ function formatStat(num) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-[#0b101e] border border-gray-800/60 rounded-2xl p-4 md:p-5 flex items-center gap-4 animate-pulse">
-      <div className="w-11 h-12 rounded-xl bg-gray-800/60 flex-shrink-0" />
-      <div className="w-13 h-13 md:w-14 md:h-14 rounded-full bg-gray-800/60 flex-shrink-0" />
-      <div className="flex-1 space-y-2">
-        <div className="h-4 bg-gray-800/60 rounded w-2/5" />
-        <div className="h-3 bg-gray-800/40 rounded w-1/4" />
+    <div className="bg-[#0b101e] border border-gray-800/60 rounded-2xl p-3.5 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3.5 md:gap-4 animate-pulse">
+      <div className="flex items-center gap-3 md:gap-4 flex-1">
+        <div className="w-10 h-11 md:w-11 md:h-12 rounded-xl bg-gray-800/60 flex-shrink-0" />
+        <div className="w-11 h-11 md:w-13 md:h-13 rounded-full bg-gray-800/60 flex-shrink-0" />
+        <div className="flex-1 space-y-2 min-w-0">
+          <div className="h-4 bg-gray-800/60 rounded w-2/5" />
+          <div className="h-3 bg-gray-800/40 rounded w-1/4" />
+        </div>
       </div>
-      <div className="flex items-center gap-6">
-        <div className="w-12 h-8 bg-gray-800/40 rounded" />
-        <div className="w-12 h-8 bg-gray-800/40 rounded" />
+      <div className="flex items-center gap-6 pt-2.5 md:pt-0 border-t border-gray-800/40 md:border-t-0 pl-1 md:pl-0">
+        <div className="w-14 h-7 bg-gray-800/40 rounded" />
+        <div className="w-14 h-7 bg-gray-800/40 rounded" />
       </div>
     </div>
   );
@@ -61,8 +63,11 @@ export default function HallOfFameContent() {
     }
     function handleClickOutside(e) {
       if (menuIdx !== null) {
-        const ref = menuRefs.current[menuIdx];
-        if (ref && !ref.contains(e.target)) {
+        const mobRef = menuRefs.current[`mobile-${menuIdx}`];
+        const dskRef = menuRefs.current[`desktop-${menuIdx}`];
+        const isInsideMob = mobRef && mobRef.contains(e.target);
+        const isInsideDsk = dskRef && dskRef.contains(e.target);
+        if (!isInsideMob && !isInsideDsk) {
           setMenuIdx(null);
         }
       }
@@ -239,7 +244,7 @@ export default function HallOfFameContent() {
                 <div
                   key={user.id || user.username || idx}
                   className={cn(
-                    "rounded-2xl p-3.5 md:p-4.5 flex items-center justify-between gap-3 md:gap-4 transition-all duration-200 relative",
+                    "rounded-2xl p-3.5 md:p-4.5 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 transition-all duration-200 relative",
                     isGold
                       ? "bg-[#0b101e] border border-amber-500/40 shadow-[0_0_30px_-8px_rgba(245,158,11,0.18)] hover:border-amber-500/60"
                       : isSilver
@@ -249,116 +254,159 @@ export default function HallOfFameContent() {
                       : "bg-[#0b101e] border border-gray-800/60 hover:border-gray-700/80"
                   )}
                 >
-                  {/* Left: Rank Badge + Avatar + User Info */}
-                  <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
-                    {/* Rank Badge */}
-                    <div className="flex-shrink-0">
-                      {isGold ? (
-                        <div className="w-10 h-13 md:w-11 md:h-14 rounded-xl bg-gradient-to-b from-amber-500/25 via-amber-600/15 to-amber-900/40 border border-amber-500/50 text-amber-300 flex flex-col items-center justify-center shadow-inner">
-                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-amber-400 drop-shadow-sm">
-                            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5m14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
-                          </svg>
-                          <span className="text-sm font-black leading-none mt-1">1</span>
+                  {/* Top Row on Mobile / Left Group on Desktop: Rank Badge + Avatar + User Info + Mobile Menu */}
+                  <div className="flex items-center justify-between gap-3 min-w-0 flex-1">
+                    <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
+                      {/* Rank Badge */}
+                      <div className="flex-shrink-0">
+                        {isGold ? (
+                          <div className="w-10 h-12 md:w-11 md:h-14 rounded-xl bg-gradient-to-b from-amber-500/25 via-amber-600/15 to-amber-900/40 border border-amber-500/50 text-amber-300 flex flex-col items-center justify-center shadow-inner">
+                            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-amber-400 drop-shadow-sm">
+                              <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5m14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
+                            </svg>
+                            <span className="text-xs md:text-sm font-black leading-none mt-1">1</span>
+                          </div>
+                        ) : isSilver ? (
+                          <div className="w-10 h-10 md:w-11 md:h-12 rounded-xl bg-gradient-to-b from-slate-400/20 via-slate-500/10 to-slate-700/30 border border-slate-400/40 text-slate-200 flex items-center justify-center font-black text-xs md:text-base shadow-inner">
+                            2
+                          </div>
+                        ) : isBronze ? (
+                          <div className="w-10 h-10 md:w-11 md:h-12 rounded-xl bg-gradient-to-b from-orange-600/20 via-amber-700/10 to-amber-900/30 border border-orange-500/40 text-orange-200 flex items-center justify-center font-black text-xs md:text-base shadow-inner">
+                            3
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 md:w-11 md:h-12 rounded-xl bg-[#131929] border border-gray-800 text-gray-300 flex items-center justify-center font-black text-xs md:text-base">
+                            {rank}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Avatar */}
+                      <a
+                        href={`/@${user.username}`}
+                        data-lexum={true}
+                        className={cn(
+                          "relative w-11 h-11 md:w-13 md:h-13 rounded-full flex-shrink-0 transition-transform duration-200 hover:scale-105 block",
+                          isGold ? "ring-2 ring-amber-500/70" : isSilver ? "ring-2 ring-slate-400/50" : isBronze ? "ring-2 ring-orange-500/50" : "ring-1 ring-gray-700/50"
+                        )}
+                      >
+                        <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center text-white text-xs md:text-base font-bold">
+                          {user.avatar ? (
+                            <img src={user.avatar} alt={user.fullname || user.username} className="w-full h-full object-cover" />
+                          ) : (
+                            getAvatarInitials(user.fullname, user.username)
+                          )}
                         </div>
-                      ) : isSilver ? (
-                        <div className="w-10 h-11 md:w-11 md:h-12 rounded-xl bg-gradient-to-b from-slate-400/20 via-slate-500/10 to-slate-700/30 border border-slate-400/40 text-slate-200 flex items-center justify-center font-black text-sm md:text-base shadow-inner">
-                          2
+                      </a>
+
+                      {/* Identifiers */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                          <a
+                            href={`/@${user.username}`}
+                            data-lexum={true}
+                            className="text-sm md:text-base font-bold text-white truncate hover:underline hover:text-blue-400 transition-colors"
+                          >
+                            {user.fullname || user.username}
+                          </a>
+                          {isGold && (
+                            <span className="inline-flex text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 uppercase">
+                              GOLD
+                            </span>
+                          )}
+                          {isSilver && (
+                            <span className="inline-flex text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded bg-slate-400/20 text-slate-300 border border-slate-400/40 uppercase">
+                              SILVER
+                            </span>
+                          )}
+                          {isBronze && (
+                            <span className="inline-flex text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/40 uppercase">
+                              BRONZE
+                            </span>
+                          )}
                         </div>
-                      ) : isBronze ? (
-                        <div className="w-10 h-11 md:w-11 md:h-12 rounded-xl bg-gradient-to-b from-orange-600/20 via-amber-700/10 to-amber-900/30 border border-orange-500/40 text-orange-200 flex items-center justify-center font-black text-sm md:text-base shadow-inner">
-                          3
-                        </div>
-                      ) : (
-                        <div className="w-10 h-11 md:w-11 md:h-12 rounded-xl bg-[#131929] border border-gray-800 text-gray-300 flex items-center justify-center font-black text-sm md:text-base">
-                          {rank}
-                        </div>
-                      )}
+                        <p className="text-xs md:text-sm text-gray-400 truncate mt-0.5 font-mono">
+                          @{user.username}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Avatar */}
-                    <a
-                      href={`/@${user.username}`}
-                      data-lexum={true}
-                      className={cn(
-                        "relative w-12 h-12 md:w-13 md:h-13 rounded-full flex-shrink-0 transition-transform duration-200 hover:scale-105 block",
-                        isGold ? "ring-2 ring-amber-500/70" : isSilver ? "ring-2 ring-slate-400/50" : isBronze ? "ring-2 ring-orange-500/50" : "ring-1 ring-gray-700/50"
-                      )}
-                    >
-                      <div className="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center text-white text-sm md:text-base font-bold">
-                        {user.avatar ? (
-                          <img src={user.avatar} alt={user.fullname || user.username} className="w-full h-full object-cover" />
-                        ) : (
-                          getAvatarInitials(user.fullname, user.username)
-                        )}
-                      </div>
-                    </a>
+                    {/* Mobile 3-dots Menu Button */}
+                    <div className="relative md:hidden flex-shrink-0" ref={el => menuRefs.current[`mobile-${idx}`] = el}>
+                      <button
+                        onClick={() => setMenuIdx(isMenuOpen ? null : idx)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                        aria-label="Options"
+                      >
+                        <svg viewBox="0 0 20 20" className="w-4 h-4" fill="currentColor">
+                          <circle cx="10" cy="4" r="1.5" />
+                          <circle cx="10" cy="10" r="1.5" />
+                          <circle cx="10" cy="16" r="1.5" />
+                        </svg>
+                      </button>
 
-                    {/* Identifiers */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <a
-                          href={`/@${user.username}`}
-                          data-lexum={true}
-                          className="text-sm md:text-base font-bold text-white truncate hover:underline hover:text-blue-400 transition-colors"
-                        >
-                          {user.fullname || user.username}
-                        </a>
-                        {isGold && (
-                          <span className="inline-flex text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 uppercase">
-                            GOLD
-                          </span>
-                        )}
-                        {isSilver && (
-                          <span className="inline-flex text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded bg-slate-400/20 text-slate-300 border border-slate-400/40 uppercase">
-                            SILVER
-                          </span>
-                        )}
-                        {isBronze && (
-                          <span className="inline-flex text-[9px] font-black tracking-wider px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/40 uppercase">
-                            BRONZE
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs md:text-sm text-gray-400 truncate mt-0.5 font-mono">
-                        @{user.username}
-                      </p>
+                      {isMenuOpen && (
+                        <div className="absolute right-0 top-9 z-30 w-44 bg-[#0c101d] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-top-2 duration-100" role="menu">
+                          <a
+                            href={`/@${user.username}`}
+                            data-lexum={true}
+                            onClick={() => setMenuIdx(null)}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-xs text-gray-300 hover:bg-white/5 font-semibold border-b border-gray-800/80 transition-colors"
+                          >
+                            View Profile
+                          </a>
+                          <button
+                            onClick={() => {
+                              setMenuIdx(null);
+                              setGiftTarget(user);
+                              setGiftAmount('');
+                              setGiftStatus(null);
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-xs text-blue-400 font-bold hover:bg-blue-500/10 transition-colors text-left"
+                          >
+                            Gift Mobcoins
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Right: Likes, Followers, Menu */}
-                  <div className="flex items-center gap-3.5 md:gap-6 flex-shrink-0">
-                    {/* Likes Stat */}
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                      <div>
-                        <div className="text-xs md:text-sm font-bold text-white leading-tight">
-                          {formatStat(user.totalLikes)}
+                  {/* Bottom Stats Row on Mobile / Right Stats Group on Desktop */}
+                  <div className="flex items-center justify-between md:justify-end gap-3.5 md:gap-6 pt-2.5 md:pt-0 border-t border-gray-800/50 md:border-t-0 flex-shrink-0">
+                    <div className="flex items-center gap-6 md:gap-6">
+                      {/* Likes Stat */}
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-pink-500/90 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                        <div>
+                          <div className="text-xs md:text-sm font-bold text-white leading-tight">
+                            {formatStat(user.totalLikes)}
+                          </div>
+                          <div className="text-[10px] text-gray-400 font-medium leading-none mt-0.5">
+                            Likes
+                          </div>
                         </div>
-                        <div className="text-[10px] text-gray-400 font-medium leading-none mt-0.5">
-                          Likes
+                      </div>
+
+                      {/* Followers Stat */}
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-blue-400/90 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <div>
+                          <div className="text-xs md:text-sm font-bold text-white leading-tight">
+                            {formatStat(user.followersCount)}
+                          </div>
+                          <div className="text-[10px] text-gray-400 font-medium leading-none mt-0.5">
+                            Followers
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Followers Stat */}
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                      <div>
-                        <div className="text-xs md:text-sm font-bold text-white leading-tight">
-                          {formatStat(user.followersCount)}
-                        </div>
-                        <div className="text-[10px] text-gray-400 font-medium leading-none mt-0.5">
-                          Followers
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 3-dots Menu Button */}
-                    <div className="relative" ref={el => menuRefs.current[idx] = el}>
+                    {/* Desktop 3-dots Menu Button */}
+                    <div className="relative hidden md:block" ref={el => menuRefs.current[`desktop-${idx}`] = el}>
                       <button
                         onClick={() => setMenuIdx(isMenuOpen ? null : idx)}
                         className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-colors"

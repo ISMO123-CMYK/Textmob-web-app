@@ -295,6 +295,21 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
         <TouchableOpacity style={styles.actionBtn} onPress={() => onShare(item)}>
           <Ionicons name="share-outline" size={24} color="#fff" />
         </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={async () => {
+          try {
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const raw = await AsyncStorage.getItem('textmob_saved_posts');
+            let ids: string[] = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(ids)) ids = [];
+            const idStr = String(item.id);
+            const idx = ids.indexOf(idStr);
+            if (idx >= 0) ids.splice(idx, 1);
+            else ids.push(idStr);
+            await AsyncStorage.setItem('textmob_saved_posts', JSON.stringify(ids));
+          } catch {}
+        }}>
+          <Ionicons name="bookmark-outline" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Bottom info */}

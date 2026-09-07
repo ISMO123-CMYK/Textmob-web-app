@@ -62,7 +62,7 @@ export default function MobileHeader() {
   if (!isLoggedIn) {
     return (
       <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4">
-        <span className="text-xl font-black text-blue-600 tracking-tighter select-none">textmob</span>
+        <button onClick={() => window.Lexum?.navigate('/')} className="text-xl font-black text-blue-600 tracking-tighter select-none active:scale-95 transition-transform">textmob</button>
         <button
           onClick={() => { window.Lexum?.navigate('/auth'); }}
           className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all active:scale-[0.97]"
@@ -85,9 +85,9 @@ export default function MobileHeader() {
         </button>
 
         {/* Center: Branding Logo */}
-        <span className="text-xl font-black text-blue-600 tracking-tighter select-none">
+        <button onClick={() => window.Lexum?.navigate('/')} className="text-xl font-black text-blue-600 tracking-tighter select-none active:scale-95 transition-transform">
           textmob
-        </span>
+        </button>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">

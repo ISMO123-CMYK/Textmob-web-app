@@ -192,6 +192,18 @@ export default function MenuContent() {
             Icon: NavIcons.Search,
             href: '/topsearch',
           },
+          {
+            label: 'Discussions',
+            description: 'Live group conversations',
+            Icon: NavIcons.Discussions,
+            href: '/discussions',
+          },
+          {
+            label: 'Saved Posts',
+            description: 'Posts you saved for later',
+            Icon: NavIcons.Saved,
+            href: '/saved',
+          },
         ],
       },
       {

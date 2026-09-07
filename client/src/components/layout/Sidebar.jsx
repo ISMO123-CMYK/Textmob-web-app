@@ -91,9 +91,10 @@ export default function Sidebar() {
   const currentPath = window.location.pathname;
 
   const navItems = [
-    { Icon: NavIcons.Home, label: 'Home', badge: null, to: '/' },
+    { Icon: NavIcons.Feed, label: 'Feed', badge: null, to: '/' },
     { Icon: NavIcons.Snaps, label: 'Snaps', badge: null, to: '/snaps' },
     { Icon: NavIcons.Search, label: 'Discover', badge: null, to: '/topsearch' },
+    { Icon: NavIcons.Discussions, label: 'Discussions', badge: null, to: '/discussions' },
     { Icon: NavIcons.Live, label: 'Go Live', badge: null, to: '/create-live' },
 
     { Icon: NavIcons.Messages, label: 'Louda', badge: loudaUnread || null, to: '/chats' },
@@ -156,7 +157,7 @@ export default function Sidebar() {
       <aside className={cn('hidden md:flex flex-col h-screen milky-glass border-r border-gray-200/50 overflow-y-auto sticky top-0 transition-[width] duration-300', collapsed ? 'w-20' : 'w-64')}>
         {/* Header */}
         <div className={cn('flex items-center px-4 pt-4 pb-2', collapsed ? 'justify-center' : 'justify-between')}>
-          {!collapsed && <span className="text-sm font-bold text-gray-900 tracking-tight">Textmob</span>}
+          {!collapsed && <button onClick={() => window.Lexum?.navigate('/')} className="text-sm font-bold text-gray-900 tracking-tight active:scale-95 transition-transform">Textmob</button>}
           <button onClick={() => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem('sidebar-collapsed', JSON.stringify(next)); } catch { } }} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d={collapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7'} />
@@ -302,10 +303,17 @@ export default function Sidebar() {
               </button>
               <button
                 onClick={() => { setCreateMenuOpen(false); window.Lexum?.navigate('/snaps'); }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold border-b border-gray-100"
               >
                 <NavIcons.Snaps className="w-4 h-4 text-purple-500 flex-shrink-0" />
                 <span>Create Snap</span>
+              </button>
+              <button
+                onClick={() => { setCreateMenuOpen(false); window.Lexum?.navigate('/discussions'); }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold"
+              >
+                <NavIcons.Discussions className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                <span>Discussions</span>
               </button>
             </div>
           )}

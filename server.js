@@ -129,7 +129,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 const app = express();
 app.use(cors()); // Allow all origins
 const server = http.createServer(app); // attach raw HTTP server
-const io = socketIo(server);           // attach Socket.IO to the HTTP server
+const io = socketIo(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 const PORT = process.env.PORT || 5000;
 
 // Initialize Global State
@@ -534,7 +534,7 @@ app.get("/tatu", (req, res) => {
 app.get('/api/louda-unread', async (req, res) => {
   try {
     const { username } = req.query;
-    if (!username) return res.status(400).json({ error: 'Username required' });
+    if (!username) return res.json({ unread: 0 });
 
     // 1. Find the Textmob user's profile to get their phone number
     const { data: tmUser } = await supabase
@@ -1117,13 +1117,13 @@ const upload = multer({
   storage,
   limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|quicktime|octet-stream/;
+    const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|quicktime|octet-stream|webm|ogg|mpeg|mp3|wav|m4a|aac|x-m4a|mp4|video|audio/;
     const ext = path.extname(file.originalname).toLowerCase();
     const mimetype = (file.mimetype || '').toLowerCase();
     if (allowedTypes.test(ext) || allowedTypes.test(mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only image and video files are allowed"));
+      cb(new Error("File type not allowed"));
     }
   },
 });
@@ -2854,16 +2854,15 @@ app.get("/profile-pic/:username", async (req, res) => {
 
     const { data, error } = await supabase
       .from("users")
-      .select("profile_pic")
+      .select("profile_pic, verified")
       .eq("username", username)
       .single();
 
     if (error || !data) {
-      // Return a default or 404, but json is safer for client handling
       return res.json({ profile_pic: null });
     }
 
-    res.json({ profile_pic: data.profile_pic });
+    res.json({ profile_pic: data.profile_pic, verified: !!data.verified });
   } catch (error) {
     console.error("Profile Pic Error:", error);
     res.status(500).json({ error: "Server Error" });
@@ -3262,7 +3261,7 @@ app.post("/register-token", async (req, res) => {
 app.get("/get-notifications", async (req, res) => {
   try {
     const { username } = req.query || {};
-    if (!username) return res.status(400).json({ error: "Username is required" });
+    if (!username) return res.json([]);
 
     const { data: user, error } = await supabase
       .from("users")
@@ -3279,6 +3278,29 @@ app.get("/get-notifications", async (req, res) => {
   } catch (err) {
     console.error("get-notifications err:", err);
     return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+/**
+ * POST /get-posts-by-ids
+ * Body: { ids: ["id1","id2",...] }
+ * Returns full post objects for the given IDs.
+ */
+app.post("/get-posts-by-ids", async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.json([]);
+
+    const { data: posts, error } = await supabase2
+      .from("Posts")
+      .select("*")
+      .in("id", ids.map(String));
+
+    if (error || !posts) return res.json([]);
+    return res.json(posts);
+  } catch (err) {
+    console.error("get-posts-by-ids err:", err);
+    return res.json([]);
   }
 });
 
@@ -3931,7 +3953,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
       const freshness = Math.pow(0.5, ageHours / halfLifeHours);
 
       const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
-      const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
+      const velocity = (totalEngagement / Math.pow(ageHours + 1, 1.3)) * freshness;
 
       let typeBonus = 1.0;
       if (p.type === "live") typeBonus = 3.0;
@@ -3942,7 +3964,12 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
 
       const seenPenalty = seen.has(String(p.id)) ? 0.00001 : 1.0;
       const selfPenalty = p.username === username ? 0.01 : 1.0;
+      const likedPenalty = (username && Array.isArray(p.likes) && p.likes.includes(username)) ? 0 : 1.0;
       const userInfluence = 0.0;
+
+      // Views boost
+      const viewCount = Array.isArray(p.views) ? p.views.length : 0;
+      const viewsBoost = Math.log10(viewCount + 1) * 0.5;
 
       // Category weight from feed preferences
       let catWeight = 1.0;
@@ -3960,36 +3987,40 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
         (typeBonus * 2) +
         (userInfluence * 0.05) +
         boostScoreValue +
-        mediaBonus
-      ) * affinityMul * seenPenalty * selfPenalty * catWeight;
+        mediaBonus +
+        viewsBoost
+      ) * affinityMul * seenPenalty * likedPenalty * selfPenalty * catWeight;
 
       return { ...p, _score: score + (Math.random() * 0.5) };
     });
 
     scored.sort((a, b) => b._score - a._score);
 
-    // Diversify: max 2 per author per batch
+    // Diversify: no 2 consecutive from same author, max 2 per batch
     function diversifySnaps(scoredSnaps, targetCount) {
       const result = [];
-      const skipped = [];
+      const remaining = [];
       const userCount = new Map();
+      // First pass: no consecutive, max 2 per user
       for (const snap of scoredSnaps) {
+        const count = userCount.get(snap.username) || 0;
+        if (count >= 2) { remaining.push(snap); continue; }
+        const lastAuthor = result.length > 0 ? result[result.length - 1].username : null;
+        if (snap.username === lastAuthor) { remaining.push(snap); continue; }
+        result.push(snap);
+        userCount.set(snap.username, count + 1);
+      }
+      // Second pass: fill from remaining, still no consecutive
+      for (const snap of remaining) {
         if (result.length >= targetCount) break;
         const count = userCount.get(snap.username) || 0;
-        if (count < 2) {
-          result.push(snap);
-          userCount.set(snap.username, count + 1);
-        } else {
-          skipped.push(snap);
-        }
+        if (count >= 2) continue;
+        const lastAuthor = result.length > 0 ? result[result.length - 1].username : null;
+        if (snap.username === lastAuthor) continue;
+        result.push(snap);
+        userCount.set(snap.username, count + 1);
       }
-      if (result.length < targetCount) {
-        for (const snap of skipped) {
-          if (result.length >= targetCount) break;
-          result.push(snap);
-        }
-      }
-      return result;
+      return result.slice(0, targetCount);
     }
 
     // Paginate: use page to slice the scored array, then diversify
@@ -5826,6 +5857,39 @@ io.on("connection", function (socket) {
       socketJoins.delete(socket.id);
     } catch (e) {
       console.error("disconnect cleanup error:", e);
+    }
+  });
+
+  // ─── POST VIEW TRACKING (unique, per-user) ───
+  const viewRateLimit = new Map(); // key: `${socketId}:${postId}` -> timestamp
+  socket.on("post_view", async ({ postId, username }) => {
+    try {
+      if (!postId || !username) return;
+      const rateKey = `${socket.id}:${postId}`;
+      const now = Date.now();
+      if (viewRateLimit.has(rateKey) && now - viewRateLimit.get(rateKey) < 30000) return; // 30s cooldown
+      viewRateLimit.set(rateKey, now);
+
+      const { data: post, error: fetchErr } = await supabase2
+        .from("Posts")
+        .select("views")
+        .eq("id", postId)
+        .single();
+      if (fetchErr) { console.error("post_view fetch error:", fetchErr.message); return; }
+      if (!post) return;
+
+      const currentViews = Array.isArray(post.views) ? post.views : [];
+      if (currentViews.some(v => v.username === username)) return; // already viewed
+
+      const updatedViews = [...currentViews, { username, time: new Date().toISOString() }];
+      const { error: updateErr } = await supabase2
+        .from("Posts")
+        .update({ views: updatedViews })
+        .eq("id", postId);
+      if (updateErr) { console.error("post_view update error:", updateErr.message); return; }
+      console.log(`[post_view] ${username} viewed ${postId} (${updatedViews.length} views)`);
+    } catch (e) {
+      console.error("post_view error:", e);
     }
   });
 }); // end io.on("connection")
@@ -7875,7 +7939,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const freshness = Math.pow(0.5, ageHours / halfLife);
 
       const totalEngagement = likes + (comments * 3) + (reactions * 1.5);
-      const velocity = totalEngagement / Math.pow(ageHours + 1, 1.3);
+      const velocity = (totalEngagement / Math.pow(ageHours + 1, 1.3)) * freshness;
 
       // Mild follow nudge (replaces affinityMul completely)
       const followNudge = ctx.following.has(post.username) ? 1.2 : 1.0;
@@ -7883,11 +7947,11 @@ app.post("/get-posts", express.json(), async (req, res) => {
       // Per-user content type weight (from feed_prefs)
       const typeWeight = (ctx.contentTypeWeights && ctx.contentTypeWeights[contentType]) || 1.0;
 
-      // Seen penalty: absolute kill if already viewed
-      const seenPenalty = ctx.seenIds.has(String(post.id)) ? 0 : 1.0;
+      // Seen penalty: heavy suppression but not absolute zero (so feed doesn't empty)
+      const seenPenalty = ctx.seenIds.has(String(post.id)) ? 0.05 : 1.0;
 
-      // Liked penalty: absolute kill if user has already liked this post
-      const likedPenalty = (ctx.username && Array.isArray(post.likes) && post.likes.includes(ctx.username)) ? 0 : 1.0;
+      // Liked penalty: heavy suppression but not absolute zero (so feed doesn't empty)
+      const likedPenalty = (ctx.username && Array.isArray(post.likes) && post.likes.includes(ctx.username)) ? 0.05 : 1.0;
 
       // Self penalty: essentially never show own posts unless feed is nearly empty
       const selfPenalty = post.username === ctx.username ? 0.01 : 1.0;
@@ -7922,22 +7986,28 @@ app.post("/get-posts", express.json(), async (req, res) => {
         if (postCats.some(c => ctx.userCategories.includes(c))) catWeight = 1.3;
       }
 
-      const freshnessWeight = ctx.tab === 'following' ? 15.0 : 10.0;
-      const velocityWeight = ctx.tab === 'following' ? 5.0 : 4.0;
+      const freshnessWeight = ctx.tab === 'following' ? 20.0 : 15.0;
+      const velocityWeight = ctx.tab === 'following' ? 4.0 : 3.0;
+
+      // Views boost — logarithmic, on top of all existing factors
+      const viewCount = Array.isArray(post.views) ? post.views.length : 0;
+      const viewsBoost = Math.log10(viewCount + 1) * 0.5;
 
       const score = (
         (freshness * freshnessWeight) +
         (velocity * velocityWeight) +
         boostScoreValue +
         mediaBonus +
-        videoLengthBonus
+        videoLengthBonus +
+        viewsBoost +
+        verifiedBoost
       ) * followNudge * typeWeight * seenPenalty * likedPenalty * selfPenalty * negPenalty * catWeight;
 
       if (ctx.username && post.id && process.env.LOG_SCORES) {
         console.log(`[score] user=${ctx.username} post=${post.id} score=${score.toFixed(4)} freshness=${freshness.toFixed(4)} velocity=${velocity.toFixed(4)} followNudge=${followNudge} typeWeight=${typeWeight} seenPenalty=${seenPenalty} negPenalty=${negPenalty} catWeight=${catWeight}`);
       }
 
-      return score + verifiedBoost + (Math.random() * 0.2);
+      return score + (Math.random() * 0.2);
     }
 
     // Build user context for scoring
@@ -7989,8 +8059,8 @@ app.post("/get-posts", express.json(), async (req, res) => {
       };
     }
 
-    // Last N posts pool (configurable, defaults to 700)
-    const POST_POOL_LIMIT = 700;
+    // Last N posts pool (configurable, defaults to 5000)
+    const POST_POOL_LIMIT = 5000;
 
     // ─── MemoryDB fast path (unified scoring) ───
     if (memoryDb && memoryDb.isReady && !isPublic) {
@@ -8026,46 +8096,60 @@ app.post("/get-posts", express.json(), async (req, res) => {
 
       scored.sort((a, b) => b._score - a._score);
 
-      // Diversity: max 2 per author (4 for cold-start)
+      // Diversity: max 1 consecutive from same author, max 2 per batch
       function diversify(arr, targetCount) {
         const result = [];
-        const skipped = [];
         const userCount = new Map();
-        const maxPer = isColdStart ? 4 : 2;
+        const remaining = [];
+        // First pass: take posts ensuring no 2 consecutive same author, max 2 per user
         for (const post of arr) {
-          if (result.length >= targetCount * 2) break;
           const cnt = userCount.get(post.username) || 0;
-          if (cnt < maxPer) {
+          if (cnt >= 2) { remaining.push(post); continue; }
+          const lastAuthor = result.length > 0 ? result[result.length - 1].username : null;
+          if (post.username === lastAuthor) { remaining.push(post); continue; }
+          result.push(post);
+          userCount.set(post.username, cnt + 1);
+        }
+        // Second pass: fill from remaining, still no consecutive, max 2 per user
+        for (const post of remaining) {
+          if (result.length >= targetCount) break;
+          const cnt = userCount.get(post.username) || 0;
+          if (cnt >= 2) continue;
+          const lastAuthor = result.length > 0 ? result[result.length - 1].username : null;
+          if (post.username === lastAuthor) continue;
+          result.push(post);
+          userCount.set(post.username, cnt + 1);
+        }
+        // Third pass: fill ignoring consecutive, still max 2 per user
+        if (result.length < targetCount) {
+          for (const post of remaining) {
+            if (result.length >= targetCount) break;
+            if (result.includes(post)) continue;
+            const cnt = userCount.get(post.username) || 0;
+            if (cnt >= 2) continue;
             result.push(post);
             userCount.set(post.username, cnt + 1);
-          } else {
-            skipped.push(post);
           }
         }
-        if (result.length < targetCount * 2) {
-          for (const post of skipped) {
-            if (result.length >= targetCount * 2) break;
-            result.push(post);
-          }
-        }
-        const final = [];
-        const fc = new Map();
-        for (const post of result) {
-          if (final.length >= targetCount) break;
-          const cnt = fc.get(post.username) || 0;
-          if (cnt < maxPer) {
-            final.push(post);
-            fc.set(post.username, cnt + 1);
-          } else {
-            final.push(post);
-          }
-        }
-        return final.length >= targetCount ? final : result.slice(0, targetCount);
+        return result.length >= targetCount ? result.slice(0, targetCount) : result;
       }
 
       const startIdx = (pg - 1) * limit;
-      const bestNext = scored.slice(startIdx, startIdx + limit * 2);
-      const final = diversify(bestNext, limit).map(({ _score, ...p }) => p);
+      const bestNext = scored.slice(startIdx, startIdx + limit * 3);
+      let final = diversify(bestNext, limit).map(({ _score, ...p }) => p);
+
+      // Safety net: if diversify returned fewer than limit, pull more from scored directly
+      if (final.length < limit) {
+        const existingIds = new Set(final.map(p => String(p.id)));
+        for (const p of scored) {
+          if (final.length >= limit) break;
+          if (!existingIds.has(String(p.id))) {
+            const { _score, ...clean } = p;
+            final.push(clean);
+            existingIds.add(String(p.id));
+          }
+        }
+      }
 
       final.forEach(p => memoryDb.markPostSeen(username, p.id));
 
@@ -8191,22 +8275,35 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const userCount = new Map();
       const maxPer = (isColdStart || isPublic) ? 4 : 2;
       for (const post of arr) {
+        const cnt = userCount.get(post.username) || 0;
+        if (cnt >= maxPer) { skipped.push(post); continue; }
+        const lastAuthor = result.length > 0 ? result[result.length - 1].username : null;
+        if (post.username === lastAuthor) { skipped.push(post); continue; }
+        result.push(post);
+        userCount.set(post.username, cnt + 1);
+      }
+      // Fill from skipped — still no consecutive, still respect max
+      for (const post of skipped) {
         if (result.length >= targetCount) break;
         const cnt = userCount.get(post.username) || 0;
-        if (cnt < maxPer) {
-          result.push(post);
-          userCount.set(post.username, cnt + 1);
-        } else {
-          skipped.push(post);
-        }
+        if (cnt >= maxPer) continue;
+        const lastAuthor = result.length > 0 ? result[result.length - 1].username : null;
+        if (post.username === lastAuthor) continue;
+        result.push(post);
+        userCount.set(post.username, cnt + 1);
       }
+      // Last resort: fill ignoring consecutive, respect max
       if (result.length < targetCount) {
         for (const post of skipped) {
           if (result.length >= targetCount) break;
+          if (result.includes(post)) continue;
+          const cnt = userCount.get(post.username) || 0;
+          if (cnt >= maxPer) continue;
           result.push(post);
+          userCount.set(post.username, cnt + 1);
         }
       }
-      return result;
+      return result.slice(0, targetCount);
     }
 
     const humanPosts = scoredPosts.filter(p => p.username !== 'textmobai');
@@ -8263,7 +8360,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
 app.get("/get-live-posts", async (req, res) => {
   try {
     const { username } = req.query;
-    if (!username) return res.status(400).json({ error: "Username is required" });
+    if (!username) return res.json([]);
 
     // Fetch active live posts directly from Supabase
     const { data: livePosts, error } = await supabase2
@@ -8317,6 +8414,724 @@ app.get("/get-live-posts", async (req, res) => {
   } catch (err) {
     console.error("Live Feed Error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// =====================================================
+// LIVE DISCUSSION ROOMS
+// =====================================================
+
+const LIVE_ROOM_CATEGORIES = ['general', 'football', 'technology', 'music', 'politics', 'religion', 'entertainment', 'gaming', 'business', 'education'];
+
+// Create a new live discussion room
+app.post("/api/discussions/create", async (req, res) => {
+  try {
+    const { username, title, description, category, cover_image, room_mode, allow_media, allow_gifs, allow_voice_notes, allow_stickers } = req.body;
+    if (!username || !title) return res.status(400).json({ error: "username and title required" });
+
+    const roomId = "dr_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+    const { data, error } = await supabase2.from("live_rooms").insert({
+      id: roomId,
+      title: title.slice(0, 120),
+      description: (description || "").slice(0, 500),
+      host_username: username,
+      category: (category || "general").toLowerCase(),
+      cover_image: cover_image || "",
+      room_mode: room_mode || "open",
+      allow_media: allow_media !== false,
+      allow_gifs: allow_gifs !== false,
+      allow_voice_notes: allow_voice_notes !== false,
+      allow_stickers: allow_stickers !== false,
+      status: "live",
+      participant_count: 1,
+    }).select().single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // System message: room created
+    await supabase2.from("live_room_messages").insert({
+      room_id: roomId,
+      username: "system",
+      content: `${username} started the discussion`,
+      message_type: "system",
+    });
+
+    return res.json(data);
+  } catch (err) {
+    console.error("discussions/create err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Get active live rooms (discovery)
+app.get("/api/discussions/active", async (req, res) => {
+  try {
+    const { category, page = 1, limit = 20 } = req.query;
+    let query = supabase2.from("live_rooms")
+      .select("*")
+      .eq("status", "live")
+      .order("participant_count", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (category && category !== "all") {
+      query = query.eq("category", category);
+    }
+
+    const from = (page - 1) * limit;
+    query = query.range(from, from + limit - 1);
+
+    const { data, error } = await query;
+    if (error) return res.json([]);
+    return res.json(data || []);
+  } catch (err) {
+    console.error("discussions/active err:", err);
+    return res.json([]);
+  }
+});
+
+// Get single room details
+app.get("/api/discussions/room/:roomId", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { data, error } = await supabase2.from("live_rooms")
+      .select("*")
+      .eq("id", roomId)
+      .single();
+    if (error || !data) return res.status(404).json({ error: "Room not found" });
+    return res.json(data);
+  } catch (err) {
+    console.error("discussions/room err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Get room messages
+app.get("/api/discussions/room/:roomId/messages", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { before, before_id, after, limit = 50 } = req.query;
+    const lim = parseInt(limit);
+
+    if (after) {
+      const { data, error } = await supabase2.from("live_room_messages")
+        .select("*").eq("room_id", roomId)
+        .gt("created_at", after)
+        .order("created_at", { ascending: true })
+        .limit(lim);
+      if (error) return res.json([]);
+      return res.json(data || []);
+    }
+
+    if (before) {
+      let query = supabase2.from("live_room_messages")
+        .select("*").eq("room_id", roomId)
+        .order("created_at", { ascending: false });
+
+      if (before_id) {
+        query = query.or(`created_at.lt.${before},and(created_at.eq.${before},id.lt.${before_id})`);
+      } else {
+        query = query.lt("created_at", before);
+      }
+      const { data, error } = await query.limit(lim);
+      if (error) return res.json([]);
+      return res.json((data || []).reverse());
+    }
+
+    const { data, error } = await supabase2.from("live_room_messages")
+      .select("*").eq("room_id", roomId)
+      .order("created_at", { ascending: false })
+      .limit(lim);
+    if (error) return res.json([]);
+    return res.json((data || []).reverse());
+  } catch (err) {
+    console.error("discussions/messages err:", err);
+    return res.json([]);
+  }
+});
+
+// Send a message to a room
+app.post("/api/discussions/upload", upload.single("media"), async (req, res) => {
+  try {
+    const { username, roomId } = req.body;
+    if (!username) return res.status(400).json({ error: "username required" });
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: "discussion-media", resource_type: "auto", transformation: [{ width: 800, quality: "auto", fetch_format: "auto" }] },
+        (err, result) => err ? reject(err) : resolve(result)
+      );
+      stream.end(req.file.buffer);
+    });
+
+    return res.json({ url: result.secure_url, type: result.resource_type });
+  } catch (err) {
+    console.error("discussion upload err:", err);
+    return res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+app.post("/api/discussions/room/:roomId/send", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username, content, message_type, media_url, gif_url, voice_duration, reply_to_id } = req.body;
+    if (!username || (!content && !media_url && !gif_url)) {
+      return res.status(400).json({ error: "username and content/media required" });
+    }
+
+    // Check room exists and is live
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room || room.status !== "live") return res.status(400).json({ error: "Room is no longer live" });
+
+    // Check if user is muted or removed
+    if ((room.muted_users || []).includes(username)) {
+      return res.status(403).json({ error: "You are muted in this room" });
+    }
+    if ((room.removed_users || []).includes(username)) {
+      return res.status(403).json({ error: "You were removed from this room" });
+    }
+    // Check timeout
+    const timedOut = (room.timed_out_users || []).find(t => t.username === username);
+    if (timedOut && new Date(timedOut.until) > new Date()) {
+      return res.status(403).json({ error: `You are timed out until ${timedOut.until}` });
+    }
+
+    // Check if room is locked (only host can send)
+    if (room.room_mode === "locked" && room.host_username !== username) {
+      return res.status(403).json({ error: "Room is locked. Only the host can send messages." });
+    }
+
+    const msgId = "dm_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+    const { data: msg, error } = await supabase2.from("live_room_messages").insert({
+      id: msgId,
+      room_id: roomId,
+      username,
+      content: (content || "").slice(0, 2000),
+      message_type: message_type || "text",
+      media_url: media_url || "",
+      gif_url: gif_url || "",
+      voice_duration: voice_duration || 0,
+      reply_to_id: reply_to_id || null,
+    }).select().single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Increment message count
+    await supabase2.from("live_rooms").update({
+      message_count: (room.message_count || 0) + 1,
+    }).eq("id", roomId);
+
+    return res.json(msg);
+  } catch (err) {
+    console.error("discussions/send err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Join a room (increment participant count)
+app.post("/api/discussions/room/:roomId/join", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "username required" });
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room || room.status !== "live") return res.status(400).json({ error: "Room is no longer live" });
+
+    if ((room.removed_users || []).includes(username)) {
+      return res.status(403).json({ error: "You were removed from this room" });
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("discussions/join err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Leave a room
+app.post("/api/discussions/room/:roomId/leave", async (req, res) => {
+  try {
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("discussions/leave err:", err);
+    return res.json({ ok: true });
+  }
+});
+
+// End a room (host only)
+app.post("/api/discussions/room/:roomId/end", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username } = req.body;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room) return res.status(404).json({ error: "Room not found" });
+    if (room.host_username !== username) return res.status(403).json({ error: "Only the host can end the room" });
+
+    const durationSecs = room.created_at ? Math.floor((Date.now() - new Date(room.created_at).getTime()) / 1000) : 0;
+
+    await supabase2.from("live_rooms").update({
+      status: "ended",
+      ended_at: new Date().toISOString(),
+      duration_seconds: durationSecs,
+    }).eq("id", roomId);
+
+    // System message
+    await supabase2.from("live_room_messages").insert({
+      room_id: roomId,
+      username: "system",
+      content: "Room ended by host",
+      message_type: "system",
+    });
+
+    // Broadcast to all connected clients in real-time
+    io.to(`discussion_${roomId}`).emit('discussion_room_ended', { roomId, duration: durationSecs });
+
+    return res.json({ ok: true, duration: durationSecs });
+  } catch (err) {
+    console.error("discussions/end err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Generate recap post (host only, after room ended)
+app.post("/api/discussions/room/:roomId/recap", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username } = req.body;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room) return res.status(404).json({ error: "Room not found" });
+    if (room.host_username !== username) return res.status(403).json({ error: "Only the host can generate recap" });
+    if (room.status !== "ended") return res.status(400).json({ error: "Room must be ended first" });
+
+    // Get stats
+    const { data: messages } = await supabase2.from("live_room_messages")
+      .select("*")
+      .eq("room_id", roomId)
+      .neq("message_type", "system");
+
+    const msgs = messages || [];
+    const uniqueUsers = [...new Set(msgs.map(m => m.username))];
+    let topMessage = null;
+    let topReactions = 0;
+    msgs.forEach(m => {
+      const rc = m.reaction_count || 0;
+      if (rc > topReactions) { topReactions = rc; topMessage = m; }
+    });
+
+    const durationMins = Math.floor((room.duration_seconds || 0) / 60);
+    const durationH = Math.floor(durationMins / 60);
+    const durationM = durationMins % 60;
+    const durationStr = durationH > 0 ? `${durationH}h ${durationM}m` : `${durationM}m`;
+
+    // Create recap post
+    const recapText = `${room.title} - Live Room Recap\n\n` +
+      `${uniqueUsers.length} people joined the discussion.\n\n` +
+      (topMessage ? `Most-liked message: @${topMessage.username}\n"${topMessage.content}"\n\n` : '') +
+      `Duration: ${durationStr}\n` +
+      `Messages: ${msgs.length}\n\n` +
+      `Read the full discussion ->`;
+
+    const { data: post, error } = await supabase2.from("Posts").insert({
+      username: room.host_username,
+      text: recapText,
+      type: "post",
+      media: [],
+    }).select().single();
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    await supabase2.from("live_rooms").update({
+      archive_post_id: post.id,
+      recap_generated: true,
+      status: "archived",
+    }).eq("id", roomId);
+
+    return res.json({ post, room_id: roomId });
+  } catch (err) {
+    console.error("discussions/recap err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Get archived room (for viewing after end)
+app.get("/api/discussions/room/:roomId/archive", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room) return res.status(404).json({ error: "Room not found" });
+
+    const { data: messages } = await supabase2.from("live_room_messages")
+      .select("*")
+      .eq("room_id", roomId)
+      .order("created_at", { ascending: true });
+
+    return res.json({ room, messages: messages || [] });
+  } catch (err) {
+    console.error("discussions/archive err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// HOST CONTROLS
+
+// Mute/unmute user
+app.post("/api/discussions/room/:roomId/mute", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { host_username, target_username } = req.body;
+    if (!host_username || !target_username) return res.status(400).json({ error: "host_username and target_username required" });
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room || room.host_username !== host_username) return res.status(403).json({ error: "Only host can mute" });
+
+    let muted = room.muted_users || [];
+    if (muted.includes(target_username)) {
+      muted = muted.filter(u => u !== target_username);
+    } else {
+      muted.push(target_username);
+    }
+    await supabase2.from("live_rooms").update({ muted_users: muted }).eq("id", roomId);
+    return res.json({ muted_users: muted });
+  } catch (err) {
+    console.error("discussions/mute err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Timeout user
+app.post("/api/discussions/room/:roomId/timeout", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { host_username, target_username, duration_seconds = 300 } = req.body;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room || room.host_username !== host_username) return res.status(403).json({ error: "Only host can timeout" });
+
+    const until = new Date(Date.now() + duration_seconds * 1000).toISOString();
+    let timedOut = room.timed_out_users || [];
+    timedOut = timedOut.filter(t => t.username !== target_username);
+    timedOut.push({ username: target_username, until });
+    await supabase2.from("live_rooms").update({ timed_out_users: timedOut }).eq("id", roomId);
+    return res.json({ timed_out_users: timedOut });
+  } catch (err) {
+    console.error("discussions/timeout err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Remove user
+app.post("/api/discussions/room/:roomId/remove", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { host_username, target_username } = req.body;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room || room.host_username !== host_username) return res.status(403).json({ error: "Only host can remove" });
+
+    let removed = room.removed_users || [];
+    if (!removed.includes(target_username)) removed.push(target_username);
+    await supabase2.from("live_rooms").update({ removed_users: removed }).eq("id", roomId);
+    return res.json({ removed_users: removed });
+  } catch (err) {
+    console.error("discussions/remove err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Pin message
+app.post("/api/discussions/room/:roomId/pin", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { host_username, message_id } = req.body;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room || room.host_username !== host_username) return res.status(403).json({ error: "Only host can pin" });
+
+    // Unpin previous
+    if (room.pinned_message_id) {
+      await supabase2.from("live_room_messages").update({ is_pinned: false }).eq("id", room.pinned_message_id);
+    }
+
+    if (message_id) {
+      await supabase2.from("live_room_messages").update({ is_pinned: true }).eq("id", message_id);
+    }
+
+    await supabase2.from("live_rooms").update({ pinned_message_id: message_id || null }).eq("id", roomId);
+    return res.json({ pinned_message_id: message_id || null });
+  } catch (err) {
+    console.error("discussions/pin err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Change room mode
+app.post("/api/discussions/room/:roomId/mode", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { host_username, room_mode } = req.body;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room || room.host_username !== host_username) return res.status(403).json({ error: "Only host can change mode" });
+
+    if (!['open', 'moderated', 'locked'].includes(room_mode)) return res.status(400).json({ error: "Invalid mode" });
+
+    await supabase2.from("live_rooms").update({ room_mode }).eq("id", roomId);
+    return res.json({ room_mode });
+  } catch (err) {
+    console.error("discussions/mode err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Delete message (host only)
+app.post("/api/discussions/room/:roomId/delete-message", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { host_username, message_id } = req.body;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room || room.host_username !== host_username) return res.status(403).json({ error: "Only host can delete messages" });
+
+    await supabase2.from("live_room_messages").delete().eq("id", message_id);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("discussions/delete-message err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// React to message
+app.post("/api/discussions/room/:roomId/react", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { message_id, username, emoji } = req.body;
+    if (!message_id || !username || !emoji) return res.status(400).json({ error: "message_id, username, emoji required" });
+
+    const { data: msg } = await supabase2.from("live_room_messages").select("reactions, reaction_count").eq("id", message_id).single();
+    if (!msg) return res.status(404).json({ error: "Message not found" });
+
+    let reactions = msg.reactions || {};
+    if (!reactions[emoji]) reactions[emoji] = [];
+    const idx = reactions[emoji].indexOf(username);
+    if (idx >= 0) {
+      reactions[emoji].splice(idx, 1);
+      if (reactions[emoji].length === 0) delete reactions[emoji];
+    } else {
+      reactions[emoji].push(username);
+    }
+
+    let totalReactions = 0;
+    Object.values(reactions).forEach(arr => { totalReactions += arr.length; });
+
+    await supabase2.from("live_room_messages").update({
+      reactions,
+      reaction_count: totalReactions,
+    }).eq("id", message_id);
+
+    return res.json({ reactions, reaction_count: totalReactions });
+  } catch (err) {
+    console.error("discussions/react err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Get user's hosted rooms
+app.get("/api/discussions/my-rooms", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.json([]);
+    const { data } = await supabase2.from("live_rooms")
+      .select("*")
+      .eq("host_username", username)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    return res.json(data || []);
+  } catch (err) {
+    return res.json([]);
+  }
+});
+
+// Search discussions by title, username, or fullname
+app.get("/api/discussions/search", async (req, res) => {
+  try {
+    const { q, limit = 20 } = req.query;
+    if (!q || q.trim().length === 0) return res.json([]);
+
+    const query = q.trim().toLowerCase();
+
+    // Search by title
+    const { data: byTitle } = await supabase2
+      .from("live_rooms")
+      .select("*")
+      .ilike("title", `%${query}%`)
+      .order("created_at", { ascending: false })
+      .limit(parseInt(limit));
+
+    // Search by host_username
+    const { data: byHost } = await supabase2
+      .from("live_rooms")
+      .select("*")
+      .ilike("host_username", `%${query}%`)
+      .order("created_at", { ascending: false })
+      .limit(parseInt(limit));
+
+    // Search by fullname (need to look up users)
+    let byFullname = [];
+    try {
+      const { data: users } = await supabase
+        .from("users")
+        .select("username")
+        .ilike("fullname", `%${query}%`)
+        .limit(20);
+      if (users && users.length > 0) {
+        const usernames = users.map(u => u.username);
+        const { data: rooms } = await supabase2
+          .from("live_rooms")
+          .select("*")
+          .in("host_username", usernames)
+          .order("created_at", { ascending: false })
+          .limit(parseInt(limit));
+        byFullname = rooms || [];
+      }
+    } catch {}
+
+    // Merge and deduplicate
+    const seen = new Set();
+    const merged = [];
+    [...(byTitle || []), ...(byHost || []), ...byFullname].forEach(r => {
+      if (!seen.has(r.id)) {
+        seen.add(r.id);
+        merged.push(r);
+      }
+    });
+
+    return res.json(merged.slice(0, parseInt(limit)));
+  } catch (err) {
+    console.error("discussions/search err:", err);
+    return res.json([]);
+  }
+});
+
+// Get archived discussions (ended rooms)
+app.get("/api/discussions/archives", async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const from = (page - 1) * limit;
+    const { data, error } = await supabase2.from("live_rooms")
+      .select("*")
+      .eq("status", "ended")
+      .order("ended_at", { ascending: false })
+      .range(from, from + parseInt(limit) - 1);
+    if (error) return res.json([]);
+    return res.json(data || []);
+  } catch (err) {
+    console.error("discussions/archives err:", err);
+    return res.json([]);
+  }
+});
+
+// Get host's own archive
+app.get("/api/discussions/my-archive", async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) return res.json([]);
+    const { data } = await supabase2.from("live_rooms")
+      .select("*")
+      .eq("host_username", username)
+      .eq("status", "ended")
+      .order("ended_at", { ascending: false })
+      .limit(50);
+    return res.json(data || []);
+  } catch (err) {
+    return res.json([]);
+  }
+});
+
+// Check if user can view archive (host always free)
+app.get("/api/discussions/room/:roomId/check-unlock", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username } = req.query;
+    if (!username) return res.json({ unlocked: false });
+    const { data: room } = await supabase2.from("live_rooms").select("host_username").eq("id", roomId).single();
+    if (room && room.host_username === username) return res.json({ unlocked: true, isHost: true });
+    return res.json({ unlocked: false });
+  } catch (err) {
+    return res.json({ unlocked: false });
+  }
+});
+
+// Unlock archive (pay 500 mobcoins, 10% to host) - no tracking table, just deduct
+app.post("/api/discussions/room/:roomId/unlock", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "Username required" });
+
+    const COST = 500;
+    const HOST_SHARE = 50;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room) return res.status(404).json({ error: "Room not found" });
+    if (room.status !== "ended") return res.status(400).json({ error: "Room is not archived" });
+    if (room.host_username === username) return res.json({ unlocked: true, isHost: true });
+
+    const { data: user } = await supabase.from("users").select("mobcoins").eq("username", username).single();
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if ((user.mobcoins || 0) < COST) return res.status(400).json({ error: "Insufficient mobcoins", balance: user.mobcoins || 0 });
+
+    await supabase.from("users").update({ mobcoins: (user.mobcoins || 0) - COST }).eq("username", username);
+
+    if (room.host_username !== username) {
+      const { data: host } = await supabase.from("users").select("mobcoins").eq("username", room.host_username).single();
+      if (host) await supabase.from("users").update({ mobcoins: (host.mobcoins || 0) + HOST_SHARE }).eq("username", room.host_username);
+    }
+
+    const { data: updatedUser } = await supabase.from("users").select("mobcoins").eq("username", username).single();
+    return res.json({ unlocked: true, cost: COST, host_share: HOST_SHARE, newBalance: updatedUser?.mobcoins || 0 });
+  } catch (err) {
+    console.error("discussions/unlock err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+// Delete room (host only, after room ended - deletes all records)
+app.post("/api/discussions/room/:roomId/delete", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username } = req.body;
+
+    const { data: room } = await supabase2.from("live_rooms").select("*").eq("id", roomId).single();
+    if (!room) return res.status(404).json({ error: "Room not found" });
+    if (room.host_username !== username) return res.status(403).json({ error: "Only host can delete" });
+    if (room.status === "live") return res.status(400).json({ error: "End the room before deleting" });
+
+    // Delete all media from cloudinary
+    const { data: msgs } = await supabase2.from("live_room_messages").select("content, media_url, gif_url").eq("room_id", roomId);
+    if (Array.isArray(msgs)) {
+      for (const m of msgs) {
+        const urls = [m.media_url, m.gif_url, m.message_type === 'image' ? m.content : null].filter(Boolean);
+        for (const url of urls) {
+          if (!url || !url.includes('cloudinary.com')) continue;
+          try {
+            const publicId = url.split('/image/upload/')[1]?.split(/\?/)[0]?.replace(/\.[^.]+$/, '');
+            if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'auto' });
+          } catch {}
+        }
+      }
+    }
+    // Delete all messages first
+    await supabase2.from("live_room_messages").delete().eq("room_id", roomId);
+    // Delete the room
+    await supabase2.from("live_rooms").delete().eq("id", roomId);
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("discussions/delete err:", err);
+    return res.status(500).json({ error: "internal server error" });
   }
 });
 
@@ -10015,10 +10830,114 @@ io.on('connection', function (socket) {
   socket.on('leave_group', function ({ groupId }) { socket.leave(`group_${groupId}`); });
   socket.on('join_user', function ({ username }) { socket.join(`user_${username}`); });
   socket.on('mark_message_seen', function ({ groupId, msgId, username }) {
-    // Proxy to mark seen
     const body = { username };
     console.log('Mark seen:', { groupId, msgId, username });
-    // If you want, you can call the seen endpoint here or do DB updates.
+  });
+
+  // ─── Live Discussion Rooms ───
+  const discussionViewers = globalThis.__discussionViewers || (globalThis.__discussionViewers = new Map());
+  const discussionProfiles = globalThis.__discussionProfiles || (globalThis.__discussionProfiles = new Map());
+
+  socket.on('join_discussion', async function ({ roomId, username }) {
+    socket.join(`discussion_${roomId}`);
+    socket.discussionRoom = roomId;
+    socket.discussionUser = username;
+    if (!discussionViewers.has(roomId)) discussionViewers.set(roomId, new Set());
+    const viewers = discussionViewers.get(roomId);
+    const wasNew = !viewers.has(username);
+    viewers.add(username);
+    if (wasNew) {
+      io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size });
+    }
+  });
+
+  socket.on('leave_discussion', function ({ roomId }) {
+    if (roomId && socket.discussionUser) {
+      const viewers = discussionViewers.get(roomId);
+      if (viewers) {
+        viewers.delete(socket.discussionUser);
+        io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size });
+      }
+    }
+    socket.leave(`discussion_${roomId}`);
+    socket.discussionRoom = null;
+    socket.discussionUser = null;
+  });
+
+  socket.on('discussion_message', function (data) {
+    const { roomId } = data;
+    if (roomId) {
+      io.to(`discussion_${roomId}`).emit('discussion_message', data);
+    }
+  });
+
+  socket.on('discussion_typing', function ({ roomId, username }) {
+    if (roomId && username) {
+      socket.to(`discussion_${roomId}`).emit('discussion_typing', { roomId, username });
+    }
+  });
+
+  socket.on('discussion_stop_typing', function ({ roomId, username }) {
+    if (roomId && username) {
+      socket.to(`discussion_${roomId}`).emit('discussion_stop_typing', { roomId, username });
+    }
+  });
+
+  socket.on('discussion_reaction', function (data) {
+    const { roomId } = data;
+    if (roomId) {
+      io.to(`discussion_${roomId}`).emit('discussion_reaction', data);
+    }
+  });
+
+  socket.on('discussion_pin', function (data) {
+    const { roomId } = data;
+    if (roomId) {
+      io.to(`discussion_${roomId}`).emit('discussion_pin', data);
+    }
+  });
+
+  socket.on('discussion_mode_change', function (data) {
+    const { roomId } = data;
+    if (roomId) {
+      io.to(`discussion_${roomId}`).emit('discussion_mode_change', data);
+    }
+  });
+
+  socket.on('discussion_user_removed', function (data) {
+    const { roomId, username } = data;
+    if (roomId && username) {
+      io.to(`discussion_${roomId}`).emit('discussion_user_removed', data);
+    }
+  });
+
+  socket.on('discussion_room_ended', function (data) {
+    const { roomId } = data;
+    if (roomId) {
+      io.to(`discussion_${roomId}`).emit('discussion_room_ended', data);
+    }
+  });
+
+  socket.on('discussion_delete_message', function (data) {
+    const { roomId, message_id } = data;
+    if (roomId && message_id) {
+      io.to(`discussion_${roomId}`).emit('discussion_delete_message', { message_id });
+    }
+  });
+
+  socket.on('disconnect', function () {
+    if (socket.discussionRoom && socket.discussionUser) {
+      io.to(`discussion_${socket.discussionRoom}`).emit('discussion_typing', {
+        roomId: socket.discussionRoom,
+        username: socket.discussionUser,
+        stopped: true,
+      });
+      const viewers = discussionViewers.get(socket.discussionRoom);
+      if (viewers) {
+        viewers.delete(socket.discussionUser);
+        io.to(`discussion_${socket.discussionRoom}`).emit('discussion_room_update', { participant_count: viewers.size });
+      }
+    }
   });
 });
 

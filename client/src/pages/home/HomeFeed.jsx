@@ -175,8 +175,9 @@ export default function HomeFeed({ propPosts }) {
  }
  }, []);
 
- // Post visibility tracking
+ // Post visibility tracking + view counting
  const visibilityObserver = useRef(null);
+ const viewedPosts = useRef(new Set());
  useEffect(() => {
  visibilityObserver.current = new IntersectionObserver(entries => {
  let ids = [];
@@ -187,9 +188,18 @@ export default function HomeFeed({ propPosts }) {
  }
  });
  if (ids.length) markSeen(ids);
+ // Emit post_view socket events for unique tracking
+ if (window.socket && user.username) {
+ ids.forEach(id => {
+ if (!viewedPosts.current.has(id)) {
+ viewedPosts.current.add(id);
+ window.socket.emit('post_view', { postId: id, username: user.username });
+ }
+ });
+ }
  }, { threshold: 0.5 });
  return () => visibilityObserver.current?.disconnect();
- }, []);
+ }, [user.username]);
 
  const trackPostRef = useCallback(node => {
  if (node && visibilityObserver.current) visibilityObserver.current.observe(node);
@@ -560,7 +570,7 @@ export default function HomeFeed({ propPosts }) {
  }).catch(() => {});
  }
 
- // Like handler
+ // Like handler — uses keepalive fetch so like survives page navigation
  function handleLike(postId) {
  if (!user.username) { window.showAuthPrompt?.('Log in to like posts'); return; }
  let username = user.username;
@@ -570,11 +580,8 @@ export default function HomeFeed({ propPosts }) {
  return { ...p, likes: liked ? p.likes.filter(u => u !== username) : [...p.likes, username] };
  });
  setPosts(updater);
- apiFetch('/like-post', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({ postId, username })
- }).catch(() => setPosts(updater));
+ const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/like-post' : 'https://textmob-provider-api-99ii.onrender.com/like-post';
+ fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId, username }), keepalive: true }).catch(() => {});
  }
 
  // Comment handler
@@ -651,7 +658,7 @@ export default function HomeFeed({ propPosts }) {
  if (cached && cached.length > 0) {
  setPosts(cached);
  setPage(1);
- setHasMore(cached.length >= 10);
+  setHasMore(cached.length > 0);
  setLoading(false);
  window.__feedState[activeTab].posts = cached;
  }
@@ -696,7 +703,7 @@ export default function HomeFeed({ propPosts }) {
  window.__feedState[activeTab].posts = merged;
  return merged;
  });
- let more = filtered.length >= 10;
+  let more = filtered.length > 0;
  setHasMore(more);
  window.__feedState[activeTab].hasMore = more;
  window.__feedState[activeTab].page = pg;
@@ -777,8 +784,8 @@ export default function HomeFeed({ propPosts }) {
  let filtered = (Array.isArray(data) ? data : []).filter(p => !isGroupPost(p));
  setPosts(filtered);
  setPage(1);
- setHasMore(filtered.length >= 10);
- window.__feedState[activeTab] = { posts: filtered, page: 1, hasMore: filtered.length >= 10, scrollY: 0 };
+  setHasMore(filtered.length > 0);
+  window.__feedState[activeTab] = { posts: filtered, page: 1, hasMore: filtered.length > 0, scrollY: 0 };
  })
  .finally(() => { setLoading(false); setPullDelta(0); setNewPosts([]); });
  } else {
@@ -871,6 +878,15 @@ export default function HomeFeed({ propPosts }) {
 
  {/* Mobile tab bar */}
  <TabBar isMobile={true} />
+
+ {/* Floating discussions pill — mobile only */}
+ <div className="md:hidden fixed top-12 left-1/2 -translate-x-1/2 z-50">
+   <a href="/discussions" data-lexum className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 active:scale-95 transition-all">
+     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+     Discussions
+     <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+   </a>
+ </div>
 
  <div className="flex flex-col w-full max-w-2xl mx-auto md:mt-4 bg-white md:rounded-2xl md:border border-gray-100 overflow-visible pb-20">
  {/* Desktop tab bar */}

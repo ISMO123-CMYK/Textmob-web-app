@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import NotificationBanner from './NotificationBanner';
 import SaveCredentialsBanner from '../ui/SaveCredentialsBanner';
 import { SnapUploadProvider } from '../../utils/SnapUploadContext';
 import { apiFetch } from '../../config/api';
 import { fetchProfile } from '../../utils/useProfileCache';
 import AuthPromptModal from '../ui/AuthPromptModal';
-import { showCelebration } from '../ui/CelebrationOverlay';
+import { warmClickSound, initGlobalClickListener } from '../../utils/playMilkyClick';
 
 const STYLES = {
   overlay: {
@@ -125,6 +125,11 @@ export default function AppWrapper({ children }) {
   const [authPrompt, setAuthPrompt] = useState({ show: false, message: '' });
   const [isDisabled, setIsDisabled] = useState(false);
 
+  useEffect(() => {
+    warmClickSound();
+    initGlobalClickListener();
+  }, []);
+
   const username = (() => {
     try { return localStorage.getItem('currentUser'); }
     catch { return null; }
@@ -175,18 +180,16 @@ export default function AppWrapper({ children }) {
     return () => clearInterval(interval);
   }, [username]);
 
+  const [toast, setToast] = useState({ show: false, title: '', message: '', type: 'info' });
+
   useEffect(() => {
-    window.showNotification = () => {};
+    window.showNotification = ({ title, message, type }) => {
+      setToast({ show: true, title: title || '', message: message || '', type: type || 'info' });
+      setTimeout(() => setToast(t => ({ ...t, show: false })), 4000);
+    };
     window.showAuthPrompt = (message) => {
       setAuthPrompt({ show: true, message: message || '' });
     };
-  }, []);
-
-  // 300 users celebration — only on home page
-  useEffect(() => {
-    if (window.location.pathname === '/') {
-      showCelebration();
-    }
   }, []);
 
   if (isDisabled) return <DisabledScreen />;
@@ -202,6 +205,31 @@ export default function AppWrapper({ children }) {
         onCancel={() => setAuthPrompt({ show: false, message: '' })}
         onLogin={() => { setAuthPrompt({ show: false, message: '' }); try { if (!localStorage.getItem('pendingRedirect')) localStorage.setItem('pendingRedirect', window.location.pathname + window.location.search); } catch {} window.Lexum?.navigate('/auth'); }}
       />
+      {toast.show && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] max-w-sm w-[90vw]">
+          <div className={`rounded-2xl px-4 py-3 shadow-xl border flex items-start gap-3 ${
+            toast.type === 'error' ? 'bg-red-50 border-red-200' :
+            toast.type === 'success' ? 'bg-emerald-50 border-emerald-200' :
+            'bg-blue-50 border-blue-200'
+          }`}>
+            <div className="flex-1 min-w-0">
+              {toast.title && <p className={`text-sm font-bold ${
+                toast.type === 'error' ? 'text-red-800' :
+                toast.type === 'success' ? 'text-emerald-800' :
+                'text-blue-800'
+              }`}>{toast.title}</p>}
+              {toast.message && <p className={`text-xs mt-0.5 ${
+                toast.type === 'error' ? 'text-red-600' :
+                toast.type === 'success' ? 'text-emerald-600' :
+                'text-blue-600'
+              }`}>{toast.message}</p>}
+            </div>
+            <button onClick={() => setToast(t => ({ ...t, show: false }))} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
     </SnapUploadProvider>
   );
 }

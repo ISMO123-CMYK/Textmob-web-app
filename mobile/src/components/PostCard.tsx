@@ -8,6 +8,7 @@ import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { useNavigation } from '@react-navigation/native';
 import {
   likePostAPI, addCommentAPI, reactPostAPI, getPostReactionsAPI,
@@ -54,8 +55,36 @@ function PostMenu({ visible, onClose, post, onNegativeSignal, onBlocked }: { vis
   const { username } = useAuth();
   const navigation = useNavigation<any>();
   const isOwnPost = username && post.username === username;
+  const [isSaved, setIsSaved] = React.useState(false);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const raw = await AsyncStorage.getItem('textmob_saved_posts');
+        const ids: string[] = raw ? JSON.parse(raw) : [];
+        setIsSaved(ids.map(String).includes(String(post.id)));
+      } catch {}
+    })();
+  }, [post.id]);
+
+  const toggleSave = async () => {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const raw = await AsyncStorage.getItem('textmob_saved_posts');
+      let ids: string[] = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(ids)) ids = [];
+      const idStr = String(post.id);
+      const idx = ids.indexOf(idStr);
+      if (idx >= 0) { ids.splice(idx, 1); setIsSaved(false); }
+      else { ids.push(idStr); setIsSaved(true); }
+      await AsyncStorage.setItem('textmob_saved_posts', JSON.stringify(ids));
+    } catch {}
+  };
+
   const items = [
     ...(isOwnPost ? [{ icon: 'create-outline' as const, label: 'Edit', edit: true }] : []),
+    { icon: (isSaved ? 'bookmark' : 'bookmark-outline') as any, label: isSaved ? 'Unsave post' : 'Save post', onSave: true },
     { icon: 'share-outline' as const, label: 'Share' },
     { icon: 'link-outline' as const, label: 'Copy link' },
     { type: 'divider' as const },
@@ -83,7 +112,9 @@ function PostMenu({ visible, onClose, post, onNegativeSignal, onBlocked }: { vis
                 style={pmStyles.row}
                   onPress={() => {
                     onClose();
-                    if (item.edit) {
+                    if (item.onSave) {
+                      toggleSave();
+                    } else if (item.edit) {
                       navigation.navigate('PostUpdate', { postId: String(post.id) });
                     } else if (item.label === 'Copy link') {
                       Alert.alert('Copied', 'Post link copied to clipboard!');
@@ -742,6 +773,7 @@ const PostCard = React.memo(function PostCard({
 }: PostCardProps) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
+  const { emit } = useSocket();
   const navigation = useNavigation<any>();
   const authorProfile = useProfileCache(post.username);
 
@@ -778,6 +810,13 @@ const PostCard = React.memo(function PostCard({
       });
     }
   }, [post.id, username, onReact]);
+
+  // Track view via socket
+  useEffect(() => {
+    if (username && post.id) {
+      emit('post_view', { postId: post.id, username });
+    }
+  }, [post.id, username]);
 
   const liked = localLikes.includes(username || '');
   const isGuest = !username;
@@ -951,12 +990,10 @@ const PostCard = React.memo(function PostCard({
           <Ionicons name="happy-outline" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        {showViewButton && (
-          <TouchableOpacity style={[s.actionBtn, { marginLeft: 'auto' }]} onPress={() => navigate(`/post/${post.id}`)}>
-            <Ionicons name="eye-outline" size={18} color={colors.textSecondary} />
-            <Text style={[s.actionCount, { color: colors.textSecondary }]}>View</Text>
-          </TouchableOpacity>
-        )}
+        <View style={[s.actionBtn, { marginLeft: 'auto' }]}>
+          <Ionicons name="eye-outline" size={18} color={colors.textSecondary} />
+          <Text style={[s.actionCount, { color: colors.textSecondary }]}>{Array.isArray(post.views) ? post.views.length : 0}</Text>
+        </View>
       </View>
 
       {/* Comment modal */}

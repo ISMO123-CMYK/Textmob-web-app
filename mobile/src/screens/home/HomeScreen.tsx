@@ -647,9 +647,12 @@ export default function HomeScreen() {
           </TouchableOpacity>
           {username && (
             <TouchableOpacity style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
-              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
+              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Following</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={s.tab} onPress={() => navigate('/discussions')}>
+            <Text style={s.tabText}>Discussions</Text>
+          </TouchableOpacity>
           {username && (
             <TouchableOpacity style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
               <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
@@ -681,10 +684,13 @@ export default function HomeScreen() {
         </TouchableOpacity>
         {username && (
           <TouchableOpacity style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
-            <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
+            <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Following</Text>
             {tab === 'following' && <View style={s.tabIndicator} />}
           </TouchableOpacity>
         )}
+        <TouchableOpacity style={s.tab} onPress={() => navigate('/discussions')}>
+          <Text style={s.tabText}>Discussions</Text>
+        </TouchableOpacity>
         {username && (
           <TouchableOpacity style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
             <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
@@ -799,6 +805,17 @@ export default function HomeScreen() {
           }
         />
       )}
+
+      {/* Floating Discussions pill */}
+      <TouchableOpacity
+        style={[s.discussionsPill, { backgroundColor: colors.primary }]}
+        onPress={() => navigate('/discussions')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="chatbubbles" size={14} color="#fff" />
+        <Text style={s.discussionsPillText}>Discussions</Text>
+        <View style={s.discussionsLiveDot} />
+      </TouchableOpacity>
 
       {/* FAB - toggle between feed and live streams */}
       <TouchableOpacity
@@ -1054,6 +1071,15 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 8,
   },
+  discussionsPill: {
+    position: 'absolute', top: 12, alignSelf: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+    elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15, shadowRadius: 6, zIndex: 50,
+  },
+  discussionsPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  discussionsLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ade80' },
   reactionsOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   reactionsSheet: {
     borderTopLeftRadius: 24, borderTopRightRadius: 24,

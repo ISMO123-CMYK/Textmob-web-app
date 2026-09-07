@@ -1,0 +1,1 @@
+ALTER TABLE "Posts" ADD COLUMN IF NOT EXISTS views JSONB DEFAULT '[]'::jsonb;

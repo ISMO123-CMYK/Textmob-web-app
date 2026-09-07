@@ -1152,9 +1152,16 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
 
  useEffect(() => {
  setCurrentSnap(snap);
- }, [snap]);
+  }, [snap]);
 
- useEffect(() => {
+  // Track view when snap becomes active
+  useEffect(() => {
+    if (isActive && username && currentSnap?.id) {
+      if (window.socket) window.socket.emit('post_view', { postId: currentSnap.id, username });
+    }
+  }, [isActive, currentSnap?.id, username]);
+
+  useEffect(() => {
  let videoEl = videoRef.current;
  if (videoEl) {
  videoEl.muted = isMuted;
@@ -1606,6 +1613,35 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  }}
  >
  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+ </svg>
+ </button>
+ <button
+ onClick={e => {
+ e.stopPropagation();
+ try {
+ let saved = [];
+ try { saved = JSON.parse(localStorage.getItem('textmob_saved_posts') || '[]'); } catch {}
+ if (!Array.isArray(saved)) saved = [];
+ const idStr = String(currentSnap?.id);
+ const idx = saved.indexOf(idStr);
+ if (idx >= 0) saved.splice(idx, 1);
+ else saved.push(idStr);
+ localStorage.setItem('textmob_saved_posts', JSON.stringify(saved));
+ } catch {}
+ }}
+ className="flex flex-col items-center gap-0.5"
+ aria-label="Save"
+ >
+ <svg
+ viewBox="0 0 24 24"
+ style={{
+ width: 28,
+ height: 28,
+ fill: '#fff',
+ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.5))'
+ }}
+ >
+ <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
  </svg>
  </button>
  </div>
@@ -2118,16 +2154,20 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  </div>
  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,.85))', padding: '32px 8px 8px' }}>
  <p style={{ color: '#fff', fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{snap.username}</p>
- <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
- <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
- <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
- <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{(snap.likes || []).length}</span>
- </div>
- <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
- <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" /></svg>
- <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{(snap.comments || []).length}</span>
- </div>
- </div>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+  <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
+  <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{(snap.likes || []).length}</span>
+  </div>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+  <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: 'none', stroke: '#fff', strokeWidth: 2 }}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><circle cx="12" cy="12" r="3" /></svg>
+  <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{(() => { const v = Array.isArray(snap.views) ? snap.views.length : 0; return v; })()}</span>
+  </div>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+  <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" /></svg>
+  <span style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>{(snap.comments || []).length}</span>
+  </div>
+  </div>
  </div>
  </div>
  ) : (
@@ -2360,21 +2400,8 @@ export default function SnapsContent({ startSnapId }) {
 
  async function handleLike(snapId) {
  if (!currentUser) { window.showAuthPrompt?.('Log in to like snaps'); return; }
- let snapBefore = currentSnap?.likes ? [...currentSnap.likes] : [];
- try {
- await apiFetch('/like-post', {
- method: 'POST',
- headers: {
- 'Content-Type': 'application/json'
- },
- body: JSON.stringify({
- postId: snapId,
- username: currentUser
- })
- });
- } catch {
- setCurrentSnap(prev => prev?.id === snapId ? { ...prev, likes: snapBefore } : prev);
- }
+ const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/like-post' : 'https://textmob-provider-api-99ii.onrender.com/like-post';
+ fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: snapId, username: currentUser }), keepalive: true }).catch(() => {});
  }
 
  function handlePosted(newSnap) {
