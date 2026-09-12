@@ -10,6 +10,7 @@ let sessionStart: number | null = null;
 let currentUsername: string | null = null;
 let trackedScrollDepths: Set<number> | null = null;
 let appStateSubscription: any = null;
+let trackingInitialized = false;
 
 async function getUsername(): Promise<string | null> {
   try {
@@ -58,6 +59,9 @@ function stopHeartbeat() {
 }
 
 export function initTracking() {
+  if (trackingInitialized) return;
+  trackingInitialized = true;
+
   getUsername().then(u => {
     currentUsername = u;
     sessionStart = Date.now();
@@ -106,4 +110,5 @@ export function stopTracking() {
     appStateSubscription.remove();
     appStateSubscription = null;
   }
+  trackingInitialized = false;
 }

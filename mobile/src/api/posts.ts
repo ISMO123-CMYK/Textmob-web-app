@@ -23,6 +23,8 @@ export interface Post {
   quoted_post_id?: string;
   group_name?: string;
   group_pic?: string;
+  views?: string[];
+  reply_count?: number;
 }
 
 export interface Comment {
@@ -109,7 +111,7 @@ export async function getUserPostsAPI(username: string, page: number = 0, limit:
   return apiGet<Post[]>(url);
 }
 
-export async function getSnapsFeedAPI(username?: string, limit: number = 20, seenIds?: string, page: number = 1) {
+export async function getSnapsFeedAPI(username?: string, limit: number = 10, seenIds?: string, page: number = 1) {
   return apiPost<any>('/snaps-feed', { username, limit, page, seenIds });
 }
 

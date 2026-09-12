@@ -18,6 +18,7 @@ interface TileDef {
   badge?: number;
   badgeColor?: string;
   sub?: string;
+  params?: any;
 }
 
 export default function HomeLauncherScreen({ navigation }: { navigation: any }) {

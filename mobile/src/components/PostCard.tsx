@@ -689,7 +689,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
   const doShare = async () => {
     try {
       await Share.share({
-        message: `Check out this snap by @${post.username} on Textmob!\nhttps://louda.web.app/snaps?id=${post.id}`,
+        message: `Check out this snap by @${post.username} on Textmob!\nhttps://textmob.web.app/snaps/${post.id}`,
       });
     } catch (e) { /* ignore */ }
   };

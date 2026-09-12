@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Modal,
   TextInput, ActivityIndicator, Image, ScrollView,
@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { apiPost } from '../api/client';
+import { apiGet, apiPost } from '../api/client';
 
 const COIN_PACKS = [5, 10, 25, 50, 100, 200, 500, 1000];
 
@@ -28,6 +28,7 @@ export default function GiftCoinsModal({
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<{ error?: string; success?: string } | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -36,12 +37,18 @@ export default function GiftCoinsModal({
       setSending(false);
       fetchBalance();
     }
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [visible]);
 
   async function fetchBalance() {
     if (!username) return;
     try {
-      const res = await apiPost('/t/wallet', { userId: username });
+      const res = await apiGet(`/balance?username=${encodeURIComponent(username)}`);
       if (res.ok && res.data) {
         setBalance(res.data.mobcoins ?? 0);
       }
@@ -72,7 +79,7 @@ export default function GiftCoinsModal({
       if (!res.ok) return setStatus({ error: res.error || 'Failed to send.' });
       setStatus({ success: 'Sent successfully!' });
       setBalance(prev => (prev !== null ? prev - numAmount : null));
-      setTimeout(() => onClose(), 1500);
+      timerRef.current = setTimeout(() => onClose(), 1500);
     } catch {
       setStatus({ error: 'Network error.' });
     } finally {

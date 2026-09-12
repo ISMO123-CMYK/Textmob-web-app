@@ -567,7 +567,7 @@ function useMentions(value, inputRef) {
 function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate, reactionsOpenFor, setReactionsOpenFor, authorProfile }) {
  const [showInput, setShowInput] = useState(false);
  const [text, setText] = useState('');
- const liked = post.likes.includes(currentUser);
+ const liked = (post.likes || []).includes(currentUser);
  const inputRef = useRef(null);
  const { suggestions, setSuggestions, activeIndex, setActiveIndex, queryInfo, setQueryInfo } = useMentions(text, inputRef);
  const abGuest = !localStorage.currentUser;
@@ -625,7 +625,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
  >
  <MessageCircle className="w-4 h-4 stroke-current" strokeWidth={2} />
- <span>{post.comments.length}</span>
+ <span>{(post.comments || []).length}</span>
  </button>
 
  {/* Quote */}
@@ -1073,7 +1073,7 @@ function MediaGallery({ media, poster }) {
 function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, navigate }) {
  const currentUser = localStorage.currentUser;
  const ended = new Date(post.scheduled_for) <= new Date();
- const liked = post.likes.includes(currentUser);
+ const liked = (post.likes || []).includes(currentUser);
  const dateStr = new Date(post.scheduled_for).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
  return (
@@ -1155,7 +1155,7 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
  const lcNavigate = (path) => { if (lcGuest) { window.showAuthPrompt?.('Create an account to watch live'); return; } navigate(path); };
  const thumbnail = post.media?.[0] || authorProfile.profile_pic || '/assets/live-fallback.jpg';
  const viewers = liveCounts?.[String(post.id)] || 0;
- const liked = post.likes.includes(currentUser);
+ const liked = (post.likes || []).includes(currentUser);
 
  return (
  <div className="bg-white border-b border-gray-100 overflow-hidden pb-4">
@@ -1200,7 +1200,7 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
  <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
  </svg>
- {post.comments.length}
+ {(post.comments || []).length}
  </button>
  </div>
  </div>

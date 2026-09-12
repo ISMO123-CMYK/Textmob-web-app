@@ -31,3 +31,7 @@ export async function searchSnapsAPI(query: string, limit: number = 12) {
   const res = await apiGet<any>(`/snaps-search?query=${encodeURIComponent(query)}&limit=${limit}`);
   return { ...res, data: Array.isArray(res.data) ? res.data : (res.data?.snaps || []) };
 }
+
+export async function getSnapAPI(snapId: string) {
+  return apiGet<any>(`/get-snap/${encodeURIComponent(snapId)}`);
+}

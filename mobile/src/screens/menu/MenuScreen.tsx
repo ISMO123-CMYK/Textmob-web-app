@@ -75,6 +75,8 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
         { label: 'Connections', description: 'Your people, your reach', icon: 'people-outline' as const, action: () => navigation.navigate('Connections') },
         { label: 'Snaps', description: 'Short content. Fast attention', icon: 'videocam-outline' as const, action: () => navigation.navigate('Snaps') },
         { label: 'Discover', description: 'Find what is trending now', icon: 'search-outline' as const, action: () => navigation.navigate('Search') },
+        { label: 'Discussions', description: 'Real-time chat rooms', icon: 'chatbubbles-outline' as const, action: () => navigation.navigate('Discussions') },
+        { label: 'Saved Posts', description: 'Your bookmarked content', icon: 'bookmark-outline' as const, action: () => navigation.navigate('SavedPosts') },
       ],
     },
     {

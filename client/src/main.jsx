@@ -71,7 +71,7 @@ Lexum.init({
     { path: '/@(:username)', responsive: { mobile: ProfileMobile, desktop: ProfileDesktop } },
     { path: '/wallet', responsive: { mobile: WalletMobile, desktop: WalletDesktop } },
     { path: '/snaps', responsive: { mobile: SnapsMobile, desktop: SnapsDesktop } },
-    { path: '/snap/:id', responsive: { mobile: SnapsMobile, desktop: SnapsDesktop } },
+    { path: '/snaps/:id', responsive: { mobile: SnapsMobile, desktop: SnapsDesktop } },
     { path: '/topsearch', responsive: { mobile: TopSearchMobile, desktop: TopSearchDesktop } },
     { path: '/halloffame', responsive: { mobile: HallOfFameMobile, desktop: HallOfFameDesktop } },
     { path: '/tag/:hashtag', responsive: { mobile: HashtagMobile, desktop: HashtagDesktop } },

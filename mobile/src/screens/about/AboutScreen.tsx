@@ -32,7 +32,7 @@ export default function AboutScreen({ navigation }: { navigation: any }) {
         </View>
 
         <Text style={[s.description, { color: colors.textSecondary }]}>
-          Textmob is a social media platform for sharing thoughts, photos, videos, and connecting with people around the world.
+          Textmob is a social media platform for sharing thoughts, photos, videos, starting discussions, seeing view counts, and connecting with people around the world.
         </Text>
 
         <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.web.app/privacy.html')}>

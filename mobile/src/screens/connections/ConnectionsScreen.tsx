@@ -29,7 +29,7 @@ export default function ConnectionsScreen({ route, navigation }: { route: any; n
     const [fRes, folRes, sugRes] = await Promise.all([
       getFollowersAPI(targetUser || ''),
       getFollowingAPI(targetUser || ''),
-      username ? getSuggestionsFeedAPI(username) : Promise.resolve({ ok: false }),
+      username ? getSuggestionsFeedAPI(username) : Promise.resolve({ ok: false } as any),
     ]);
     if (fRes.ok && fRes.data) setFollowers(fRes.data);
     if (folRes.ok && folRes.data) setFollowing(folRes.data);

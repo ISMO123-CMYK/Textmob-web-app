@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, Text, TouchableOpacity, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,103 +12,103 @@ import MenuScreen from '../screens/menu/MenuScreen';
 
 const Tab = createBottomTabNavigator();
 
+const TAB_ITEMS = [
+  { key: 'Home', label: 'Home', icon: 'home' as const },
+  { key: 'Fame', label: 'Fame', icon: 'trophy' as const },
+  { key: 'Snaps', label: 'Snaps', icon: 'videocam' as const },
+  { key: 'Menu', label: 'Menu', icon: 'menu' as const },
+];
+
+function FloatingTabBar({ state, navigation, colors, isDark, insets, onCreate }: any) {
+  const activeColor = colors.primary || '#2563eb';
+  const inactiveColor = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)';
+  const currentRoute = state.routes[state.index]?.name;
+  if (currentRoute === 'Snaps') return null;
+
+  return (
+    <View style={[floatingStyles.container, { bottom: insets.bottom + 12 }]}>
+      <View style={[floatingStyles.pill, { backgroundColor: isDark ? '#1c1c1e' : '#ffffff' }]}>
+        {TAB_ITEMS.map((item) => {
+          const isActive = currentRoute === item.key;
+          return (
+            <TouchableOpacity
+              key={item.key}
+              style={[floatingStyles.tabItem, isActive && floatingStyles.tabItemActive]}
+              onPress={() => navigation.navigate(item.key)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={item.icon}
+                size={22}
+                color={isActive ? activeColor : inactiveColor}
+              />
+              <Text style={[
+                floatingStyles.tabLabel,
+                { color: isActive ? activeColor : inactiveColor },
+              ]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+
+        <TouchableOpacity
+          style={[floatingStyles.createBtn, { backgroundColor: isDark ? '#fff' : '#111' }]}
+          onPress={onCreate}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={22} color={isDark ? '#111' : '#fff'} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 export default function MainTabs({ navigation }: { navigation: any }) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [showCreate, setShowCreate] = useState(false);
 
-  const screenOptions = useMemo(() => ({
-    headerShown: false,
-    tabBarActiveTintColor: '#2563eb',
-    tabBarInactiveTintColor: colors.textSecondary,
-    tabBarStyle: {
-      backgroundColor: colors.card,
-      borderTopColor: colors.border,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      height: 56 + insets.bottom,
-      paddingBottom: insets.bottom + 4,
-      paddingTop: 0,
-    },
-    tabBarItemStyle: {
-      paddingTop: 0,
-      paddingBottom: 0,
-    },
-  }), [colors, insets.bottom]);
-
   return (
     <>
-      <Tab.Navigator screenOptions={screenOptions}
+      <Tab.Navigator
+        screenOptions={{
+          headerShown: false,
+          tabBarShowLabel: false,
+          tabBarStyle: { display: 'none' },
+        }}
+        tabBar={(props) => (
+          <FloatingTabBar
+            {...props}
+            colors={colors}
+            isDark={isDark}
+            insets={insets}
+            onCreate={() => setShowCreate(true)}
+          />
+        )}
       >
         <Tab.Screen
           name="Home"
           component={HomeScreen}
-          options={{
-            tabBarLabel: 'Home',
-            tabBarIcon: ({ color, focused }) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name="home" size={20} color={color} />
-              </View>
-            ),
-          }}
+          options={{ tabBarIcon: () => null }}
         />
         <Tab.Screen
           name="Fame"
           component={HallOfFameScreen}
-          options={{
-            tabBarLabel: 'Fame',
-            tabBarIcon: ({ color, focused }) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name="trophy" size={20} color={color} />
-              </View>
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="Create"
-          component={HomeScreen} // dummy, overridden by button click
-          listeners={{
-            tabPress: (e) => {
-              e.preventDefault();
-              setShowCreate(true);
-            },
-          }}
-          options={{
-            tabBarLabel: '',
-            tabBarIcon: () => (
-              <View style={styles.createBtn}>
-                <Ionicons name="add" size={24} color="#fff" />
-              </View>
-            ),
-          }}
+          options={{ tabBarIcon: () => null }}
         />
         <Tab.Screen
           name="Snaps"
           component={SnapsScreen}
-          options={{
-            tabBarLabel: 'Snaps',
-            tabBarStyle: { display: 'none' },
-            tabBarIcon: ({ color, focused }) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name="videocam" size={20} color={color} />
-              </View>
-            ),
-          }}
+          options={{ tabBarIcon: () => null }}
         />
         <Tab.Screen
           name="Menu"
           component={MenuScreen}
-          options={{
-            tabBarLabel: 'Menu',
-            tabBarIcon: ({ color, focused }) => (
-              <View style={[styles.tabIconWrap, focused && styles.tabIconActive]}>
-                <Ionicons name="menu" size={20} color={color} />
-              </View>
-            ),
-          }}
+          options={{ tabBarIcon: () => null }}
         />
       </Tab.Navigator>
 
-      {/* Create sheet modal matching the frontend style exactly */}
       <Modal
         visible={showCreate}
         transparent
@@ -190,31 +190,47 @@ export default function MainTabs({ navigation }: { navigation: any }) {
   );
 }
 
-const styles = StyleSheet.create({
-  tabIconWrap: {
-    width: 32,
-    height: 24,
+const floatingStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    zIndex: 100,
+    alignItems: 'center',
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 28,
+  },
+  tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    gap: 3,
   },
-  tabIconActive: {
-    backgroundColor: '#eff6ff',
+  tabItemActive: {
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    borderRadius: 16,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   createBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    backgroundColor: '#2563eb',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -8,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    marginLeft: 6,
   },
+});
+
+const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

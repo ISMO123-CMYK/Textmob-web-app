@@ -2,7 +2,7 @@
   "expo": {
     "name": "Textmob",
     "slug": "mobile",
-    "version": "1.2",
+    "version": "1.3",
     "scheme": "textmob",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,9 +29,9 @@
         "backgroundColor": "#09090b"
       },
       "package": "com.bossprogrammer20.mobile",
-      "versionCode": 3,
+      "versionCode": 4,
       "edgeToEdgeEnabled": true,
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "resize"
     },
     "extra": {
       "eas": {

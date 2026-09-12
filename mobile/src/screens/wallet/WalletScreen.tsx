@@ -70,7 +70,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
   const searchUsers = async (q: string) => {
     setSearchQ(q);
     if (q.trim().length < 2) { setSearchResults([]); return; }
-    const res = await searchUsersAPI(q, 8, username);
+    const res = await searchUsersAPI(q, 8, username || undefined);
     if (res.ok) setSearchResults(res.data || []);
   };
 

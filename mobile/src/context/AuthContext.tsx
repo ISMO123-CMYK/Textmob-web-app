@@ -36,9 +36,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = useCallback(async () => {
     if (!username) return;
     const res = await getProfileAPI(username);
-    if (res.ok && res.data && res.data.username && mountedRef.current) {
+    if (!mountedRef.current) return;
+    if (res.ok && res.data && res.data.username) {
       setUser(res.data);
-    } else if (res.ok && res.data && !res.data.username && res.status !== 0 && mountedRef.current) {
+    } else if (res.status === 0 || !res.ok) {
+      // Network error or timeout — keep stale data, do NOT log out
+    } else if (res.ok && res.data && !res.data.username) {
+      // Server explicitly says user doesn't exist (e.g. deleted/banned)
       setUser(null);
       storage.removeSecure(KEYS.CURRENT_USER).catch(() => {});
       storage.removeStore('CACHED_USER_PROFILE_' + username).catch(() => {});

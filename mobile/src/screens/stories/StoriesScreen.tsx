@@ -190,7 +190,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   viewerMedia: { width: '100%', height: '80%' },
   viewerUser: { color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 16 },
   uploadingOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center',
     justifyContent: 'center',

@@ -216,6 +216,11 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
     else if (path.startsWith('/wallet')) navigation.navigate('Wallet');
     else if (path.startsWith('/accountscenter')) navigation.navigate('AccountsCenter');
     else if (path.startsWith('/search')) navigation.navigate('Search');
+    else if (path.startsWith('/events')) navigation.navigate('Events');
+    else if (path.startsWith('/live')) navigation.navigate('LiveView');
+    else if (path.startsWith('/saved')) navigation.navigate('SavedPosts');
+    else if (path.startsWith('/connections')) navigation.navigate('Connections');
+    else if (path.startsWith('/discussions')) navigation.navigate('Discussions');
     else if (path.startsWith('/make-post')) {
       const quoteId = path.split('=')[1];
       navigation.navigate('CreatePost', quoteId ? { quotePostId: quoteId } : undefined);

@@ -65,9 +65,13 @@ function workerFetch(endpoint, options) {
       mainThreadFetch(endpoint, options).then(resolve);
       return;
     }
-    pending.set(id, { resolve });
     const body = options?.body;
-    const serializable = body instanceof FormData ? body : (typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined);
+    if (body instanceof FormData) {
+      mainThreadFetch(endpoint, options).then(resolve);
+      return;
+    }
+    pending.set(id, { resolve });
+    const serializable = typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined;
     w.postMessage({ id, endpoint, options: { ...options, body: serializable } });
   });
 }

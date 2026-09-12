@@ -93,7 +93,7 @@ export default function MobileHeader() {
         <div className="flex items-center gap-1">
           {/* Search Button */}
           <button
-            onClick={() => window.Lexum.navigate('/topsearch')}
+            onClick={() => window.Lexum?.navigate('/topsearch')}
             className="p-2 rounded-full hover:bg-gray-100 text-gray-700 active:scale-95 transition-all"
           >
             <NavIcons.Search className="w-5 h-5" />
@@ -101,7 +101,7 @@ export default function MobileHeader() {
 
           {/* Notification Button */}
           <button
-            onClick={() => window.Lexum.navigate('/activity')}
+            onClick={() => window.Lexum?.navigate('/activity')}
             className="relative p-2 rounded-full hover:bg-gray-100 text-gray-700 active:scale-95 transition-all"
           >
             <NavIcons.Bell className="w-5 h-5" />
@@ -114,7 +114,7 @@ export default function MobileHeader() {
 
           {/* Menu button */}
           <button
-            onClick={() => window.Lexum.navigate('/menu')}
+            onClick={() => window.Lexum?.navigate('/menu')}
             className="p-2 rounded-full hover:bg-gray-100 text-gray-700 active:scale-95 transition-all"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

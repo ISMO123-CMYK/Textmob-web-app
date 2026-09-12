@@ -151,7 +151,7 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
   // Detect video dimensions to adjust contentFit like web client
   useEffect(() => {
     if (!player) return;
-    const sub = player.addListener('statusChange', ({ status }) => {
+    const sub = player.addListener('statusChange', ({ status }: any) => {
       if (status?.videoWidth && status?.videoHeight) {
         const w = status.videoWidth as number;
         const h = status.videoHeight as number;

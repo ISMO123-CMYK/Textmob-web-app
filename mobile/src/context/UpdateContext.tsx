@@ -68,6 +68,8 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
   const [downloading, setDownloading] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [downloadedMB, setDownloadedMB] = useState(0);
+  const [totalMB, setTotalMB] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
 
@@ -126,6 +128,8 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     setDownloading(true);
     setError(null);
     setProgress(0);
+    setDownloadedMB(0);
+    setTotalMB(0);
     setInstalling(false);
     try {
       if (!FileSystem.cacheDirectory) throw new Error('No cache directory');
@@ -139,6 +143,8 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
         (snapshot) => {
           if (snapshot.totalBytesExpectedToWrite > 0) {
             setProgress(snapshot.totalBytesWritten / snapshot.totalBytesExpectedToWrite);
+            setDownloadedMB(Math.round((snapshot.totalBytesWritten / (1024 * 1024)) * 10) / 10);
+            setTotalMB(Math.round((snapshot.totalBytesExpectedToWrite / (1024 * 1024)) * 10) / 10);
           }
         }
       );
@@ -224,7 +230,9 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
                 <Text style={[styles.progressText, { color: colors.textSecondary }]}>
                   {installing
                     ? 'Download complete — opening installer...'
-                    : `Downloading ${Math.round(progress * 100)}%`}
+                    : totalMB > 0
+                      ? `Downloading ${downloadedMB} MB / ${totalMB} MB`
+                      : `Downloading ${Math.round(progress * 100)}%`}
                 </Text>
               </View>
             ) : (

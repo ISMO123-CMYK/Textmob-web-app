@@ -132,6 +132,7 @@ export default function HomeScreen() {
   const [onboardSelected, setOnboardSelected] = useState<string[]>([]);
   const pullStartY = useRef(0);
   const scrollY = useRef(0);
+  const fetchIdRef = useRef(0);
   const viewabilityConfigCallbackRef = useRef(({ changed, viewableItems }: any) => {
     if (viewableItems.length > 0) {
       setActiveIndex(viewableItems[0].index ?? -1);
@@ -269,6 +270,7 @@ export default function HomeScreen() {
   }, [showFeedSettings, loadBlockedUsers]);
 
   const fetchPosts = useCallback(async (pageNum: number, isRefresh = false) => {
+    const thisFetchId = ++fetchIdRef.current;
     setLoading(true);
     setError('');
     try {
@@ -284,6 +286,7 @@ export default function HomeScreen() {
         seenIds: seen || undefined,
         blockedUsers: blockedArr,
       });
+      if (thisFetchId !== fetchIdRef.current) return;
       if (res.ok && res.data) {
         const filtered = (Array.isArray(res.data) ? res.data : []).filter(p => p && !isGroupPost(p));
         setPosts(prev => {
@@ -296,6 +299,7 @@ export default function HomeScreen() {
         setError('Failed to load posts');
       }
     } catch (e: any) {
+      if (thisFetchId !== fetchIdRef.current) return;
       setError(e.message || 'Network error');
     } finally {
       setLoading(false);
@@ -460,7 +464,7 @@ export default function HomeScreen() {
     });
     reactPostAPI(String(postId), username, reaction, etext).then(res => {
       if (res.ok && res.data?.reactions) {
-        setReactionCountsCache(c => ({ ...c, [String(postId)]: computeReactionData(res.data.reactions, username) }));
+        setReactionCountsCache(c => ({ ...c, [String(postId)]: computeReactionData(res.data!.reactions, username) }));
       }
     }).catch(() => setTimeout(() => fetchReactions(postId), 1500));
   }, [username, posts]);
@@ -647,10 +651,10 @@ export default function HomeScreen() {
           </TouchableOpacity>
           {username && (
             <TouchableOpacity style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
-              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Following</Text>
+              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity style={s.tab} onPress={() => navigate('/discussions')}>
+          <TouchableOpacity style={s.tab} onPress={() => (navigation.getParent() || navigation).navigate('Discussions')}>
             <Text style={s.tabText}>Discussions</Text>
           </TouchableOpacity>
           {username && (
@@ -684,15 +688,15 @@ export default function HomeScreen() {
         </TouchableOpacity>
         {username && (
           <TouchableOpacity style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
-            <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Following</Text>
-            {tab === 'following' && <View style={s.tabIndicator} />}
+              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
+              {tab === 'following' && <View style={s.tabIndicator} />}
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={s.tab} onPress={() => (navigation.getParent() || navigation).navigate('Discussions')}>
+            <Text style={s.tabText}>Discussions</Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity style={s.tab} onPress={() => navigate('/discussions')}>
-          <Text style={s.tabText}>Discussions</Text>
-        </TouchableOpacity>
-        {username && (
-          <TouchableOpacity style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
+          {username && (
+            <TouchableOpacity style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
             <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
@@ -805,17 +809,6 @@ export default function HomeScreen() {
           }
         />
       )}
-
-      {/* Floating Discussions pill */}
-      <TouchableOpacity
-        style={[s.discussionsPill, { backgroundColor: colors.primary }]}
-        onPress={() => navigate('/discussions')}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="chatbubbles" size={14} color="#fff" />
-        <Text style={s.discussionsPillText}>Discussions</Text>
-        <View style={s.discussionsLiveDot} />
-      </TouchableOpacity>
 
       {/* FAB - toggle between feed and live streams */}
       <TouchableOpacity
@@ -1071,15 +1064,6 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 8,
   },
-  discussionsPill: {
-    position: 'absolute', top: 12, alignSelf: 'center',
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
-    elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15, shadowRadius: 6, zIndex: 50,
-  },
-  discussionsPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  discussionsLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#4ade80' },
   reactionsOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   reactionsSheet: {
     borderTopLeftRadius: 24, borderTopRightRadius: 24,

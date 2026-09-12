@@ -105,7 +105,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
       if (r.ok && r.data) {
         const p = r.data;
         setPost(p);
-        function flattenComments(comments, parentId = null) {
+        function flattenComments(comments: any[], parentId: string | null = null): any[] {
           if (!comments) return [];
           const result = [];
           for (const c of comments) {
@@ -114,7 +114,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
           }
           return result;
         }
-        setComments(flattenComments(p.comments));
+        setComments(flattenComments(p.comments || []));
         if (p.type?.startsWith('group-post-')) {
           const groupId = p.type.replace('group-post-', '');
           apiGet(`/groups/${groupId}/light?username=${username || ''}`).then(gr => {

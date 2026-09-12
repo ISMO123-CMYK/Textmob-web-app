@@ -61,7 +61,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         getProfileAPI(targetUsername),
         getUserPostsAPI(targetUsername, 1, POST_PAGE_LIMIT),
       ]);
-      if (!profileRes.ok) throw new Error('Profile not found');
+      if (!profileRes.ok || !profileRes.data) throw new Error('Profile not found');
       const p = profileRes.data;
       setProfile(p);
       const fetchedIsOrg = (p.profile_type || '').toLowerCase() === 'organisation';
@@ -144,7 +144,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         getProfileAPI(targetUsername),
         getUserPostsAPI(targetUsername, 1, POST_PAGE_LIMIT),
       ]);
-      if (profileRes.ok) {
+      if (profileRes.ok && profileRes.data) {
         const p = profileRes.data;
         setProfile(p);
         const fetchedIsOrg = (p.profile_type || '').toLowerCase() === 'organisation';
@@ -426,9 +426,9 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
       <FlatList
         key={`${activeTab}_${viewMode}`}
-        data={activeTab === 'posts' ? posts : (activeTab === 'connections' ? connections : followingList)}
+        data={(activeTab === 'posts' ? posts : (activeTab === 'connections' ? connections : followingList)) as any}
         numColumns={activeTab === 'posts' && viewMode === 'grid' ? 3 : 1}
-        keyExtractor={(item) => (activeTab === 'posts' ? String(item.id) : item)}
+        keyExtractor={(item: any) => (activeTab === 'posts' ? String(item.id) : item)}
         renderItem={
           activeTab === 'posts'
             ? viewMode === 'grid'

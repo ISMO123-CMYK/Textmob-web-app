@@ -28,8 +28,19 @@ async function getAllCacheKeys(): Promise<string[]> {
   }
 }
 
-export function isOnline() {
-  return true;
+export async function isOnline(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch('https://httpbin.org/status/200', {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function isOfflineMode(): Promise<boolean> {

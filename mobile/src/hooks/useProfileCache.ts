@@ -54,7 +54,7 @@ export async function fetchProfile(username: string) {
     return entry.profile;
   }
 
-  if (inflightRequests[username]) return inflightRequests[username];
+  if (username in inflightRequests) return inflightRequests[username];
 
   inflightRequests[username] = (async () => {
     try {

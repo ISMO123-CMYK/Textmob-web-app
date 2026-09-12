@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useIsFocused } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { getFeedPostsAPI, likePostAPI, reactPostAPI, addCommentAPI, getSnapsFeedAPI, Post } from '../../api/posts';
+import { getSnapAPI } from '../../api/snaps';
 import { getFollowStatusAPI, followAPI, friendAPI } from '../../api/users';
 import { CATEGORIES } from '../../data/categories';
 import * as ImagePicker from 'expo-image-picker';
@@ -50,9 +51,10 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
   useEffect(() => {
     try {
       if (isActive) {
-        player.play();
+        if (!isPaused) player.play();
       } else {
         player.pause();
+        setIsPaused(false);
       }
     } catch (e) { /* ignore */ }
     return () => {
@@ -62,17 +64,26 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
 
   const [seekIndicator, setSeekIndicator] = useState<'forward' | 'backward' | null>(null);
   const [showHeart, setShowHeart] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const lastTapRef = useRef(0);
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCenterTap = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
+      if (singleTapTimer.current) { clearTimeout(singleTapTimer.current); singleTapTimer.current = null; }
       onDoubleTap?.();
       setShowHeart(true);
       setTimeout(() => setShowHeart(false), 600);
       lastTapRef.current = 0;
     } else {
       lastTapRef.current = now;
+      singleTapTimer.current = setTimeout(() => {
+        try {
+          if (player.playing) { player.pause(); setIsPaused(true); } else { player.play(); setIsPaused(false); }
+        } catch (e) {}
+        singleTapTimer.current = null;
+      }, 300);
     }
   };
 
@@ -80,7 +91,7 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
     try {
       const currentTime = player.currentTime || 0;
       const newTime = direction === 'forward' ? currentTime + 10 : Math.max(0, currentTime - 10);
-      player.seekTo(newTime);
+      player.seekBy(newTime - currentTime);
       setSeekIndicator(direction);
       setTimeout(() => setSeekIndicator(null), 500);
     } catch (err) {}
@@ -133,10 +144,10 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
       )}
 
       {/* Pause overlay */}
-      {!isActive && (
+      {(!isActive || isPaused) && (
         <View style={styles.pauseOverlay} pointerEvents="none">
           <View style={styles.pauseIconCircle}>
-            <Ionicons name="pause" size={32} color="#fff" />
+            <Ionicons name={isPaused && isActive ? "play" : "pause"} size={32} color="#fff" />
           </View>
         </View>
       )}
@@ -184,7 +195,7 @@ function SnapFollowButton({ targetUsername, currentUsername }: { targetUsername:
       const isOrg = profileType !== 'individual';
       const action = isOrg ? 'follow' : 'friend';
       const api = isOrg ? followAPI : friendAPI;
-      const res = await api(targetUsername, currentUsername, action);
+      const res = await api(targetUsername, currentUsername!, action);
       if (res.ok && res.data) {
         setStatus(res.data.status);
       }
@@ -394,6 +405,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
   const [containerHeight, setContainerHeight] = useState(SCREEN_HEIGHT);
   const sharedVideo = route?.params?.sharedVideo as { uri: string; name?: string; type?: string } | undefined;
   const sharedCaption = route?.params?.sharedCaption as string | undefined;
+  const startSnapId = route?.params?.startSnapId as string | undefined;
 
   const [snaps, setSnaps] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -426,6 +438,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
   const [searchSnapResults, setSearchSnapResults] = useState<any[]>([]);
   const [searchingSnaps, setSearchingSnaps] = useState(false);
   const searchSnapTimer = useRef<any>(null);
+  const flatListRef = useRef<FlatList>(null);
   const [wizardStep, setWizardStep] = useState(1);
   const [captionCursor, setCaptionCursor] = useState(0);
   const commentInputRef = useRef<TextInput>(null);
@@ -442,8 +455,15 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
 
   const [snapPage, setSnapPage] = useState(1);
   const [hasMoreSnaps, setHasMoreSnaps] = useState(true);
+  const [activeSnapIndex, setActiveSnapIndex] = useState(0);
 
-  useEffect(() => { loadSnaps(1); }, []);
+  useEffect(() => {
+    if (startSnapId) {
+      loadFeedAroundSnap(startSnapId);
+    } else {
+      loadSnaps(1);
+    }
+  }, []);
 
   // Video shared into the app from another app (Share to Textmob / deep link)
   useEffect(() => {
@@ -461,12 +481,52 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
   const loadSnaps = async (pg: number = 1, append: boolean = false) => {
     if (!append) setLoading(true);
     const seen = getSeenParam();
-    const res = await getSnapsFeedAPI(username || undefined, 20, seen || undefined, pg);
+    const limit = pg === 1 ? 10 : 5;
+    const res = await getSnapsFeedAPI(username || undefined, limit, seen || undefined, pg);
     if (res.ok && res.data) {
       const snapList = Array.isArray(res.data) ? res.data : (res.data.snaps || []);
       setSnaps(prev => append ? [...prev, ...snapList] : snapList);
       setHasMoreSnaps(res.data.hasMore !== false);
       setSnapPage(pg);
+    }
+    setLoading(false);
+  };
+
+  const loadFeedAroundSnap = async (snapId: string) => {
+    setLoading(true);
+    try {
+      const snapRes = await getSnapAPI(snapId);
+      if (!snapRes.ok || !snapRes.data) {
+        setLoading(false);
+        return;
+      }
+      const targetSnap = {
+        ...snapRes.data,
+        likes: Array.isArray(snapRes.data.likes) ? snapRes.data.likes : [],
+        comments: Array.isArray(snapRes.data.comments) ? snapRes.data.comments : [],
+      };
+
+      const seen = getSeenParam();
+      const feedRes = await getSnapsFeedAPI(username || undefined, 10, seen || undefined, 1);
+      let feedList = (Array.isArray(feedRes.data) ? feedRes.data : (feedRes.data?.snaps || [])).map((snap: any) => ({
+        ...snap,
+        likes: Array.isArray(snap.likes) ? snap.likes : [],
+        comments: Array.isArray(snap.comments) ? snap.comments : [],
+      }));
+
+      let idx = feedList.findIndex((s: any) => String(s.id) === String(snapId));
+      if (idx === -1) {
+        feedList = [targetSnap, ...feedList];
+        idx = 0;
+      }
+
+      setSnaps(feedList);
+      setActiveSnapIndex(idx);
+      setHasMoreSnaps(feedRes.data?.hasMore !== false);
+      setSnapPage(1);
+      markSeen([snapId]);
+    } catch (e) {
+      // ignore
     }
     setLoading(false);
   };
@@ -516,7 +576,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
     if (!q.trim()) { setSearchSnapResults([]); setSearchingSnaps(false); return; }
     setSearchingSnaps(true);
     try {
-      const res = await apiGet(`/snaps-search?query=${encodeURIComponent(q.trim())}&limit=12`);
+      const res = await apiGet(`/snaps-search?query=${encodeURIComponent(q.trim())}&limit=20`);
       if (res.ok && res.data) {
         const list = Array.isArray(res.data) ? res.data : (res.data.snaps || []);
         setSearchSnapResults(list);
@@ -526,10 +586,25 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
     }
   };
 
+  const handleSnapSearchPress = useCallback((snap: any) => {
+    setShowSearch(false);
+    setSearchSnapQuery('');
+    setSearchSnapResults([]);
+    setSnaps(prev => {
+      const idx = prev.findIndex((s: any) => String(s.id) === String(snap.id));
+      if (idx >= 0) {
+        setTimeout(() => flatListRef.current?.scrollToIndex({ index: idx, animated: false }), 100);
+        return prev;
+      }
+      setTimeout(() => flatListRef.current?.scrollToIndex({ index: 0, animated: false }), 100);
+      return [snap, ...prev];
+    });
+  }, []);
+
   const handleShare = useCallback(async (item: Post) => {
     try {
       await Share.share({
-        message: `Check out this snap by @${item.username} on Textmob!\nhttps://louda.web.app/snaps?id=${item.id}`,
+        message: `Check out this snap by @${item.username} on Textmob!\nhttps://textmob.web.app/snaps/${item.id}`,
       });
     } catch (error) {
       if (error && (error as any).message !== 'User did not share') console.error(error);
@@ -685,6 +760,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
       </View>
 
       <FlatList
+        ref={flatListRef}
         data={snaps}
         renderItem={renderItem}
         keyExtractor={(item) => String(item.id)}
@@ -731,26 +807,71 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
             />
           </View>
           {searchingSnaps ? (
-            <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 40 }} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 4, gap: 4 }}>
+              {[1,2,3,4,5,6].map(i => (
+                <View key={i} style={{ width: (Dimensions.get('window').width - 12) / 2, aspectRatio: 9/16, borderRadius: 12, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }} />
+              ))}
+            </View>
           ) : searchSnapResults.length > 0 ? (
             <FlatList
               data={searchSnapResults}
               keyExtractor={(item, i) => String(item.id || i)}
-              contentContainerStyle={{ padding: 12 }}
+              numColumns={2}
+              contentContainerStyle={{ padding: 4 }}
+              columnWrapperStyle={{ gap: 4 }}
               renderItem={({ item }) => (
-                <TouchableOpacity style={{ flexDirection: 'row', gap: 12, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}
-                  onPress={() => { setShowSearch(false); setSearchSnapQuery(''); setSearchSnapResults([]); }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.textPrimary, fontSize: 14 }} numberOfLines={2}>{item.text || 'No text'}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 4 }}>@{item.username}</Text>
-                  </View>
+                <TouchableOpacity
+                  style={{ width: (Dimensions.get('window').width - 12) / 2, borderRadius: 12, overflow: 'hidden', marginBottom: 4 }}
+                  activeOpacity={0.85}
+                  onPress={() => handleSnapSearchPress(item)}
+                >
+                  {item.media?.[0] ? (
+                    <View>
+                      <Image source={{ uri: item.media[0] }} style={{ width: '100%', aspectRatio: 9/16, backgroundColor: '#111' }} resizeMode="cover" />
+                      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingTop: 30, paddingBottom: 8, paddingHorizontal: 8, backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', flexShrink: 1 }} numberOfLines={1}>@{item.username}</Text>
+                          {item.verified && <Ionicons name="checkmark-circle" size={11} color="#60a5fa" />}
+                        </View>
+                        {item.text ? <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginBottom: 4 }} numberOfLines={1}>{item.text}</Text> : null}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                            <Ionicons name="heart" size={11} color="#fff" />
+                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{(item.likes || []).length}</Text>
+                          </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                            <Ionicons name="eye" size={11} color="#fff" />
+                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{Array.isArray(item.views) ? item.views.length : 0}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={{ width: '100%', aspectRatio: 9/16, backgroundColor: '#111', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="videocam" size={24} color="rgba(255,255,255,0.15)" />
+                    </View>
+                  )}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>No snaps found</Text>}
             />
           ) : searchSnapQuery.trim() ? (
-            <Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>No snaps found</Text>
-          ) : null}
+            <View style={{ alignItems: 'center', marginTop: 60 }}>
+              <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Ionicons name="search" size={24} color={colors.textSecondary} />
+              </View>
+              <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '600' }}>No snaps found</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>Try a different search term</Text>
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', marginTop: 60 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : 'rgba(37,99,235,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Ionicons name="search" size={28} color="#60a5fa" />
+              </View>
+              <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600' }}>Discover snaps</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 6, opacity: 0.6 }}>Search by caption or hashtag</Text>
+            </View>
+          )}
         </SafeAreaView>
       </Modal>
 

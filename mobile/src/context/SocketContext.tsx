@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { API_BASE_URL } from '../api/client';
-import { io as Io } from 'socket.io-client';
+import io from 'socket.io-client';
 
 interface SocketContextType {
   socket: any | null;
@@ -28,7 +28,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     try {
-      const io = Io(API_BASE_URL, {
+      const socket = io(API_BASE_URL, {
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: 10,
@@ -36,28 +36,28 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         reconnectionDelayMax: 30000,
       });
 
-      io.on('connect', () => {
+      socket.on('connect', () => {
         if (mounted) {
           setIsConnected(true);
-          socketRef.current = io;
+          socketRef.current = socket;
           forceUpdate(n => n + 1);
         }
       });
 
-      io.on('disconnect', () => {
+      socket.on('disconnect', () => {
         if (mounted) setIsConnected(false);
       });
 
-      io.on('connect_error', (err: any) => {
+      socket.on('connect_error', (err: any) => {
         console.warn('[Socket] Connection error:', err?.message);
       });
 
       if (mounted) {
-        socketRef.current = io;
+        socketRef.current = socket;
 
         listenersRef.current.forEach((handlers, event) => {
           handlers.forEach((handler) => {
-            io.on(event, handler);
+            socket.on(event, handler);
           });
         });
       }
@@ -92,6 +92,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
     listenersRef.current.get(event)!.add(handler);
     if (socketRef.current) {
+      socketRef.current.off(event, handler);
       socketRef.current.on(event, handler);
     }
   }, []);

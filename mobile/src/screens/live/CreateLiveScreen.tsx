@@ -31,7 +31,7 @@ export default function CreateLiveScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}
         >
           <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>Go Back</Text>
         </TouchableOpacity>

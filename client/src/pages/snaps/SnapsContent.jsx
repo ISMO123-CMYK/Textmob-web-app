@@ -1279,7 +1279,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  }
 
  async function handleShareClick() {
- let url = window.location.origin + '/snap/' + (currentSnap?.id || '');
+ let url = window.location.origin + '/snaps/' + (currentSnap?.id || '');
  try {
  if (navigator?.share) {
  await navigator.share({
@@ -1694,10 +1694,10 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  c(newIndex);
  if (d[newIndex]) {
  onSnapViewed?.([d[newIndex].id]);
- // Update URL to /snap/:id for shareable links (Facebook-style)
+ // Update URL to /snaps/:id for shareable links (Facebook-style)
  var snapId = d[newIndex].id;
- if (window.history && window.location.pathname !== '/snap/' + snapId) {
- window.history.replaceState(null, '', '/snap/' + snapId);
+ if (window.history && window.location.pathname !== '/snaps/' + snapId) {
+ window.history.replaceState(null, '', '/snaps/' + snapId);
  }
  }
  }
@@ -1790,7 +1790,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  setSearchLoading(true);
  let timer = setTimeout(async () => {
  try {
- let res = await apiFetch(`/snaps-search?query=${encodeURIComponent(searchQuery.trim())}&limit=12`);
+  let res = await apiFetch(`/snaps-search?query=${encodeURIComponent(searchQuery.trim())}&limit=24`);
  if (active && res.ok) {
  let data = await res.json();
  setSearchResults(data.snaps || []);
@@ -2135,14 +2135,22 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  {searchResults.map(snap => (
  <div
  key={snap.id}
- onClick={() => {
- setSearchOpen(false);
- setSearchQuery('');
- setSearchResults([]);
- let idx = d.findIndex(item => String(item.id) === String(snap.id));
- if (idx >= 0) handleIndexChange(idx);
- else { f(prev => [snap, ...prev]); handleIndexChange(0); }
- }}
+  onClick={() => {
+  setSearchOpen(false);
+  setSearchQuery('');
+  setSearchResults([]);
+  let idx = d.findIndex(item => String(item.id) === String(snap.id));
+  if (idx >= 0) { handleIndexChange(idx); }
+  else {
+    let newSnap = { ...snap, likes: Array.isArray(snap.likes) ? snap.likes : [], comments: Array.isArray(snap.comments) ? snap.comments : [] };
+    f(prev => [newSnap, ...prev]);
+    c(0);
+    onSnapViewed?.([newSnap.id]);
+    if (window.history && window.location.pathname !== '/snaps/' + newSnap.id) {
+      window.history.replaceState(null, '', '/snaps/' + newSnap.id);
+    }
+  }
+  }}
  style={{ borderRadius: 12, overflow: 'hidden', cursor: 'pointer', position: 'relative' }}
  >
  {snap.media?.[0] ? (
@@ -2153,7 +2161,8 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  <span style={{ color: '#fff', fontSize: 9, fontWeight: 700 }}>HD</span>
  </div>
  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,.85))', padding: '32px 8px 8px' }}>
- <p style={{ color: '#fff', fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{snap.username}</p>
+  <p style={{ color: '#fff', fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{snap.username}</p>
+  {snap.verified && <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#60a5fa', flexShrink: 0 }}><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
   <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
   <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>

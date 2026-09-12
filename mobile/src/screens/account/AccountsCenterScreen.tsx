@@ -79,7 +79,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       case 'composer': return <ComposerTab username={username} posts={posts} setPosts={setPosts} colors={colors} isDark={isDark} setActiveSub={setActiveSub} />;
       case 'posts': return <PostsTab posts={posts} setPosts={setPosts} username={username} colors={colors} isDark={isDark} setActiveSub={setActiveSub} />;
       case 'snaps': return <SnapsTab posts={posts} setPosts={setPosts} colors={colors} isDark={isDark} />;
-      case 'grow': return <GrowTab stats={stats} profile={profile} postsCount={postsCount} username={username} isOrg={isOrg} colors={colors} setActiveSub={setActiveSub} accent={accent} />;
+      case 'grow': return <GrowTab stats={stats} profile={profile} postsCount={postsCount} username={username} isOrg={isOrg} colors={colors} isDark={isDark} setActiveSub={setActiveSub} accent={accent} />;
       case 'leaderboard': return <LeaderboardTab colors={colors} />;
       case 'profile': return <EditProfileTab profile={profileData || profile} setProfileData={setProfileData} username={username} isOrg={isOrg} colors={colors} isDark={isDark} accent={accent} />;
       case 'prefs': return <PrefsTab user={profileData || profile} setProfileData={setProfileData} username={username} colors={colors} isDark={isDark} accent={accent} />;
@@ -996,7 +996,7 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
   );
 }
 
-function GrowTab({ stats, profile, postsCount, username, isOrg, colors, setActiveSub, accent }: any) {
+function GrowTab({ stats, profile, postsCount, username, isOrg, colors, isDark, setActiveSub, accent }: any) {
   const mobcoins = stats?.mobcoins ?? 0;
   const rank = stats?.rank ?? null;
   const streak = stats?.streak ?? 0;
@@ -1139,8 +1139,11 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
       try {
         const formData = new FormData();
         formData.append('coverPhoto', { uri: asset.uri, type: asset.mimeType || 'image/jpeg', name: asset.fileName || 'cover.jpg' } as any);
-        const res = await apiPost(`/profile/${encodeURIComponent(username || '')}/cover-photo`, formData);
-        if (res?.cover_photo) {
+        const res = await apiPost(`/profile/${encodeURIComponent(username || '')}/cover-photo`, formData) as any;
+        if (res?.data?.cover_photo) {
+          setCoverPreview(res.data.cover_photo);
+          invalidateProfileCache(username);
+        } else if (res?.cover_photo) {
           setCoverPreview(res.cover_photo);
           invalidateProfileCache(username);
         }
@@ -1183,8 +1186,8 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
       }
       const res = await updateProfileAPI(username, formData);
       if (!res.ok) throw new Error(res.error || 'Update failed');
-      if (res.data?.updatedFields) {
-        setProfileData((prev: any) => ({ ...prev, ...res.data.updatedFields }));
+      if ((res.data as any)?.updatedFields) {
+        setProfileData((prev: any) => ({ ...prev, ...(res.data as any).updatedFields }));
       } else if (res.data) {
         setProfileData((prev: any) => ({ ...prev, ...res.data }));
       }
