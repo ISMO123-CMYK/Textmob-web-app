@@ -76,7 +76,7 @@ export default function HomeLauncherScreen({ navigation }: { navigation: any }) 
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Image source={require('../../assets/defaultbackg.jpg')} style={styles.bgImage} resizeMode="cover" />
+      <Image source={require('../../../assets/defaultbackg.jpg')} style={styles.bgImage} resizeMode="cover" />
       <View style={styles.overlay} />
 
       <View style={styles.outer}>
