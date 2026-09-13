@@ -383,7 +383,7 @@ app.get("/posts-by-hashtag", async (req, res) => {
     const { data, error } = await supabase2.from("Posts").select("*").ilike("text", `%#${hashtag}%`);
     if (error) return res.status(500).json({ error: "Failed to fetch posts" });
     const regex = new RegExp(`(^|\\s)#${hashtag}(\\s|$|[^\\w])`, "i");
-    const filtered = data.filter(post => regex.test(post.text));
+    const filtered = data.filter(post => regex.test(post.text) && !(post.disabled_for_now === true));
     if (filtered.length === 0) return res.json({ message: "No posts found for this exact hashtag" });
     res.json({ posts: filtered });
   } catch (error) {
@@ -1144,6 +1144,7 @@ app.get('/feed', async (req, res) => {
     const { data: groups, error: groupsErr } = await supabase2.from('groups').select('id').or(`created_by.eq.${username},payload.users.user_id.eq.${username}`);
     if (groupsErr) throw groupsErr;
     const { data: personalPosts, error: perErr } = await supabase2.from('Posts').select('*').not('type', 'ilike', 'group-post-%').order('created_at', { ascending: false }).limit(parseInt(limit));
+    const filteredPosts = (personalPosts || []).filter(p => !(p.disabled_for_now === true));
     if (perErr) throw perErr;
     var groupPosts = [];
     if (groups && groups.length > 0) {
@@ -1154,7 +1155,7 @@ app.get('/feed', async (req, res) => {
         groupPosts = groupPosts.concat(gp.map(function (p) { return { ...p, group_name: p.groups ? p.groups.name : null }; }));
       }
     }
-    const allPosts = [].concat(personalPosts || [], groupPosts);
+    const allPosts = [].concat(filteredPosts || [], groupPosts);
     const ranked = allPosts.sort(function (a, b) { if (a.created_at !== b.created_at) return new Date(b.created_at) - new Date(a.created_at); var aLikes = a.likes ? a.likes.length : 0; var bLikes = b.likes ? b.likes.length : 0; return bLikes - aLikes; }).slice(0, parseInt(limit));
     res.json(ranked);
   } catch (err) {

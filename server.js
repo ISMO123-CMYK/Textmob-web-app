@@ -3939,7 +3939,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
     const now = Date.now();
     const HOUR = 3600000;
 
-    const scored = snaps.filter(p => !blockedUsers.has(p.username)).map(p => {
+    const scored = snaps.filter(p => !blockedUsers.has(p.username) && !(p.disabled_for_now === true)).map(p => {
       const ageMs = now - new Date(p.created_at).getTime();
       const ageHours = Math.max(0.1, ageMs / HOUR);
       const likes = (p.likes || []).length;
@@ -4094,7 +4094,7 @@ app.get("/snaps-search", async (req, res) => {
     }
 
     const now = Date.now();
-    const snapList = (snaps || []).map(s => {
+    const snapList = (snaps || []).filter(s => !(s.disabled_for_now === true)).map(s => {
       const likes = Array.isArray(s.likes) ? s.likes.length : 0;
       const comments = Array.isArray(s.comments) ? s.comments.length : 0;
       const engagement = likes + comments * 3;
