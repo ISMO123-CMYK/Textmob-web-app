@@ -16,7 +16,7 @@ import PostCard from '../../components/PostCard';
 import { timeAgo } from '../../utils/format';
 import { apiGet } from '../../api/client';
 
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
 function CommentRow({ item, colors, borderColor, onPress, onReply, onDelete, replyToId, setReplyToId, replyText, setReplyText, handleSubmitReply, username, postUsername }: {
   item: Comment; colors: any; borderColor: string; onPress: (u: string) => void;

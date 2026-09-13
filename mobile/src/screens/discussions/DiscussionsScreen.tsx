@@ -11,7 +11,7 @@ import io from 'socket.io-client';
 
 const GIPHY_API_KEY = '1PsuVrcwCRiOYQEfqgPOd9kVuoRmuhai';
 const GIPHY_API_BASE = 'https://api.giphy.com/v1/gifs';
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 // Exact same categories as desktop — no emojis on desktop
 const CATEGORIES = ['all', 'general', 'football', 'technology', 'music', 'politics', 'religion', 'entertainment', 'gaming', 'business', 'education'];
 // Exact same 10 reaction emojis as desktop Discussions.jsx

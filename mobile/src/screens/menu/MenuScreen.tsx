@@ -11,7 +11,7 @@ import { apiGet, apiPost } from '../../api/client';
 import useProfileCache from '../../hooks/useProfileCache';
 import { storage, KEYS } from '../../utils/storage';
 
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
 export default function MenuScreen({ navigation }: { navigation: any }) {
   const { colors, isDark } = useTheme();

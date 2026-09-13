@@ -58,7 +58,7 @@ app.get("/quick-profile/:username", async (req, res) => {
       .eq("username", username)
       .single();
     if (error || !user) {
-      return res.json({ profile_pic: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg', notifications: [], error: "User not found" });
+      return res.json({ profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b', notifications: [], error: "User not found" });
     }
     res.json(user);
   } catch (error) {
@@ -355,7 +355,7 @@ app.get('/app', function (req, res) {
 
 // GET /default-avatar
 app.get('/default-avatar', (req, res) => {
-  res.redirect(301, 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg');
+  res.redirect(301, 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b');
 });
 
 // GET /about

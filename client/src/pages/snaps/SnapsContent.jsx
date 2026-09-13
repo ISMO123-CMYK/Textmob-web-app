@@ -77,7 +77,7 @@ function An(e) {
  if (!e || e === 'undefined') {
  return {
  fullname: 'Guest',
- profile_pic: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg',
+ profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b',
  notifications: []
  };
  } else {
@@ -115,7 +115,7 @@ async function Mn(e) {
  console.warn('Async profile fetch failed for', e, t);
  let n = {
  fullname: e,
- profile_pic: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg',
+ profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b',
  notifications: []
  };
  On.set(e, n);
@@ -155,7 +155,7 @@ function Nn(e) {
  }, [e]);
  return t || {
  fullname: e || 'Loading...',
- profile_pic: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg',
+ profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b',
  notifications: []
  };
 }

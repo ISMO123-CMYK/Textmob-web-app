@@ -23,7 +23,7 @@ import useProfileCache from '../hooks/useProfileCache';
 import { getFollowStatusAPI, followAPI, friendAPI } from '../api/users';
 import { SnapVideoPlayer } from '../screens/snaps/SnapsScreen';
 
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 function getScreenDims() {
   const { width, height } = Dimensions.get('window');
   return { SCREEN_WIDTH: width || 390, SCREEN_HEIGHT: height || 800 };

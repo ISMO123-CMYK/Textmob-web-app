@@ -181,7 +181,7 @@ export default function AccountsCenter() {
   const accent = isOrg ? 'bg-purple-600' : 'bg-blue-600';
   const accentText = isOrg ? 'text-purple-600' : 'text-blue-600';
   const accentLight = isOrg ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600';
-  const defaultPic = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+  const defaultPic = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
   if (loading) {
     return (
@@ -515,7 +515,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       <div style={{ background: isOrg ? 'linear-gradient(135deg, #2563eb, #6d28d9)' : 'linear-gradient(135deg, #2563eb, #1e40af)' }} className='rounded-2xl p-5 text-white'>
         <div className="flex items-center gap-3 mb-5">
           <img
-            src={profile?.profile_pic || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg'}
+            src={profile?.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b'}
             alt=""
             className="w-12 h-12 rounded-xl object-cover border-2 border-white/20 flex-shrink-0"
           />
@@ -790,7 +790,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
     biography: profile?.biography || '',
   });
   const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(profile?.profile_pic || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg');
+  const [photoPreview, setPhotoPreview] = useState(profile?.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b');
   const [coverPreview, setCoverPreview] = useState(profile?.cover_photo || '');
   const [coverSaving, setCoverSaving] = useState(false);
   const [saving, setSaving] = useState(false);

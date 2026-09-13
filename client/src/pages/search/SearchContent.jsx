@@ -529,7 +529,7 @@ export default function SearchContent() {
                         className="flex items-center gap-3 p-3 bg-white hover:bg-gray-100 border border-gray-100 rounded-2xl cursor-pointer transition-colors"
                       >
                         <img
-                          src={user.profile_pic || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg'}
+                          src={user.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b'}
                           alt={user.username}
                           className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                         />

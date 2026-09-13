@@ -126,7 +126,7 @@ class MemoryDB {
   getPostsForFeed(username, tab, following, friends, blocked, limit = 100) {
     let pool = this.posts.filter(p =>
       p && p.id && p.username &&
-      !p.disabled &&
+      !p.disabled && !p.disabled_for_now &&
       !(p.type && p.type.startsWith('group')) &&
       !blocked.has(p.username)
     );

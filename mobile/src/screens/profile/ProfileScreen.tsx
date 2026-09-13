@@ -14,7 +14,7 @@ import { followAPI, getFollowStatusAPI } from '../../api/users';
 import { clearApiCache } from '../../api/client';
 import { timeAgo, formatNumber } from '../../utils/format';
 
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 const POST_PAGE_LIMIT = 24;
 
 export default function ProfileScreen({ route, navigation }: { route: any; navigation: any }) {

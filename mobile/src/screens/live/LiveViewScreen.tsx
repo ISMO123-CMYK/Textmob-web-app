@@ -14,7 +14,7 @@ import { getLiveStreamsAPI, LiveStream } from '../../api/live';
 import { apiPost, API_BASE_URL } from '../../api/client';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 const GIFTS = [
   { id: 'rose', tier: 1, name: 'Rose', emoji: '🌹', color: '#f59e0b', cost: 10 },
   { id: 'fire', tier: 2, name: 'Fire', emoji: '🔥', color: '#f97316', cost: 50 },

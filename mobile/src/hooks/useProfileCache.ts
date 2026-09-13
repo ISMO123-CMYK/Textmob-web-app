@@ -13,7 +13,7 @@ const profileCache = new Map<string, CacheEntry>();
 const listeners = new Map<string, Set<(profile: any) => void>>();
 const inflightRequests: Record<string, Promise<any>> = {};
 
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
 function evictIfNeeded() {
   if (profileCache.size < MAX_CACHE_SIZE) return;

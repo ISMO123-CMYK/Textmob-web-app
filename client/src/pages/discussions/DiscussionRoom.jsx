@@ -3,7 +3,7 @@ import { apiFetch } from '../../config/api';
 import NavIcons from '../../utils/navIcons';
 
 const EMOJIS = ['\u2764\uFE0F', '\uD83D\uDE02', '\uD83D\uDD25', '\uD83D\uDC4D', '\uD83D\uDE2E', '\uD83D\uDE22', '\uD83D\uDC4F', '\uD83D\uDE21', '\uD83E\uDD70', '\uD83D\uDE4C', '\uD83D\uDCAF', '\uD83E\uDD14', '\uD83E\uDD2F', '\uD83D\uDE0E', '\uD83E\uDD29', '\uD83D\uDE34', '\uD83D\uDE07', '\uD83D\uDC94', '\uD83D\uDE05', '\uD83D\uDE4F'];
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
 function timeAgo(d) {
   if (!d) return '';

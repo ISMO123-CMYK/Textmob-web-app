@@ -27,7 +27,7 @@ import { getSeenParam, markSeen } from '../../utils/seen';
 const SCREEN_WIDTH = Dimensions.get('window').width || 390;
 const SCREEN_HEIGHT = Dimensions.get('window').height || 800;
 const EMOJIS = ['❤️', '😂', '🔥', '👍', '😍', '😢', '😡', '🎉', '🙏', '💀', '🤣', '😭', '🥰', '😘', '😎', '🤩', '💯', '✨', '🫡', '🫶'];
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
 
 function avatarColor(username: string): string {

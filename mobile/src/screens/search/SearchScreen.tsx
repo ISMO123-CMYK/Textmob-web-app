@@ -14,7 +14,7 @@ import { storage, KEYS } from '../../utils/storage';
 import { useNavigation } from '@react-navigation/native';
 import PostCard from '../../components/PostCard';
 
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 const SUGGESTIONS_STORAGE_KEY = 'search_history';
 
 function useDebounce(value: string, delay: number) {

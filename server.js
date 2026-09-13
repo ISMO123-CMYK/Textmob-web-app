@@ -1059,9 +1059,9 @@ setInterval(async () => {
 }, pingInterval);
 
 cloudinary.config({
-  cloud_name: 'dzvm9xe1i',
-  api_key: '145943618557148',
-  api_secret: '48g6aAx6fyU5JdRdhqkQgiBJ7zc',
+  cloud_name: 'dtln8gnxh',
+  api_key: '694256694994696',
+  api_secret: 'cK4e4MfVHHBWS-YCwwsb18rO5GM',
 });
 
 // --- DevPay SDK Initialization ---
@@ -2284,7 +2284,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
           email: email ? email.trimEnd() : "noemail@gmail.com",
           phone: phone ? phone.trimEnd() : "nophone",
           password,
-          profile_pic: profilePicUrl || "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg",
+          profile_pic: profilePicUrl || "https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b",
           followers: [],
           following: [],
           friends: [],
@@ -2333,7 +2333,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
         email: email ? email.trimEnd() : "noemail@gmail.com",
         phone: phone ? phone.trimEnd() : "nophone",
         password,
-        profile_pic: profilePicUrl || "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg",
+        profile_pic: profilePicUrl || "https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b",
         followers: [],
         following: [],
         friends: [],
@@ -2889,7 +2889,7 @@ app.get("/profile/:username", async (req, res) => {
 
     if (error || !user) {
       return res.json({
-        profile_pic: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg',
+        profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b',
         notifications: [],
         post_count: 0,
         total_likes: 0,
@@ -3049,7 +3049,7 @@ app.post(
 
       const uploadResult = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          { folder: "cover-photos", resource_type: "auto", transformation: [{ width: 1200, height: 400, crop: "fill" }] },
+          { folder: "cover-photos", resource_type: "auto" },
           (error, result) => error ? reject(error) : resolve(result)
         );
         streamifier.createReadStream(req.file.buffer).pipe(stream);
@@ -4168,7 +4168,7 @@ app.get("/get-snap/:id", async (req, res) => {
       snap.author_fullname = user.fullname;
       snap.profile_type = user.profile_type;
     } else {
-      snap.profile_pic = "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg";
+      snap.profile_pic = "https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b";
       snap.verified = false;
       snap.author_fullname = snap.username;
     }
@@ -8066,7 +8066,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
     if (memoryDb && memoryDb.isReady && !isPublic) {
       let pool = memoryDb.posts.filter(p =>
         p && p.id && p.username &&
-        !p.disabled &&
+        !p.disabled && !p.disabled_for_now &&
         !(p.type && p.type.startsWith('group')) &&
         !blockedUsers.has(p.username)
       );
@@ -8179,7 +8179,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
           .order('created_at', { ascending: false })
           .limit(POST_POOL_LIMIT);
         if (!posts) return res.json([]);
-        const filtered = posts.filter(p => p && p.id && p.username && !(p.disabled === true));
+        const filtered = posts.filter(p => p && p.id && p.username && !(p.disabled === true) && !(p.disabled_for_now === true));
         const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
         const scored = filtered.map(p => ({
           ...p,
@@ -8210,7 +8210,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
         .order('created_at', { ascending: false })
         .limit(POST_POOL_LIMIT);
       if (!posts) return res.json([]);
-      const filtered = posts.filter(p => p && p.id && p.username && !(p.type || '').toLowerCase().startsWith('group') && !(p.disabled === true));
+      const filtered = posts.filter(p => p && p.id && p.username && !(p.type || '').toLowerCase().startsWith('group') && !(p.disabled === true) && !(p.disabled_for_now === true));
 
       const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
       const scored = filtered.map(p => ({
@@ -8256,7 +8256,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
     if (!fetchedPosts.length) return res.json([]);
 
     const eligible = fetchedPosts.filter(p =>
-      p && p.id && p.username && !p.group_id && !p.isGroupPost && !blockedUsers.has(p.username) && !(p.disabled === true)
+      p && p.id && p.username && !p.group_id && !p.isGroupPost && !blockedUsers.has(p.username) && !(p.disabled === true) && !(p.disabled_for_now === true)
     );
     if (!eligible.length) return res.json([]);
 
@@ -8384,7 +8384,7 @@ app.get("/get-live-posts", async (req, res) => {
       blockedUsers = new Set(me?.blocked_users || []);
     } catch { /* non-fatal */ }
 
-    const eligible = livePosts.filter(p => p && p.username && !blockedUsers.has(p.username) && !(p.disabled === true));
+    const eligible = livePosts.filter(p => p && p.username && !blockedUsers.has(p.username) && !(p.disabled === true) && !(p.disabled_for_now === true));
 
     // Optional: Rank by creator's mobcoins to prioritize popular creators
     const authorUsernames = [...new Set(eligible.map(p => p.username))];
@@ -8558,7 +8558,7 @@ app.post("/api/discussions/upload", upload.single("media"), async (req, res) => 
 
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-        { folder: "discussion-media", resource_type: "auto", transformation: [{ width: 800, quality: "auto", fetch_format: "auto" }] },
+        { folder: "discussion-media", resource_type: "auto" },
         (err, result) => err ? reject(err) : resolve(result)
       );
       stream.end(req.file.buffer);
@@ -9337,7 +9337,7 @@ async function getUserIdFromUsername(username) {
 }
 
 app.get('/default-avatar', (req, res) => {
-  res.redirect(301, 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg');
+  res.redirect(301, 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b');
 });
 app.get('/events-feed', async (req, res) => {
   const now = new Date().toISOString();

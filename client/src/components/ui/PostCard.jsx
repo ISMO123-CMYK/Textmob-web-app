@@ -9,7 +9,7 @@ import GiftCoinsModal from './GiftCoinsModal';
 import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban } from 'lucide-react';
 
 /* ─── constants ─── */
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 const U = { navigate: path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path) };
 const isVideo = e => /\.(mp4|webm|ogg)$/i.test(String(e || ''));
 

@@ -9,9 +9,9 @@ const supabase2 = createClient(supabaseUr, supabaseKe);
 
 // Cloudinary details
 cloudinary.config({
-  cloud_name: 'dzvm9xe1i',
-  api_key: '145943618557148',
-  api_secret: '48g6aAx6fyU5JdRdhqkQgiBJ7zc',
+  cloud_name: 'dtln8gnxh',
+  api_key: '694256694994696',
+  api_secret: 'cK4e4MfVHHBWS-YCwwsb18rO5GM',
 });
 
 async function cleanupLiveVideos() {

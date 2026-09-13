@@ -22,7 +22,7 @@ import SaveCredentialsBanner from '../../components/SaveCredentialsBanner';
 import { CATEGORIES, CATEGORY_IDS } from '../../data/categories';
 import type { Category } from '../../data/categories';
 
-const DEFAULT_PIC = 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg';
+const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 const REACTIONS = [
   { r: '❤️', t: 'love' }, { r: '😂', t: 'funny' }, { r: '🔥', t: 'fire' },
   { r: '👍', t: 'like' }, { r: '😮', t: 'wow' }, { r: '😢', t: 'sad' },
@@ -930,7 +930,7 @@ export default function HomeScreen() {
                 ) : blockedList.map((u: any) => (
                   <View key={u.username} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                      <Image source={{ uri: u.profile_pic || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1746095979/profile-pictures/e2st5nispbicnhnir9cf.jpg' }} style={{ width: 32, height: 32, borderRadius: 16 }} />
+                      <Image source={{ uri: u.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b' }} style={{ width: 32, height: 32, borderRadius: 16 }} />
                       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }} numberOfLines={1}>@{u.username}</Text>
                     </View>
                     <TouchableOpacity onPress={() => {
