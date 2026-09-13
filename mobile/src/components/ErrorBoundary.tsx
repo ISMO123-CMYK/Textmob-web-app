@@ -1,18 +1,19 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 
 type Props = { children: React.ReactNode; onClose?: () => void };
-type State = { hasError: boolean; error?: Error };
+type State = { hasError: boolean; error?: Error; componentStack?: string; showDetails: boolean };
 
 export class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { hasError: false };
-  static getDerivedStateFromError(error: Error): State {
+  state: State = { hasError: false, showDetails: false };
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
   componentDidCatch(error: Error, info: any) {
-    console.warn('[ErrorBoundary]', error, info);
+    console.warn('[ErrorBoundary]', error?.message, error?.stack, info?.componentStack);
+    this.setState({ componentStack: info?.componentStack });
   }
-  reset = () => this.setState({ hasError: false, error: undefined });
+  reset = () => this.setState({ hasError: false, error: undefined, componentStack: undefined, showDetails: false });
   render() {
     if (this.state.hasError) {
       return (
@@ -34,6 +35,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
               </TouchableOpacity>
             </View>
             <Text style={{ color: '#6b7280', fontSize: 10, marginTop: 12, textAlign: 'center' }}>Dismiss to continue to app</Text>
+            <TouchableOpacity onPress={() => this.setState(s => ({ showDetails: !s.showDetails }))} style={{ marginTop: 10, padding: 8 }}>
+              <Text style={{ color: '#60a5fa', fontSize: 11, fontWeight: '700' }}>{this.state.showDetails ? 'Hide details' : 'Show details'}</Text>
+            </TouchableOpacity>
+            {this.state.showDetails && (
+              <ScrollView style={{ maxHeight: 220, marginTop: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 10, width: '100%' }}>
+                <Text selectable style={{ color: '#d1d5db', fontSize: 10, fontFamily: 'monospace' }}>
+                  {[this.state.error?.name + ': ' + this.state.error?.message, this.state.error?.stack, this.state.componentStack].filter(Boolean).join('\n\n')}
+                </Text>
+              </ScrollView>
+            )}
           </View>
         </View>
       );

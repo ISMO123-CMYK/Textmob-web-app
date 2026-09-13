@@ -44,7 +44,7 @@ export function UploadProgressProvider({ children }: { children: React.ReactNode
     <UploadProgressContext.Provider value={{ uploads, startUpload, updateProgress, completeUpload, failUpload }}>
       {children}
       {/* Global Upload Progress Indicator */}
-      {Object.entries(uploads).map(([id, upload]) => (
+      {Object.entries(uploads || {}).map(([id, upload]) => (
         <View key={id} style={{
           position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000,
           height: 4, backgroundColor: 'rgba(37,99,235,0.15)',

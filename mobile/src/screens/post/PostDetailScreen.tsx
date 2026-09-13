@@ -220,7 +220,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     setPost(prev => prev ? {
       ...prev,
       options: prev.options?.map(o => {
-        const votes = o.votes.filter(v => v !== username);
+        const votes = (o.votes || []).filter(v => v !== username);
         if (o.id === optionId) votes.push(username);
         return { ...o, votes };
       }),

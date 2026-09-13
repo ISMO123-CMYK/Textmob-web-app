@@ -389,7 +389,7 @@ export default function HomeScreen() {
     setPosts(prev => prev.map(p => p.id === postId ? {
       ...p,
       options: p.options?.map(o => {
-        const votes = o.votes.filter(v => v !== username);
+        const votes = (o.votes || []).filter(v => v !== username);
         if (o.id === optionId) votes.push(username);
         return { ...o, votes };
       }),

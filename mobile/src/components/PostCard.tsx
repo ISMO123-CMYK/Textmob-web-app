@@ -468,13 +468,14 @@ function MediaLightbox({ media, startIndex, onClose }: { media: string[]; startI
 function PollContent({ post, onVote }: { post: Post; onVote: (postId: string | number, optionId: string | number) => void }) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
-  const totalVotes = post.options?.reduce((a, o) => a + o.votes.length, 0) || 0;
+  const totalVotes = post.options?.reduce((a, o) => a + (o.votes || []).length, 0) || 0;
 
   return (
     <View style={{ marginBottom: 10, gap: 8 }}>
       {post.options?.map(opt => {
-        const voted = opt.votes.includes(username || '');
-        const pct = totalVotes > 0 ? Math.round(opt.votes.length / totalVotes * 100) : 0;
+        const optVotes = opt.votes || [];
+        const voted = optVotes.includes(username || '');
+        const pct = totalVotes > 0 ? Math.round(optVotes.length / totalVotes * 100) : 0;
         return (
           <TouchableOpacity
             key={opt.id}
@@ -787,7 +788,7 @@ const PostCard = React.memo(function PostCard({
   const [localComments, setLocalComments] = useState<Comment[]>(post.comments || []);
   const [localLikes, setLocalLikes] = useState<string[]>(post.likes || []);
 
-  const reactionData = externalReactionCounts?.[String(post.id)] || localReactionCounts;
+  const reactionData = externalReactionCounts?.[String(post.id)] || localReactionCounts || { counts: {}, userReaction: null };
   const { counts: reactionCounts, userReaction } = reactionData;
 
   useEffect(() => {
@@ -875,8 +876,8 @@ const PostCard = React.memo(function PostCard({
 
   const isLongText = post.text && post.text.length > 200;
   const displayText = !textExpanded && isLongText ? post.text.slice(0, 200) + '…' : post.text;
-  const totalReactions = Object.values(reactionCounts).reduce((a, b) => a + b, 0);
-  const topReactions = Object.entries(reactionCounts).map(([e, n]) => ({ e, n })).sort((a, b) => b.n - a.n).slice(0, 3);
+  const totalReactions = Object.values(reactionCounts || {}).reduce((a, b) => a + b, 0);
+  const topReactions = Object.entries(reactionCounts || {}).map(([e, n]) => ({ e, n })).sort((a, b) => b.n - a.n).slice(0, 3);
 
   // Post type-specific rendering
   if (post.type === 'snap') {
