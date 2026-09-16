@@ -85,11 +85,13 @@ export default function DesktopHeader({ activeTab, setActiveTab }) {
                 </button>
               </a>
 
-              {/* Refresh Page */}
+              {/* Refresh feed only */}
               <button 
-                onClick={() => window.location.reload()} 
+                onClick={() => {
+                  window.dispatchEvent(new Event('textmob-feed-refresh'));
+                }} 
                 className="p-3 rounded-full hover:bg-gray-100 active:scale-90 transition-all group"
-                title="Refresh"
+                title="Refresh feed"
               >
                 <svg className="w-5 h-5 text-gray-700 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

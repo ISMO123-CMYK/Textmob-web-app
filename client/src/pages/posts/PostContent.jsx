@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 ﻿import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../../config/api';
 import { cn } from '../../utils/classNames';
@@ -20,7 +21,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  return (
  <div className={`flex items-start gap-2 ${depth > 0 ? 'ml-8 mt-2' : 'mt-3'}`}>
  <img
- src={profile.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b'}
+ src={profile.profile_pic || DEFAULT_AVATAR}
  alt={profile.fullname}
  className="w-7 h-7 rounded-full object-cover flex-shrink-0 border border-gray-100 "
  loading="lazy"
@@ -164,7 +165,7 @@ function CommentInput({ onSubmit }) {
  return (
  <div className="flex items-center gap-2 relative">
  <img
- src={localStorage.cached_profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b'}
+ src={localStorage.cached_profile_pic || DEFAULT_AVATAR}
  className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100 "
  alt=""
  />

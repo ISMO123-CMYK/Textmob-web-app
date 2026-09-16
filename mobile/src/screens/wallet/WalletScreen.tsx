@@ -523,9 +523,9 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
             <View style={[s.earnIconBig, { backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#fffbeb' }]}>
               <Ionicons name="cash-outline" size={28} color="#d97706" />
             </View>
-            <Text style={[s.sheetTitle, { color: colors.textPrimary, textAlign: 'center' }]}>Earning is coming soon</Text>
+            <Text style={[s.sheetTitle, { color: colors.textPrimary, textAlign: 'center' }]}>Earn Mobcoins</Text>
             <Text style={[s.giftDesc, { color: colors.textSecondary, textAlign: 'center' }]}>
-              We're building ways for you to earn Mobcoins, through watch rewards, daily check-ins, referrals, and more. Stay tuned!
+              Earn +5 Mobcoins every time any of your posts hits 10, 20, 30... likes. No limit — the more likes you get, the more you earn!
             </Text>
             <TouchableOpacity style={[s.primaryBtn, { width: '100%' }]} onPress={() => setShowEarnModal(false)}>
               <Text style={s.primaryBtnText}>Got it</Text>
@@ -547,11 +547,11 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
           </View>
           <ScrollView>
             {[
-              { icon: 'create-outline', color: '#2563eb', bg: '#eff6ff', label: 'Post regularly', sub: 'Share posts, thoughts, snaps and events. Active creators earn more.' },
-              { icon: 'heart-outline', color: '#ef4444', bg: '#fef2f2', label: 'React & like content', sub: 'Engage with posts from people you follow. Every reaction counts.' },
-              { icon: 'chatbubble-outline', color: '#16a34a', bg: '#f0fdf4', label: 'Comment meaningfully', sub: 'Leave thoughtful comments on posts. Quality over quantity.' },
-              { icon: 'people-outline', color: '#9333ea', bg: '#faf5ff', label: 'Grow your network', sub: 'Add friends and follow people. A bigger network means more engagement.' },
-              { icon: 'time-outline', color: '#d97706', bg: '#fffbeb', label: 'Stay consistent', sub: 'Show up daily. Consistent activity is rewarded over time.' },
+              { icon: 'trending-up', color: '#2563eb', bg: '#eff6ff', label: 'Hit milestones', sub: 'Every 10 likes on any post = +5 Mobcoins. 10, 20, 30... forever.' },
+              { icon: 'heart-outline', color: '#ef4444', bg: '#fef2f2', label: 'Engage with others', sub: 'React to posts, leave comments, and grow your following.' },
+              { icon: 'gift-outline', color: '#9333ea', bg: '#faf5ff', label: 'Send & receive gifts', sub: 'Gift Mobcoins to friends or receive them as support.' },
+              { icon: 'people-outline', color: '#16a34a', bg: '#f0fdf4', label: 'Grow your audience', sub: 'More followers = more likes = more milestones hit.' },
+              { icon: 'time-outline', color: '#d97706', bg: '#fffbeb', label: 'Stay consistent', sub: 'Post regularly. The more content, the more chances to hit milestones.' },
             ].map((item, i) => (
               <View key={i} style={[s.learnRow, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]}>
                 <View style={[s.learnRowIcon, { backgroundColor: isDark ? `${item.color}25` : item.bg }]}>

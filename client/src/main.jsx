@@ -1,3 +1,4 @@
+import React from 'react';
 import './index.css';
 import Lexum from './router/LexumRouter';
 import AppWrapper from './components/layout/AppWrapper';
@@ -9,7 +10,8 @@ import SavedPostsMobile from './pages/home/SavedPostsMobile';
 import SavedPostsDesktop from './pages/home/SavedPostsDesktop';
 import Discussions from './pages/discussions/Discussions';
 import AuthPage from './pages/auth/AuthPage';
-import ChatsComingSoon from './pages/ChatsComingSoon';
+const LoudaChatMobile = React.lazy(() => import('./pages/chats/LoudaChatMobile'));
+const LoudaChatDesktop = React.lazy(() => import('./pages/chats/LoudaChatDesktop'));
 import ActivityMobile from './pages/activity/ActivityMobile';
 import ActivityDesktop from './pages/activity/ActivityDesktop';
 import ConnectionsMobile from './pages/connections/ConnectionsMobile';
@@ -60,7 +62,7 @@ Lexum.init({
     { path: '/', responsive: { mobile: HomeMobile, desktop: HomeDesktop } },
     { path: '/feed', responsive: { mobile: HomeMobile, desktop: HomeDesktop } },
     { path: '/auth', component: AuthPage },
-    { path: '/chats', responsive: { mobile: ChatsComingSoon, desktop: ChatsComingSoon } },
+    { path: '/chats', responsive: { mobile: LoudaChatMobile, desktop: LoudaChatDesktop } },
     { path: '/activity', responsive: { mobile: ActivityMobile, desktop: ActivityDesktop } },
     { path: '/connections', responsive: { mobile: ConnectionsMobile, desktop: ConnectionsDesktop } },
     { path: '/view', responsive: { mobile: ViewPage, desktop: ViewPage } },

@@ -1,0 +1,1838 @@
+@reference "../index.css";
+/* ─── Textmob design tokens (ported from Louda theme) ─── */
+.louda-scope {
+    --primary: #2563eb;
+    /* Textmob blue */
+    --secondary: #1f2937;
+    /* gray-800 body text */
+    --accent: #2563eb;
+    /* Textmob blue */
+    --safari-green: #2563eb;
+    /* Primary accent (was Louda green) */
+    --warm-bg: #f3f4f6;
+    /* gray-100 app background */
+    --iron: #111b21;
+    --bg-main: var(--warm-bg);
+    --bg-side: #fff;
+    --text-main: var(--secondary);
+    --border-color: rgba(31, 41, 55, 0.1);
+    --pattern-opacity: 0.1;
+}
+
+.louda-scope * {
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+    box-sizing: border-box;
+}
+
+.louda-scope {
+    background: var(--warm-bg);
+    margin: 0;
+    font-family: 'Inter', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    color: var(--secondary);
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    max-width: 100vw;
+    overflow-x: hidden;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+}
+
+.louda-scope h1, .louda-scope h2, .louda-scope h3, .louda-scope h4, .louda-scope .titlee {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    letter-spacing: -0.02em;
+}
+
+/* Icons should adapt to their container's text color */
+.louda-scope svg, .louda-scope .icon, .louda-scope .sidebar-icon {
+    stroke: currentColor;
+    fill: none;
+}
+
+.louda-scope svg[fill], .louda-scope .icon[fill] {
+    fill: currentColor;
+}
+
+/* ─── Theme ─── */
+
+
+/* ─── Layout Components ─── */
+.louda-scope .app-header {
+    background: var(--bg-side);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.louda-scope .sd-bar {
+    background: var(--bg-side);
+    border-right: 1px solid var(--border-color);
+}
+
+.louda-scope .chat-window {
+    background: var(--bg-main);
+}
+
+/* Subtle dot pattern background — low contrast, barely visible */
+.louda-scope .chat-bg, .louda-scope .pattern-bg {
+    background-color: var(--bg-main);
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%235D4037' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3Ccircle cx='0' cy='0' r='1'/%3E%3Ccircle cx='60' cy='0' r='1'/%3E%3Ccircle cx='0' cy='60' r='1'/%3E%3Ccircle cx='60' cy='60' r='1'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.louda-scope .chat-header {
+    background: var(--bg-side);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* ─── Message Bubbles ─── */
+.louda-scope .message-bubble-sent {
+    background: linear-gradient(135deg, var(--safari-green), color-mix(in srgb, var(--safari-green) 75%, black));
+    color: #fff;
+    border-radius: 12px 12px 4px 12px;
+    padding: 6px 10px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.06);
+    position: relative;
+    word-break: break-word;
+    max-width: 75%;
+}
+
+.louda-scope .message-bubble-received {
+    background: #fff;
+    color: #111827;
+    border-radius: 12px 12px 12px 4px;
+    padding: 6px 10px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    position: relative;
+    word-break: break-word;
+    max-width: 75%;
+}
+
+
+/* ─── Translation Text ─── */
+.louda-scope .translation-text {
+    font-style: italic;
+    font-size: 0.72rem;
+    opacity: 0.85;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    margin-top: 5px;
+    padding-top: 4px;
+    line-height: 1.4;
+}
+
+.louda-scope .message-bubble-received .translation-text {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ─── Accent Color Enforcement ─── */
+.louda-scope .button, .louda-scope button.bg-green-600, .louda-scope button.bg-green-500 {
+    background: var(--safari-green) !important;
+}
+
+.louda-scope .button:hover, .louda-scope button.bg-green-600:hover, .louda-scope button.bg-green-500:hover {
+    filter: brightness(1.1);
+}
+
+.louda-scope .unread-badge {
+    background: var(--safari-green) !important;
+}
+
+.louda-scope .bottom-nav-item.active {
+    color: var(--safari-green);
+}
+
+.louda-scope .bottom-nav-item.active::after {
+    background: var(--safari-green);
+}
+
+.louda-scope input:focus, .louda-scope textarea:focus, .louda-scope .s-chats:focus {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--safari-green) 25%, transparent);
+}
+
+/* Green text accent classes */
+.louda-scope .text-green-600, .louda-scope .text-green-500, .louda-scope .group-hover\:text-green-600, .louda-scope .text-green {
+    color: var(--safari-green) !important;
+}
+
+/* Green bg accents */
+.louda-scope .bg-green-500\/5, .louda-scope .hover\:bg-green-500\/5:hover, .louda-scope .hover\:bg-green\/5:hover {
+    background: color-mix(in srgb, var(--safari-green) 5%, transparent) !important;
+}
+
+
+.louda-scope .text-green-700 {
+    color: var(--safari-green) !important;
+}
+
+.louda-scope .border-green-500 {
+    border-color: var(--safari-green) !important;
+}
+
+.louda-scope .ring-green-500 {
+    --tw-ring-color: var(--safari-green) !important;
+}
+
+.louda-scope .focus\:ring-green-500:focus {
+    --tw-ring-color: var(--safari-green) !important;
+}
+
+/* Online status dot */
+.louda-scope .bg-green-400 {
+    background: var(--safari-green) !important;
+}
+
+/* Typing indicator */
+.louda-scope .text-green-600.animate-pulse {
+    color: var(--safari-green) !important;
+}
+
+/* ─── Chat List Item ─── */
+.louda-scope .chat-list-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    cursor: pointer;
+    border-radius: 8px;
+    margin: 1px 4px;
+    transition: background 0.1s ease;
+    gap: 10px;
+}
+
+.louda-scope .chat-list-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+
+.louda-scope .chat-list-item.active {
+    background: color-mix(in srgb, var(--safari-green) 8%, transparent);
+    border-left: 3px solid var(--safari-green);
+}
+
+/* ─── Input Bar ─── */
+.louda-scope .input-bar {
+    background: #f0f2f5;
+    padding: 8px 12px;
+    border-top: none;
+    box-shadow: 0 -1px 8px rgba(0, 0, 0, 0.04);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+
+.louda-scope .input-bar input[type="text"], .louda-scope .input-bar textarea {
+    flex: 1;
+    background: #fff;
+    border: none;
+    border-radius: 24px;
+    padding: 10px 18px;
+    font-size: 14px;
+    outline: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01);
+    transition: box-shadow 0.15s;
+}
+
+.louda-scope .input-bar input:focus {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--safari-green) 25%, transparent);
+}
+
+.louda-scope .button {
+    background: linear-gradient(135deg, var(--safari-green), color-mix(in srgb, var(--safari-green) 80%, black));
+    color: white;
+    padding: 9px 20px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--safari-green) 15%, transparent);
+}
+
+.louda-scope .button:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+}
+
+.louda-scope .button:active {
+    transform: translateY(0);
+}
+
+.louda-scope .m-button {
+    padding: 6px 12px;
+    color: var(--safari-green);
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 8px;
+    transition: background 0.12s;
+}
+
+.louda-scope .m-button:hover {
+    background: #f0fdf4;
+}
+
+/* ─── Search Input ─── */
+.louda-scope .s-chats {
+    border: none;
+    border-radius: 24px;
+    padding: 9px 16px;
+    background: #f3f4f6;
+    font-size: 14px;
+    width: 100%;
+    outline: none;
+    transition: box-shadow 0.15s;
+}
+
+.louda-scope .s-chats:focus {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--safari-green) 20%, transparent);
+    background: #fff;
+}
+
+.louda-scope select {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 9px 14px;
+    background: #fff;
+    outline: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+    transition: border-color 0.15s;
+}
+
+.louda-scope select:focus {
+    border-color: var(--safari-green);
+}
+
+.louda-scope input {
+    outline: none;
+}
+
+/* ─── Settings Panel ─── */
+.louda-scope .settings-section {
+    border-bottom: 1px solid #f3f4f6;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+}
+
+.louda-scope .settings-section:last-child {
+    border-bottom: none;
+}
+
+.louda-scope .settings-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--safari-green);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ─── Toggle Switch ─── */
+.louda-scope .toggle-track {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    transition: background 0.2s;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.louda-scope .toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+}
+
+/* ─── Modals ─── */
+.louda-scope .wb-modal {
+    display: flex;
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    padding: 16px;
+}
+
+.louda-scope .wb-modal-content {
+    background: #fff;
+    padding: 32px;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 32px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.01);
+    animation: louda-modal-pop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+
+@keyframes louda-modal-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.94) translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.louda-scope .titlee {
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: #111827;
+}
+
+.louda-scope .cont {
+    font-weight: 500;
+    user-select: none;
+}
+
+/* ─── Header Containers ─── */
+.louda-scope .hd {
+    margin: 2px 4px;
+    border-radius: 8px;
+    transition: background 0.1s ease;
+}
+
+.louda-scope .hd:hover {
+    background: rgba(0, 0, 0, 0.025);
+}
+
+
+.louda-scope .hd-top {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 10px 16px;
+    background: #fff;
+}
+
+
+/* ─── Welcome Screen ─── */
+.louda-scope .wlc {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f2f5;
+}
+
+/* ─── Unread Badge ─── */
+.louda-scope .unread-badge {
+    background: var(--safari-green);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 20px;
+    min-width: 20px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* No pulse animation — keep it calm and professional */
+
+/* ─── Typing Indicator ─── */
+.louda-scope .typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 8px 14px;
+    background: #fff;
+    border-radius: 18px 18px 18px 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.01);
+}
+
+.louda-scope .typing-dots span {
+    width: 7px;
+    height: 7px;
+    background: #9ca3af;
+    border-radius: 50%;
+    animation: louda-dot-bounce 1.2s ease-in-out infinite;
+}
+
+.louda-scope .typing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.louda-scope .typing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes louda-dot-bounce {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+    }
+
+    30% {
+        transform: translateY(-5px);
+    }
+}
+
+/* ─── Voice Recording ─── */
+@keyframes louda-recording-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.4;
+        transform: scale(1.3);
+    }
+}
+
+.louda-scope .recording-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: louda-recording-pulse 1s ease-in-out infinite;
+}
+
+/* ─── Voice Player ─── */
+.louda-scope .voice-player audio {
+    border-radius: 50px;
+    height: 32px;
+}
+
+.louda-scope .voice-player audio::-webkit-media-controls-panel {
+    background: color-mix(in srgb, var(--safari-green) 8%, transparent);
+    border-radius: 50px;
+}
+
+/* ─── Sticker ─── */
+.louda-scope .sticker-message {
+    max-width: 200px;
+    max-height: 220px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: block;
+}
+
+/* ─── Online Dot ─── */
+.louda-scope .online-dot {
+    width: 11px;
+    height: 11px;
+    background: #22c55e;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 1px;
+    right: 3px;
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.3);
+}
+
+/* ─── Reply Preview ─── */
+.louda-scope .reply-preview {
+    border-left: 3px solid var(--safari-green);
+    background: color-mix(in srgb, var(--safari-green) 8%, transparent);
+    border-radius: 0 8px 8px 0;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+/* ─── Unread Divider ─── */
+.louda-scope .unread-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.louda-scope .unread-divider::before, .louda-scope .unread-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+
+/* ─── Mobile Bottom Navigation (Non-blocking / Creative) ─── */
+.louda-scope .bottom-nav {
+    position: fixed;
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 40px);
+    max-width: 500px;
+    height: 72px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 12px;
+    z-index: 99999;
+    animation: louda-nav-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Specific optimizations for native mobile devices */
+.louda-scope .bottom-nav[data-native-mobile="true"] {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 32px);
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+}
+
+
+.louda-scope .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex: 1;
+    height: 100%;
+    color: var(--secondary);
+    opacity: 0.5;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+}
+
+
+.louda-scope .bottom-nav-item.active {
+    opacity: 1;
+    color: var(--safari-green);
+    transform: translateY(-4px);
+}
+
+.louda-scope .bottom-nav-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 8px;
+    width: 4px;
+    height: 4px;
+    background: var(--safari-green);
+    border-radius: 50%;
+}
+
+.louda-scope .bottom-nav-icon {
+    width: 24px;
+    height: 24px;
+    stroke-width: 2.2;
+    transition: transform 0.3s ease;
+}
+
+.louda-scope .bottom-nav-item:active .bottom-nav-icon {
+    transform: scale(0.85);
+}
+
+.louda-scope .bottom-nav-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+@keyframes louda-nav-slide-up {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 40px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+@media (max-width: 640px) {
+    .louda-scope .input-bar {
+        padding: 6px 10px;
+        gap: 4px;
+    }
+
+    .louda-scope .input-bar input[type="text"], .louda-scope .input-bar textarea {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+}
+
+@media (min-width: 768px) {
+    .louda-scope .bottom-nav {
+        display: none;
+    }
+}
+
+/* Chat list compactness already handled above */
+
+/* ─── Media & Interactive Components ─── */
+
+/* ─── Custom Audio Player ─── */
+.louda-scope .audio-player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.03);
+    padding: 8px 12px;
+    border-radius: 12px;
+    min-width: 240px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.louda-scope .message-bubble-sent .audio-player {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.louda-scope .play-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--safari-green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.1s;
+    flex-shrink: 0;
+}
+
+.louda-scope .play-btn:active {
+    transform: scale(0.95);
+}
+
+.louda-scope .message-bubble-sent .play-btn {
+    background: #fff;
+    color: var(--safari-green);
+}
+
+.louda-scope .waveform {
+    flex: 1;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+}
+
+.louda-scope .waveform-bar {
+    width: 3px;
+    background: #cbd5e1;
+    border-radius: 2px;
+    transition: height 0.2s, background 0.2s;
+}
+
+.louda-scope .message-bubble-sent .waveform-bar {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.louda-scope .message-bubble-sent .waveform-bar.active {
+    background: #fff;
+}
+
+.louda-scope .waveform-bar.active {
+    background: var(--safari-green);
+}
+
+.louda-scope .audio-meta {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+    min-width: 35px;
+    text-align: right;
+}
+
+/* ─── Media Grid ─── */
+.louda-scope .media-grid {
+    display: grid;
+    gap: 2px;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.louda-scope .media-grid.single {
+    grid-template-columns: 1fr;
+}
+
+.louda-scope .media-grid.double {
+    grid-template-columns: 1fr 1fr;
+}
+
+.louda-scope .media-grid.triple {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+}
+
+.louda-scope .media-grid.triple .media-item:first-child {
+    grid-row: span 2;
+}
+
+.louda-scope .media-grid.quad {
+    grid-template-columns: 1fr 1fr;
+}
+
+.louda-scope .media-item {
+    position: relative;
+    cursor: pointer;
+    background: #f3f4f6;
+    aspect-ratio: 1;
+}
+
+.louda-scope .media-item img, .louda-scope .media-item video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.2s;
+}
+
+.louda-scope .media-item:hover img {
+    transform: scale(1.02);
+}
+
+.louda-scope .play-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    backdrop-filter: blur(2px);
+}
+
+/* ─── Fullscreen Media Viewer ─── */
+.louda-scope .media-viewer-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 20000;
+    display: flex;
+    flex-direction: column;
+    animation: louda-fade-in 0.2s;
+}
+
+.louda-scope .mv-header {
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    color: #fff;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
+}
+
+.louda-scope .mv-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.louda-scope .mv-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.2s;
+}
+
+.louda-scope .mv-footer {
+    padding: 16px;
+    color: #fff;
+    text-align: center;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+}
+
+/* ─── Profile Hero Transition ─── */
+.louda-scope .profile-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    z-index: 10000;
+    animation: louda-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.louda-scope .hero-header {
+    height: 300px;
+    position: relative;
+    background: #000;
+}
+
+.louda-scope .hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.louda-scope .hero-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+    color: #fff;
+}
+
+@keyframes louda-slide-up {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes louda-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* ─── SVG Icons ─── */
+.louda-scope .icon {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+}
+
+.louda-scope .icon-sm {
+    width: 16px;
+    height: 16px;
+}
+
+.louda-scope .icon-lg {
+    width: 24px;
+    height: 24px;
+}
+
+.louda-scope .icon-xl {
+    width: 32px;
+    height: 32px;
+}
+
+/* ─── Ripple Effect ─── */
+.louda-scope .ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: louda-ripple 0.6s linear;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes louda-ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Phase 3: Background & Animations */
+.louda-scope .chat-bg-pattern {
+    background-color: #efe7dd;
+    background-image: url('data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z\' fill=\'%239ca3af\' fill-opacity=\'0.1\' fill-rule=\'evenodd\'/%3E%3C/svg%3E');
+}
+
+
+@keyframes louda-slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.louda-scope .animate-slide-up {
+    animation: louda-slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+
+/* Utilities */
+.louda-scope .no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.louda-scope .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Media Grid */
+.louda-scope .media-grid {
+    display: grid;
+    gap: 4px;
+    overflow: hidden;
+    border-radius: 12px;
+    margin-top: 4px;
+}
+
+.louda-scope .media-grid.single {
+    grid-template-columns: 1fr;
+}
+
+.louda-scope .media-grid.double {
+    grid-template-columns: 1fr 1fr;
+}
+
+.louda-scope .media-grid.triple {
+    grid-template-columns: 1fr 1fr;
+}
+
+.louda-scope .media-grid.triple .media-item:first-child {
+    grid-column: span 2;
+}
+
+.louda-scope .media-grid.quad {
+    grid-template-columns: 1fr 1fr;
+}
+
+.louda-scope .media-item {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.louda-scope .media-item img, .louda-scope .media-item video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.louda-scope .play-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    background: rgba(0, 0, 0, 0.3);
+    font-size: 2rem;
+}
+
+/* Message Bubble Tweaks */
+.louda-scope .message-bubble-sent {
+    border-top-right-radius: 0;
+}
+
+.louda-scope .message-bubble-received {
+    border-top-left-radius: 0;
+}
+
+
+/* Icons */
+.louda-scope .icon {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.louda-scope .icon-sm {
+    width: 16px;
+    height: 16px;
+}
+
+/* ─── Phase 7: Sidebar & Unified UI ─── */
+
+.louda-scope .app-sidebar {
+    width: 72px;
+    height: 100vh;
+    background: var(--bg-side);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 20px;
+    border-right: 1px solid var(--border-color);
+    z-index: 50;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.louda-scope .sidebar-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.louda-scope .sidebar-icon svg {
+    stroke: #000 !important;
+}
+
+.louda-scope .sidebar-icon:hover {
+    background: rgba(230, 74, 25, 0.08);
+    /* Light primary */
+}
+
+.louda-scope .sidebar-icon.active {
+    background: var(--safari-green);
+    color: #fff;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--safari-green) 30%, transparent);
+}
+
+.louda-scope .sidebar-icon.active svg {
+    stroke: #fff !important;
+}
+
+.louda-scope .sidebar-logo {
+    width: 48px;
+    height: 48px;
+    background: var(--accent);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(255, 179, 0, 0.2);
+}
+
+.louda-scope .sidebar-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.louda-scope .sidebar-avatar:hover {
+    border-color: var(--safari-green);
+    transform: scale(1.05);
+}
+
+/* Modern Contact List (Members) */
+.louda-scope .member-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.louda-scope .member-list-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+
+.louda-scope .member-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+@media (max-width: 640px) {
+    .louda-scope .app-sidebar {
+        display: none;
+    }
+}
+
+/* ─── Desktop Optimization ─── */
+@media (min-width: 1024px) {
+    .louda-scope .app-sidebar {
+        width: 80px;
+        padding: 20px 0;
+    }
+
+    .louda-scope .profile-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 400px;
+        height: 100%;
+        background: #fff;
+        z-index: 100;
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+        animation: louda-slide-left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+    }
+
+}
+
+@keyframes louda-slide-left {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+/* Shared UI Components */
+.louda-scope .s-chats {
+    border: 1.5px solid transparent;
+    border-radius: 16px;
+    padding: 12px 20px;
+    background: #f1f5f9;
+    font-size: 15px;
+    width: 100%;
+    outline: none;
+    transition: all 0.2s;
+}
+
+
+.louda-scope .s-chats:focus {
+    background: white;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(230, 74, 25, 0.1);
+}
+
+
+/* ─── Highlighting Animation ─── */
+.louda-scope .flash-highlight {
+    animation: louda-flash-bg 2s ease-out forwards;
+}
+
+@keyframes louda-flash-bg {
+    0% {
+        background-color: rgba(230, 74, 25, 0.4);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Unified Profile & Settings Pattern */
+.louda-scope .pattern-bg {
+    position: relative;
+    overflow: hidden;
+}
+
+.louda-scope .pattern-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%235D4037' fill-opacity='1'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7z'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 100px 100px;
+}
+
+/* ─── Highlighting Animation ─── */
+.louda-scope .flash-highlight {
+    animation: louda-flash-bg 2s ease-out forwards;
+}
+
+@keyframes louda-flash-bg {
+    0% {
+        background-color: rgba(230, 74, 25, 0.4);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Unified Profile & Settings Pattern */
+.louda-scope .pattern-bg {
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%235D4037' fill-opacity='0.02'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ─── Mobile Responsiveness ─── */
+@media (max-width: 768px) {
+
+    /* Prevent overflow on mobile */
+    .louda-scope, .louda-scope {
+        overflow-x: hidden;
+        width: 100%;
+        max-width: 100vw;
+    }
+
+    /* Chat window fills viewport */
+    .louda-scope .flex-1.flex.flex-col {
+        width: 100vw;
+        max-width: 100vw;
+    }
+
+    /* Tighter message padding on mobile */
+    .louda-scope .message-bubble-sent, .louda-scope .message-bubble-received {
+        max-width: 82%;
+        padding: 6px 10px;
+        font-size: 14.5px;
+    }
+
+    /* Tighter chat list items on mobile */
+    .louda-scope .chat-list-item {
+        padding: 10px 12px;
+        margin: 1px 4px;
+    }
+
+    /* Ensure modals are full-width on mobile */
+    .louda-scope .fixed.inset-0>div {
+        max-width: 100% !important;
+    }
+}
+
+/* Safe area insets for modern phones with notches */
+@supports (padding: env(safe-area-inset-bottom)) {
+    @media (max-width: 768px) {
+
+        /* Input bar safe area */
+        .louda-scope .p-1\.5.backdrop-blur-sm {
+            padding-bottom: calc(0.375rem + env(safe-area-inset-bottom));
+        }
+    }
+}
+
+/* ─── Selection Mode Animation ─── */
+.louda-scope .animate-slide-down {
+    animation: louda-slide-down 0.2s ease-out;
+}
+
+@keyframes louda-slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ─── Typing Animations ─── */
+@keyframes louda-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.louda-scope .animate-fade-in {
+    animation: louda-fade-in 0.3s ease-out forwards;
+}
+
+@keyframes louda-jumping-dots {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+.louda-scope .animate-bounce {
+    animation: louda-jumping-dots 0.8s infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   .louda-scope TELEGRAM-LIKE UI ENHANCEMENTS
+button, .louda-scope [role="button"], .louda-scope .cursor-pointer, .louda-scope select, .louda-scope a, .louda-scope label[for], .louda-scope input[type="radio"], .louda-scope input[type="checkbox"], .louda-scope .chat-list-item, .louda-scope .bottom-nav-item, .louda-scope .play-btn, .louda-scope .context-menu-item, .louda-scope .settings-section-title {
+.louda-scope .play-btn, .louda-scope .context-menu-item, .louda-scope .settings-section-title {
+    cursor: pointer !important;
+}
+
+/* ─── Smooth Global Transitions ─── */
+.louda-scope * {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ─── Better Scrollbars ─── */
+.louda-scope ::-webkit-scrollbar {
+    width: 8px;
+}
+.louda-scope ::-webkit-scrollbar-track {
+    background: transparent;
+}
+.louda-scope ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
+}
+.louda-scope ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.4);
+}
+.louda-scope .no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.louda-scope .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* ─── Message Slide-in ─── */
+@keyframes louda-msg-slide-in-right {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes louda-msg-slide-in-left {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Flash Highlight for Replied Messages ─── */
+@keyframes louda-flash {
+    0% { background: color-mix(in srgb, var(--safari-green) 30%, transparent); }
+    100% { background: transparent; }
+}
+.louda-scope .flash-highlight {
+    animation: louda-flash 2s ease-out;
+    border-radius: 12px;
+}
+
+/* ─── Improved Chat List Items ─── */
+.louda-scope .chat-list-item {
+    transition: all 0.15s ease;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+}
+.louda-scope .chat-list-item:hover {
+    background: color-mix(in srgb, var(--safari-green) 5%, transparent);
+}
+.louda-scope .chat-list-item:active {
+    transform: scale(0.98);
+}
+.louda-scope .chat-list-item.active {
+    background: color-mix(in srgb, var(--safari-green) 8%, transparent);
+    border-left: 3px solid var(--safari-green);
+}
+
+/* ─── Enhanced Button Styles ─── */
+.louda-scope .button {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+.louda-scope .button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(rgba(255,255,255,0.1), transparent);
+    pointer-events: none;
+}
+.louda-scope .button:active {
+    transform: scale(0.96);
+}
+.louda-scope .button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* ─── Settings Panel Polish ─── */
+.louda-scope .settings-section {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+}
+
+/* ─── Enhanced Select Dropdowns ─── */
+.louda-scope select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    transition: all 0.15s ease;
+}
+.louda-scope select:hover {
+    border-color: var(--safari-green);
+}
+
+/* ─── Toggle Switch Enhancement ─── */
+.louda-scope .toggle-track {
+    transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.louda-scope .toggle-thumb {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Modal Backdrop Enhancement ─── */
+.louda-scope .animate-modal-pop {
+    animation: louda-modal-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Improved Audio Player ─── */
+.louda-scope .audio-player {
+    transition: all 0.15s ease;
+    border-radius: 16px;
+}
+.louda-scope .audio-player:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+.louda-scope .message-bubble-sent .audio-player:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ─── Input Focus Rings ─── */
+.louda-scope input:focus, .louda-scope textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--safari-green) 20%, transparent);
+}
+
+/* ─── Ripple Effect on Touch ─── */
+@keyframes louda-ripple {
+    to { transform: scale(2.5); opacity: 0; }
+}
+
+/* ─── Status Indicator ─── */
+.louda-scope .online-dot {
+    animation: louda-online-glow 2s ease-in-out infinite;
+}
+@keyframes louda-online-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+}
+
+/* ─── Smooth Page Transitions ─── */
+@keyframes louda-page-enter {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes louda-page-exit {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(-20%); }
+}
+
+/* ─── Enhanced Dark Mode ─── */
+
+/* ─── Better Emoji/Sticker Picker ─── */
+.louda-scope .emoji-picker {
+    border-radius: 16px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ─── Mobile Optimizations ─── */
+@media (max-width: 768px) {
+    /* Larger tap targets */
+    .louda-scope button, .louda-scope [role="button"] {
+        min-height: 36px;
+        min-width: 36px;
+    }
+    
+    /* Smooth sidebar transition */
+    .louda-scope .sd-bar {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Better touch feedback on chat items */
+    .louda-scope .chat-list-item:active {
+        background: color-mix(in srgb, var(--safari-green) 12%, transparent);
+        transition: background 0.05s;
+    }
+    
+    /* Bottom nav glassmorphism enhancement */
+    .louda-scope .bottom-nav {
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(24px) saturate(200%);
+    }
+}
+
+/* ─── Print Styles (hide non-essential) ─── */
+@media print {
+    .louda-scope .bottom-nav, .louda-scope .input-bar, .louda-scope .sd-bar { display: none !important; }
+}
+
+/* ─── Flash Highlight (for search result jump) ─── */
+.louda-scope .flash-highlight {
+    animation: louda-flash-bg 2s ease-out;
+}
+
+@keyframes louda-flash-bg {
+    0% { background: color-mix(in srgb, var(--safari-green) 25%, transparent); }
+    100% { background: transparent; }
+}
+
+/* ─── Gentle Bounce (for jump-to-latest) ─── */
+.louda-scope .animate-bounce-gentle {
+    animation: louda-bounce-gentle 2s ease-in-out infinite;
+}
+
+@keyframes louda-bounce-gentle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+/* ─── Slide Down (for action bars, search panels) ─── */
+.louda-scope .animate-slide-down {
+    animation: louda-slide-down 0.2s ease-out;
+}
+
+@keyframes louda-slide-down {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Slide Up (for mobile sheets) ─── */
+.louda-scope .animate-slide-up {
+    animation: louda-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes louda-slide-up {
+    from { opacity: 0; transform: translateY(100%); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Fade In ─── */
+.louda-scope .animate-fade-in {
+    animation: louda-fade-in 0.3s ease-out;
+}
+
+@keyframes louda-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ─── Modal Pop (for reaction picker etc) ─── */
+.louda-scope .animate-modal-pop {
+    animation: louda-modal-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── No Scrollbar ─── */
+.louda-scope .no-scrollbar::-webkit-scrollbar { display: none; }
+.louda-scope .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Pinned message indicator ─── */
+.louda-scope .pinned-indicator {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #d97706;
+}
+
+/* ─── Reaction chips ─── */
+.louda-scope .reaction-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 12px;
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.louda-scope .reaction-chip:hover {
+    transform: scale(1.1);
+}
+
+
+/* ─── Connection Banner ─── */
+.louda-scope .connection-banner {
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    animation: louda-slide-down 0.3s ease-out;
+}
+
+.louda-scope .connection-banner.offline {
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+}
+
+.louda-scope .connection-banner.reconnecting {
+    background: rgba(245, 158, 11, 0.08);
+    color: #f59e0b;
+}
+
+/* 🌟 Premium Markdown Styling 🌟 */
+.louda-scope .markdown-content {
+  @apply text-[14px] leading-relaxed break-words space-y-2.5;
+}
+.louda-scope .markdown-content h1 {
+  @apply text-xl font-black tracking-tight mt-4 mb-2 pb-1 border-b border-black/10 dark:border-white/10;
+}
+.louda-scope .markdown-content h2 {
+  @apply text-lg font-extrabold tracking-tight mt-3 mb-1.5 pb-0.5 border-b border-black/5 dark:border-white/5;
+}
+.louda-scope .markdown-content h3 {
+  @apply text-base font-bold mt-2 mb-1;
+}
+.louda-scope .markdown-content h4, .louda-scope .markdown-content h5, .louda-scope .markdown-content h6 {
+  @apply text-sm font-bold mt-2 mb-1;
+}
+.louda-scope .markdown-content p {
+  @apply my-1 leading-relaxed;
+}
+.louda-scope .markdown-content strong {
+  @apply font-bold;
+}
+.louda-scope .markdown-content em {
+  @apply italic;
+}
+.louda-scope .markdown-content del {
+  @apply line-through opacity-70;
+}
+.louda-scope .markdown-content blockquote {
+  @apply pl-3.5 my-2.5 border-l-4 border-[var(--safari-green)] bg-black/5 dark:bg-white/5 py-1.5 pr-3 rounded-r-xl italic shadow-sm;
+}
+.louda-scope .markdown-content ul {
+  @apply list-disc list-inside my-2 space-y-1 pl-1;
+}
+.louda-scope .markdown-content ol {
+  @apply list-decimal list-inside my-2 space-y-1 pl-1;
+}
+.louda-scope .markdown-content li {
+  @apply my-0.5;
+}
+.louda-scope .markdown-content li > ul, .louda-scope .markdown-content li > ol {
+  @apply my-0.5 pl-4;
+}
+.louda-scope .markdown-content a {
+  @apply text-blue-500 dark:text-blue-400 hover:underline font-medium inline-block break-all cursor-pointer;
+}
+.louda-scope .markdown-content img {
+  @apply max-w-full h-auto rounded-xl my-2 shadow-md border border-black/5 dark:border-white/5;
+}
+.louda-scope .markdown-content table {
+  @apply w-full my-3 border-collapse rounded-xl overflow-hidden shadow-sm border border-black/10 dark:border-white/10 text-xs;
+}
+.louda-scope .markdown-content thead {
+  @apply bg-black/10 dark:bg-white/10 font-bold text-left;
+}
+.louda-scope .markdown-content th {
+  @apply p-2.5 border-b border-black/10 dark:border-white/10 font-extrabold tracking-wider uppercase text-[11px];
+}
+.louda-scope .markdown-content td {
+  @apply p-2.5 border-b border-black/5 dark:border-white/5;
+}
+.louda-scope .markdown-content tr:last-child td {
+  @apply border-b-0;
+}
+.louda-scope .markdown-content pre {
+  @apply p-3 my-2.5 bg-black/5 dark:bg-black/40 border border-black/10 dark:border-white/10 rounded-xl font-mono text-[13px] overflow-x-auto shadow-inner max-w-full text-gray-800 dark:text-gray-200 whitespace-pre;
+}
+.louda-scope .markdown-content code {
+  @apply bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-[13px] font-mono text-pink-600 dark:text-pink-400;
+}
+.louda-scope .markdown-content pre code {
+  @apply bg-transparent p-0 text-inherit font-mono text-[13px];
+}
+.louda-scope .markdown-content hr {
+  @apply my-4 border-0 h-[1px] bg-black/10 dark:bg-white/10;
+}
+.louda-scope .markdown-content details {
+  @apply my-2 p-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl shadow-sm transition-all;
+}
+.louda-scope .markdown-content summary {
+  @apply font-bold cursor-pointer outline-none select-none flex items-center gap-2;
+}
+.louda-scope .markdown-content input[type="checkbox"] {
+  @apply rounded border-gray-300 text-[var(--safari-green)] focus:ring-[var(--safari-green)] mr-1.5 w-3.5 h-3.5 inline-block align-middle cursor-default;
+}
+
+/* Elegant Desktop Scrollbar Overrides */
+@media (min-width: 768px) {
+  .louda-scope .no-scrollbar::-webkit-scrollbar, .louda-scope ::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+    height: 6px !important;
+  }
+  .louda-scope .no-scrollbar::-webkit-scrollbar-track, .louda-scope ::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  .louda-scope .no-scrollbar::-webkit-scrollbar-thumb, .louda-scope ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.25) !important;
+    border-radius: 9999px !important;
+  }
+  .louda-scope .no-scrollbar::-webkit-scrollbar-thumb:hover, .louda-scope ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+  .louda-scope .no-scrollbar {
+    -ms-overflow-style: auto !important;
+    scrollbar-width: thin !important;
+  }
+  
+  .louda-scope .overflow-y-auto, .louda-scope .overflow-x-auto, .louda-scope [class*="overflow-y-"], .louda-scope [class*="overflow-x-"] {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(0, 0, 0, 0.25) transparent !important;
+  }
+}
+
+

@@ -52,7 +52,7 @@ export default function SavedPostsScreen() {
         return;
       }
       const res = await apiPost('/get-posts-by-ids', { ids: ids.map(String) });
-      if (res && Array.isArray(res)) setPosts(res);
+      if (res && res.ok && Array.isArray(res.data)) setPosts(res.data);
       else setPosts([]);
     } catch { setPosts([]); }
     setLoading(false);

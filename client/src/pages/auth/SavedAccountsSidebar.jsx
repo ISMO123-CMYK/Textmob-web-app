@@ -1,4 +1,5 @@
-const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
+const DEFAULT_PIC = DEFAULT_AVATAR;
 
 export default function SavedAccountsSidebar({ accounts, onLogin, onRemove }) {
   if (accounts.length === 0) return null;

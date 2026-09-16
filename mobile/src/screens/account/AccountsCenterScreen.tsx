@@ -73,7 +73,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
   const renderSubScreen = () => {
     switch (activeSub) {
       case 'home': return <OverviewTab username={username} profile={profile} profileData={profileData} stats={stats} posts={posts} isOrg={isOrg} colors={colors} isDark={isDark} setActiveSub={setActiveSub} accent={accent} />;
-      case 'monetize': return <MonetizationTab username={username} stats={stats} isOrg={isOrg} colors={colors} isDark={isDark} verified={!!effectiveProfile?.verified} setActiveSub={setActiveSub} />;
+      case 'monetize': return <MonetizationTab username={username} stats={stats} isOrg={isOrg} colors={colors} isDark={isDark} verified={!!effectiveProfile?.verified} setActiveSub={setActiveSub} posts={posts} />;
 
       case 'analytics': return <AnalyticsTab posts={posts} stats={stats} profile={profile} isOrg={isOrg} colors={colors} />;
       case 'composer': return <ComposerTab username={username} posts={posts} setPosts={setPosts} colors={colors} isDark={isDark} setActiveSub={setActiveSub} />;
@@ -312,7 +312,7 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
   );
 }
 
-function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, setActiveSub }: any) {
+function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, setActiveSub, posts }: any) {
   const accentBg = isOrg ? '#7c3aed' : '#2563eb';
   const [balance, setBalance] = useState(stats?.mobcoins || 0);
   const [payouts, setPayouts] = useState<any[]>([]);
@@ -323,6 +323,10 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
   const [details, setDetails] = useState({ bank: '', account_no: '', name: '', network: 'MTN', phone: '' });
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const totalLikes = (posts || []).reduce((acc: number, p: any) => acc + (p.likes?.length || 0), 0);
+  const milestoneEarnings = Math.floor(totalLikes / 10) * 5;
+  const postsWithMilestones = (posts || []).filter((p: any) => (p.likes?.length || 0) >= 10);
 
   useEffect(() => {
     apiGet(`/api/user/payouts?userId=${encodeURIComponent(username)}`).then(r => {
@@ -402,6 +406,57 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
           <Text style={{ color: '#92400e', fontSize: 12 }}>Personal accounts cannot redeem earnings. Switch to Professional in Edit Profile.</Text>
         </View>
       )}
+      <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Earnings Breakdown</Text>
+      <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#d1fae5', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="trending-up" size={16} color="#047857" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>Milestone earnings</Text>
+            <Text style={{ fontSize: 11, color: colors.textSecondary }}>+5 coins every 10 likes on any post</Text>
+          </View>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: '#059669' }}>+{milestoneEarnings}</Text>
+        </View>
+        {postsWithMilestones.length > 0 && (
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: 4 }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 }}>Posts with milestones</Text>
+            {postsWithMilestones.slice(0, 3).map((p: any) => {
+              const likes = p.likes?.length || 0;
+              const earned = Math.floor(likes / 10) * 5;
+              return (
+                <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 12, color: colors.textSecondary, flex: 1 }} numberOfLines={1}>{(p.text || '').replace(/<[^>]*>/g, '').slice(0, 40) || 'Snap'}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{likes} ❤️</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#059669' }}>+{earned}</Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+
+      <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 }}>How earnings work</Text>
+        {[
+          { icon: 'trending-up', color: '#2563eb', label: 'Milestone system', sub: 'Earn +5 Mobcoins every time any post hits 10, 20, 30... likes' },
+          { icon: 'gift', color: '#9333ea', label: 'Gifts', sub: 'Receive Mobcoins as gifts from friends' },
+          { icon: 'checkmark-circle', color: '#059669', label: 'Cash out', sub: 'Convert to ₦ via bank or airtime (min 2,000 coins)' },
+        ].map((item, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: isDark ? `${item.color}20` : `${item.color}15`, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={item.icon as any} size={14} color={item.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textPrimary }}>{item.label}</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>{item.sub}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Payout History</Text>
       {loading ? (
         <ActivityIndicator size="small" color={colors.primary} />
@@ -479,8 +534,7 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
 function VerificationTab({ colors, username }: any) {
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [waNumber] = useState(() => Math.random() < 0.5 ? '2347057581322' : '2347087421125');
 
   useEffect(() => {
     async function checkStatus() {
@@ -493,40 +547,18 @@ function VerificationTab({ colors, username }: any) {
     checkStatus();
   }, [username]);
 
-  const handlePay = async () => {
-    setPaying(true);
-    try {
-      const res = await apiPost('/api/devpay/checkout', { username });
-      if (res.ok && res.data?.url) {
-        Linking.openURL(res.data.url);
-      } else {
-        Alert.alert('Error', res.data?.error || 'Failed to start payment. Please try again.');
-        setPaying(false);
-      }
-    } catch (e) {
-      Alert.alert('Error', 'Network error. Please try again.');
-      setPaying(false);
-    }
-  };
-
   const isActive = status?.verified;
   const daysLeft = status?.verified_until
     ? Math.max(0, Math.ceil((new Date(status.verified_until).getTime() - Date.now()) / 86400000))
     : 0;
 
+  const waMessage = `I want to pay for the verified badge on Textmob. Username: @${username || ''} (Fee: ₦500)`;
+  const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
+  const waDisplay = waNumber === '2347057581322' ? '+234 705 758 1322' : '+234 708 742 1125';
+
   return (
     <ScrollView style={{ padding: 16 }}>
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Get Verified</Text>
-
-      {showSuccess && (
-        <View style={[styles.cardBlock, { backgroundColor: '#f0fdf4', borderColor: '#bbf7d0', alignItems: 'center', paddingVertical: 24, marginBottom: 12 }]}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <Ionicons name="checkmark" size={24} color="#16a34a" />
-          </View>
-          <Text style={{ fontWeight: '700', fontSize: 14, color: '#166534', marginBottom: 4 }}>Payment Confirmed!</Text>
-          <Text style={{ color: '#15803d', fontSize: 12, textAlign: 'center', paddingHorizontal: 16 }}>Your verified badge is now active.</Text>
-        </View>
-      )}
 
       {isActive && (
         <View style={[styles.cardBlock, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe', alignItems: 'center', paddingVertical: 24, marginBottom: 12 }]}>
@@ -537,9 +569,12 @@ function VerificationTab({ colors, username }: any) {
           <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center', marginBottom: 8 }}>
             {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : 'Expiring soon.'}
           </Text>
-          <View style={{ backgroundColor: '#dbeafe', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
-            <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '600' }}>Renews at ₦500/month</Text>
+          <View style={{ backgroundColor: '#dbeafe', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 12 }}>
+            <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '600' }}>Renews at ₦500/month via WhatsApp</Text>
           </View>
+          <TouchableOpacity onPress={() => Linking.openURL(waLink)} style={{ backgroundColor: '#2563eb', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}>
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Renew via WhatsApp</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -550,9 +585,11 @@ function VerificationTab({ colors, username }: any) {
               <Ionicons name="checkmark-circle" size={28} color="#2563eb" />
             </View>
             <Text style={{ fontWeight: '700', fontSize: 16, color: colors.textPrimary, marginBottom: 4 }}>Get Verified on Textmob</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20 }}>Stand out with a blue tick. Build trust and credibility.</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20 }}>
+              Stand out with a blue tick. Build trust and credibility.{'\n'}You'll be redirected through WhatsApp to complete your payment.
+            </Text>
 
-            <View style={{ width: '100%', backgroundColor: colors.isDark ? '#1a1a2e' : '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <View style={{ width: '100%', backgroundColor: isDark ? '#1a1a2e' : '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 20 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
                 <Text style={{ fontSize: 13, color: colors.textSecondary }}>Verified Badge</Text>
                 <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>Blue Tick</Text>
@@ -568,22 +605,18 @@ function VerificationTab({ colors, username }: any) {
             </View>
 
             <TouchableOpacity
-              onPress={handlePay}
-              disabled={paying}
-              style={{ width: '100%', height: 48, backgroundColor: paying ? '#93c5fd' : '#2563eb', borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
+              onPress={() => Linking.openURL(waLink)}
+              style={{ width: '100%', height: 48, backgroundColor: '#2563eb', borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
             >
-              {paying ? (
-                <>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Redirecting to payment...</Text>
-                </>
-              ) : (
-                <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Pay ₦500 Now</Text>
-              )}
+              <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Pay ₦500 via WhatsApp</Text>
             </TouchableOpacity>
+            <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 8, textAlign: 'center' }}>
+              You'll chat with {waDisplay}
+            </Text>
           </View>
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.isDark ? '#1a1a2e' : '#f8fafc' }}>
-            <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'center' }}>Secure payment powered by DevPay.</Text>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: isDark ? '#1a1a2e' : '#f8fafc' }}>
+            <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'center' }}>Manual verification — our team confirms your payment on WhatsApp and activates your badge (valid 30 days).</Text>
           </View>
         </View>
       )}
@@ -735,7 +768,33 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
   const [boostAmount, setBoostAmount] = useState(1);
   const [boosting, setBoosting] = useState(false);
   const [balance, setBalance] = useState(0);
-  const filtered = posts.filter((p: any) => p.type !== 'snap');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  const [searchQuery, setSearchQuery] = useState('');
+  const filtered = posts
+    .filter((p: any) => p.type !== 'snap')
+    .filter((p: any) => p.disabled_for_now !== true && p.disabled !== true)
+    .filter((p: any) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (p.text || '').toLowerCase().includes(q) || (p.title || '').toLowerCase().includes(q);
+    })
+    .sort((a: any, b: any) => {
+      if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sortBy === 'liked') return (b.likes?.length || 0) - (a.likes?.length || 0);
+      if (sortBy === 'closest-to-payout') {
+        const aLen = a.likes?.length || 0;
+        const bLen = b.likes?.length || 0;
+        const aNext = 10 - (aLen % 10);
+        const bNext = 10 - (bLen % 10);
+        return aNext - bNext;
+      }
+      if (sortBy === 'earned') {
+        const aEarn = Math.floor((a.likes?.length || 0) / 10) * 5;
+        const bEarn = Math.floor((b.likes?.length || 0) / 10) * 5;
+        return bEarn - aEarn;
+      }
+      return 0;
+    });
 
   useEffect(() => {
     apiGet(`/api/user/stats?username=${encodeURIComponent(username)}`).then((r: any) => {
@@ -809,7 +868,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
 
   return (
     <ScrollView style={{ padding: 16 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <View>
           <Text style={[styles.subTitle, { color: colors.textPrimary, marginBottom: 0 }]}>My Posts</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{filtered.length} posts</Text>
@@ -819,12 +878,43 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
         </TouchableOpacity>
       </View>
 
-      {filtered.map((post: any) => (
+      <View style={{ backgroundColor: isDark ? '#1e293b' : '#f3f4f6', borderRadius: 10, paddingHorizontal: 12, height: 40, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Ionicons name="search" size={16} color={colors.textSecondary} />
+        <TextInput
+          placeholder="Search posts..."
+          placeholderTextColor={colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={{ flex: 1, color: colors.textPrimary, fontSize: 13, padding: 0 }}
+        />
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 6 }}>
+        {[{ k: 'newest', l: 'Newest' }, { k: 'liked', l: 'Most Liked' }, { k: 'closest-to-payout', l: 'Closest to Payout' }, { k: 'earned', l: 'Top Earned' }].map(s => (
+          <TouchableOpacity key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2563eb' : isDark ? '#374151' : '#e5e7eb' }}>
+            <Text style={{ color: sortBy === s.k ? '#fff' : colors.textSecondary, fontSize: 11, fontWeight: '600' }}>{s.l}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {filtered.map((post: any) => {
+        const likes = post.likes?.length || 0;
+        const earned = Math.floor(likes / 10) * 5;
+        const nextPayout = 10 - (likes % 10);
+        const pct = ((likes % 10) / 10) * 100;
+        const views = post.views?.length || 0;
+
+        return (
         <View key={post.id} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '600', fontSize: 13, color: colors.textPrimary, textTransform: 'capitalize' }}>{post.type || 'Post'}</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 10, marginTop: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: isDark ? '#1e293b' : '#f8fafc' }}>
+                  <Text style={{ fontWeight: '700', fontSize: 11, color: colors.textPrimary, textTransform: 'capitalize' }}>{post.type || 'Post'}</Text>
+                </View>
+                {earned > 0 && <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, backgroundColor: '#d1fae5' }}><Text style={{ fontWeight: '800', fontSize: 10, color: '#047857' }}>+{earned} coins earned</Text></View>}
+              </View>
+              <Text style={{ color: colors.textSecondary, fontSize: 10 }}>
                 {post.created_at ? new Date(post.created_at).toLocaleDateString() : ''}
               </Text>
             </View>
@@ -837,23 +927,42 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
               </TouchableOpacity>
             </View>
           </View>
-          <Text style={{ color: colors.textPrimary, fontSize: 13, marginTop: 8, lineHeight: 20 }}>{post.text?.replace(/<[^>]*>/g, '')}</Text>
-          <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 13, marginTop: 6, lineHeight: 20 }}>{post.text?.replace(/<[^>]*>/g, '')}</Text>
+
+          <View style={{ flexDirection: 'row', gap: 14, marginTop: 8 }}>
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-              <Ionicons name="heart-outline" size={11} /> {post.likes?.length || 0}
+              ❤️ {likes}
             </Text>
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-              <Ionicons name="chatbubble-outline" size={11} /> {post.comments?.length || 0}
+              💬 {post.comments?.length || 0}
+            </Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
+              👁️ {views}
             </Text>
             {post.type === 'poll' && <Text style={{ color: '#2563eb', fontSize: 10, fontWeight: '600' }}>Poll</Text>}
           </View>
+
+          {earned > 0 && (
+            <View style={{ marginTop: 10, backgroundColor: '#f0fdf4', borderRadius: 10, borderWidth: 1, borderColor: '#bbf7d0', padding: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#047857' }}>Milestone progress</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#047857' }}>{likes % 10}/10</Text>
+              </View>
+              <View style={{ height: 6, backgroundColor: '#dcfce7', borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{ height: '100%', backgroundColor: '#10b981', width: `${pct}%`, borderRadius: 3 }} />
+              </View>
+              <Text style={{ fontSize: 10, color: '#047857', marginTop: 4 }}>+5 coins every 10 likes — {nextPayout} more for next milestone</Text>
+            </View>
+          )}
+
           <TouchableOpacity onPress={() => { setBoostingPost(post); setBoostAmount(1); }} style={{ marginTop: 10, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#fed7aa', backgroundColor: '#fff7ed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Ionicons name="flash" size={14} color="#f97316" />
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#f97316' }}>Boost Post</Text>
             {post.boost_score > 0 && <Text style={{ fontSize: 11, color: '#f97316', opacity: 0.7 }}>({post.boost_score} pts)</Text>}
           </TouchableOpacity>
         </View>
-      ))}
+        );
+      })}
 
       {/* Boost Modal */}
       <Modal visible={!!boostingPost} transparent animationType="slide" onRequestClose={() => setBoostingPost(null)}>
@@ -939,8 +1048,26 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
 }
 
 function SnapsTab({ posts, setPosts, colors, isDark }: any) {
-  const snaps = posts.filter((p: any) => p.type === 'snap');
+  const snaps = posts.filter((p: any) => p.type === 'snap')
+    .filter((p: any) => p.disabled_for_now !== true && p.disabled !== true);
   const [preview, setPreview] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<string>('newest');
+
+  const sortedSnaps = [...snaps].sort((a: any, b: any) => {
+    if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    if (sortBy === 'liked') return (b.likes?.length || 0) - (a.likes?.length || 0);
+    if (sortBy === 'viewed') return (b.views?.length || 0) - (a.views?.length || 0);
+    if (sortBy === 'earned') {
+      const aEarn = Math.floor((a.likes?.length || 0) / 10) * 5;
+      const bEarn = Math.floor((b.likes?.length || 0) / 10) * 5;
+      return bEarn - aEarn;
+    }
+    return 0;
+  });
+
+  const totalViews = snaps.reduce((acc: number, s: any) => acc + (s.views?.length || 0), 0);
+  const totalLikes = snaps.reduce((acc: number, s: any) => acc + (s.likes?.length || 0), 0);
+  const totalEarned = Math.floor(totalLikes / 10) * 5;
 
   const deleteSnap = async (snapId: string) => {
     try {
@@ -954,25 +1081,56 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
 
   return (
     <ScrollView style={{ padding: 16 }}>
-      <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Snaps Studio</Text>
-      {snaps.length === 0 ? (
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <View>
+          <Text style={[styles.subTitle, { color: colors.textPrimary, marginBottom: 0 }]}>Snaps Studio</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{snaps.length} snaps · {totalViews.toLocaleString()} views · +{totalEarned} earned</Text>
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 6 }}>
+        {[{ k: 'newest', l: 'Newest' }, { k: 'liked', l: 'Most Liked' }, { k: 'viewed', l: 'Most Viewed' }, { k: 'earned', l: 'Top Earned' }].map(s => (
+          <TouchableOpacity key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2563eb' : isDark ? '#374151' : '#e5e7eb' }}>
+            <Text style={{ color: sortBy === s.k ? '#fff' : colors.textSecondary, fontSize: 11, fontWeight: '600' }}>{s.l}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {sortedSnaps.length === 0 ? (
         <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, alignItems: 'center', paddingVertical: 64 }]}>
           <Ionicons name="videocam-outline" size={40} color={colors.textSecondary} />
           <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8 }}>No snaps yet</Text>
         </View>
       ) : (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
-          {snaps.map((snap: any) => (
+          {sortedSnaps.map((snap: any) => {
+            const likes = snap.likes?.length || 0;
+            const earned = Math.floor(likes / 10) * 5;
+            const views = snap.views?.length || 0;
+            return (
             <TouchableOpacity key={snap.id} onPress={() => setPreview(snap)} style={{ width: '32%', aspectRatio: 9 / 16, backgroundColor: '#111827', borderRadius: 4, overflow: 'hidden' }}>
               {snap.media?.[0] && (
                 <Image source={{ uri: snap.media[0] }} style={{ width: '100%', height: '100%', opacity: 0.8 }} />
               )}
-              <View style={{ position: 'absolute', bottom: 6, left: 6, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="heart" size={10} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{snap.likes?.length || 0}</Text>
+              <View style={{ position: 'absolute', bottom: 6, left: 6, right: 6 }}>
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Ionicons name="heart" size={9} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{likes}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Ionicons name="eye" size={9} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{views}</Text>
+                  </View>
+                  {earned > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Ionicons name="cash" size={9} color="#34d399" />
+                    <Text style={{ color: '#34d399', fontSize: 9, fontWeight: '700' }}>+{earned}</Text>
+                  </View>}
+                </View>
               </View>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -982,6 +1140,32 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Snap Preview</Text>
             {preview?.media?.[0] && (
               <Image source={{ uri: preview.media[0] }} style={{ width: '100%', height: 300, borderRadius: 12, marginBottom: 16 }} resizeMode="contain" />
+            )}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 20, marginBottom: 16 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{preview?.likes?.length || 0}</Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary }}>Likes</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: colors.textPrimary }}>{preview?.views?.length || 0}</Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary }}>Views</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#059669' }}>+{Math.floor((preview?.likes?.length || 0) / 10) * 5}</Text>
+                <Text style={{ fontSize: 11, color: '#059669' }}>Earned</Text>
+              </View>
+            </View>
+            {(preview?.likes?.length || 0) >= 10 && (
+              <View style={{ backgroundColor: '#f0fdf4', borderRadius: 10, borderWidth: 1, borderColor: '#bbf7d0', padding: 12, marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#047857' }}>Milestone progress</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#047857' }}>{(preview?.likes?.length || 0) % 10}/10</Text>
+                </View>
+                <View style={{ height: 6, backgroundColor: '#dcfce7', borderRadius: 3, overflow: 'hidden' }}>
+                  <View style={{ height: '100%', backgroundColor: '#10b981', width: `${((preview?.likes?.length || 0) % 10) / 10 * 100}%`, borderRadius: 3 }} />
+                </View>
+                <Text style={{ fontSize: 10, color: '#047857', marginTop: 4 }}>+5 coins every 10 likes</Text>
+              </View>
             )}
             <TouchableOpacity onPress={() => deleteSnap(preview?.id)} style={{ backgroundColor: '#dc2626', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}>
               <Text style={{ color: '#fff', fontWeight: '800' }}>Delete snap</Text>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import FormInput from '../../components/ui/FormInput';
 import PasswordStrengthIndicator from '../../components/ui/PasswordStrengthIndicator';
 import { apiFetch } from '../../config/api';
+import { provisionLoudaSession } from '../../bridge/connector.js';
 
 export default function LoginForm({
   switchToSignup,
@@ -74,6 +75,7 @@ export default function LoginForm({
         }
       }
       localStorage.setItem('currentUser', data.user.username);
+      provisionLoudaSession(); // auto-log in Louda in the background (page redirects right after)
       
       // Reset feed state to prevent "failed to fetch" or stale posts from previous user
       window.__feedState = {

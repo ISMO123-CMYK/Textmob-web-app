@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR } from '../utils/defaultAvatar.js';
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch, getCurrentUser } from '../config/api';
 import { cn } from '../utils/classNames';
@@ -181,7 +182,7 @@ export default function AccountsCenter() {
   const accent = isOrg ? 'bg-purple-600' : 'bg-blue-600';
   const accentText = isOrg ? 'text-purple-600' : 'text-blue-600';
   const accentLight = isOrg ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600';
-  const defaultPic = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
+  const defaultPic = DEFAULT_AVATAR;
 
   if (loading) {
     return (
@@ -275,7 +276,7 @@ export default function AccountsCenter() {
 
         <main className="flex-1 overflow-y-auto p-4 max-w-2xl w-full mx-auto">
           {activeTab === 'home' && <OverviewTab profile={profile} stats={stats} posts={posts} setTab={setActiveTab} isOrg={isOrg} accent={accent} accentText={accentText} />}
-          {activeTab === 'monetize' && <MonetizationTab username={username} stats={stats} isOrg={isOrg} accent={accent} verified={!!profile?.verified} setTab={setActiveTab} showAlert={showAlert} />}
+          {activeTab === 'monetize' && <MonetizationTab username={username} stats={stats} posts={posts} isOrg={isOrg} accent={accent} verified={!!profile?.verified} setTab={setActiveTab} showAlert={showAlert} />}
           {activeTab === 'analytics' && <AnalyticsTab posts={posts} stats={stats} profile={profile} isOrg={isOrg} accentText={accentText} />}
           {activeTab === 'composer' && <ComposerTab username={username} setTab={setActiveTab} isOrg={isOrg} accent={accent} />}
           {activeTab === 'profile' && <EditProfileTab profile={profile} setProfile={setProfile} username={username} isOrg={isOrg} accent={accent} accentText={accentText} />}
@@ -301,8 +302,10 @@ export default function AccountsCenter() {
 function VerificationTab({ username, accent, setTab }) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState(false);
-  const [error, setError] = useState(null);
+  // Manual WhatsApp route: randomly split traffic between support lines on load.
+  const [waNumber, setWaNumber] = useState(() =>
+    Math.random() < 0.5 ? '2347057581322' : '2347087421125'
+  );
 
   useEffect(() => {
     async function checkStatus() {
@@ -322,32 +325,14 @@ function VerificationTab({ username, accent, setTab }) {
     checkStatus();
   }, [username]);
 
-  const handlePay = async () => {
-    setPaying(true);
-    setError(null);
-    try {
-      const res = await apiFetch('/api/devpay/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
-      });
-      const data = await res.json();
-      if (res.ok && (data?.url || data?.checkoutUrl)) {
-        window.location.href = data.url || data.checkoutUrl;
-      } else {
-        setError(data?.error || 'Failed to start payment. Please try again.');
-        setPaying(false);
-      }
-    } catch (e) {
-      setError('Network error. Please try again.');
-      setPaying(false);
-    }
-  };
-
   const isActive = status?.verified;
   const daysLeft = status?.verified_until
     ? Math.max(0, Math.ceil((new Date(status.verified_until).getTime() - Date.now()) / 86400000))
     : 0;
+
+  const waMessage = `I want to pay for the verified badge on Textmob. Username: @${username || ''} (Fee: ₦500)`;
+  const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
+  const waDisplay = waNumber === '2347057581322' ? '+234 705 758 1322' : '+234 708 742 1125';
 
   return (
     <div className="space-y-4">
@@ -375,8 +360,18 @@ function VerificationTab({ username, accent, setTab }) {
             </p>
           </div>
           <span className="inline-block bg-blue-100/80 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">
-            Renews at ₦500 / month
+            Renews at ₦500 / month via WhatsApp
           </span>
+          <div>
+            <a
+              href={waLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all items-center justify-center gap-2"
+            >
+              Renew via WhatsApp
+            </a>
+          </div>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
@@ -389,6 +384,7 @@ function VerificationTab({ username, accent, setTab }) {
             <h3 className="text-lg font-bold text-gray-900">Get Verified on Textmob</h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
               Stand out with a blue tick badge. Build trust, credibility, and gain increased visibility in feeds.
+              You'll be redirected through WhatsApp to complete your payment.
             </p>
           </div>
 
@@ -407,29 +403,28 @@ function VerificationTab({ username, accent, setTab }) {
             </div>
           </div>
 
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
-              {error}
-            </div>
-          )}
-
-          <button
-            onClick={handlePay}
-            disabled={paying}
-            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
           >
-            {paying ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Redirecting to payment...</span>
-              </>
-            ) : (
-              <span>Pay ₦500 Now</span>
-            )}
-          </button>
+            <span>Pay ₦500 via WhatsApp</span>
+          </a>
+
+          <div className="flex items-center justify-center gap-2 text-[11px] text-gray-500">
+            <span>You'll chat with <strong className="text-gray-700">{waDisplay}</strong></span>
+            <button
+              type="button"
+              onClick={() => setWaNumber(prev => (prev === '2347057581322' ? '2347087421125' : '2347057581322'))}
+              className="text-blue-600 font-semibold hover:underline"
+            >
+              Use other line
+            </button>
+          </div>
 
           <p className="text-[11px] text-gray-400 text-center">
-            🔒 Secure payment powered by DevPay.
+            🔒 Manual verification — our team confirms your payment on WhatsApp and activates your badge (valid 30 days).
           </p>
         </div>
       )}
@@ -515,7 +510,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       <div style={{ background: isOrg ? 'linear-gradient(135deg, #2563eb, #6d28d9)' : 'linear-gradient(135deg, #2563eb, #1e40af)' }} className='rounded-2xl p-5 text-white'>
         <div className="flex items-center gap-3 mb-5">
           <img
-            src={profile?.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b'}
+            src={profile?.profile_pic || DEFAULT_AVATAR}
             alt=""
             className="w-12 h-12 rounded-xl object-cover border-2 border-white/20 flex-shrink-0"
           />
@@ -584,7 +579,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
 }
 
 // ─── 2. Monetization ─────────────────────────────────────────────────────────
-function MonetizationTab({ username, stats, isOrg, accent, verified, setTab, showAlert }) {
+function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified, setTab, showAlert }) {
   const [balance, setBalance] = useState(stats?.mobcoins || 0);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -692,16 +687,47 @@ function MonetizationTab({ username, stats, isOrg, accent, verified, setTab, sho
           </div>
         </div>
       </div>
+      {/* Milestone earnings breakdown */}
+      {(() => {
+        const mine = (posts || []).filter(p => p.disabled_for_now !== true && p.disabled !== true);
+        const likes = mine.reduce((s, p) => s + (p.likes?.length || 0), 0);
+        const milestones = mine.reduce((s, p) => s + Math.floor((p.likes?.length || 0) / 10), 0);
+        const fromPosts = mine.filter(p => p.type !== 'snap').reduce((s, p) => s + Math.floor((p.likes?.length || 0) / 10) * 5, 0);
+        const fromSnaps = mine.filter(p => p.type === 'snap').reduce((s, p) => s + Math.floor((p.likes?.length || 0) / 10) * 5, 0);
+        return (
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <p className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Milestone earnings</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-gray-50 border border-gray-100 rounded-xl py-3 px-1">
+                <p className="text-lg font-black text-gray-900">{likes.toLocaleString()}</p>
+                <p className="text-[10px] font-medium text-gray-400 mt-0.5">Total likes</p>
+              </div>
+              <div className="bg-gray-50 border border-gray-100 rounded-xl py-3 px-1">
+                <p className="text-lg font-black text-gray-900">{milestones.toLocaleString()}</p>
+                <p className="text-[10px] font-medium text-gray-400 mt-0.5">Milestones hit</p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl py-3 px-1">
+                <p className="text-lg font-black text-emerald-600">{(fromPosts + fromSnaps).toLocaleString()}</p>
+                <p className="text-[10px] font-medium text-emerald-600/70 mt-0.5">Coins from likes</p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-2 text-[11px] font-semibold">
+              <span className="flex-1 bg-blue-50 text-blue-700 rounded-lg px-3 py-2 text-center">Posts: +{fromPosts.toLocaleString()}</span>
+              <span className="flex-1 bg-purple-50 text-purple-700 rounded-lg px-3 py-2 text-center">Snaps: +{fromSnaps.toLocaleString()}</span>
+            </div>
+          </div>
+        );
+      })()}
       {!isOrg && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-xs">
           Personal accounts cannot redeem earnings. Please go to <strong>Edit Profile → Switch Mode</strong> to upgrade to a Professional account.
         </div>
       )}
 
-      <Accordion title="How to earn more" icon={K.Coin} description="Tips to grow your balance" isOrg={isOrg}>
+      <Accordion title="How earnings work" icon={K.Coin} description="Milestone rewards, explained" isOrg={isOrg}>
         <div className="space-y-3 pt-3">
           {[
-            { t: 'Get more interactions', b: 'Posts with lots of likes and comments earn coins 50% faster.' },
+            { t: '10 likes = 5 Mobcoins', b: 'Every time any of your posts or snaps hits 10, 20, 30… likes, you automatically earn 5 Mobcoins.' },
             { t: 'Reach 2,000 coins', b: 'You need at least 2,000 coins before you can request a payout.' },
             { t: 'Professional advantage', b: 'Professional accounts get early access to ad revenue sharing.' }
           ].map(i => (
@@ -790,7 +816,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
     biography: profile?.biography || '',
   });
   const [photoFile, setPhotoFile] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(profile?.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b');
+  const [photoPreview, setPhotoPreview] = useState(profile?.profile_pic || DEFAULT_AVATAR);
   const [coverPreview, setCoverPreview] = useState(profile?.cover_photo || '');
   const [coverSaving, setCoverSaving] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -949,10 +975,13 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
   return (
     <>
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Photos, personal details and account settings</p>
+      </div>
 
       {/* Photo */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4">
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4">
         <img src={photoPreview} alt="" className="w-16 h-16 rounded-xl object-cover border border-gray-200 flex-shrink-0" />
         <div>
           <p className="text-sm font-medium text-gray-900 mb-2">Profile photo</p>
@@ -964,7 +993,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       </div>
 
       {/* Cover Photo */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         <div className="relative h-28 md:h-36 bg-gray-100">
           {coverPreview ? (
             <img src={coverPreview} alt="Cover" className="w-full h-full object-cover" />
@@ -1006,7 +1035,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       </div>
 
       {/* Account type */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-sm font-medium text-gray-900">Account type</p>
@@ -1018,13 +1047,13 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       </div>
 
       {/* Profile form */}
-      <form onSubmit={handleProfileUpdate} className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
+      <form onSubmit={handleProfileUpdate} className="bg-white border border-gray-200 rounded-2xl p-4 space-y-4">
         <p className="text-xs font-semibold text-gray-500">Personal details</p>
         <div>
           <label className="text-xs font-medium text-gray-600 block mb-1">Full name</label>
           <input type="text" placeholder="Your full name" value={fields.fullName} onChange={e => setFields(prev => ({ ...prev, fullName: e.target.value }))} className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-colors" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Phone</label>
             <div className="relative">
@@ -1051,7 +1080,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       </form>
 
       {/* Password */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">{K.Lock}</div>
           <div>
@@ -1162,7 +1191,27 @@ function PostsTab({ posts, setPosts, username, setTab }) {
   const [boostAmount, setBoostAmount] = useState(1);
   const [boosting, setBoosting] = useState(false);
   const [balance, setBalance] = useState(0);
-  const filtered = posts.filter(p => p.type !== 'snap');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('newest');
+  const [view, setView] = useState('list');
+  // Mirror the feed: hidden/moderated posts never surface in the manager either.
+  const visible = posts.filter(p => p.type !== 'snap' && p.disabled_for_now !== true && p.disabled !== true);
+  const likeCount = p => p.likes?.length || 0;
+  const earnedOf = p => Math.floor(likeCount(p) / 10) * 5;
+  const progressOf = p => likeCount(p) % 10;
+  const filtered = visible
+    .filter(p => {
+      if (!query.trim()) return true;
+      const q = query.toLowerCase();
+      return (p.text?.replace(/<[^>]*>/g, '').toLowerCase().includes(q) || (p.type || '').toLowerCase().includes(q));
+    })
+    .sort((a, b) => {
+      if (sort === 'liked') return likeCount(b) - likeCount(a);
+      if (sort === 'closest') return (10 - progressOf(b) === 10 ? 0 : 10 - progressOf(b)) - (10 - progressOf(a) === 10 ? 0 : 10 - progressOf(a));
+      if (sort === 'earned') return earnedOf(b) - earnedOf(a);
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+  const totalEarned = visible.reduce((s, p) => s + earnedOf(p), 0);
 
   useEffect(() => {
     apiFetch(`/api/user/stats?username=${encodeURIComponent(username)}`).then(r => r.ok ? r.json() : { mobcoins: 0 }).then(d => setBalance(d.mobcoins || 0)).catch(() => {});
@@ -1217,7 +1266,7 @@ function PostsTab({ posts, setPosts, username, setTab }) {
     finally { setBoosting(false); }
   }
 
-  if (!filtered.length) {
+  if (!visible.length) {
     return (
       <div className="flex flex-col items-center py-16 gap-3 text-center">
         <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-300">{K.Posts}</div>
@@ -1230,16 +1279,54 @@ function PostsTab({ posts, setPosts, username, setTab }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900">My Posts</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{filtered.length} posts</p>
+          <p className="text-xs text-gray-400 mt-0.5">{visible.length} posts · {totalEarned.toLocaleString()} coins earned from likes</p>
         </div>
-        <button onClick={() => setTab('composer')} className="h-9 px-4 rounded-lg bg-blue-600 text-white text-xs font-medium">New post</button>
+        <button onClick={() => setTab('composer')} className="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex-shrink-0 transition-colors">New post</button>
       </div>
 
+      {/* Milestone explainer */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">{K.Coin}</div>
+        <p className="text-xs text-emerald-800 leading-relaxed"><strong>Every 10 likes = 5 Mobcoins.</strong> Keep pushing your posts to the next milestone.</p>
+      </div>
+
+      {/* Toolbar: search + sort + view toggle */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search your posts…"
+          className="flex-1 h-10 px-4 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+        />
+        <div className="flex gap-2">
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value)}
+            className="flex-1 sm:flex-none h-10 px-3 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 outline-none focus:border-blue-400 transition-all"
+          >
+            <option value="newest">Newest</option>
+            <option value="liked">Most liked</option>
+            <option value="closest">Closest to payout</option>
+            <option value="earned">Top earning</option>
+          </select>
+          <div className="flex p-1 bg-gray-100 rounded-xl">
+            <button onClick={() => setView('list')} className={cn('h-8 px-3 rounded-lg text-xs font-semibold transition-all', view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500')}>List</button>
+            <button onClick={() => setView('grid')} className={cn('h-8 px-3 rounded-lg text-xs font-semibold transition-all', view === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500')}>Grid</button>
+          </div>
+        </div>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="py-12 text-center text-xs text-gray-400">No posts match “{query}”. <button onClick={() => setQuery('')} className="text-blue-600 font-semibold">Clear search</button></div>
+      )}
+
+      <div className={cn(view === 'grid' && 'grid grid-cols-1 sm:grid-cols-2 gap-4', view === 'list' && 'space-y-4')}>
       {filtered.map(post => (
-        <div key={post.id} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+        <div key={post.id} className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm font-medium text-gray-900 capitalize">{post.type || 'Post'}</p>
@@ -1273,6 +1360,27 @@ function PostsTab({ posts, setPosts, username, setTab }) {
             {post.type === 'poll' && <span className="bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-0.5 rounded-full">Poll</span>}
           </div>
 
+          {/* Milestone progress */}
+          {(() => {
+            const likes = post.likes?.length || 0;
+            const earned = Math.floor(likes / 10) * 5;
+            const into = likes % 10;
+            const away = into === 0 && likes > 0 ? 0 : 10 - into;
+            return (
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-gray-700">
+                    {away === 0 ? `🎉 Milestone hit — +5 coins paid` : `${away} like${away !== 1 ? 's' : ''} to +5 coins`}
+                  </span>
+                  <span className="font-bold text-emerald-600">{earned > 0 ? `+${earned} earned` : `${into}/10`}</span>
+                </div>
+                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(into / 10) * 100}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+
           {username && (
             <div className="flex items-center gap-3 pt-1">
               {post.boost_score > 0 && (
@@ -1285,6 +1393,7 @@ function PostsTab({ posts, setPosts, username, setTab }) {
           )}
         </div>
       ))}
+      </div>
 
       <BottomSheet open={!!boostingPost} onClose={() => setBoostingPost(null)} title="Boost Post">
         <div className="px-5 py-4 pb-10 space-y-5">
@@ -1346,37 +1455,113 @@ function PostsTab({ posts, setPosts, username, setTab }) {
 // ─── 6. Snaps Studio ─────────────────────────────────────────────────────────
 function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText }) {
   const [preview, setPreview] = useState(null);
-  const snaps = posts.filter(p => p.type === 'snap');
+  const [sort, setSort] = useState('newest');
+  // Mirror the feed: hidden/moderated snaps never surface in the studio either.
+  const visible = posts.filter(p => p.type === 'snap' && p.disabled_for_now !== true && p.disabled !== true);
+  const likeCount = s => s.likes?.length || 0;
+  const viewCount = s => (Array.isArray(s.views) ? s.views.length : 0);
+  const earnedOf = s => Math.floor(likeCount(s) / 10) * 5;
+  const snaps = [...visible].sort((a, b) => {
+    if (sort === 'liked') return likeCount(b) - likeCount(a);
+    if (sort === 'viewed') return viewCount(b) - viewCount(a);
+    if (sort === 'earned') return earnedOf(b) - earnedOf(a);
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+  const totalViews = visible.reduce((s, p) => s + viewCount(p), 0);
+  const totalEarned = visible.reduce((s, p) => s + earnedOf(p), 0);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Snaps Studio</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{snaps.length} clips</p>
+          <p className="text-xs text-gray-400 mt-0.5">{snaps.length} clips · {totalViews.toLocaleString()} views · {totalEarned.toLocaleString()} coins earned</p>
         </div>
         <button
           onClick={() => window.Lexum ? window.Lexum.navigate('/snaps') : (window.location.href = '/snaps')}
-          className={cn("h-9 px-4 rounded-lg text-white text-xs font-medium", accent)}
+          className={cn("h-9 px-4 rounded-lg text-white text-xs font-bold flex-shrink-0", accent)}
         >
           New snap
         </button>
       </div>
 
+      {/* Milestone explainer */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">{K.Coin}</div>
+        <p className="text-xs text-emerald-800 leading-relaxed"><strong>Every 10 likes = 5 Mobcoins</strong> — snaps earn exactly like posts.</p>
+      </div>
+
+      {snaps.length > 0 && (
+        <div className="flex justify-end">
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value)}
+            className="h-9 px-3 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 outline-none focus:border-blue-400 transition-all"
+          >
+            <option value="newest">Newest</option>
+            <option value="liked">Most liked</option>
+            <option value="viewed">Most viewed</option>
+            <option value="earned">Top earning</option>
+          </select>
+        </div>
+      )}
+
       {snaps.length > 0 ? (
-        <div className="grid grid-cols-3 gap-0.5">
-          {snaps.map(snap => (
-            <div
-              key={snap.id}
-              className="aspect-[9/16] bg-gray-900 overflow-hidden relative cursor-pointer group"
-              onClick={() => setPreview(snap)}
-            >
-              <video src={snap.media?.[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" muted />
-              <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
-                <span className="bg-black/40 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1">{K.Heart}{snap.likes?.length || 0}</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {snaps.map(snap => {
+            const likes = likeCount(snap);
+            const views = viewCount(snap);
+            const earned = earnedOf(snap);
+            const into = likes % 10;
+            const away = into === 0 && likes > 0 ? 0 : 10 - into;
+            const comments = snap.comments?.length || 0;
+            return (
+              <div key={snap.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                <div className="flex gap-3 p-3">
+                  <div
+                    className="w-20 aspect-[9/16] bg-gray-900 rounded-xl overflow-hidden relative cursor-pointer flex-shrink-0 group"
+                    onClick={() => setPreview(snap)}
+                  >
+                    <video src={snap.media?.[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" muted preload="metadata" />
+                    <div className="absolute bottom-1 left-1 bg-black/50 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">{K.Heart}{likes}</div>
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">{snap.text?.replace(/<[^>]*>/g, '') || 'Untitled snap'}</p>
+                    <p className="text-[10px] text-gray-400">{new Date(snap.created_at).toLocaleDateString()}</p>
+                    <div className="flex items-center gap-3 text-[11px] font-semibold text-gray-600">
+                      <span className="flex items-center gap-1"><span className="text-red-500">{K.Heart}</span>{likes}</span>
+                      <span className="flex items-center gap-1"><span className="text-blue-500">{K.Chat}</span>{comments}</span>
+                      <span className="flex items-center gap-1 text-gray-500">👁 {views.toLocaleString()}</span>
+                      {earned > 0 && <span className="text-emerald-600 font-bold">+{earned} 🪙</span>}
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] mb-1">
+                        <span className="font-semibold text-gray-500">{away === 0 ? '🎉 Milestone hit!' : `${away} to +5`}</span>
+                        <span className="font-bold text-emerald-600">{into}/10</span>
+                      </div>
+                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(into / 10) * 100}%` }} />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => window.Lexum ? window.Lexum.navigate(`/snaps`) : (window.location.href = '/snaps')}
+                        className="flex-1 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold transition-colors"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => setPreview(snap)}
+                        className="flex-1 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 text-[11px] font-bold transition-colors"
+                      >
+                        Manage
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-col items-center py-16 gap-3 text-center">
@@ -1386,11 +1571,26 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
         </div>
       )}
 
-      <BottomSheet open={!!preview} onClose={() => setPreview(null)} title="Preview">
+      <BottomSheet open={!!preview} onClose={() => setPreview(null)} title="Manage snap">
         <div className="p-5 flex flex-col items-center gap-4 pb-10">
           <div className="w-full max-w-[260px] aspect-[9/16] bg-black rounded-2xl overflow-hidden">
             <video src={preview?.media?.[0]} className="w-full h-full object-cover" controls autoPlay loop />
           </div>
+          {preview && (
+            <div className="w-full max-w-[260px] grid grid-cols-4 gap-2 text-center">
+              {[
+                { label: 'Likes', value: (preview.likes?.length || 0).toLocaleString() },
+                { label: 'Comments', value: (preview.comments?.length || 0).toLocaleString() },
+                { label: 'Views', value: (Array.isArray(preview.views) ? preview.views.length : 0).toLocaleString() },
+                { label: 'Earned', value: `+${Math.floor((preview.likes?.length || 0) / 10) * 5}` },
+              ].map(s => (
+                <div key={s.label} className="bg-gray-50 border border-gray-100 rounded-xl py-2">
+                  <p className="text-sm font-bold text-gray-900">{s.value}</p>
+                  <p className="text-[9px] font-medium text-gray-400">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
           <button
             onClick={() => {
               if (confirm('Delete this snap?')) {

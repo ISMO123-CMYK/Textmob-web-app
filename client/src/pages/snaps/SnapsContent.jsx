@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 ﻿import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch, API_BASE_URL } from '../../config/api';
@@ -77,7 +78,7 @@ function An(e) {
  if (!e || e === 'undefined') {
  return {
  fullname: 'Guest',
- profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b',
+ profile_pic: DEFAULT_AVATAR,
  notifications: []
  };
  } else {
@@ -115,7 +116,7 @@ async function Mn(e) {
  console.warn('Async profile fetch failed for', e, t);
  let n = {
  fullname: e,
- profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b',
+ profile_pic: DEFAULT_AVATAR,
  notifications: []
  };
  On.set(e, n);
@@ -155,7 +156,7 @@ function Nn(e) {
  }, [e]);
  return t || {
  fullname: e || 'Loading...',
- profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b',
+ profile_pic: DEFAULT_AVATAR,
  notifications: []
  };
 }

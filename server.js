@@ -34,6 +34,14 @@ const loudaSupabaseUrl = 'https://ldepewastfyohswgtgbb.supabase.co';
 const loudaSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZXBld2FzdGZ5b2hzd2d0Z2JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5ODkwOTUsImV4cCI6MjA5MDU2NTA5NX0.57USwUSsJL1ik-RwxZgcV1cJLzr3TDxcRX7xbum0Bms';
 const loudaSupabase = createClient(loudaSupabaseUrl, loudaSupabaseKey);
 
+// Default avatar for the whole app (mirrors client/src/utils/defaultAvatar.js).
+// Inline SVG data URI — no external provider dependency.
+const DEFAULT_AVATAR =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="32" fill="#e5e7eb"/><circle cx="32" cy="24" r="10" fill="#9ca3af"/><path d="M14 52c3-10 10-14 18-14s15 4 18 14" fill="#9ca3af"/></svg>'
+  );
+
 // Hourly worker to expire verification requests
 async function runVerificationCleanup() {
   console.log('[WORKER] Checking for expired verifications...');
@@ -2284,7 +2292,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
           email: email ? email.trimEnd() : "noemail@gmail.com",
           phone: phone ? phone.trimEnd() : "nophone",
           password,
-          profile_pic: profilePicUrl || "https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b",
+          profile_pic: profilePicUrl || DEFAULT_AVATAR,
           followers: [],
           following: [],
           friends: [],
@@ -2333,7 +2341,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
         email: email ? email.trimEnd() : "noemail@gmail.com",
         phone: phone ? phone.trimEnd() : "nophone",
         password,
-        profile_pic: profilePicUrl || "https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b",
+        profile_pic: profilePicUrl || DEFAULT_AVATAR,
         followers: [],
         following: [],
         friends: [],
@@ -2355,7 +2363,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
       memoryDb.users.push(newUser);
     }
 
-    await updateMobcoins(username.split('@').pop().trimEnd(), +30, true, `You Just Received 30 Mobcoins As a new User on Textmob`);
+    await updateMobcoins(username.split('@').pop().trimEnd(), +20, true, `You Just Received 20 Mobcoins As a new User on Textmob`);
     res.json({ message: "Signup successful! You can now log in." });
   } catch (error) {
     console.error("Signup Error:", error);
@@ -2889,7 +2897,7 @@ app.get("/profile/:username", async (req, res) => {
 
     if (error || !user) {
       return res.json({
-        profile_pic: 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b',
+        profile_pic: DEFAULT_AVATAR,
         notifications: [],
         post_count: 0,
         total_likes: 0,
@@ -3841,16 +3849,6 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
       } catch (e) {
         console.error("[create-snap] notify error:", e && e.message);
       }
-      try {
-        await updateMobcoins(
-          username.split("@").pop().trimEnd(),
-          +7,
-          true,
-          `You Just Received 7 Mobcoins for creating a Snap on Textmob`
-        );
-      } catch (e) {
-        console.error("[create-snap] mobcoins error:", e && e.message);
-      }
     }, 0);
 
     res.json({ message: "Snap created successfully!" });
@@ -4168,7 +4166,7 @@ app.get("/get-snap/:id", async (req, res) => {
       snap.author_fullname = user.fullname;
       snap.profile_type = user.profile_type;
     } else {
-      snap.profile_pic = "https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b";
+      snap.profile_pic = DEFAULT_AVATAR;
       snap.verified = false;
       snap.author_fullname = snap.username;
     }
@@ -4299,7 +4297,7 @@ function getGroqClient() {
 }
 
 async function groqChat(messages, options = {}) {
-  const { model = "llama-3.3-70b-versatile", temperature = 0.3, max_tokens = 1024 } = options;
+  const { model = "openai/gpt-oss-20b", temperature = 0.3, max_tokens = 1024 } = options;
   for (let attempt = 0; attempt < GROQ_KEYS.length; attempt++) {
     await new Promise(r => setTimeout(r, 100 + Math.random() * 200));
     try {
@@ -5053,17 +5051,7 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
       memoryDb.upsertPost(data);
     }
 
-    // Award Mobcoins (best-effort)
-    try {
-      await updateMobcoins(
-        username.split("@").pop().trimEnd(),
-        +10,
-        true,
-        "You just received 10 Mobcoins for creating a " + type + " on Textmob"
-      );
-    } catch (mobErr) {
-      console.error("[create-post] updateMobcoins failed:", mobErr);
-    }
+    // Mobcoin rewards are milestone-based only (see /like-post worker).
 
     // Immediately respond to client
     res.json({ message: (type === "poll" ? "Poll" : "Post") + " created successfully!" });
@@ -5208,18 +5196,6 @@ async function createLivePostInDB(opts) {
 
     // Background tasks (non-blocking)
     setTimeout(async () => {
-      // Award Mobcoins (best-effort)
-      try {
-        await updateMobcoins(
-          username.split("@").pop().trimEnd(),
-          10,
-          true,
-          "You just received 10 Mobcoins for starting a live on Textmob"
-        );
-      } catch (e) {
-        console.error("createLivePostInDB mobcoin error:", e);
-      }
-
       // Background notifications
       try {
         await notifyConnectionsOnPost(username, text, createdRow.id);
@@ -5887,6 +5863,11 @@ io.on("connection", function (socket) {
         .update({ views: updatedViews })
         .eq("id", postId);
       if (updateErr) { console.error("post_view update error:", updateErr.message); return; }
+      // Keep memoryDb in sync so feed serve fresh view counts
+      if (memoryDb && memoryDb.isReady) {
+        const cached = memoryDb.findPost(postId);
+        if (cached) cached.views = updatedViews;
+      }
       console.log(`[post_view] ${username} viewed ${postId} (${updatedViews.length} views)`);
     } catch (e) {
       console.error("post_view error:", e);
@@ -5983,6 +5964,27 @@ app.post("/like-post", async (req, res) => {
       });
     }
     res.json({ message: "Post likes updated successfully!", likes: updatedLikes });
+
+    // ── Milestone rewards (background, non-blocking) ──
+    // Every exact 10-like milestone (10, 20, 30, ...) pays the author +5 Mobcoins.
+    // No tables: pure check on the fresh like count. Unlikes never pay; self-likes never pay.
+    if (action === "liked" && username !== post.username && updatedLikes.length > 0 && updatedLikes.length % 10 === 0) {
+      const milestone = updatedLikes.length;
+      const ownerName = post.username;
+      setImmediate(async () => {
+        try {
+          await updateMobcoins(
+            String(ownerName).split("@").pop().trimEnd(),
+            +5,
+            true,
+            `You earned 5 Mobcoins — your post hit ${milestone} likes!`,
+            `/post/${postId}`
+          );
+        } catch (e) {
+          console.error("[like-post] milestone mobcoins error:", e && e.message);
+        }
+      });
+    }
   } catch (error) {
     console.error("Like Post Error:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -6114,7 +6116,7 @@ app.get("/get-post", async (req, res) => {
       post.profile_pic = user.profile_pic;
       post.verified = user.verified;
     } else {
-      post.profile_pic = "https://via.placeholder.com/40";
+      post.profile_pic = DEFAULT_AVATAR;
       post.verified = false;
     }
 
@@ -6342,19 +6344,8 @@ app.post("/add-comment", async (req, res) => {
     const postLink = `/post/${postId}`;
     const isSelfComment = commenterUsername === ownerUsername;
 
-    // Reward ONLY the post owner when someone else comments
-    if (!isSelfComment) {
-      try {
-        await updateMobcoins(
-          normalizeMobcoinUser(ownerUsername),
-          +10,
-          true,
-          "You just received 10 Mobcoins because someone commented on your post"
-        );
-      } catch (mbErr) {
-        console.error("[add-comment] updateMobcoins (post owner) failed:", mbErr);
-      }
-    }
+    // Mobcoin rewards are milestone-based only (see /like-post worker).
+    // No coins for comments — likes milestones (every 10 likes = 5 Mobcoins) only.
 
     // If replying to a specific comment, notify that comment's author
     if (parentId && repliedUsername && repliedUsername !== commenterUsername && repliedUsername !== ownerUsername) {
@@ -7067,7 +7058,7 @@ async function generateAIResponse(messages, mediaUrl, mediaType) {
   }
 
   // Select model (vision model only used for image description above)
-  var selectedModel = "openai/gpt-oss-120b";
+  var selectedModel = "openai/gpt-oss-20b";
 
   // Collect API keys for rotation
   var apiKeys = [
@@ -7088,7 +7079,7 @@ async function generateAIResponse(messages, mediaUrl, mediaType) {
   while (attempt < maxTries) {
     attempt = attempt + 1;
     try {
-      var groqModel = (selectedModel === "openai/gpt-oss-120b") ? "llama-3.3-70b-versatile" : selectedModel;
+      var groqModel = selectedModel;
       var payload = {
         model: groqModel,
         messages: finalMessages,
@@ -9337,7 +9328,9 @@ async function getUserIdFromUsername(username) {
 }
 
 app.get('/default-avatar', (req, res) => {
-  res.redirect(301, 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b');
+  res.type('image/svg+xml').send(
+    decodeURIComponent(DEFAULT_AVATAR.replace('data:image/svg+xml;utf8,', ''))
+  );
 });
 app.get('/events-feed', async (req, res) => {
   const now = new Date().toISOString();
@@ -10676,17 +10669,7 @@ app.post(
         memoryDb.upsertPost(data);
       }
 
-      // Award Mobcoins (best-effort)
-      try {
-        await updateMobcoins(
-          username.split("@").pop().trim(),
-          +10,
-          true,
-          "You just received 10 Mobcoins for creating a " + (type === 'poll' ? 'poll' : 'group post') + " on Textmob"
-        );
-      } catch (mobErr) {
-        console.error("[group-post] updateMobcoins failed:", mobErr);
-      }
+      // Mobcoin rewards are milestone-based only (see /like-post worker).
 
       // Immediately respond to client
       res.json({ message: (type === "poll" ? "Poll" : "Group post") + " created successfully!" });
@@ -10848,15 +10831,18 @@ io.on('connection', function (socket) {
     viewers.add(username);
     if (wasNew) {
       io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size });
+      // Persist to DB so listing pages show live count
+      try { await supabase2.from('live_rooms').update({ participant_count: viewers.size }).eq('id', roomId); } catch (_) {}
     }
   });
 
-  socket.on('leave_discussion', function ({ roomId }) {
+  socket.on('leave_discussion', async function ({ roomId }) {
     if (roomId && socket.discussionUser) {
       const viewers = discussionViewers.get(roomId);
       if (viewers) {
         viewers.delete(socket.discussionUser);
         io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size });
+        try { await supabase2.from('live_rooms').update({ participant_count: viewers.size }).eq('id', roomId); } catch (_) {}
       }
     }
     socket.leave(`discussion_${roomId}`);
@@ -11265,7 +11251,7 @@ async function generateRecapAI(activity) {
     // Jitter to desync parallel workers
     await new Promise(r => setTimeout(r, 100 + Math.random() * 400));
     try {
-      const groqModel = "openai/gpt-oss-120b" === "openai/gpt-oss-120b" ? "llama-3.3-70b-versatile" : "openai/gpt-oss-120b";
+      const groqModel = "openai/gpt-oss-20b";
       const aiRes = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
         model: groqModel,
         messages: [
@@ -11861,7 +11847,7 @@ app.post("/api/admin/user/set-verified", async (req, res) => {
 
     const { data: user, error: fetchErr } = await supabase
       .from("users")
-      .select("username, fullname")
+      .select("id, username, fullname")
       .eq("id", userId)
       .single();
     if (fetchErr) throw fetchErr;
@@ -11872,6 +11858,41 @@ app.post("/api/admin/user/set-verified", async (req, res) => {
       .eq("id", userId);
     if (updateErr) throw updateErr;
 
+    // Keep manual verifies on the same 30-day lifecycle as paid ones:
+    // the status tab + hourly cleanup worker both read verification_requests,
+    // so a manual verify must write a row or the badge never counts down / never revokes.
+    let verifiedUntil = null;
+    if (verified && user) {
+      verifiedUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const { data: existingReq } = await supabase
+        .from("verification_requests")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "ACCEPTED")
+        .gt("verified_until", new Date().toISOString())
+        .single();
+      if (existingReq) {
+        await supabase
+          .from("verification_requests")
+          .update({ verified_until: verifiedUntil.toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", existingReq.id);
+      } else {
+        await supabase.from("verification_requests").insert([{
+          user_id: user.id,
+          status: "ACCEPTED",
+          verified_until: verifiedUntil.toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }]);
+      }
+    } else if (!verified && user) {
+      await supabase
+        .from("verification_requests")
+        .update({ status: "EXPIRED", updated_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .eq("status", "ACCEPTED");
+    }
+
     // Update MemoryDB in real-time
     if (memoryDb && memoryDb.isReady && user) {
       memoryDb.updateUser(user.username, { verified: !!verified });
@@ -11879,14 +11900,14 @@ app.post("/api/admin/user/set-verified", async (req, res) => {
 
     if (verified && user) {
       await triggerNotification(user.username, 'verification', {
-        msg: `Congratulations @${user.username}! You have been verified by the admin.`,
+        msg: `Congratulations @${user.username}! You have been verified by the admin.${verifiedUntil ? ` Your badge is active until ${verifiedUntil.toLocaleDateString()}.` : ""}`,
         subject: "You're Verified on Textmob!",
-        html: `Hi ${user.fullname || user.username},<br><br>You have been verified by the Textmob admin team. Enjoy your verified badge!`,
+        html: `Hi ${user.fullname || user.username},<br><br>You have been verified by the Textmob admin team. Enjoy your verified badge!${verifiedUntil ? `<br><br>Your blue tick is active until <strong>${verifiedUntil.toLocaleDateString()}</strong> (30 days). Renew via WhatsApp from the Accounts Center.` : ""}`,
         link: "/accountscenter"
       });
     }
 
-    res.json({ success: true, verified: !!verified });
+    res.json({ success: true, verified: !!verified, verified_until: verifiedUntil ? verifiedUntil.toISOString() : null });
   } catch (err) {
     console.error("[ADMIN SET VERIFIED ERROR]", err);
     res.status(500).json({ error: err.message });

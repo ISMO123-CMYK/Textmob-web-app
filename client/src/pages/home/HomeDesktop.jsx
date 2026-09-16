@@ -13,7 +13,9 @@ export default function HomeDesktop() {
     const parseTwemoji = () => {
       if (window.twemoji) {
         Array.from(document.body.querySelectorAll('*:not([data-twemoji-ignore] *)')).forEach(el => {
-          if (!el.closest('[data-twemoji-ignore]')) {
+          // Skip ignored subtrees AND their ancestors (parsing an ancestor
+          // would re-parse the ignored Messages DOM inside it).
+          if (!el.closest('[data-twemoji-ignore]') && !el.querySelector('[data-twemoji-ignore]')) {
             try {
               window.twemoji.parse(el, {
                 folder: 'svg',

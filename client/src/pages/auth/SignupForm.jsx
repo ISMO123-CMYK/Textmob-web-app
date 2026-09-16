@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import FormInput from '../../components/ui/FormInput';
 import PasswordStrengthIndicator from '../../components/ui/PasswordStrengthIndicator';
 import { apiFetch } from '../../config/api';
+import { provisionLoudaSession } from '../../bridge/connector.js';
 import { isValidName, isValidEmail, isValidPhone, normalizePhone, isStrongPassword, isValidUsername } from '../../utils/validators';
 
 export default function SignupForm({ switchToLogin }) {
@@ -83,6 +84,7 @@ export default function SignupForm({ switchToLogin }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       localStorage.setItem('currentUser', form.username);
+      provisionLoudaSession(); // auto-register + log in Louda in the background
       setSuccess(true);
     } catch (e) {
       window.showNotification({ title: 'Signup Failed', message: e.message || 'Please try again', type: 'error' });

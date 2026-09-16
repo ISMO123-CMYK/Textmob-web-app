@@ -10,10 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "firebase": "^12.19.0",
+    "framer-motion": "^13.3.0",
     "hls.js": "^1.6.16",
     "lucide-react": "^1.27.0",
+    "marked": "^18.0.13",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

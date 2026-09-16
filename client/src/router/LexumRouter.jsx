@@ -19,6 +19,11 @@ const Lexum = (() => {
   let spinnerEl = null;
   let loaderTimeout = null;
   let loaderStart = 0;
+  // Re-entry guards: Vite HMR (or any double import) re-executes main.jsx.
+  // Without these, a second createRoot() on the same container makes two
+  // React roots fight over #app and corrupt the DOM (insertBefore/removeChild).
+  let rootInstance = null;
+  let bootBound = false;
 
   const cleanPath = (path = '/') =>
     String(path || '/').split('?')[0].split('#')[0] || '/';
@@ -186,11 +191,20 @@ const Lexum = (() => {
             style: { display: isActive ? 'block' : 'none' },
             className: `route-page-wrapper w-full h-full ${isActive ? 'route-active' : ''} ${isSnaps ? 'snaps-context' : ''}`
           },
-          React.createElement(page.component, {
-            ...page.params,
-            routeData: page.data
-          })
-        );
+          React.createElement(
+            React.Suspense,
+            {
+              fallback: React.createElement('div', {
+                className: 'flex items-center justify-center min-h-[60vh]',
+              }, React.createElement('div', {
+                className: 'w-10 h-10 rounded-full border-2 border-gray-200 border-t-blue-600 animate-spin',
+              })),
+            },
+            React.createElement(page.component, {
+              ...page.params,
+              routeData: page.data
+            })
+          )        );
       })
     );
   };
@@ -304,26 +318,35 @@ const Lexum = (() => {
       if (!rootEl) return logError(`Root '${root}' not found`);
 
       routeMode = mode === 'history' ? 'history' : 'hash';
-      routes.push(...appRoutes);
+      if (!bootBound) routes.push(...appRoutes);
 
       const outlet = React.createElement(RouteOutlet);
       const app = wrapper ? React.createElement(wrapper, null, outlet) : outlet;
 
-      ReactDOM.createRoot(rootEl).render(React.createElement(RouteProvider, null, app));
-
-      if (routeMode === 'hash') {
-        window.addEventListener('hashchange', () => resolveRoute());
+      const tree = React.createElement(RouteProvider, null, app);
+      if (rootInstance) {
+        rootInstance.render(tree);
       } else {
-        window.addEventListener('popstate', () => resolveRoute());
+        rootInstance = ReactDOM.createRoot(rootEl);
+        rootInstance.render(tree);
       }
 
-      if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(() => resolveRoute(), 0);
-      } else {
-        window.addEventListener('load', () => setTimeout(() => resolveRoute(), 0), { once: true });
-      }
+      if (!bootBound) {
+        bootBound = true;
+        if (routeMode === 'hash') {
+          window.addEventListener('hashchange', () => resolveRoute());
+        } else {
+          window.addEventListener('popstate', () => resolveRoute());
+        }
 
-      bindLinks();
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+          setTimeout(() => resolveRoute(), 0);
+        } else {
+          window.addEventListener('load', () => setTimeout(() => resolveRoute(), 0), { once: true });
+        }
+
+        bindLinks();
+      }
       console.log(`LexumJS v${version} mounted in ${routeMode} mode`);
     },
     version,

@@ -15,12 +15,18 @@ export default function HomeMobile() {
     const parseTwemoji = () => {
       if (window.twemoji) {
         Array.from(document.body.querySelectorAll('*:not([data-twemoji-ignore] *)')).forEach(el => {
-          if (!el.closest('[data-twemoji-ignore]')) {
-            window.twemoji.parse(el, {
-              folder: 'svg',
-              ext: '.svg',
-              base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/'
-            });
+          // Skip ignored subtrees AND their ancestors (parsing an ancestor
+          // would re-parse the ignored Messages DOM inside it).
+          if (!el.closest('[data-twemoji-ignore]') && !el.querySelector('[data-twemoji-ignore]')) {
+            try {
+              window.twemoji.parse(el, {
+                folder: 'svg',
+                ext: '.svg',
+                base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/'
+              });
+            } catch (err) {
+              // ignore twemoji failures on detached DOM elements
+            }
           }
         });
       }

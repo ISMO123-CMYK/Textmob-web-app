@@ -1,6 +1,7 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 import { useEffect } from 'react';
 
-const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
+const DEFAULT_PIC = DEFAULT_AVATAR;
 
 export default function ManageAccountsModal({ show, accounts, onLogin, onRemove, onClose }) {
   useEffect(() => {

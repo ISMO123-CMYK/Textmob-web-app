@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../../config/api';
+import { onLoudaUnread, refreshLoudaUnread, connectLoudaSocket, refreshLoudaPresence } from '../../bridge/connector.js';
 import { cn } from '../../utils/classNames';
 import NavIcons from '../../utils/navIcons';
 
@@ -14,23 +14,30 @@ export default function MobileNav() {
     const user = localStorage.getItem('currentUser');
     if (!user) return;
 
-    const fetchLoudaUnread = () => {
-      apiFetch(`/api/louda-unread?username=${user}`)
-        .then(r => r.ok ? r.json() : { unreadCount: 0 })
-        .then(data => setLoudaUnread(data.unreadCount || 0))
-        .catch(() => {});
+    // Louda unread via bridge: live socket events + slow reconcile (no more 5s REST poll)
+    const offLouda = onLoudaUnread((count) => setLoudaUnread(count));
+    refreshLoudaUnread().catch(() => {});
+    connectLoudaSocket().catch(() => {});
+    const reconcile = setInterval(() => refreshLoudaUnread().catch(() => {}), 45000);
+    const onVis = () => {
+      if (!document.hidden) {
+        refreshLoudaUnread().catch(() => {});
+        refreshLoudaPresence(); // stay online + heal dropped socket
+      }
     };
-
-    fetchLoudaUnread();
-    const interval = setInterval(fetchLoudaUnread, 5000); // Update every 5s
-    return () => clearInterval(interval);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(reconcile);
+      document.removeEventListener('visibilitychange', onVis);
+      offLouda();
+    };
   }, []);
 
   const navItems = [
     { name: 'Feed', icon: NavIcons.Feed, to: '/' },
     { name: 'Fame', icon: NavIcons.Leaderboard, to: '/halloffame' },
     { name: 'Snaps', icon: NavIcons.Snaps, to: '/snaps' },
-    { name: 'Louda', icon: NavIcons.Messages, to: '/chats', badge: loudaUnread },
+    { name: 'Messages', icon: NavIcons.Messages, to: '/chats', badge: loudaUnread },
   ];
 
   const createItems = [

@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch, API_BASE_URL } from '../../config/api';
 import NavIcons from '../../utils/navIcons';
@@ -7,7 +8,7 @@ import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
 const GIPHY_API_KEY = '1PsuVrcwCRiOYQEfqgPOd9kVuoRmuhai';
 const GIPHY_API_BASE = 'https://api.giphy.com/v1/gifs';
-const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
+const DEFAULT_PIC = DEFAULT_AVATAR;
 const CATEGORIES = ['all', 'general', 'football', 'technology', 'music', 'politics', 'religion', 'entertainment', 'gaming', 'business', 'education'];
 const REACTION_EMOJIS = ['❤️', '🔥', '😂', '👍', '😮', '😢', '👏', '🙏', '💯', '😍'];
 

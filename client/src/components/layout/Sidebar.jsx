@@ -1,6 +1,8 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '../../utils/classNames';
 import { apiFetch } from '../../config/api';
+import { onLoudaUnread, refreshLoudaUnread, connectLoudaSocket, clearLoudaSession, provisionLoudaSession, refreshLoudaPresence } from '../../bridge/connector.js';
 import NavIcons from '../../utils/navIcons';
 
 export default function Sidebar() {
@@ -16,8 +18,6 @@ export default function Sidebar() {
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const menuRef = useRef(null);
   const createMenuRef = useRef(null);
-
-  const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
   useEffect(() => {
     const load = () => {
@@ -50,6 +50,8 @@ export default function Sidebar() {
       const data = await res.json();
       if (!res.ok) { window.showNotification?.({ title: 'Login Failed', message: data.error, type: 'error' }); return; }
       localStorage.setItem('currentUser', data.user.username);
+      clearLoudaSession(); // switching identity invalidates the linked Louda session
+      provisionLoudaSession(); // auto-log in Louda as the new identity (background)
       window.__feedState = { activeTab: 'foryou', foryou: { posts: [], page: 1, hasMore: true, scrollY: 0 }, following: { posts: [], page: 1, hasMore: true, scrollY: 0 } };
       try {
         Object.keys(localStorage).filter(k => k.startsWith('tmob_cache_')).forEach(k => localStorage.removeItem(k));
@@ -70,16 +72,29 @@ export default function Sidebar() {
         .then(r => r.ok ? r.json() : { unreadCount: 0 })
         .then(setUnread)
         .catch(() => setUnread({ unreadCount: 0 }));
-
-      apiFetch(`/api/louda-unread?username=${user}`)
-        .then(r => r.ok ? r.json() : { unreadCount: 0 })
-        .then(data => setLoudaUnread(data.unreadCount || 0))
-        .catch(() => { });
     };
 
     fetchUnread();
     const interval = setInterval(fetchUnread, 5000);
-    return () => clearInterval(interval);
+
+    // Louda unread via bridge: live socket events + slow reconcile (no more 5s REST poll)
+    const offLouda = onLoudaUnread((count) => setLoudaUnread(count));
+    refreshLoudaUnread().catch(() => {});
+    connectLoudaSocket().catch(() => {});
+    const reconcile = setInterval(() => refreshLoudaUnread().catch(() => {}), 45000);
+    const onVis = () => {
+      if (!document.hidden) {
+        refreshLoudaUnread().catch(() => {});
+        refreshLoudaPresence(); // stay online + heal dropped socket
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(interval);
+      clearInterval(reconcile);
+      document.removeEventListener('visibilitychange', onVis);
+      offLouda();
+    };
   }, []);
 
   useEffect(() => {
@@ -97,7 +112,7 @@ export default function Sidebar() {
     { Icon: NavIcons.Discussions, label: 'Discussions', badge: null, to: '/discussions' },
     { Icon: NavIcons.Live, label: 'Go Live', badge: null, to: '/create-live' },
 
-    { Icon: NavIcons.Messages, label: 'Louda', badge: loudaUnread || null, to: '/chats' },
+    { Icon: NavIcons.Messages, label: 'Messages', badge: loudaUnread || null, to: '/chats' },
     { Icon: NavIcons.Leaderboard, label: 'Hall of Fame', badge: null, to: '/halloffame' },
     { Icon: NavIcons.Wallet, label: 'Wallet', badge: null, to: '/wallet' },
     { Icon: NavIcons.Dots, label: 'More', badge: null, to: '/menu' },
@@ -238,7 +253,7 @@ export default function Sidebar() {
                     </button>
                   </div>
                   <div className="border-t border-gray-200">
-                    <button role="menuitem" onClick={() => { localStorage.removeItem('currentUser'); window.Lexum?.navigate('/auth'); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                    <button role="menuitem" onClick={() => { localStorage.removeItem('currentUser'); clearLoudaSession(); window.Lexum?.navigate('/auth'); }} className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors">
                       <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                       Log out
                     </button>

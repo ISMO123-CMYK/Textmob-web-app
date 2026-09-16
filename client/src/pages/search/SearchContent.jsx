@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../../config/api';
 import HomeFeed from '../home/HomeFeed';
@@ -529,7 +530,7 @@ export default function SearchContent() {
                         className="flex items-center gap-3 p-3 bg-white hover:bg-gray-100 border border-gray-100 rounded-2xl cursor-pointer transition-colors"
                       >
                         <img
-                          src={user.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b'}
+                          src={user.profile_pic || DEFAULT_AVATAR}
                           alt={user.username}
                           className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                         />

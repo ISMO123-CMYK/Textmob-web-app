@@ -1,5 +1,7 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 ﻿import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { apiFetch } from '../../config/api';
+import { sharePostToLouda } from '../../bridge/connector.js';
 import { cn } from '../../utils/classNames';
 import useProfileCache from '../../utils/useProfileCache';
 import timeAgo from '../../utils/timeAgo';
@@ -9,7 +11,7 @@ import GiftCoinsModal from './GiftCoinsModal';
 import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban } from 'lucide-react';
 
 /* ─── constants ─── */
-const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
+const DEFAULT_PIC = DEFAULT_AVATAR;
 const U = { navigate: path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path) };
 const isVideo = e => /\.(mp4|webm|ogg)$/i.test(String(e || ''));
 
@@ -132,7 +134,17 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal, onGift, onD
   { label: isSaved ? 'Unsave post' : 'Save post', icon: 'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z', onClick: toggleSave },
   ...(canDownload ? [{ label: 'Download image', icon: 'download', onClick: 'download' }] : []),
   ...(isOwnPost ? [] : [{ label: 'Gift Mobcoins', icon: 'gift', onClick: 'gift' }]),
-  { label: 'Share', icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' },
+  { label: 'Share', icon: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z', onClick: () => {
+    const url = `https://textmob.web.app/post/${post.id}`;
+    const text = post.text ? String(post.text).slice(0, 120) : 'Check this out on Textmob';
+    if (navigator.share) {
+      navigator.share({ title: 'Textmob', text, url }).catch(() => {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).catch(() => {});
+      window.showNotification?.({ title: 'Link copied', message: 'Post link copied to clipboard', type: 'success' });
+    }
+  } },
+  { label: 'Share to Messages', icon: 'louda', onClick: () => sharePostToLouda(post) },
   { label: 'Copy link', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
  { type: 'divider' },
  { label: 'Not interested', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636', signal: 'not_interested' },
@@ -188,7 +200,8 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal, onGift, onD
                  {item.label === 'Save post' && <Bookmark className={cn("w-5 h-5", isSaved ? "fill-current" : "stroke-current")} strokeWidth={isSaved ? 0 : 2} />}
                  {item.label === 'Unsave post' && <Bookmark className="w-5 h-5 fill-current" strokeWidth={0} />}
                  {item.label === 'Copy link' && <Link className="w-5 h-5 stroke-current" strokeWidth={2} />}
-                 {item.label === 'Share' && <Share2 className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                  {item.label === 'Share' && <Share2 className="w-5 h-5 stroke-current" strokeWidth={2} />}
+                  {item.label === 'Share to Messages' && <MessageCircle className="w-5 h-5 stroke-current" strokeWidth={2} />}
                  {item.label === 'Not interested' && <ThumbsDown className="w-5 h-5 stroke-current" strokeWidth={2} />}
                  {item.label === 'Hide' && <EyeOff className="w-5 h-5 stroke-current" strokeWidth={2} />}
                  {item.label === 'Report' && <Flag className="w-5 h-5 stroke-current" strokeWidth={2} />}
@@ -238,7 +251,8 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal, onGift, onD
              {item.label === 'Save post' && <Bookmark className={cn("w-4 h-4", isSaved ? "fill-current" : "stroke-current")} strokeWidth={isSaved ? 0 : 2} />}
              {item.label === 'Unsave post' && <Bookmark className="w-4 h-4 fill-current" strokeWidth={0} />}
              {item.label === 'Copy link' && <Link className="w-4 h-4 stroke-current" strokeWidth={2} />}
-             {item.label === 'Share' && <Share2 className="w-4 h-4 stroke-current" strokeWidth={2} />}
+              {item.label === 'Share' && <Share2 className="w-4 h-4 stroke-current" strokeWidth={2} />}
+              {item.label === 'Share to Messages' && <MessageCircle className="w-4 h-4 stroke-current" strokeWidth={2} />}
              {item.label === 'Not interested' && <ThumbsDown className="w-4 h-4 stroke-current" strokeWidth={2} />}
              {item.label === 'Hide' && <EyeOff className="w-4 h-4 stroke-current" strokeWidth={2} />}
              {item.label === 'Report' && <Flag className="w-4 h-4 stroke-current" strokeWidth={2} />}

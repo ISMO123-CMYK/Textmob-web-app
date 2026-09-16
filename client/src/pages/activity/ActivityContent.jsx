@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { apiFetch } from '../../config/api';
 
@@ -43,7 +44,7 @@ export default function ActivityContent({ onClose }) {
 
   // Helper avatar fallback
   function getAvatarFallback(username) {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(username || 'U')}&background=E6EEF8&color=1E3A8A&size=128&rounded=true`;
+    return DEFAULT_AVATAR;
   }
 
   function processNotifications(list) {

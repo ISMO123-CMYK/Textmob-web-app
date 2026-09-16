@@ -1,3 +1,4 @@
+import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 ﻿import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { apiFetch, isDataSaver } from '../../config/api';
 import { getMediaUrl } from '../../utils/cloudinary';
@@ -10,7 +11,7 @@ import { CATEGORIES } from '../../data/categories';
 
 const allCategories = CATEGORIES.map(c => c.id);
 
-const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
+const DEFAULT_PIC = DEFAULT_AVATAR;
 
 /* ─── blocked users localStorage helpers ─── */
 const BLOCKED_KEY = 'textmobBlockedUsers';
@@ -155,6 +156,23 @@ export default function HomeFeed({ propPosts }) {
  window.addEventListener('user-blocked', onBlock);
  return () => window.removeEventListener('user-blocked', onBlock);
  }, []);
+
+ // Feed-only refresh (no full page reload)
+ useEffect(() => {
+  function onFeedRefresh() {
+   setPosts([]);
+   setNewPosts([]);
+   setPage(1);
+   setHasMore(true);
+   setLoading(false);
+   setError('');
+   if (window.__feedState && window.__feedState[activeTab]) {
+    window.__feedState[activeTab] = { posts: [], page: 1, hasMore: true };
+   }
+  }
+  window.addEventListener('textmob-feed-refresh', onFeedRefresh);
+  return () => window.removeEventListener('textmob-feed-refresh', onFeedRefresh);
+ }, [activeTab]);
 
  const hasMoreRef = useRef(hasMore);
  const loadingRef = useRef(loading);
