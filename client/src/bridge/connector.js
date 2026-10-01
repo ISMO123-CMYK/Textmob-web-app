@@ -21,7 +21,7 @@ import { io } from 'socket.io-client';
 import { apiFetch } from '../config/api';
 
 // ─── endpoints ──────────────────────────────────────────────
-export const LOUDA_PROD_URL = 'https://louda-uyxg.onrender.com';
+export const LOUDA_PROD_URL = 'https://louda-back-end.onrender.com';
 
 // Single backend: the real Louda API in every environment.
 // (Local override still possible via VITE_LOUDA_API_URL when hacking on

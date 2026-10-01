@@ -295,7 +295,7 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
 }
 
 const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 99999, elevation: 99999 },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 99999, elevation: 99999 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     height: 52, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth,

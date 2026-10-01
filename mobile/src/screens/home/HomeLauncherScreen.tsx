@@ -151,8 +151,8 @@ export default function HomeLauncherScreen({ navigation }: { navigation: any }) 
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  bgImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  bgImage: { ...StyleSheet.absoluteFill, width: '100%', height: '100%' },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)' },
   outer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollView: { flex: 1 },
   page: { justifyContent: 'center', alignItems: 'center' },

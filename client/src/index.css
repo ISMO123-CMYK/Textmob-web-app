@@ -188,3 +188,16 @@ img {
   animation: none !important;
 }
 
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+@media (min-width: 640px) {
+  .animate-slide-up {
+    animation: none;
+  }
+}
+

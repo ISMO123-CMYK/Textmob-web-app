@@ -71,7 +71,7 @@ export const StatusTab = memo(({ user, contacts, statuses, Icons, onOpenCreator,
   const API_BASE_URL = import.meta.env.VITE_API_URL || (
   window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3000'
-  : 'https://louda-uyxg.onrender.com'
+  : 'https://louda-back-end.onrender.com'
   );
   
   // Group by user

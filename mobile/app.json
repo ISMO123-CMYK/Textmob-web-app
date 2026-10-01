@@ -7,11 +7,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#09090b"
-    },
     "assetBundlePatterns": [
       "assets/**/*"
     ],
@@ -23,14 +18,8 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#09090b"
       },
-      "splash": {
-        "image": "./assets/splash.png",
-        "resizeMode": "cover",
-        "backgroundColor": "#09090b"
-      },
       "package": "com.bossprogrammer20.mobile",
       "versionCode": 4,
-      "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize"
     },
     "extra": {
@@ -54,7 +43,22 @@
             "video/*"
           ]
         }
-      ]
+      ],
+      "expo-audio",
+      "expo-asset",
+      "expo-notifications",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#09090b"
+        }
+      ],
+      "expo-status-bar",
+      "expo-video"
     ]
   }
 }

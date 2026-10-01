@@ -1,73 +1,77 @@
-import React, { useMemo, useRef } from 'react';
-import { View, ActivityIndicator } from 'react-native';
-import { WebView } from 'react-native-webview';
-import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../../context/AuthContext';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRoute } from '@react-navigation/native';
+import { ensureLoudaSession } from '../../louda/session';
+import LoudaHomeScreen from '../../louda/LoudaHomeScreen';
 
+// Native Louda client (replaces the old WebView at mobile#ChatsScreen:1-73).
+// Gate on the Louda identity session first — the store boot (store.tsx:391)
+// reuses the same memoized ensureLoudaSession() promise, so this only adds
+// an error state before the app tree mounts.
 export default function ChatsScreen() {
-  const { username } = useAuth();
-  const navigation = useNavigation<any>();
-  const webviewRef = useRef<any>(null);
+  const route = useRoute<any>();
+  const withUsername =
+    typeof route.params?.with === 'string' && route.params.with ? route.params.with : undefined;
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
-  const loudaUrl = `https://louda.web.app/?from=textmob&userId=${encodeURIComponent(username || '')}`;
+  useEffect(() => {
+    let cancelled = false;
+    setReady(false);
+    setError(null);
+    ensureLoudaSession()
+      .then(() => {
+        if (!cancelled) setReady(true);
+      })
+      .catch((e: any) => {
+        if (!cancelled) setError(e?.message || 'Could not start Messaging');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
 
-  // Louda only runs its full Textmob flow when it is FRAMED (it checks
-  // `window.self !== window.top`). Loaded top-level it falls back to a degraded
-  // "external" mode. Desktop works because textmob.web.app/chats iframes it, so
-  // mirror that exactly: frame Louda inside a textmob.web.app-origin wrapper.
-  const wrapperHtml = useMemo(() => `
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<style>
-html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
-iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: none; display: block; }
-</style>
-</head>
-<body>
-<iframe src="${loudaUrl}" title="Louda" allow="camera; microphone; clipboard-read; clipboard-write; fullscreen"></iframe>
-<script>
-window.addEventListener('message', function (e) {
-  var d = e.data;
-  var shouldClose = d === 'LOUDA_CLOSE' || d === 'CLOSE_IFRAME' ||
-    (d && (d.type === 'LOUDA_CLOSE' || d.type === 'CLOSE_IFRAME' || d.type === 'LOUDA_DONE' ||
-           d.action === 'close' || d.action === 'done'));
-  if (shouldClose && window.ReactNativeWebView) {
-    window.ReactNativeWebView.postMessage('LOUDA_CLOSE');
+  const retry = useCallback(() => setAttempt((a) => a + 1), []);
+
+  if (error) {
+    return (
+      <View style={s.center}>
+        <Text style={s.errTitle}>Messaging unavailable</Text>
+        <Text style={s.errMsg}>{error}</Text>
+        <TouchableOpacity style={s.retryBtn} onPress={retry}>
+          <Text style={s.retryText}>Try again</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
-});
-</script>
-</body>
-</html>`, [loudaUrl]);
 
-  const handleMessage = (event: any) => {
-    if (event?.nativeEvent?.data === 'LOUDA_CLOSE') {
-      if (navigation?.canGoBack?.()) navigation.goBack();
-    }
-  };
+  if (!ready) {
+    return (
+      <View style={s.center}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    );
+  }
 
-  return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <WebView
-        ref={webviewRef}
-        source={{ html: wrapperHtml, baseUrl: 'https://textmob.web.app/' }}
-        originWhitelist={['*']}
-        style={{ flex: 1, backgroundColor: '#000' }}
-        javaScriptEnabled
-        domStorageEnabled
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        thirdPartyCookiesEnabled
-        sharedCookiesEnabled
-        startInLoadingState
-        renderLoading={() => (
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000' }}>
-            <ActivityIndicator size="large" color="#2563eb" />
-          </View>
-        )}
-        onMessage={handleMessage}
-      />
-    </View>
-  );
+  return <LoudaHomeScreen initialWithUsername={withUsername} />;
 }
+
+const s = StyleSheet.create({
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000',
+    paddingHorizontal: 32,
+  },
+  errTitle: { color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 8 },
+  errMsg: { color: '#9ca3af', fontSize: 14, textAlign: 'center', marginBottom: 24 },
+  retryBtn: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  retryText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+});

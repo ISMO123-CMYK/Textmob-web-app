@@ -83,6 +83,35 @@ runVerificationCleanup();
 // Then run every hour
 setInterval(runVerificationCleanup, 60 * 60 * 1000); // 1 hour
 
+// ─── Periodic hashtag weight decay ──────────────────────────────────
+// Every 24 hours, decay all hashtag weights toward 1.0 (neutral) so old interests fade.
+function decayHashtagWeights() {
+  if (!memoryDb || !memoryDb.isReady) return;
+  const DECAY = 0.95;
+  let decayed = 0;
+  for (const user of memoryDb.users) {
+    const hw = user.feed_prefs?.hashtagWeights;
+    if (!hw || Object.keys(hw).length === 0) continue;
+    let changed = false;
+    for (const tag of Object.keys(hw)) {
+      if (hw[tag] > 1.0) {
+        const next = Math.max(1.0, hw[tag] * DECAY);
+        if (next !== hw[tag]) { hw[tag] = next; changed = true; }
+      } else if (hw[tag] < 1.0) {
+        const next = Math.min(1.0, hw[tag] / DECAY);
+        if (next !== hw[tag]) { hw[tag] = next; changed = true; }
+      }
+    }
+    if (changed) {
+      decayed++;
+      supabase.from("users").update({ feed_prefs: user.feed_prefs })
+        .eq("username", user.username).catch(() => {});
+    }
+  }
+  if (decayed > 0) console.log(`[hashtag-decay] decayed weights for ${decayed} users`);
+}
+setInterval(decayHashtagWeights, 24 * 60 * 60 * 1000); // every 24 hours
+
 // ─── Phone number utilities ───
 // VERIPHONE_API_KEY is read from the environment (set it in Render Dashboard → Environment).
 const VERIPHONE_API_KEY = process.env.VERIPHONE_API_KEY;
@@ -864,7 +893,7 @@ app.get("/live/:postId/:file", async (req, res) => {
 // Array of domains to ping
 const domains = [
   'https://textmob-web-app.onrender.com',
-  'https://louda-uyxg.onrender.com',
+  'https://louda-back-end.onrender.com',
   'https://astrasearch-r1re.onrender.com',
   'https://mylex.onrender.com',
   'https://textmob-provider-api-99ii.onrender.com'
@@ -3262,6 +3291,439 @@ app.post("/register-token", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Push notification queue (Expo Push Service) — in-memory queue, same pattern
+// as this server's other hot-path state (tatuEvents, liveSessions, ...).
+// Rows are ephemeral: a restart drops not-yet-sent pushes (acceptable for
+// notifications). States: pending -> claimed -> sent -> (requeued once as
+// reminder); dead_token / failed are terminal. Purged after 7 days.
+// ---------------------------------------------------------------------------
+const pushQueue = [];
+const PUSH_QUEUE_MAX = 5000;
+const PUSH = {
+  reminderAfterMs: 5 * 60 * 1000,   // resend once if still unopened
+  receiptAfterMs: 15 * 60 * 1000,   // poll Expo receipts after this
+  claimStaleMs: 5 * 60 * 1000,      // recover claims abandoned by a crash
+  retentionDays: 7,
+  maxAttempts: 3,
+  bodyMode: "preview",              // "preview" shows text; "privacy" hides it
+};
+let pushSendBusy = false;
+const notifyRate = new Map();
+
+function parseDevices(userType) {
+  try {
+    if (!userType) return [];
+    const parsed = typeof userType === "string" ? JSON.parse(userType || "[]") : userType;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function pushTokenOf(device) {
+  const t = device && device.token;
+  return typeof t === "string" &&
+    (t.startsWith("ExponentPushToken[") || t.startsWith("ExpoPushToken["))
+    ? t
+    : null;
+}
+
+async function removeExpoToken(username, token) {
+  try {
+    const { data: user } = await supabase
+      .from("users")
+      .select("userType")
+      .eq("username", username)
+      .maybeSingle();
+    const devices = parseDevices(user && user.userType);
+    const next = devices.filter((d) => d && d.token !== token);
+    if (next.length === devices.length) return;
+    const userType = JSON.stringify(next);
+    const { error } = await supabase
+      .from("users")
+      .update({ userType })
+      .eq("username", username);
+    if (!error && memoryDb && memoryDb.isReady) {
+      memoryDb.updateUser(username, { userType });
+    }
+  } catch (e) {
+    console.error("[PUSH] removeExpoToken error:", e);
+  }
+}
+
+function notifyRateOk(senderId) {
+  const now = Date.now();
+  if (notifyRate.size > 5000) {
+    for (const [k, v] of notifyRate) if (now > v.resetAt) notifyRate.delete(k);
+  }
+  const entry = notifyRate.get(senderId);
+  if (!entry || now > entry.resetAt) {
+    notifyRate.set(senderId, { n: 1, resetAt: now + 60000 });
+    return true;
+  }
+  if (entry.n >= 100) return false;
+  entry.n += 1;
+  return true;
+}
+
+function phoneVariants(phone) {
+  const raw = String(phone).replace(/[^\d]/g, "");
+  const formats = new Set([String(phone)]);
+  if (raw.startsWith("234") && raw.length === 13) {
+    formats.add("+" + raw);
+    formats.add("0" + raw.slice(3));
+    formats.add(raw.slice(3));
+  } else if (raw.startsWith("0") && raw.length === 11) {
+    formats.add("+234" + raw.slice(1));
+    formats.add("234" + raw.slice(1));
+    formats.add(raw.slice(1));
+  } else if (raw.length === 10) {
+    formats.add("0" + raw);
+    formats.add("+234" + raw);
+    formats.add("234" + raw);
+  }
+  return Array.from(formats);
+}
+
+// Louda user id -> Textmob username + Expo tokens (muted users return none).
+async function resolvePushRecipients(loudaIds) {
+  const resolved = [];
+  for (const loudaId of loudaIds) {
+    try {
+      const { data: lu } = await loudaSupabase
+        .from("users")
+        .select("id, username, phone, preferences")
+        .eq("id", loudaId)
+        .maybeSingle();
+      if (!lu) continue;
+      if (lu.preferences && lu.preferences.push_enabled === false) continue;
+
+      let tm = null;
+      if (lu.username) {
+        const { data } = await supabase
+          .from("users")
+          .select("username, userType")
+          .eq("username", lu.username)
+          .maybeSingle();
+        tm = data;
+      }
+      if (!tm && lu.phone) {
+        const formats = phoneVariants(lu.phone);
+        const { data } = await supabase
+          .from("users")
+          .select("username, userType")
+          .or(`phone.in.(${formats.map((f) => `"${f}"`).join(",")})`)
+          .limit(1);
+        tm = data && data.length ? data[0] : null;
+      }
+      if (!tm) continue;
+
+      const tokens = parseDevices(tm.userType).map(pushTokenOf).filter(Boolean);
+      if (tokens.length) resolved.push({ username: tm.username, tokens });
+    } catch (e) {
+      console.error("[PUSH] resolve recipient error:", loudaId, e);
+    }
+  }
+  return resolved;
+}
+
+function claimPendingPushRows(limit = 100) {
+  const now = Date.now();
+  const claimed = [];
+  for (const row of pushQueue) {
+    if (claimed.length >= limit) break;
+    if (row.status === "pending" && row.attemptAfter <= now) {
+      row.status = "claimed";
+      row.claimedAt = now;
+      claimed.push(row);
+    }
+  }
+  return claimed;
+}
+
+function failPushRow(row, reason) {
+  const attempts = (row.attempts || 0) + 1;
+  row.attempts = attempts;
+  row.lastError = String(reason || "unknown").slice(0, 300);
+  if (attempts >= PUSH.maxAttempts) {
+    row.status = "failed";
+  } else {
+    const backoff = Math.min(60000, 15000 * Math.pow(2, attempts - 1));
+    row.status = "pending";
+    row.attemptAfter = Date.now() + backoff;
+  }
+}
+
+async function runPushSendCycle() {
+  if (pushSendBusy) return;
+  pushSendBusy = true;
+  try {
+    const claimed = claimPendingPushRows(100);
+    if (!claimed.length) return;
+
+    const messages = claimed.map((row) => ({
+      to: row.token,
+      title: row.title,
+      body: row.body,
+      sound: "default",
+      priority: "high",
+      channelId: "messages",
+      data: Object.assign({}, row.data || {}, {
+        pushId: row.id,
+        reminder: row.remindedAt ? "1" : "0",
+      }),
+    }));
+
+    // One chunk (claim limit = 100 = Expo batch size) so results align by index.
+    const results = await sendExpoPushMessages(messages);
+    const providerRows =
+      Array.isArray(results) && results[0] && Array.isArray(results[0].data)
+        ? results[0].data
+        : null;
+
+    for (let i = 0; i < claimed.length; i++) {
+      const row = claimed[i];
+      const r = providerRows ? providerRows[i] : null;
+      if (r && r.status === "ok") {
+        row.status = "sent";
+        row.sentAt = Date.now();
+        row.expoTicketId = r.id || null;
+        row.receiptCheckedAt = null;
+        row.lastError = null;
+      } else if (r && r.details && r.details.error === "DeviceNotRegistered") {
+        row.status = "dead_token";
+        row.lastError = "DeviceNotRegistered";
+        await removeExpoToken(row.username, row.token);
+      } else {
+        const reason =
+          (r && (r.message || (r.details && r.details.error))) || "no provider response";
+        failPushRow(row, reason);
+      }
+    }
+  } catch (e) {
+    console.error("[PUSH] send cycle error:", e);
+  } finally {
+    pushSendBusy = false;
+  }
+}
+
+function recoverStalePushClaims() {
+  const cutoff = Date.now() - PUSH.claimStaleMs;
+  for (const row of pushQueue) {
+    if (row.status === "claimed" && row.claimedAt < cutoff) {
+      row.status = "pending";
+      row.attemptAfter = Date.now();
+    }
+  }
+}
+
+function sweepPushReminders() {
+  const cutoff = Date.now() - PUSH.reminderAfterMs;
+  const now = Date.now();
+  for (const row of pushQueue) {
+    if (row.status === "sent" && !row.remindedAt && !row.openedAt && row.sentAt < cutoff) {
+      row.status = "pending";
+      row.remindedAt = now;
+      row.attemptAfter = now;
+    }
+  }
+}
+
+async function sweepPushReceipts() {
+  const cutoff = Date.now() - PUSH.receiptAfterMs;
+  const now = Date.now();
+  const due = pushQueue.filter(
+    (row) =>
+      row.status === "sent" &&
+      !row.receiptCheckedAt &&
+      row.expoTicketId &&
+      row.sentAt < cutoff
+  );
+  if (!due.length) return;
+
+  let receipts = {};
+  try {
+    const resp = await fetch("https://exp.host/--/api/v2/push/getReceipts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: due.map((r) => r.expoTicketId) }),
+    });
+    const json = await resp.json();
+    receipts = (json && json.data) || {};
+  } catch (e) {
+    console.error("[PUSH] receipts fetch error:", e);
+    return;
+  }
+
+  for (const row of due) {
+    const rec = receipts[row.expoTicketId];
+    if (!rec) continue; // not ready yet — rechecked on a later sweep
+    row.receiptCheckedAt = now;
+    if (rec.status === "ok") {
+      row.providerAcceptedAt = now;
+    } else if (rec.details && rec.details.error === "DeviceNotRegistered") {
+      row.status = "dead_token";
+      row.lastError = "DeviceNotRegistered";
+      await removeExpoToken(row.username, row.token);
+    } else {
+      row.lastError = String(rec.message || (rec.details && rec.details.error) || "receipt error").slice(0, 300);
+    }
+  }
+}
+
+function purgeOldPushQueueRows() {
+  const cutoff = Date.now() - PUSH.retentionDays * 86400000;
+  for (let i = pushQueue.length - 1; i >= 0; i--) {
+    if (pushQueue[i].createdAt < cutoff) pushQueue.splice(i, 1);
+  }
+  // hard cap — drop oldest terminal rows first, else oldest overall
+  while (pushQueue.length > PUSH_QUEUE_MAX) {
+    const term = pushQueue.findIndex((r) => r.status === "failed" || r.status === "dead_token");
+    pushQueue.splice(term >= 0 ? term : 0, 1);
+  }
+}
+
+async function runPushSweep() {
+  if (pushSendBusy) return;
+  try {
+    recoverStalePushClaims();
+    await runPushSendCycle();
+    sweepPushReminders();
+    await sweepPushReceipts();
+    purgeOldPushQueueRows();
+  } catch (e) {
+    console.error("[PUSH] sweep error:", e);
+  }
+}
+
+/**
+ * POST /api/louda/message-notify
+ * Body: { senderId, senderName, isGroup, chatId, toUserId?, groupId?, preview }
+ * Enqueues Expo pushes for every recipient's registered devices, then sends
+ * immediately (fire-and-forget for the client; push never blocks chat).
+ */
+app.post("/api/louda/message-notify", async (req, res) => {
+  try {
+    const b = req.body || {};
+    const senderId = String(b.senderId || "").slice(0, 120);
+    const senderName = String(b.senderName || "").slice(0, 80) || "Someone";
+    const isGroup = !!b.isGroup;
+    const chatId = String(b.chatId || "").slice(0, 120);
+    const toUserId = b.toUserId ? String(b.toUserId).slice(0, 120) : "";
+    const groupId = b.groupId ? String(b.groupId).slice(0, 120) : "";
+    const preview = (typeof b.preview === "string" ? b.preview : "").slice(0, 200);
+
+    if (!senderId || !chatId || (!toUserId && !groupId)) {
+      return res.status(400).json({ error: "senderId, chatId and toUserId/groupId required" });
+    }
+    if (!notifyRateOk(senderId)) {
+      return res.status(429).json({ error: "rate limited" });
+    }
+
+    let recipientIds = [];
+    if (groupId) {
+      const { data: g, error: gErr } = await loudaSupabase
+        .from("groups")
+        .select("members_ids")
+        .eq("id", groupId)
+        .maybeSingle();
+      if (gErr) console.error("[PUSH] group lookup error:", gErr);
+      recipientIds = Array.isArray(g && g.members_ids)
+        ? g.members_ids.filter((id) => String(id) !== senderId)
+        : [];
+    } else {
+      recipientIds = toUserId && toUserId !== senderId ? [toUserId] : [];
+    }
+    if (!recipientIds.length) return res.json({ ok: true, queued: 0 });
+    if (recipientIds.length > 500) recipientIds = recipientIds.slice(0, 500);
+
+    const body =
+      PUSH.bodyMode === "privacy"
+        ? `New message from ${senderName}`
+        : preview || "Sent an attachment";
+
+    // Sender's Louda username — tap-routing target for the recipient (DM).
+    let peerUsername = "";
+    try {
+      const { data: senderUser } = await loudaSupabase
+        .from("users")
+        .select("username")
+        .eq("id", senderId)
+        .maybeSingle();
+      peerUsername = (senderUser && senderUser.username) || "";
+    } catch (e) {
+      console.error("[PUSH] sender lookup error:", e);
+    }
+
+    const recipients = await resolvePushRecipients(recipientIds);
+    const now = Date.now();
+    let queued = 0;
+    for (const r of recipients) {
+      for (const token of r.tokens) {
+        pushQueue.push({
+          id: crypto.randomUUID(),
+          username: r.username,
+          token,
+          type: "louda",
+          title: senderName,
+          body,
+          data: {
+            type: "louda",
+            chatId,
+            isGroup,
+            peerId: isGroup ? groupId : toUserId,
+            peerUsername: isGroup ? "" : peerUsername,
+            from: senderId,
+          },
+          status: "pending",
+          attempts: 0,
+          attemptAfter: now,
+          claimedAt: null,
+          sentAt: null,
+          expoTicketId: null,
+          receiptCheckedAt: null,
+          providerAcceptedAt: null,
+          remindedAt: null,
+          openedAt: null,
+          lastError: null,
+          createdAt: now,
+        });
+        queued++;
+      }
+    }
+    if (queued) runPushSendCycle().catch(() => {});
+    return res.json({ ok: true, queued });
+  } catch (e) {
+    console.error("message-notify err:", e);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+/**
+ * POST /api/push-opened
+ * Body: { id } or { ids: [...] } — marks pushes as tapped so the reminder
+ * sweep skips them; rows are purged 7 days after created_at regardless.
+ */
+app.post("/api/push-opened", (req, res) => {
+  try {
+    const { id, ids } = req.body || {};
+    const list = Array.isArray(ids) ? ids.map(String).slice(0, 200) : id ? [String(id)] : [];
+    if (!list.length) return res.status(400).json({ error: "id or ids required" });
+    const now = Date.now();
+    for (const row of pushQueue) {
+      if (!row.openedAt && list.includes(row.id)) row.openedAt = now;
+    }
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("push-opened err:", e);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+setInterval(runPushSweep, 15000); // claim/send, reminders, receipts, purge
+runPushSweep().catch(() => {});
+
 /**
  * GET /get-notifications?username=...
  * returns notifications array for the user
@@ -3389,26 +3851,42 @@ async function addNotification(recipientUsername, notification) {
       return;
     }
 
-    // build messages
-    const messages = devices.map((d) => {
-      return {
-        to: d.token,
-        sound: "default",
+    // enqueue pushes — same pipeline as Louda (retries, receipts, one reminder)
+    const now = Date.now();
+    let queued = 0;
+    for (const d of devices) {
+      const token = pushTokenOf(d);
+      if (!token) continue;
+      pushQueue.push({
+        id: crypto.randomUUID(),
+        username: recipientUsername,
+        token,
+        type: "textmob",
         title: notif.title || "TextMob",
         body: notif.message || notif.body || "You have a new notification",
-        data: Object.assign({}, notif.data || {}, { notificationId: notif.id }),
-        // include _contentAvailable to hint iOS background (works with expo/FCM/APNs)
-        _contentAvailable: true,
-      };
-    });
-
-    // send messages
-    try {
-      const results = await sendExpoPushMessages(messages);
-      console.log("addNotification push results length:", results.length);
-    } catch (e) {
-      console.error("Error sending pushes in addNotification", e);
+        data: Object.assign({}, notif.data || {}, {
+          notificationId: notif.id,
+          type: "textmob",
+          link: notif.link || "",
+          notifType: notif.type || "",
+          sender: notif.sender || "",
+        }),
+        status: "pending",
+        attempts: 0,
+        attemptAfter: now,
+        claimedAt: null,
+        sentAt: null,
+        expoTicketId: null,
+        receiptCheckedAt: null,
+        providerAcceptedAt: null,
+        remindedAt: null,
+        openedAt: null,
+        lastError: null,
+        createdAt: now,
+      });
+      queued++;
     }
+    if (queued) runPushSendCycle().catch(() => {});
   } catch (e) {
     console.error("addNotification error:", e);
   }
@@ -5965,6 +6443,45 @@ app.post("/like-post", async (req, res) => {
     }
     res.json({ message: "Post likes updated successfully!", likes: updatedLikes });
 
+    // ── Hashtag affinity tracking (background, non-blocking) ──
+    // When a user likes a post, boost the weight of that post's hashtags in their feed_prefs.
+    if (action === "liked") {
+      setImmediate(async () => {
+        try {
+          const { data: fullPost } = await supabase2
+            .from("Posts")
+            .select("hashtags")
+            .eq("id", postId)
+            .single();
+          const tags = fullPost?.hashtags || [];
+          if (tags.length === 0) return;
+
+          const { data: userData } = await supabase
+            .from("users")
+            .select("feed_prefs")
+            .eq("username", username)
+            .single();
+          const feedPrefs = userData?.feed_prefs || {};
+          const hw = feedPrefs.hashtagWeights || {};
+          let changed = false;
+          for (const tag of tags) {
+            const key = String(tag).replace(/^#/, '').toLowerCase();
+            if (!key) continue;
+            const cur = hw[key] || 1.0;
+            const next = Math.min(cur + 0.15, 3.0);
+            if (next !== cur) { hw[key] = next; changed = true; }
+          }
+          if (changed) {
+            feedPrefs.hashtagWeights = hw;
+            await supabase.from("users").update({ feed_prefs: feedPrefs }).eq("username", username);
+            if (memoryDb && memoryDb.isReady) memoryDb.updateUser(username, { feed_prefs: feedPrefs });
+          }
+        } catch (e) {
+          console.error("[like-post] hashtag tracking error:", e && e.message);
+        }
+      });
+    }
+
     // ── Milestone rewards (background, non-blocking) ──
     // Every exact 10-like milestone (10, 20, 30, ...) pays the author +5 Mobcoins.
     // No tables: pure check on the fresh like count. Unlikes never pay; self-likes never pay.
@@ -7977,6 +8494,19 @@ app.post("/get-posts", express.json(), async (req, res) => {
         if (postCats.some(c => ctx.userCategories.includes(c))) catWeight = 1.3;
       }
 
+      // Per-hashtag affinity boost from liked posts (feed_prefs.hashtagWeights)
+      let hashtagBoost = 1.0;
+      const postTags = (post.hashtags || []).map(t => String(t).replace(/^#/, '').toLowerCase());
+      if (ctx.hashtagWeights && postTags.length > 0) {
+        for (const tag of postTags) {
+          const w = ctx.hashtagWeights[tag];
+          if (w !== undefined) {
+            hashtagBoost = Math.max(hashtagBoost, w);
+            break;
+          }
+        }
+      }
+
       const freshnessWeight = ctx.tab === 'following' ? 20.0 : 15.0;
       const velocityWeight = ctx.tab === 'following' ? 4.0 : 3.0;
 
@@ -7992,7 +8522,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
         videoLengthBonus +
         viewsBoost +
         verifiedBoost
-      ) * followNudge * typeWeight * seenPenalty * likedPenalty * selfPenalty * negPenalty * catWeight;
+      ) * followNudge * typeWeight * seenPenalty * likedPenalty * selfPenalty * negPenalty * catWeight * hashtagBoost;
 
       if (ctx.username && post.id && process.env.LOG_SCORES) {
         console.log(`[score] user=${ctx.username} post=${post.id} score=${score.toFixed(4)} freshness=${freshness.toFixed(4)} velocity=${velocity.toFixed(4)} followNudge=${followNudge} typeWeight=${typeWeight} seenPenalty=${seenPenalty} negPenalty=${negPenalty} catWeight=${catWeight}`);
@@ -8032,6 +8562,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
       }
 
       const categoryWeights = feedPrefs.categoryWeights || {};
+      const hashtagWeights = feedPrefs.hashtagWeights || {};
       if (process.env.LOG_SCORES && Object.keys(categoryWeights).length > 0) {
         console.log(`[context] user=${username} categoryWeights=${JSON.stringify(categoryWeights)} contentTypeWeights=${JSON.stringify(feedPrefs.contentTypeWeights)}`);
       }
@@ -8044,6 +8575,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
         seenIds: clientSeenIds,
         contentTypeWeights: feedPrefs.contentTypeWeights || {},
         categoryWeights,
+        hashtagWeights,
         userCategories,
         negativeSignals,
         ageHours: 0,
@@ -8139,6 +8671,46 @@ app.post("/get-posts", express.json(), async (req, res) => {
             final.push(clean);
             existingIds.add(String(p.id));
           }
+        }
+      }
+
+      // Trending hashtags fallback: when feed is still short, inject posts with trending tags
+      if (final.length < limit && !isPublic) {
+        try {
+          const existingIds = new Set(final.map(p => String(p.id)));
+          // Grab trending hashtags (re-use cached trending or compute from recent pool)
+          const trendingTags = [];
+          const tagCounts = {};
+          for (const p of pool.slice(0, 300)) {
+            const tags = (p.hashtags || []).map(t => String(t).replace(/^#/, '').toLowerCase());
+            for (const t of tags) { tagCounts[t] = (tagCounts[t] || 0) + 1; }
+          }
+          const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+          for (const [tag] of sorted) trendingTags.push(tag);
+
+          if (trendingTags.length > 0) {
+            // Find posts with trending tags that user hasn't seen and aren't already in feed
+            const trendingPosts = memoryDb.posts.filter(p =>
+              p && p.id && p.username &&
+              !existingIds.has(String(p.id)) &&
+              !p.disabled && !p.disabled_for_now &&
+              !blockedUsers.has(p.username) &&
+              (p.hashtags || []).some(t => trendingTags.includes(String(t).replace(/^#/, '').toLowerCase()))
+            );
+            // Sort by engagement, take what we need
+            trendingPosts.sort((a, b) => {
+              const ea = (a.likes || []).length + (a.comments || []).length * 3;
+              const eb = (b.likes || []).length + (b.comments || []).length * 3;
+              return eb - ea;
+            });
+            for (const p of trendingPosts) {
+              if (final.length >= limit) break;
+              final.push(p);
+              existingIds.add(String(p.id));
+            }
+          }
+        } catch (e) {
+          console.error("[feed] trending fallback error:", e && e.message);
         }
       }
 
@@ -9840,9 +10412,35 @@ app.post("/negative-signal", async (req, res) => {
     }).then(r => { if (r.error) console.error("/negative-signal persist error:", r.error); });
 
     // Also get post categories to store category-level signal
-    const { data: postData } = await supabase2.from("Posts").select("categories").eq("id", postId).single();
+    const { data: postData } = await supabase2.from("Posts").select("categories, hashtags").eq("id", postId).single();
     if (postData?.categories && memoryDb?.isReady) {
       memoryDb.addCategoryNegativeSignal(username, postData.categories, signalType);
+    }
+
+    // Decay hashtag affinity for skipped/hidden content
+    if (['skip', 'hide', 'not_interested'].includes(signalType) && postData?.hashtags?.length > 0) {
+      setImmediate(async () => {
+        try {
+          const { data: userData } = await supabase.from("users").select("feed_prefs").eq("username", username).single();
+          const feedPrefs = userData?.feed_prefs || {};
+          const hw = feedPrefs.hashtagWeights || {};
+          let changed = false;
+          for (const tag of postData.hashtags) {
+            const key = String(tag).replace(/^#/, '').toLowerCase();
+            if (!key) continue;
+            const cur = hw[key] || 1.0;
+            const next = Math.max(0.5, cur - 0.1);
+            if (next !== cur) { hw[key] = next; changed = true; }
+          }
+          if (changed) {
+            feedPrefs.hashtagWeights = hw;
+            await supabase.from("users").update({ feed_prefs: feedPrefs }).eq("username", username);
+            if (memoryDb && memoryDb.isReady) memoryDb.updateUser(username, { feed_prefs: feedPrefs });
+          }
+        } catch (e) {
+          console.error("/negative-signal hashtag decay error:", e && e.message);
+        }
+      });
     }
 
     res.json({ success: true });

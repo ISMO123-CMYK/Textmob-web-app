@@ -14,6 +14,7 @@ import { SocketProvider } from './src/context/SocketContext';
 import { UploadProgressProvider } from './src/context/UploadProgressContext';
 import { UpdateProvider } from './src/context/UpdateContext';
 import { initTracking } from './src/utils/analytics';
+import { initPushNotifications } from './src/louda/push';
 import AuthStack from './src/navigation/AuthStack';
 import RootNavigator from './src/navigation/RootNavigator';
 import ShareToTextmobScreen from './src/screens/share/ShareToTextmobScreen';
@@ -38,6 +39,7 @@ function AppNavigator() {
     if (appReady) {
       SplashScreen.hideAsync().catch(() => {});
       initTracking();
+      initPushNotifications();
     }
   }, [appReady]);
 

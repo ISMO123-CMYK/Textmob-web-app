@@ -34,9 +34,32 @@ function buildMentionRegex(legacyNames) {
   return new RegExp(`@(?:${legacyNames.map(escapeRegExp).join('|')}|([\\w.-]+))`, 'g');
 }
 
-// Rn – RichText component: parses @mentions, #hashtags and URLs
+const STICKER_REGEX = /\[sticker url="([^"]+)"\]/g;
+
+function renderStickers(text) {
+  if (!text || !STICKER_REGEX.test(text)) return null;
+  STICKER_REGEX.lastIndex = 0;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  while ((match = STICKER_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: 'sticker', url: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', value: text.slice(lastIndex) });
+  }
+  return parts;
+}
+
+// Rn – RichText component: parses @mentions, #hashtags, URLs and stickers
 export default function RichText({ html }) {
   const [parsed, setParsed] = useState('');
+
+  const stickerParts = renderStickers(html);
 
   useEffect(() => {
     let active = true;
@@ -112,6 +135,18 @@ export default function RichText({ html }) {
     process(html);
     return () => { active = false; };
   }, [html]);
+
+  if (stickerParts) {
+    return (
+      <div className="flex flex-wrap items-end gap-1">
+        {stickerParts.map((part, i) =>
+          part.type === 'sticker'
+            ? <img key={i} src={part.url} alt="sticker" className="max-h-32 rounded-lg object-contain" loading="lazy" />
+            : <span key={i}>{part.value}</span>
+        )}
+      </div>
+    );
+  }
 
   return <div className="prose markdown max-w-none" dangerouslySetInnerHTML={{ __html: parsed }} />;
 }

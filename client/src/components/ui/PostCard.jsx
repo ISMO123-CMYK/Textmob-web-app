@@ -8,7 +8,9 @@ import timeAgo from '../../utils/timeAgo';
 import RichText from './RichText';
 import { SnapPlayer } from '../../pages/snaps/SnapsContent';
 import GiftCoinsModal from './GiftCoinsModal';
-import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban } from 'lucide-react';
+import StickerPicker from './StickerPicker';
+import { makeStickerText } from '../../utils/stickerUtils';
+import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban, Image } from 'lucide-react';
 
 /* ─── constants ─── */
 const DEFAULT_PIC = DEFAULT_AVATAR;
@@ -581,6 +583,7 @@ function useMentions(value, inputRef) {
 function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate, reactionsOpenFor, setReactionsOpenFor, authorProfile }) {
  const [showInput, setShowInput] = useState(false);
  const [text, setText] = useState('');
+ const [showStickerPicker, setShowStickerPicker] = useState(false);
  const liked = (post.likes || []).includes(currentUser);
  const inputRef = useRef(null);
  const { suggestions, setSuggestions, activeIndex, setActiveIndex, queryInfo, setQueryInfo } = useMentions(text, inputRef);
@@ -690,10 +693,19 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
  className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400 text-gray-800 "
  />
  <SuggestionDropdown items={suggestions} onSelect={selectSuggestion} activeIndex={activeIndex} />
+ <button onClick={() => setShowStickerPicker(!showStickerPicker)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors" title="Add sticker">
+ <Image className="w-4 h-4" strokeWidth={2} />
+ </button>
  {text.trim() && (
  <button onClick={submitComment} className="text-blue-600 font-bold text-xs flex-shrink-0">Post</button>
  )}
  </div>
+ {showStickerPicker && (
+ <StickerPicker
+ onSelect={(url) => { setText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); inputRef.current?.focus(); }}
+ onClose={() => setShowStickerPicker(false)}
+ />
+ )}
  </div>
  )}
  </div>

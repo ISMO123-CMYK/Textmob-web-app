@@ -57,7 +57,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
         listenersRef.current.forEach((handlers, event) => {
           handlers.forEach((handler) => {
-            socket.on(event, handler);
+            socket.on(event, handler as (...args: any[]) => void);
           });
         });
       }

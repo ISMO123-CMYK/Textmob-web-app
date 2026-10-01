@@ -22,7 +22,7 @@ const TIME_AGO = (d: string) => {
 
 function getSavedIds(): string[] {
   try {
-    const raw = JSON.parse((global as any).__storage_cache?.[SAVED_KEY] || '[]');
+    const raw = JSON.parse((globalThis as any).__storage_cache?.[SAVED_KEY] || '[]');
     if (Array.isArray(raw)) return raw.map(String);
   } catch {}
   try {

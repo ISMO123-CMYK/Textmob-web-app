@@ -6,6 +6,8 @@ import { cn } from '../../utils/classNames';
 import Lexum from '../../router/LexumRouter';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import GiftCoinsModal from '../../components/ui/GiftCoinsModal';
+import StickerPicker from '../../components/ui/StickerPicker';
+import { makeStickerText, parseStickerText } from '../../utils/stickerUtils';
 import { useSnapUpload } from '../../utils/SnapUploadContext';
 import { CATEGORIES } from '../../data/categories';
 
@@ -835,7 +837,7 @@ function CommentRow({ comment, snapUsername }) {
  lineHeight: 1.45
  }}
  >
- {comment.text}
+ {(() => { const s = parseStickerText(comment.text); return s.isSticker ? <img src={s.url} alt="sticker" style={{ maxHeight: 128, borderRadius: 8, objectFit: 'contain' }} loading="lazy" /> : comment.text; })()}
  </p>
  </div>
  </div>
@@ -844,6 +846,7 @@ function CommentRow({ comment, snapUsername }) {
 
 function CommentsPanel({ snap, username, onClose, onAddComment }) {
  let [commentText, setCommentText] = useState('');
+ let [showStickerPicker, setShowStickerPicker] = useState(false);
  let commentInputRef = useRef(null);
  let commentListRef = useRef(null);
 
@@ -1075,7 +1078,16 @@ function CommentsPanel({ snap, username, onClose, onAddComment }) {
  }}
  />
  <SuggestionsDropdown items={suggestions} onSelect={handleSelectSuggestion} activeIndex={activeIndex} />
+ <button onClick={() => setShowStickerPicker(!showStickerPicker)} style={{ color: 'rgba(255,255,255,0.4)', padding: '0 4px', flexShrink: 0, cursor: 'pointer', background: 'none', border: 'none' }} title="Add sticker">
+ <svg viewBox="0 0 24 24" style={{ width: 16, height: 16, fill: 'none', stroke: 'currentColor', strokeWidth: 2 }}><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><path d="M8 14s1.5 2 4 2 4-2 4-2" strokeLinecap="round" /></svg>
+ </button>
  </div>
+ {showStickerPicker && (
+ <StickerPicker
+ onSelect={(url) => { setCommentText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); commentInputRef.current?.focus(); }}
+ onClose={() => setShowStickerPicker(false)}
+ />
+ )}
  <button
  onClick={handleSubmitComment}
  disabled={!commentText.trim()}

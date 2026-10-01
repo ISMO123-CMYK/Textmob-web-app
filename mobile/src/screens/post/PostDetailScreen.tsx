@@ -13,6 +13,8 @@ import { searchUsersAPI, UserProfile } from '../../api/users';
 import { getProfileAPI } from '../../api/auth';
 import useProfileCache from '../../hooks/useProfileCache';
 import PostCard from '../../components/PostCard';
+import StickerPicker from '../../components/StickerPicker';
+import { makeStickerText, parseStickerText } from '../../utils/stickerUtils';
 import { timeAgo } from '../../utils/format';
 import { apiGet } from '../../api/client';
 
@@ -37,7 +39,7 @@ function CommentRow({ item, colors, borderColor, onPress, onReply, onDelete, rep
             <Text style={[styles.commentUser, { color: colors.textPrimary }]}>{profile?.fullname || item.username}</Text>
             <Text style={[styles.commentTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at || '')}</Text>
           </View>
-          <Text style={[styles.commentText, { color: colors.textSecondary }]}>{item.text}</Text>
+          {(() => { const s = parseStickerText(item.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <Text style={[styles.commentText, { color: colors.textSecondary }]}>{item.text}</Text>; })()}
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
             <TouchableOpacity onPress={() => onReply(item.id, item.username)}>
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>Reply</Text>
@@ -86,6 +88,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
   const [error, setError] = useState('');
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [mentionResults, setMentionResults] = useState<UserProfile[]>([]);
   const [showMentions, setShowMentions] = useState(false);
   const [reactionsOpenFor, setReactionsOpenFor] = useState<string | number | null>(null);
@@ -353,6 +356,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
   const sendVisible = commentText.trim().length > 0;
 
   return (
+    <>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -386,9 +390,12 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
               </View>
             )}
             <View style={styles.inputRow}>
+              <TouchableOpacity onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
+                <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
               <TextInput
                 ref={inputRef}
-                style={[styles.input, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
+                style={[styles.input, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary, flex: 1 }]}
                 placeholder={replyToId ? "Write a reply..." : "Write a comment..."}
                 placeholderTextColor={colors.textSecondary}
                 value={commentText}
@@ -420,6 +427,12 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
         )}
       </View>
     </SafeAreaView>
+    <StickerPicker
+      visible={showStickerPicker}
+      onSelect={(url) => { setCommentText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); }}
+      onClose={() => setShowStickerPicker(false)}
+    />
+    </>
   );
 }
 

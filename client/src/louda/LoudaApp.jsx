@@ -6,8 +6,35 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LinkPreview, StatusTab, StatusCreator, StatusViewer } from './StatusComponents';
 import { requestPushPermission, listenForForegroundMessages } from './firebase';
 import { drainPendingIntents, refreshLoudaPresence } from '../bridge/connector.js';
+import { API_BASE_URL as TEXMOB_API_URL, apiFetch } from '../config/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://louda-uyxg.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://louda-back-end.onrender.com';
+
+// Fire-and-forget push notify to the Textmob server (never blocks sending).
+function fireLoudaPushNotify(chat, msg, sender) {
+  try {
+    if (!sender || !sender.id || !chat) return;
+    const senderName = sender.full_name || sender.username || localStorage.getItem('username') || 'Someone';
+    const text = msg && typeof msg.text === 'string' ? msg.text.trim() : '';
+    const mediaType = msg && msg.media && msg.media.length ? msg.media[0].type : '';
+    const preview = text || (mediaType === 'video' ? 'Video' : mediaType === 'image' ? 'Photo' : 'File');
+    apiFetch(`${TEXMOB_API_URL}/api/louda/message-notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        senderId: sender.id,
+        senderName,
+        isGroup: !!chat.isGroup,
+        chatId: chat.isGroup ? chat.id : chat.chatId || '',
+        toUserId: chat.isGroup ? undefined : chat.id,
+        groupId: chat.isGroup ? chat.id : undefined,
+        preview,
+      }),
+    }).catch(() => {});
+  } catch (e) {
+    // push must never break message sending
+  }
+}
 
 const Icons = {
   chat: <svg className="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>,
@@ -8251,11 +8278,12 @@ const MobileHome = () => {
   }
 
   for (const target of targets) {
-  if (target.isGroup) {
-  socket.emit('send-group-message', { groupId: target.id, message: { text: '', media } });
-  } else {
-  socket.emit('send-message', { chatId: target.chatId, toUserId: target.id, message: { text: '', media } });
-  }
+    if (target.isGroup) {
+      socket.emit('send-group-message', { groupId: target.id, message: { text: '', media } });
+    } else {
+      socket.emit('send-message', { chatId: target.chatId, toUserId: target.id, message: { text: '', media } });
+    }
+    fireLoudaPushNotify(target, { text: '', media }, user);
   }
   setSharePayload(null);
   Lexum.alert({ title: 'Success', message: `Media sent to ${targets.length} chat(s)!` });
@@ -8381,12 +8409,13 @@ const MobileHome = () => {
   };
 
   const handleSend = (msg) => {
-  console.log(`[DEBUG] Handling send message: isGroup=${selectedChat.isGroup}`);
-  if (selectedChat.isGroup) {
-  socket.emit('send-group-message', { groupId: selectedChat.id, message: msg });
-  } else {
-  socket.emit('send-message', { chatId: selectedChat.chatId, toUserId: selectedChat.id, message: msg });
-  }
+    console.log(`[DEBUG] Handling send message: isGroup=${selectedChat.isGroup}`);
+    if (selectedChat.isGroup) {
+      socket.emit('send-group-message', { groupId: selectedChat.id, message: msg });
+    } else {
+      socket.emit('send-message', { chatId: selectedChat.chatId, toUserId: selectedChat.id, message: msg });
+    }
+    fireLoudaPushNotify(selectedChat, msg, user);
   };
 
   const handleEditMessage = (messageId, newText) => {

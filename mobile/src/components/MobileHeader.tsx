@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { getNotificationsAPI } from '../api/notifications';
 import useProfileCache from '../hooks/useProfileCache';
+import { startLoudaUnreadBridge, subscribeLoudaUnread } from '../louda/unread';
 
 interface MobileHeaderProps {
   navigation: any;
@@ -78,6 +79,15 @@ export default function MobileHeader({
     };
   }, [username, on, off, fetchUnreadCount]);
 
+  // Louda message badge (web launcher parity: messages only). The bridge is
+  // app-lifetime (socket + 45s reconcile, unread.ts:82) and idempotent — it
+  // is intentionally never stopped here.
+  const [loudaUnread, setLoudaUnread] = useState(0);
+  useEffect(() => {
+    startLoudaUnreadBridge();
+    return subscribeLoudaUnread((snap) => setLoudaUnread(snap.messages));
+  }, []);
+
   const s = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
   return (
@@ -109,6 +119,11 @@ export default function MobileHeader({
           style={s.iconBtn}
         >
           <Ionicons name="chatbubbles-outline" size={20} color={colors.textPrimary} />
+          {loudaUnread > 0 && (
+            <View style={s.badge}>
+              <Text style={s.badgeText}>{loudaUnread > 99 ? '99+' : loudaUnread}</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity

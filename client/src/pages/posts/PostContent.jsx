@@ -4,6 +4,8 @@ import { apiFetch } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import PostCard from '../../components/ui/PostCard';
 import RichText from '../../components/ui/RichText';
+import StickerPicker from '../../components/ui/StickerPicker';
+import { makeStickerText, isStickerText, parseStickerText } from '../../utils/stickerUtils';
 import useProfileCache from '../../utils/useProfileCache';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
@@ -13,6 +15,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  const currentUser = localStorage.currentUser;
  const [showReplyInput, setShowReplyInput] = useState(false);
  const [replyText, setReplyText] = useState('');
+ const [showReplySticker, setShowReplySticker] = useState(false);
  const replies = cmt.replies || [];
  const [showReplies, setShowReplies] = useState(() => replies.some(r => followingUsernames.includes(r.username)));
 
@@ -65,7 +68,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  </div>
  )}
  {showReplyInput && currentUser && (
- <div className="flex items-center gap-2 mt-2 ml-2">
+ <div className="relative flex items-center gap-2 mt-2 ml-2">
  <input
  type="text"
  value={replyText}
@@ -75,10 +78,19 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  className="flex-1 bg-gray-100 rounded-full px-3 py-1.5 text-xs outline-none text-gray-800 placeholder-gray-400"
  autoFocus
  />
+ <button onClick={() => setShowReplySticker(!showReplySticker)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors" title="Add sticker">
+ <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><path d="M8 14s1.5 2 4 2 4-2 4-2" strokeLinecap="round" /></svg>
+ </button>
  {replyText.trim() && (
  <button onClick={() => { onReply(cmt.id, replyText.trim()); setReplyText(''); setShowReplyInput(false); }} className="text-blue-600 font-bold text-xs">
  Reply
  </button>
+ )}
+ {showReplySticker && (
+ <StickerPicker
+ onSelect={(url) => { setReplyText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowReplySticker(false); }}
+ onClose={() => setShowReplySticker(false)}
+ />
  )}
  </div>
  )}
@@ -92,6 +104,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
 
 function CommentInput({ onSubmit }) {
  const [text, setText] = useState('');
+ const [showStickerPicker, setShowStickerPicker] = useState(false);
  const inputRef = useRef(null);
 
  // Auto-complete suggestions (mentions/hashtags)
@@ -179,6 +192,9 @@ function CommentInput({ onSubmit }) {
  placeholder="Write a comment…"
  className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400 text-gray-800 "
  />
+ <button onClick={() => setShowStickerPicker(!showStickerPicker)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors" title="Add sticker">
+ <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><path d="M8 14s1.5 2 4 2 4-2 4-2" strokeLinecap="round" /></svg>
+ </button>
  {suggestions.length > 0 && (
  <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
  {suggestions.map((item, i) => (
@@ -205,6 +221,12 @@ function CommentInput({ onSubmit }) {
  <button onClick={submitComment} className="text-blue-600 font-bold text-xs flex-shrink-0">Post</button>
  )}
  </div>
+ {showStickerPicker && (
+ <StickerPicker
+ onSelect={(url) => { setText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); inputRef.current?.focus(); }}
+ onClose={() => setShowStickerPicker(false)}
+ />
+ )}
  </div>
  );
 }

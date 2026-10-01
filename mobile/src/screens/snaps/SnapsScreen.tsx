@@ -18,6 +18,8 @@ import { CATEGORIES } from '../../data/categories';
 import * as ImagePicker from 'expo-image-picker';
 import { apiGet, apiPost, uploadFile, API_BASE_URL } from '../../api/client';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
+import StickerPicker from '../../components/StickerPicker';
+import { makeStickerText, parseStickerText } from '../../utils/stickerUtils';
 import MentionAutocomplete from '../../components/MentionAutocomplete';
 import useProfileCache from '../../hooks/useProfileCache';
 import { ParticleBurst } from '../../utils/animations';
@@ -392,7 +394,7 @@ function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUser
             <Text style={styles.commentTime}>{timeAgo(comment.createdAt)}</Text>
           )}
         </View>
-        <Text style={styles.commentText}>{comment.text}</Text>
+        {(() => { const s = parseStickerText(comment.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <Text style={styles.commentText}>{comment.text}</Text>; })()}
       </View>
     </TouchableOpacity>
   );
@@ -421,6 +423,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
   const [showGift, setShowGift] = useState<any>(null);
   const [expandedText, setExpandedText] = useState<Record<string, boolean>>({});
   const [commentText, setCommentText] = useState('');
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [commenting, setCommenting] = useState(false);
   const [reactingPost, setReactingPost] = useState<string | number | null>(null);
   const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
@@ -1078,6 +1081,9 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
             }
           />
           <View style={[styles.commentInputRow, { borderTopColor: colors.border, backgroundColor: colors.card, position: 'relative' }]}>
+            <TouchableOpacity onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
+              <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
             <View style={{ flex: 1, position: 'relative' }}>
               <TextInput ref={commentInputRef}
                 style={[styles.commentInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
@@ -1098,6 +1104,11 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
               {commenting ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
             </TouchableOpacity>
           </View>
+          <StickerPicker
+            visible={showStickerPicker}
+            onSelect={(url) => { setCommentText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); commentInputRef.current?.focus(); }}
+            onClose={() => setShowStickerPicker(false)}
+          />
         </SafeAreaView>
       </Modal>
 
@@ -1139,7 +1150,7 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
   uploadBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject },
+  modalBackdrop: { ...StyleSheet.absoluteFill },
   modalContent: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, gap: 12 },
   uploadOption: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 12 },
   uploadOptionText: { fontSize: 16, fontWeight: '600' },

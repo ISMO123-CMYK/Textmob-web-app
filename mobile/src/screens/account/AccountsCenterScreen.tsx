@@ -83,7 +83,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       case 'leaderboard': return <LeaderboardTab colors={colors} />;
       case 'profile': return <EditProfileTab profile={profileData || profile} setProfileData={setProfileData} username={username} isOrg={isOrg} colors={colors} isDark={isDark} accent={accent} />;
       case 'prefs': return <PrefsTab user={profileData || profile} setProfileData={setProfileData} username={username} colors={colors} isDark={isDark} accent={accent} />;
-      case 'verification': return <VerificationTab colors={colors} username={username} />;
+      case 'verification': return <VerificationTab colors={colors} username={username} isDark={isDark} />;
       case 'danger': return <DangerTab username={username} handleLogout={handleLogout} colors={colors} isDark={isDark} />;
       default: return null;
     }
@@ -531,7 +531,7 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
   );
 }
 
-function VerificationTab({ colors, username }: any) {
+function VerificationTab({ colors, username, isDark }: any) {
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [waNumber] = useState(() => Math.random() < 0.5 ? '2347057581322' : '2347087421125');

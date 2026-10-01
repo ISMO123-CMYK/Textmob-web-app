@@ -18,6 +18,8 @@ import { apiGet, apiPost } from '../api/client';
 import { storage, KEYS } from '../utils/storage';
 import { getProfileAPI } from '../api/auth';
 import { timeAgo } from '../utils/format';
+import StickerPicker from './StickerPicker';
+import { makeStickerText, parseStickerText } from '../utils/stickerUtils';
 import GiftCoinsModal from './GiftCoinsModal';
 import useProfileCache from '../hooks/useProfileCache';
 import { getFollowStatusAPI, followAPI, friendAPI } from '../api/users';
@@ -781,8 +783,9 @@ const PostCard = React.memo(function PostCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [showCommentField, setShowCommentField] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [textExpanded, setTextExpanded] = useState(false);
+   const [commentText, setCommentText] = useState('');
+   const [showStickerPicker, setShowStickerPicker] = useState(false);
+   const [textExpanded, setTextExpanded] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [localReactionCounts, setLocalReactionCounts] = useState<{ counts: Record<string, number>; userReaction: string | null }>({ counts: {}, userReaction: null });
   const [localComments, setLocalComments] = useState<Comment[]>(post.comments || []);
@@ -1015,7 +1018,11 @@ const PostCard = React.memo(function PostCard({
               onChangeText={setCommentText}
               multiline
             />
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
+              <TouchableOpacity onPress={() => setShowStickerPicker(true)} style={{ padding: 4 }}>
+                <Ionicons name="image-outline" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <View style={{ flex: 1 }} />
               <TouchableOpacity onPress={handleComment} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24, opacity: commentText.trim() ? 1 : 0.4 }} disabled={!commentText.trim()}>
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Post</Text>
               </TouchableOpacity>
@@ -1023,6 +1030,11 @@ const PostCard = React.memo(function PostCard({
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+      <StickerPicker
+        visible={showStickerPicker}
+        onSelect={(url) => { setCommentText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); }}
+        onClose={() => setShowStickerPicker(false)}
+      />
       {showCommentField && !username && (
         <TouchableOpacity style={[s.guestComment, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]} onPress={() => { setShowCommentField(false); Alert.alert('Sign in', 'Log in to leave a comment'); }}>
           <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
