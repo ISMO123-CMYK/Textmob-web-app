@@ -3,12 +3,12 @@ import {
   View,
   Text,
   Image,
-  TouchableOpacity,
   ScrollView,
   Modal,
   StyleSheet,
   Alert,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme, StatusRing } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR } from '../constants';
@@ -84,18 +84,18 @@ export const StatusTab = memo(function StatusTab({
         <View style={[s.header, { borderBottomColor: p.borderLight, backgroundColor: p.card }]}>
           <Text style={[s.h1, { color: p.text }]}>Status</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity style={[s.headBtn, { backgroundColor: p.cardMuted }]} onPress={onOpenCamera}>
+            <Ripple style={[s.headBtn, { backgroundColor: p.cardMuted }]} onPress={onOpenCamera}>
               <Icons.camera size={17} color={p.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.headBtn, { backgroundColor: p.cardMuted }]} onPress={onOpenCreator}>
+            </Ripple>
+            <Ripple style={[s.headBtn, { backgroundColor: p.cardMuted }]} onPress={onOpenCreator}>
               <Icons.edit size={17} color={p.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
 
         {/* My status row (web 123-139) */}
         <View style={s.section}>
-          <TouchableOpacity
+          <Ripple
             activeOpacity={0.8}
             style={s.row}
             onPress={() => (myStatuses.length > 0 ? setShowMyList(true) : onOpenCreator())}
@@ -117,7 +117,7 @@ export const StatusTab = memo(function StatusTab({
                   : 'Tap to add status update'}
               </Text>
             </View>
-          </TouchableOpacity>
+          </Ripple>
         </View>
 
         <View style={[s.divider, { backgroundColor: p.cardMuted }]} />
@@ -130,7 +130,7 @@ export const StatusTab = memo(function StatusTab({
           )}
           <View style={{ gap: 4 }}>
             {groupedContacts.map((c) => (
-              <TouchableOpacity
+              <Ripple
                 key={c.id}
                 activeOpacity={0.8}
                 style={s.row}
@@ -146,7 +146,7 @@ export const StatusTab = memo(function StatusTab({
                   </Text>
                   <Text style={[s.rowSub, { color: p.textMuted }]}>{formatTime(c.latestTimestamp)}</Text>
                 </View>
-              </TouchableOpacity>
+              </Ripple>
             ))}
           </View>
         </View>
@@ -157,12 +157,12 @@ export const StatusTab = memo(function StatusTab({
         <View style={[s.root, { backgroundColor: p.card }]}>
           <View style={[s.header, { borderBottomColor: p.borderLight, backgroundColor: p.card }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <TouchableOpacity onPress={() => setShowMyList(false)} style={{ padding: 4 }}>
+              <Ripple onPress={() => setShowMyList(false)} style={{ padding: 4 }}>
                 <Icons.arrowLeft size={22} color={p.textMuted} />
-              </TouchableOpacity>
+              </Ripple>
               <Text style={[s.h2, { color: p.text }]}>My Status Updates</Text>
             </View>
-            <TouchableOpacity
+            <Ripple
               style={s.addNew}
               onPress={() => {
                 setShowMyList(false);
@@ -171,12 +171,12 @@ export const StatusTab = memo(function StatusTab({
             >
               <Icons.plus size={15} color="#E64A19" />
               <Text style={s.addNewText}>Add New</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
             {myStatuses.map((st) => (
-              <TouchableOpacity
+              <Ripple
                 key={st.id}
                 activeOpacity={0.8}
                 style={[s.myRow, { backgroundColor: p.cardMuted, borderColor: p.borderLight }]}
@@ -224,15 +224,15 @@ export const StatusTab = memo(function StatusTab({
                     </View>
                     {!!st.music?.name && (
                       <Text style={{ fontSize: 11, color: p.textMuted, fontWeight: '700' }} numberOfLines={1}>
-                        ðŸŽµ {st.music.name}
+                        🎵 {st.music.name}
                       </Text>
                     )}
                   </View>
                 </View>
-                <TouchableOpacity style={{ padding: 8 }} onPress={() => handleDeleteStatus(st.id)}>
+                <Ripple style={{ padding: 8 }} onPress={() => handleDeleteStatus(st.id)}>
                   <Icons.trash size={18} color={p.textMuted} />
-                </TouchableOpacity>
-              </TouchableOpacity>
+                </Ripple>
+              </Ripple>
             ))}
             {myStatuses.length === 0 && (
               <Text style={[s.empty, { color: p.textMuted, paddingVertical: 64 }]}>

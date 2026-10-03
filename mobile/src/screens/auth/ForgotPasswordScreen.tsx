@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, StyleSheet,
   ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { forgotPasswordAPI, verifyResetCodeAPI, resetPasswordAPI } from '../../api/auth';
@@ -109,7 +110,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: any }
                   onChangeText={setIdentifier}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity
+                <Ripple
                   style={[s.primaryBtn, loading && s.primaryBtnDisabled]}
                   onPress={requestCode}
                   disabled={loading}
@@ -119,7 +120,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: any }
                   ) : (
                     <Text style={s.primaryBtnText}>Send code</Text>
                   )}
-                </TouchableOpacity>
+                </Ripple>
               </>
             )}
 
@@ -135,7 +136,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: any }
                   keyboardType="number-pad"
                   maxLength={4}
                 />
-                <TouchableOpacity
+                <Ripple
                   style={[s.primaryBtn, loading && s.primaryBtnDisabled]}
                   onPress={verifyCode}
                   disabled={loading}
@@ -145,7 +146,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: any }
                   ) : (
                     <Text style={s.primaryBtnText}>Verify code</Text>
                   )}
-                </TouchableOpacity>
+                </Ripple>
               </>
             )}
 
@@ -175,7 +176,7 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: any }
                     secureTextEntry
                   />
                 </View>
-                <TouchableOpacity
+                <Ripple
                   style={[s.primaryBtn, loading && s.primaryBtnDisabled]}
                   onPress={resetPw}
                   disabled={loading}
@@ -185,13 +186,13 @@ export default function ForgotPasswordScreen({ navigation }: { navigation: any }
                   ) : (
                     <Text style={s.primaryBtnText}>Reset password</Text>
                   )}
-                </TouchableOpacity>
+                </Ripple>
               </>
             )}
 
-            <TouchableOpacity onPress={() => navigation.navigate('Login')} style={s.backLink}>
+            <Ripple onPress={() => navigation.navigate('Login')} style={s.backLink}>
               <Text style={s.backLinkText}>← Back to sign in</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+﻿import React, { useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import * as Clipboard from 'expo-clipboard';
 import { useLoudaTheme, LoudaModal } from './primitives';
 import { Icons } from '../icons';
@@ -70,7 +71,7 @@ export function MessageInfoModal({
   }) => {
     const I = icon;
     return (
-      <TouchableOpacity
+      <Ripple
         activeOpacity={0.8}
         onPress={onPress}
         disabled={disabled}
@@ -89,7 +90,7 @@ export function MessageInfoModal({
         <Text style={{ color: isActive ? p.accent : p.textSecondary, fontSize: 12, fontWeight: '800' }}>
           {isActive ? activeLabel : label}
         </Text>
-      </TouchableOpacity>
+      </Ripple>
     );
   };
 

@@ -1,13 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme } from './primitives';
 import { Icons } from '../icons';
 import { searchChatMessages } from '../api';
@@ -88,14 +88,14 @@ export function InChatSearch({
             {currentIdx + 1}/{results.length}
           </Text>
         )}
-        <TouchableOpacity onPress={() => navigate(-1)} disabled={currentIdx <= 0} hitSlop={6}>
+        <Ripple onPress={() => navigate(-1)} disabled={currentIdx <= 0} hitSlop={6}>
           <Icons.chevronRight
             size={16}
             color={currentIdx <= 0 ? '#d1d5db' : '#6b7280'}
             style={{ transform: [{ rotate: '180deg' }] }}
           />
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Ripple>
+        <Ripple
           onPress={() => navigate(1)}
           disabled={currentIdx >= results.length - 1}
           hitSlop={6}
@@ -104,10 +104,10 @@ export function InChatSearch({
             size={16}
             color={currentIdx >= results.length - 1 ? '#d1d5db' : '#6b7280'}
           />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onClose} hitSlop={6}>
+        </Ripple>
+        <Ripple onPress={onClose} hitSlop={6}>
           <Icons.x size={16} color="#6b7280" />
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {results.length > 0 && query.length >= 2 && (
@@ -116,7 +116,7 @@ export function InChatSearch({
           keyboardShouldPersistTaps="handled"
         >
           {results.map((r, idx) => (
-            <TouchableOpacity
+            <Ripple
               key={r.id}
               onPress={() => {
                 setCurrentIdx(idx);
@@ -139,7 +139,7 @@ export function InChatSearch({
               <Text numberOfLines={2} style={[s.text, { color: p.textMuted }]}>
                 {r.text}
               </Text>
-            </TouchableOpacity>
+            </Ripple>
           ))}
         </ScrollView>
       )}

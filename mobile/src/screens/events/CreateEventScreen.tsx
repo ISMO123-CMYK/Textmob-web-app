@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, StyleSheet,
   ScrollView, Alert, Platform,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -64,9 +65,9 @@ export default function CreateEventScreen({ navigation }: any) {
     <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <View style={{ flex: 1 }}>
           <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Create event</Text>
           <Text style={[s.headerSub, { color: colors.textSecondary }]}>Events are public · visible to everyone</Text>
@@ -193,7 +194,7 @@ export default function CreateEventScreen({ navigation }: any) {
         {error ? <Text style={s.errorText}>{error}</Text> : null}
 
         {/* Submit */}
-        <TouchableOpacity
+        <Ripple
           onPress={handleSubmit}
           disabled={!isValid || posting}
           style={[s.submitBtn, { backgroundColor: isValid && !posting ? '#2563eb' : isDark ? '#334155' : '#e5e7eb' }]}
@@ -201,7 +202,7 @@ export default function CreateEventScreen({ navigation }: any) {
           <Text style={[s.submitText, { color: isValid && !posting ? '#fff' : colors.textSecondary }]}>
             {posting ? 'Creating…' : 'Create event'}
           </Text>
-        </TouchableOpacity>
+        </Ripple>
       </ScrollView>
     </SafeAreaView>
   );

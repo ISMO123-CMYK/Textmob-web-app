@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Image, ScrollView,
+  View, Text, StyleSheet, Image, ScrollView,
   Platform,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
@@ -10,6 +11,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { navigationRef } from '../../navigation/navigationRef';
 import type { ShareIntent } from 'expo-share-intent';
+import { setPendingChatShare } from '../../louda/pendingShare';
 
 interface SharedItem {
   uri: string;
@@ -111,6 +113,7 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
 
   const content = useMemo(() => {
     const items: SharedItem[] = [];
+    const otherItems: SharedItem[] = [];
     const textParts: string[] = [];
     const converted = urlMedia.length > 0;
     const notConverted = isMediaUrlShare && urlConvertFailed;
@@ -125,31 +128,60 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
       textParts.push(shareUrl.trim());
     }
     const files = intent?.files || [];
+    let fileIndex = 0;
     for (const f of files) {
       const mime = f.mimeType || '';
-      if (!mime.startsWith('image/') && !mime.startsWith('video/')) continue;
       const uri = Platform.OS === 'android' ? (f as any).filePath || (f as any).contentUri || f.path : f.path;
       if (!uri) continue;
-      items.push({
+      const item: SharedItem = {
         uri,
-        name: f.fileName || `file_${Date.now()}`,
-        mime,
+        name: f.fileName || `file_${Date.now()}_${fileIndex}`,
+        mime: mime || 'application/octet-stream',
         size: f.size ?? (f as any).fileSize ?? null,
-      });
+      };
+      fileIndex++;
+      if (mime.startsWith('image/') || mime.startsWith('video/')) items.push(item);
+      else otherItems.push(item);
     }
     items.push(...urlMedia);
-    return { text: textParts.filter(Boolean).join('\n'), items };
+    return { text: textParts.filter(Boolean).join('\n'), items, otherItems };
   }, [intent, shareUrl, isMediaUrlShare, urlConvertFailed, urlMedia]);
 
   const mediaItems = content.items;
+  const otherItems = content.otherItems;
   const images = mediaItems.filter(i => i.mime.startsWith('image/'));
   const videos = mediaItems.filter(i => i.mime.startsWith('video/'));
 
   const hasText = content.text.trim().length > 0;
   const hasAnyMedia = mediaItems.length > 0;
+  const hasOtherFiles = otherItems.length > 0;
+  const hasAnything = hasText || hasAnyMedia || hasOtherFiles;
 
   const canPost = hasText || hasAnyMedia;
   const canPostToSnaps = mediaItems.length === 1 && videos.length === 1;
+
+  // Chat send limits (mirrored from the Louda store send path): 6 files,
+  // 10 MB each — applied here so the user sees what gets dropped up front.
+  const allChatFiles = [...mediaItems, ...otherItems];
+  const chatFiles = allChatFiles
+    .filter(f => f.size == null || f.size <= 10 * 1024 * 1024)
+    .slice(0, 6);
+  const droppedForLimits = allChatFiles.length - chatFiles.length;
+  const canSendChat = hasText || chatFiles.length > 0;
+
+  const goToChat = () => {
+    if (!canSendChat) return;
+    if (!username) {
+      navigationRef.navigate('Login');
+      return;
+    }
+    setPendingChatShare({
+      text: hasText ? content.text : '',
+      files: chatFiles.map(f => ({ uri: f.uri, name: f.name, type: f.mime, size: f.size })),
+    });
+    navigationRef.navigate('Chats');
+    onDone();
+  };
 
   const goToComposer = () => {
     if (!canPost) return;
@@ -187,9 +219,9 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Share to Textmob</Text>
-          <TouchableOpacity style={styles.closeBtn} onPress={onDone} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ripple style={styles.closeBtn} onPress={onDone} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Ripple>
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
@@ -199,13 +231,13 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
               <Text style={[styles.loginPromptText, { color: colors.textSecondary }]} numberOfLines={2}>
                 Log in to post this to your feed.
               </Text>
-              <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
+              <Ripple style={styles.loginBtn} onPress={handleLogin}>
                 <Text style={styles.loginBtnText}>Log in</Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
           )}
 
-          {!hasText && !hasAnyMedia ? (
+          {!hasAnything ? (
             <View style={styles.emptyState}>
               <Ionicons name="share-social-outline" size={40} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Nothing to share yet</Text>
@@ -237,16 +269,56 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
                     </View>
                   </View>
                 ))}
+                {otherItems.map((f, i) => (
+                  <View key={`f${i}`} style={styles.fileRow}>
+                    <View style={[styles.fileIcon, { backgroundColor: isDark ? '#334155' : '#e2e8f0' }]}>
+                      <Ionicons name="document" size={16} color={isDark ? '#cbd5e1' : '#475569'} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[styles.fileName, { color: colors.textPrimary }]} numberOfLines={1}>{f.name}</Text>
+                      <Text style={[styles.fileMeta, { color: colors.textSecondary }]}>File {f.size ? `· ${(f.size / (1024 * 1024)).toFixed(1)} MB` : ''}</Text>
+                    </View>
+                  </View>
+                ))}
               </View>
             </>
           )}
 
-          {hasText || hasAnyMedia ? (
+          {hasAnything ? (
             <>
               <Text style={[styles.sectionLabel, { color: colors.textSecondary, marginTop: 20 }]}>SHARE AS</Text>
 
+              {/* Send in chat */}
+              <Ripple
+                style={[
+                  styles.optionCard,
+                  { backgroundColor: colors.card, borderColor: '#22c55e' },
+                  !canSendChat && { opacity: 0.45 },
+                ]}
+                onPress={goToChat}
+                disabled={!canSendChat}
+              >
+                <View style={[styles.optionIcon, { backgroundColor: '#f0fdf4' }]}>
+                  <Ionicons name="chatbubbles" size={20} color="#16a34a" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.optionTitle, { color: colors.textPrimary }]}>Send in chat</Text>
+                  <Text style={[styles.optionSub, { color: colors.textSecondary }]}>
+                    {canSendChat
+                      ? 'Pick a contact or group and send it as a message'
+                      : 'Nothing to send'}
+                  </Text>
+                  {droppedForLimits > 0 && (
+                    <Text style={styles.limitNote}>
+                      Max 6 files · 10 MB each — {droppedForLimits} file{droppedForLimits === 1 ? '' : 's'} won’t be sent
+                    </Text>
+                  )}
+                </View>
+                {canSendChat && <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
+              </Ripple>
+
               {/* Post as post */}
-              <TouchableOpacity
+              <Ripple
                 style={[styles.optionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={goToComposer}
                 disabled={!canPost}
@@ -261,10 +333,10 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
 
               {/* Post to snaps (video only) */}
-              <TouchableOpacity
+              <Ripple
                 style={[
                   styles.optionCard,
                   { backgroundColor: colors.card, borderColor: colors.border },
@@ -285,7 +357,7 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
                   </Text>
                 </View>
                 {canPostToSnaps && <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
-              </TouchableOpacity>
+              </Ripple>
             </>
           ) : null}
         </ScrollView>
@@ -328,4 +400,5 @@ const styles = StyleSheet.create({
   optionIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   optionTitle: { fontSize: 14, fontWeight: '700' },
   optionSub: { fontSize: 12, marginTop: 2 },
+  limitNote: { fontSize: 11, marginTop: 4, color: '#d97706', fontWeight: '600' },
 });

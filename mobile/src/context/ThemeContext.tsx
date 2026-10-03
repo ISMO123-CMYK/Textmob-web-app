@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { colors as lightColors, darkColors } from '../theme/colors';
 import { storage, KEYS } from '../utils/storage';
@@ -56,12 +56,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   }, [systemScheme]);
 
+  // Memoized: an unstable value re-renders EVERY useTheme consumer (the whole
+  // app) on each provider render. MUST sit above the `!ready` early return —
+  // hooks after a conditional return change hook order and crash React.
+  const value = useMemo(
+    () => ({ isDark, colors, themeMode, setThemeMode, toggleTheme }),
+    [isDark, colors, themeMode, setThemeMode, toggleTheme],
+  );
+
   if (!ready) {
     return <>{children}</>;
   }
 
   return (
-    <ThemeContext.Provider value={{ isDark, colors, themeMode, setThemeMode, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

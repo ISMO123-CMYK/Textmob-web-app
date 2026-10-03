@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, TextInput, Image, Alert,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -32,7 +33,7 @@ function CommentRow({ item, colors, borderColor, onPress, onReply, onDelete, rep
   const isReplying = replyToId === item.id;
   return (
     <View>
-      <TouchableOpacity style={[styles.commentRow, { borderBottomColor: borderColor }]} onPress={() => onPress(item.username)}>
+      <Ripple style={[styles.commentRow, { borderBottomColor: borderColor }]} onPress={() => onPress(item.username)}>
         <Image source={{ uri: profile?.profile_pic || DEFAULT_PIC }} style={[styles.commentAvatar, { backgroundColor: colors.border }]} />
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -41,17 +42,17 @@ function CommentRow({ item, colors, borderColor, onPress, onReply, onDelete, rep
           </View>
           {(() => { const s = parseStickerText(item.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <Text style={[styles.commentText, { color: colors.textSecondary }]}>{item.text}</Text>; })()}
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
-            <TouchableOpacity onPress={() => onReply(item.id, item.username)}>
+            <Ripple onPress={() => onReply(item.id, item.username)}>
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>Reply</Text>
-            </TouchableOpacity>
+            </Ripple>
             {(username === item.username || username === postUsername) && (
-              <TouchableOpacity onPress={() => onDelete(item.id)}>
+              <Ripple onPress={() => onDelete(item.id)}>
                 <Text style={{ fontSize: 11, fontWeight: '600', color: '#ef4444' }}>Delete</Text>
-              </TouchableOpacity>
+              </Ripple>
             )}
           </View>
         </View>
-      </TouchableOpacity>
+      </Ripple>
       {isReplying && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingBottom: 8, paddingLeft: 54 }}>
           <TextInput
@@ -65,9 +66,9 @@ function CommentRow({ item, colors, borderColor, onPress, onReply, onDelete, rep
             autoFocus
           />
           {replyText.trim().length > 0 && (
-            <TouchableOpacity onPress={() => handleSubmitReply(item.id)}>
+            <Ripple onPress={() => handleSubmitReply(item.id)}>
               <Ionicons name="send" size={16} color={colors.primary} />
-            </TouchableOpacity>
+            </Ripple>
           )}
         </View>
       )}
@@ -310,9 +311,9 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ripple onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+          </Ripple>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Post</Text>
         </View>
         <View style={styles.loadingWrap}><ActivityIndicator size="large" color={colors.primary} /></View>
@@ -324,9 +325,9 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ripple onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+          </Ripple>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Post</Text>
         </View>
         <View style={styles.loadingWrap}>
@@ -340,9 +341,9 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ripple onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+          </Ripple>
           <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Post</Text>
         </View>
         <View style={styles.loadingWrap}>
@@ -359,9 +360,9 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     <>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Post</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -384,15 +385,15 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4, paddingBottom: 4 }}>
                 <Ionicons name="return-down-forward" size={14} color={colors.primary} />
                 <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>Replying to @{replyToName}</Text>
-                <TouchableOpacity onPress={() => { setReplyToId(null); setReplyToName(null); }}>
+                <Ripple onPress={() => { setReplyToId(null); setReplyToName(null); }}>
                   <Ionicons name="close-circle" size={14} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Ripple>
               </View>
             )}
             <View style={styles.inputRow}>
-              <TouchableOpacity onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
+              <Ripple onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
                 <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
               <TextInput
                 ref={inputRef}
                 style={[styles.input, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary, flex: 1 }]}
@@ -404,26 +405,26 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
                 returnKeyType="send"
               />
               {sendVisible && (
-                <TouchableOpacity onPress={() => handleComment(replyToId || undefined)} style={styles.sendBtn}>
+                <Ripple onPress={() => handleComment(replyToId || undefined)} style={styles.sendBtn}>
                   <Ionicons name="send" size={18} color={colors.primary} />
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
             {showMentions && mentionResults.length > 0 && (
               <View style={[styles.mentionDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {mentionResults.slice(0, 4).map(user => (
-                  <TouchableOpacity key={user.username} style={styles.mentionRow} onPress={() => selectMention(user)}>
+                  <Ripple key={user.username} style={styles.mentionRow} onPress={() => selectMention(user)}>
                     <Image source={{ uri: user.profile_pic || DEFAULT_PIC }} style={{ width: 24, height: 24, borderRadius: 12 }} />
                     <Text style={[styles.mentionName, { color: colors.textPrimary }]}>@{user.username}</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 ))}
               </View>
             )}
           </View>
         ) : (
-          <TouchableOpacity style={[styles.guestInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]} onPress={() => Alert.alert('Sign in', 'Log in to comment')}>
+          <Ripple style={[styles.guestInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]} onPress={() => Alert.alert('Sign in', 'Log in to comment')}>
             <Text style={{ color: colors.textSecondary, fontSize: 13 }}><Text style={{ fontWeight: '700', color: colors.primary }}>Log in</Text> to leave a comment</Text>
-          </TouchableOpacity>
+          </Ripple>
         )}
       </View>
     </SafeAreaView>

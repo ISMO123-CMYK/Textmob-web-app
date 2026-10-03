@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
+  View, Text, FlatList, StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -58,9 +59,9 @@ export default function HashtagScreen({ route, navigation }: any) {
     <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <View style={{ flex: 1 }}>
           <Text style={[s.hashtagTitle, { color: colors.textPrimary }]}>#{tag}</Text>
           {!loading && (

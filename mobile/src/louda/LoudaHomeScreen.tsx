@@ -1,8 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+﻿import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 import { LoudaStoreProvider, useLoudaStore } from './store';
 import { useLoudaTheme, ContextMenu } from './components/primitives';
 import { ChatListPane } from './components/ChatListPane';
@@ -19,41 +18,10 @@ import { SettingsScreen } from './components/SettingsScreen';
 import { MediaGalleryTab } from './components/MediaGalleryTab';
 import { StatusTab } from './components/StatusTab';
 import { StatusCreator } from './components/StatusCreator';
+import { StatusCamera } from './components/StatusCamera';
 import { StatusViewer } from './components/StatusViewer';
+import { InAppCamera } from './components/InAppCamera';
 
-// Mobile replacement for the web CameraOverlay (LoudaApp.jsx:9469-9483):
-// launch the native camera, hand the capture to the StatusCreator.
-function StatusCameraLauncher() {
-  const st = useLoudaStore();
-  useEffect(() => {
-    (async () => {
-      try {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return;
-        const res = await ImagePicker.launchCameraAsync({
-          mediaTypes: ['images', 'videos'],
-          quality: 0.8,
-        });
-        if (!res.canceled && res.assets?.length) {
-          const a = res.assets[0];
-          const mime = a.mimeType || (a.type === 'video' ? 'video/mp4' : 'image/jpeg');
-          st.setStatusCameraMedia({
-            file: { uri: a.uri, fileName: a.fileName, mimeType: mime, type: mime },
-            type: mime.startsWith('video/') ? 'video' : 'image',
-            music: undefined,
-          });
-          st.setShowStatusCreator(true);
-        }
-      } catch (e) {
-        console.error('Status camera failed', e);
-      } finally {
-        st.setShowStatusCamera(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return null;
-}
 
 // Port of the MobileHome render tree (LoudaApp.jsx:8679-9522) — the shell
 // that wires the chat list strip, chat window, bottom navigation and every
@@ -265,7 +233,7 @@ function LoudaHome({ initialWithUsername }: { initialWithUsername?: string }) {
         />
       )}
       {/* 18h: StatusCreator (9486), StatusViewer (9498), CameraOverlay (9469) */}
-      {st.showStatusCamera && <StatusCameraLauncher />}
+          {st.showStatusCamera && <StatusCamera />}
       {st.showStatusCreator && (
         <StatusCreator
           user={st.user}
@@ -291,18 +259,36 @@ function LoudaHome({ initialWithUsername }: { initialWithUsername?: string }) {
         />
       )}
 
-      {/* Mobile Bottom Navigation (web 9457-9466) */}
-      {showBottomBar && (
-        <BottomBar
-          activeTab={st.activeTab}
-          onTabChange={st.handleTabChange}
-          onProfileClick={() => st.setViewProfile(st.user)}
-          onBack={onExit}
-          totalUnreadChats={st.totalUnreadChats}
-          totalUnreadStatuses={st.totalUnreadStatuses}
-        />
-      )}
-    </SafeAreaView>
+        {/* Mobile Bottom Navigation (web 9457-9466) */}
+        {showBottomBar && (
+          <BottomBar
+            activeTab={st.activeTab}
+            onTabChange={st.handleTabChange}
+            onProfileClick={() => st.setViewProfile(st.user)}
+            onBack={onExit}
+            totalUnreadChats={st.totalUnreadChats}
+            totalUnreadStatuses={st.totalUnreadStatuses}
+          />
+        )}
+
+        {/* Shared in-app camera for non-modal screens (chat input, gallery).
+            Mounted last + zIndex 999 so it stacks above the bottom bar.
+            Settings/profile use RN Modals (own window) — they mount their own. */}
+        {st.cameraRequest && (
+          <InAppCamera
+            mode={st.cameraRequest.mode}
+            maxVideoSeconds={st.cameraRequest.maxVideoSeconds}
+            hint={st.cameraRequest.hint}
+            filePrefix={st.cameraRequest.filePrefix}
+            onCancel={() => st.setCameraRequest(null)}
+            onCapture={(file) => {
+              const req = st.cameraRequest;
+              st.setCameraRequest(null);
+              req?.onCapture(file);
+            }}
+          />
+        )}
+      </SafeAreaView>
   );
 }
 

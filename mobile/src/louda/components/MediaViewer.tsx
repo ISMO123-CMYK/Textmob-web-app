@@ -1,8 +1,7 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   ScrollView,
   Image,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
   Animated,
   PanResponder,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { useLoudaTheme } from './primitives';
@@ -157,7 +157,7 @@ export const MediaViewer = memo(function MediaViewer({
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={s.root}>
-        <TouchableOpacity
+        <Ripple
           activeOpacity={1}
           style={StyleSheet.absoluteFill}
           onPress={() => setShowUI((v) => !v)}
@@ -165,15 +165,15 @@ export const MediaViewer = memo(function MediaViewer({
 
         {showUI && (
           <View style={s.header} pointerEvents="box-none">
-            <TouchableOpacity onPress={onClose} style={s.iconBtn}>
+            <Ripple onPress={onClose} style={s.iconBtn}>
               <Icons.arrowLeft size={22} color="#fff" />
-            </TouchableOpacity>
+            </Ripple>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
               <Text style={s.counter}>
                 {index + 1} / {mediaList.length}
               </Text>
               {!isAudio && (
-                <TouchableOpacity
+                <Ripple
                   onPress={() =>
                     setZoom((z) => {
                       const next = z === 1 ? 2 : 1;
@@ -184,16 +184,16 @@ export const MediaViewer = memo(function MediaViewer({
                   style={s.iconBtn}
                 >
                   <Icons.search size={20} color="#fff" />
-                </TouchableOpacity>
+                </Ripple>
               )}
-              <TouchableOpacity onPress={() => setShowMenu((v) => !v)} style={s.iconBtn}>
+              <Ripple onPress={() => setShowMenu((v) => !v)} style={s.iconBtn}>
                 <Icons.more size={20} color="#fff" />
-              </TouchableOpacity>
+              </Ripple>
             </View>
 
             {showMenu && (
               <View style={[s.menu, { backgroundColor: p.card }]}>
-                <TouchableOpacity
+                <Ripple
                   style={s.menuItem}
                   onPress={() => {
                     setShowMenu(false);
@@ -202,8 +202,8 @@ export const MediaViewer = memo(function MediaViewer({
                 >
                   <Icons.share size={16} color={p.textMuted} />
                   <Text style={[s.menuText, { color: p.textSecondary }]}>Share</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Ripple>
+                <Ripple
                   style={s.menuItem}
                   onPress={() => {
                     setShowMenu(false);
@@ -212,11 +212,11 @@ export const MediaViewer = memo(function MediaViewer({
                 >
                   <Icons.download size={16} color={p.textMuted} />
                   <Text style={[s.menuText, { color: p.textSecondary }]}>Save</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.menuItem} onPress={handleForward}>
+                </Ripple>
+                <Ripple style={s.menuItem} onPress={handleForward}>
                   <Icons.check size={16} color={p.textMuted} />
                   <Text style={[s.menuText, { color: p.textSecondary }]}>Forward</Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             )}
           </View>
@@ -272,7 +272,7 @@ export const MediaViewer = memo(function MediaViewer({
                       </Text>
                     </View>
                   ) : (
-                    <TouchableOpacity
+                    <Ripple
                       activeOpacity={1}
                       onPress={handleDoubleTap}
                       style={{ width, height, alignItems: 'center', justifyContent: 'center' }}
@@ -286,7 +286,7 @@ export const MediaViewer = memo(function MediaViewer({
                         }}
                         resizeMode="contain"
                       />
-                    </TouchableOpacity>
+                    </Ripple>
                   )}
                 </Animated.View>
               </View>
@@ -294,7 +294,7 @@ export const MediaViewer = memo(function MediaViewer({
           </ScrollView>
 
           {showUI && index > 0 && (
-            <TouchableOpacity
+            <Ripple
               style={[s.arrow, { left: 16 }]}
               onPress={() => {
                 resetZoom();
@@ -302,10 +302,10 @@ export const MediaViewer = memo(function MediaViewer({
               }}
             >
               <Icons.arrowLeft size={24} color="#fff" />
-            </TouchableOpacity>
+            </Ripple>
           )}
           {showUI && index < mediaList.length - 1 && (
-            <TouchableOpacity
+            <Ripple
               style={[s.arrow, { right: 16 }]}
               onPress={() => {
                 resetZoom();
@@ -313,7 +313,7 @@ export const MediaViewer = memo(function MediaViewer({
               }}
             >
               <Icons.chevronRight size={24} color="#fff" />
-            </TouchableOpacity>
+            </Ripple>
           )}
         </View>
       </View>

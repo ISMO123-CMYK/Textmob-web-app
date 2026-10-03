@@ -1,12 +1,13 @@
-import React, { useMemo } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaStore } from '../store';
 import { useLoudaTheme } from './primitives';
 import { Icons } from '../icons';
@@ -53,6 +54,7 @@ export function ChatThreadPane() {
     onDeleteMessage,
     setMediaView,
     setViewerStatusId,
+    messagesLoading,
   } = useLoudaStore();
   const { isDark, p } = useLoudaTheme();
 
@@ -100,20 +102,68 @@ export function ChatThreadPane() {
     [messages, blockedUsers],
   );
 
+  // Stable callbacks (before the early return — hooks rule): inline lambdas
+  // here would churn every render and defeat ChatMessages/MessageBubble memos.
+  const onViewProfileUser = useCallback(
+    (uid: string) => {
+      const c = contacts.find((x: any) => x.id === uid);
+      if (c) handleViewProfile(c);
+      else handleViewProfile({ id: uid, name: 'User ' + uid });
+    },
+    [contacts, handleViewProfile],
+  );
+
+  const handleAddContact = useCallback((phone: string) => {
+    setPhoneInput(phone);
+    setShowAddContact(true);
+  }, []);
+
+  // Android 15 / edge-to-edge breaks softwareKeyboardLayoutMode=resize
+  // (Expo SDK 57 targets API 35): the keyboard overlays the window instead
+  // of resizing it, so the input sits underneath. Measure how much of this
+  // pane the keyboard covers and pad the root by exactly that much
+  // (clamped → 0 when the OS does resize properly). iOS keeps KAV 'padding'.
+  const rootRef = useRef<View>(null);
+  const [kbPad, setKbPad] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    let t1: ReturnType<typeof setTimeout> | undefined;
+    let t2: ReturnType<typeof setTimeout> | undefined;
+    const show = Keyboard.addListener('keyboardDidShow', (e: any) => {
+      const apply = () => {
+        rootRef.current?.measureInWindow((_x, y, _w, h) => {
+          // bottom edge of the pane minus keyboard top = overlap to absorb
+          const overlap = y + h - (e.endCoordinates?.screenY ?? 0);
+          setKbPad(overlap > 0 ? Math.ceil(overlap) : 0);
+        });
+      };
+      apply();
+      // Re-measure while the keyboard/frame settles (animation + input growth)
+      t1 = setTimeout(apply, 120);
+      t2 = setTimeout(apply, 350);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbPad(0));
+    return () => {
+      show.remove();
+      hide.remove();
+      if (t1) clearTimeout(t1);
+      if (t2) clearTimeout(t2);
+    };
+  }, []);
+
   if (!chat || !chatKey) return null;
 
-  const onViewProfileUser = (uid: string) => {
-    const c = contacts.find((x: any) => x.id === uid);
-    if (c) handleViewProfile(c);
-    else handleViewProfile({ id: uid, name: 'User ' + uid });
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={s.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
+    <View
+      ref={rootRef}
+      style={[s.root, kbPad > 0 ? { paddingBottom: kbPad } : null]}
     >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+      >
       <ChatHeader
         chat={chat}
         hasUnviewedStatus={hasUnviewedStatus}
@@ -159,7 +209,7 @@ export function ChatThreadPane() {
 
       {/* Pinned message banner (LoudaApp.jsx:9092-9107) */}
       {messages.some((m: any) => m.is_pinned) && (
-        <TouchableOpacity
+        <Ripple
           activeOpacity={0.8}
           style={[
             s.pinnedBanner,
@@ -187,7 +237,7 @@ export function ChatThreadPane() {
           <Text style={[s.pinnedLabel, { color: isDark ? '#fbbf24' : '#b45309' }]}>
             PINNED
           </Text>
-        </TouchableOpacity>
+        </Ripple>
       )}
 
       {/* In-Chat Search (LoudaApp.jsx:9110-9124) */}
@@ -202,6 +252,7 @@ export function ChatThreadPane() {
 
       <ChatMessages
         messages={visibleMessages}
+        isLoading={messagesLoading}
         wallpaper={chatBgs[chat.id]}
         members={chat.members}
         membersMap={chat.membersMap}
@@ -225,11 +276,8 @@ export function ChatThreadPane() {
         userName={user?.full_name || user?.username}
         user={user}
         onEdit={setEditingMessage}
-        onAddContact={(phone) => {
-          setPhoneInput(phone);
-          setShowAddContact(true);
-        }}
-        onOpenStatus={(id) => setViewerStatusId(id)}
+        onAddContact={handleAddContact}
+        onOpenStatus={setViewerStatusId}
       />
 
       {adminOnly ? (
@@ -252,7 +300,8 @@ export function ChatThreadPane() {
           onEdit={handleEditMessage}
         />
       )}
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 

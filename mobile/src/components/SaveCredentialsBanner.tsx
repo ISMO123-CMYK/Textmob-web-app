@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, StyleSheet,
 } from 'react-native';
+import { Ripple } from './Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -86,12 +87,12 @@ export default function SaveCredentialsBanner({ onDismiss }: SaveCredentialsBann
           Get one-tap access next time you sign in.
         </Text>
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+          <Ripple style={styles.saveBtn} onPress={handleSave}>
             <Text style={styles.saveBtnText}>Save</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.noBtn} onPress={handleNoThanks}>
+          </Ripple>
+          <Ripple style={styles.noBtn} onPress={handleNoThanks}>
             <Text style={[styles.noBtnText, { color: colors.textSecondary }]}>No thanks</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </View>
     </View>

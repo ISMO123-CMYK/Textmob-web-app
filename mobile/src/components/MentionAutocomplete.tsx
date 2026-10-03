@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator,
+  View, Text, FlatList, StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { Ripple } from './Ripple';
 import { searchUsersAPI } from '../api/users';
 import { apiGet } from '../api/client';
 
@@ -102,12 +103,12 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
         keyboardShouldPersistTaps="always"
         style={[styles.list, { backgroundColor: isDark ? '#1e293b' : '#fff', borderColor: colors.border }]}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.suggestionRow} onPress={() => handleSelect(item)}>
+          <Ripple style={styles.suggestionRow} onPress={() => handleSelect(item)}>
             <View style={[styles.avatar, { backgroundColor: item.type === 'hashtag' ? (isDark ? '#374151' : '#f3f4f6') : '#e0e7ff' }]}>
               <Text style={styles.avatarText}>{item.type === 'hashtag' ? '#' : '@'}</Text>
             </View>
             <Text style={[styles.suggestionLabel, { color: colors.textPrimary }]} numberOfLines={1}>{item.label}</Text>
-          </TouchableOpacity>
+          </Ripple>
         )}
       />
     </View>

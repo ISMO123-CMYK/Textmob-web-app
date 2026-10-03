@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, Image, TextInput,
   Animated, Dimensions, ScrollView, useWindowDimensions,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -443,20 +444,20 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
               <Text style={styles.viewViewerCount}>{viewerCount}</Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity style={styles.viewIconBtn} onPress={() => setShowChat(prev => !prev)}>
+              <Ripple style={styles.viewIconBtn} onPress={() => setShowChat(prev => !prev)}>
                 <Ionicons name="chatbubbles-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.viewIconBtn} onPress={() => {}}>
+              </Ripple>
+              <Ripple style={styles.viewIconBtn} onPress={() => {}}>
                 <Ionicons name="share-outline" size={16} color="#fff" />
-              </TouchableOpacity>
+              </Ripple>
               {joined ? (
-                <TouchableOpacity style={[styles.viewIconBtn, { backgroundColor: 'rgba(220,38,38,0.7)' }]} onPress={leaveStream}>
+                <Ripple style={[styles.viewIconBtn, { backgroundColor: 'rgba(220,38,38,0.7)' }]} onPress={leaveStream}>
                   <Ionicons name="close" size={16} color="#fff" />
-                </TouchableOpacity>
+                </Ripple>
               ) : (
-                <TouchableOpacity style={[styles.viewIconBtn, { backgroundColor: '#2563eb', paddingHorizontal: 10 }]} onPress={joinStream}>
+                <Ripple style={[styles.viewIconBtn, { backgroundColor: '#2563eb', paddingHorizontal: 10 }]} onPress={joinStream}>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: '#fff' }}>Join</Text>
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
           </View>
@@ -478,13 +479,13 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
               <View style={styles.giftDrawerInner}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <Text style={styles.giftDrawerTitle}>Send a Gift</Text>
-                  <TouchableOpacity onPress={() => { setShowGiftDrawer(false); setGiftErrorMessage(''); }}>
+                  <Ripple onPress={() => { setShowGiftDrawer(false); setGiftErrorMessage(''); }}>
                     <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
-                  </TouchableOpacity>
+                  </Ripple>
                 </View>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {GIFTS.map(g => (
-                    <TouchableOpacity
+                    <Ripple
                       key={g.id}
                       style={styles.giftItem}
                       onPress={() => sendGift(g)}
@@ -493,7 +494,7 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
                       <Text style={{ fontSize: 24 }}>{g.emoji}</Text>
                       <Text style={[styles.giftItemName, { color: g.color }]}>{g.name}</Text>
                       <Text style={styles.giftItemCost}>{g.cost}</Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   ))}
                 </View>
                 {giftErrorMessage && <Text style={styles.giftError}>{giftErrorMessage}</Text>}
@@ -522,30 +523,30 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
                   onSubmitEditing={postComment}
                 />
                 {inputText.trim() ? (
-                  <TouchableOpacity onPress={postComment} style={{ paddingHorizontal: 8 }}>
+                  <Ripple onPress={postComment} style={{ paddingHorizontal: 8 }}>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: '#60a5fa' }}>Post</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 ) : null}
               </View>
-              <TouchableOpacity
+              <Ripple
                 style={[styles.viewGiftBtn, showGiftDrawer && { backgroundColor: '#2563eb' }]}
                 onPress={() => setShowGiftDrawer(prev => !prev)}
               >
                 <Ionicons name="gift" size={20} color="#fbbf24" />
-              </TouchableOpacity>
+              </Ripple>
             </View>
 
             {/* Controls */}
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TouchableOpacity style={styles.viewCtrlBtn} onPress={() => { setAudioMuted(!audioMuted); }}>
+              <Ripple style={styles.viewCtrlBtn} onPress={() => { setAudioMuted(!audioMuted); }}>
                 <Ionicons name={audioMuted ? 'volume-mute' : 'volume-medium'} size={18} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.viewCtrlBtn} onPress={togglePauseOverride}>
+              </Ripple>
+              <Ripple style={styles.viewCtrlBtn} onPress={togglePauseOverride}>
                 <Ionicons name={userPaused ? 'play' : 'pause'} size={18} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.viewCtrlBtn} onPress={() => {}}>
+              </Ripple>
+              <Ripple style={styles.viewCtrlBtn} onPress={() => {}}>
                 <Ionicons name="scan-outline" size={18} color="#fff" />
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </View>
         </View>
@@ -557,16 +558,16 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
+        <Ripple onPress={() => navigation.goBack()} style={{ padding: 4 }}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Live</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('CreateLive')}>
+        <Ripple onPress={() => navigation.navigate('CreateLive')}>
           <View style={styles.goLiveBtn}>
             <View style={styles.goLiveDot} />
             <Text style={styles.goLiveText}>Go Live</Text>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {loading ? (
@@ -583,10 +584,10 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
           <Text style={[s.emptyDesc, { color: colors.textSecondary }]}>
             Be the first to go live and get eyes on your content instantly.
           </Text>
-          <TouchableOpacity style={styles.goLiveBigBtn} onPress={() => navigation.navigate('CreateLive')}>
+          <Ripple style={styles.goLiveBigBtn} onPress={() => navigation.navigate('CreateLive')}>
             <View style={styles.goLiveBigDot} />
             <Text style={styles.goLiveBigText}>Go Live · It's Free</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       ) : (
         <FlatList
@@ -594,7 +595,7 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
           keyExtractor={(item) => String(item.id || item.stream_id)}
           contentContainerStyle={{ padding: 8, gap: 8 }}
           renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.streamCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            <Ripple style={[styles.streamCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => setActiveStream(item)}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -616,7 +617,7 @@ export default function LiveViewScreen({ navigation, route }: { navigation: any;
                 </View>
                 <Ionicons name="play-circle" size={36} color="#dc2626" />
               </View>
-            </TouchableOpacity>
+            </Ripple>
           )}
         />
       )}

@@ -5168,7 +5168,7 @@ const LoginScreen = () => {
   </div>
   <div className="text-2xl font-black text-gray-400">×</div>
   <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden border border-black/5 ">
-  <img src={textmobUser.profile_pic || "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png"} alt="User" className="w-full h-full object-cover" />
+  <img src={textmobUser.profile_pic || "https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png"} alt="User" className="w-full h-full object-cover" />
   </div>
   </div>
 
@@ -5208,7 +5208,7 @@ const LoginScreen = () => {
   </div>
   <div className="text-xl font-black text-gray-300">×</div>
   <div className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden border border-black/5 ">
-  <img src={textmobUser.profile_pic || "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png"} alt="User" className="w-full h-full object-cover" />
+  <img src={textmobUser.profile_pic || "https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png"} alt="User" className="w-full h-full object-cover" />
   </div>
   </div>
 
@@ -8758,7 +8758,7 @@ const MobileHome = () => {
   </div>
   <div className="text-2xl font-black text-gray-400">×</div>
   <div className="w-16 h-16 rounded-2xl flex items-center justify-center p-1">
-  <img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" alt="Textmob" className="w-full h-full object-contain" />
+  <img src="https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png" alt="Textmob" className="w-full h-full object-contain" />
   </div>
   </div>
 
@@ -8794,7 +8794,7 @@ const MobileHome = () => {
   </div>
   <div className="text-xl font-black text-gray-300">×</div>
   <div className="w-14 h-14 rounded-2xl flex items-center justify-center p-1">
-  <img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" alt="Textmob" className="w-full h-full object-contain" />
+  <img src="https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png" alt="Textmob" className="w-full h-full object-contain" />
   </div>
   </div>
 
@@ -9344,7 +9344,7 @@ const MobileHome = () => {
   <img src={tempContact.avatar_url || DEFAULT_AVATAR} className="w-20 h-20 rounded-full mx-auto mb-4 object-cover border-4 border-white  shadow-lg" alt="" />
   {tempContact.isTextmob && (
   <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white  shadow-sm" title="Textmob Account">
-  <img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" className="w-4 h-4 object-contain invert brightness-0" />
+  <img src="https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png" className="w-4 h-4 object-contain invert brightness-0" />
   </div>
   )}
   </div>

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   TextInput, Image, ActivityIndicator, Alert,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -210,7 +211,7 @@ export default function SearchScreen() {
     const iconName = isUser ? 'person-outline' : type === 'hashtag' ? 'pricetag-outline' : type === 'mention' ? 'at-outline' : 'search-outline';
     const iconColor = isUser ? '#2563eb' : type === 'hashtag' ? '#7c3aed' : type === 'mention' ? '#059669' : '#d97706';
     return (
-      <TouchableOpacity
+      <Ripple
         style={[s.suggestRow, index === selectedIndex && { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
         onPress={() => {
           if (isUser) {
@@ -235,7 +236,7 @@ export default function SearchScreen() {
           </Text>
           {item.fullname && <Text style={[s.suggestFull, { color: colors.textSecondary }]}>{item.fullname}</Text>}
         </View>
-        <TouchableOpacity
+        <Ripple
           onPress={() => {
             const val = isUser ? `@${item.username}` : (item.query || item.text || '');
             setQuery(val);
@@ -243,8 +244,8 @@ export default function SearchScreen() {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </Ripple>
+      </Ripple>
     );
   };
 
@@ -255,7 +256,7 @@ export default function SearchScreen() {
     const buttonText = isOrg ? (isConnected ? 'Following' : 'Follow') : (isConnected ? 'Friends' : 'Add Friend');
     const actionName = isOrg ? (isConnected ? 'unfollow' : 'follow') : (isConnected ? 'unfriend' : 'friend');
     return (
-      <TouchableOpacity style={s.userRow} onPress={() => navigation.navigate('Profile', { username: item.username })}>
+      <Ripple style={s.userRow} onPress={() => navigation.navigate('Profile', { username: item.username })}>
         <Image source={{ uri: item.profile_pic || DEFAULT_PIC }} style={s.userAvatar} />
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -269,16 +270,16 @@ export default function SearchScreen() {
           </Text>
         </View>
         {!isOwn && (
-          <TouchableOpacity
+          <Ripple
             style={[s.followBtn, { backgroundColor: isConnected ? (isDark ? '#334155' : '#e5e7eb') : '#2563eb' }]}
             onPress={() => handleRelationChange(item.username, actionName, item.profile_type)}
           >
             <Text style={[s.followText, { color: isConnected ? colors.textSecondary : '#fff' }]}>
               {buttonText}
             </Text>
-          </TouchableOpacity>
+          </Ripple>
         )}
-      </TouchableOpacity>
+      </Ripple>
     );
   };
 
@@ -292,9 +293,9 @@ export default function SearchScreen() {
   return (
     <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
       <View style={[s.headerBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Search</Text>
       </View>
 
@@ -318,9 +319,9 @@ export default function SearchScreen() {
             onKeyPress={({ nativeEvent }) => handleKeyDown(nativeEvent.key)}
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setSearchResults([]); setSearched(false); setShowDropdown(false); }}>
+            <Ripple onPress={() => { setQuery(''); setSearchResults([]); setSearched(false); setShowDropdown(false); }}>
               <Ionicons name="close" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           )}
         </View>
       </View>
@@ -353,12 +354,12 @@ export default function SearchScreen() {
         <>
           {/* Result tabs */}
           <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity style={[s.tab, activeTab === 'people' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('people')}>
+            <Ripple style={[s.tab, activeTab === 'people' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('people')}>
               <Text style={[s.tabText, { color: activeTab === 'people' ? '#2563eb' : colors.textSecondary }]}>People ({searchResults.length})</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.tab, activeTab === 'posts' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('posts')}>
+            </Ripple>
+            <Ripple style={[s.tab, activeTab === 'posts' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('posts')}>
               <Text style={[s.tabText, { color: activeTab === 'posts' ? '#2563eb' : colors.textSecondary }]}>Posts ({postsResults.length})</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
           {loadingResults ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
@@ -397,20 +398,20 @@ export default function SearchScreen() {
         <View style={s.listContent}>
           <View style={s.historyHeader}>
             <Text style={[s.historyTitle, { color: colors.textSecondary }]}>Recent</Text>
-            <TouchableOpacity onPress={clearHistory}>
+            <Ripple onPress={clearHistory}>
               <Text style={{ fontSize: 12, fontWeight: '600', color: '#2563eb' }}>Clear all</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
           <View style={s.historyPills}>
             {history.map((h, i) => (
               <View key={i} style={[s.pillRow, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]}>
-                <TouchableOpacity style={s.pillTouch} onPress={() => { setQuery(h); doSearch(h); }}>
+                <Ripple style={s.pillTouch} onPress={() => { setQuery(h); doSearch(h); }}>
                   <Text style={[s.pillText, { color: colors.textPrimary }]} numberOfLines={1}>{h}</Text>
                   <Ionicons name="arrow-forward" size={12} color={colors.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => removeHistory(h)} style={s.pillRemove}>
+                </Ripple>
+                <Ripple onPress={() => removeHistory(h)} style={s.pillRemove}>
                   <Ionicons name="close" size={12} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Ripple>
               </View>
             ))}
           </View>
@@ -429,21 +430,21 @@ export default function SearchScreen() {
                 const btnText = isOrg ? (isConnected ? 'Following' : 'Follow') : (isConnected ? 'Friends' : 'Add Friend');
                 const actName = isOrg ? (isConnected ? 'unfollow' : 'follow') : (isConnected ? 'unfriend' : 'friend');
                 return (
-                  <TouchableOpacity key={sug.username} style={[s.exploreCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb' }]} onPress={() => navigation.navigate('Profile', { username: sug.username })}>
+                  <Ripple key={sug.username} style={[s.exploreCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb' }]} onPress={() => navigation.navigate('Profile', { username: sug.username })}>
                     <Image source={{ uri: sug.profile_pic || DEFAULT_PIC }} style={s.exploreAvatar} />
                     <Text style={[s.exploreName, { color: colors.textPrimary }]} numberOfLines={1}>{sug.fullname}</Text>
                     <Text style={[s.exploreUser, { color: colors.textSecondary }]} numberOfLines={1}>@{sug.username}</Text>
                     {sug.username !== username && (
-                      <TouchableOpacity
+                      <Ripple
                         style={[s.exploreFollow, { backgroundColor: isConnected ? (isDark ? '#334155' : '#e5e7eb') : '#2563eb' }]}
                         onPress={() => handleRelationChange(sug.username, actName, sug.profile_type)}
                       >
                         <Text style={[s.exploreFollowText, { color: isConnected ? colors.textSecondary : '#fff' }]}>
                           {btnText}
                         </Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     )}
-                  </TouchableOpacity>
+                  </Ripple>
                 );
               })}
             </View>

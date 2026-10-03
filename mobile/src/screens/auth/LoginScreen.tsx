@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Image,
+  View, Text, TextInput, StyleSheet, Image,
   ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -126,21 +127,21 @@ export default function LoginScreen({ navigation, route }: { navigation: any; ro
 
             {/* Saved Accounts */}
             {savedAccounts.length > 0 && !showSavedAccounts && (
-              <TouchableOpacity
+              <Ripple
                 style={s.savedAccountsBtn}
                 onPress={() => setShowSavedAccounts(true)}
               >
                 <Text style={s.savedAccountsBtnText}>
                   Switch account ({savedAccounts.length} saved)
                 </Text>
-              </TouchableOpacity>
+              </Ripple>
             )}
 
             {showSavedAccounts && (
               <View style={s.savedAccountsList}>
                 {savedAccounts.map((acc) => (
                   <View key={acc.username} style={s.savedAccountRow}>
-                    <TouchableOpacity
+                    <Ripple
                       style={s.savedAccountItem}
                       onPress={() => autoLogin(acc.username, acc.password)}
                     >
@@ -153,23 +154,23 @@ export default function LoginScreen({ navigation, route }: { navigation: any; ro
                         <Text style={s.savedName}>{acc.username}</Text>
                         <Text style={s.savedHint}>Tap to sign in</Text>
                       </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </Ripple>
+                    <Ripple
                       onPress={() => removeAccount(acc.username)}
                       style={s.removeBtn}
                     >
                       <Ionicons name="close" size={16} color={colors.textSecondary} />
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 ))}
-                <TouchableOpacity
+                <Ripple
                   onPress={() => setShowSavedAccounts(false)}
                   style={s.hideSavedBtn}
                 >
                   <Text style={[s.savedAccountsBtnText, { color: colors.textSecondary }]}>
                     Hide saved accounts
                   </Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             )}
 
@@ -201,7 +202,7 @@ export default function LoginScreen({ navigation, route }: { navigation: any; ro
 
             {/* Remember me + Forgot */}
             <View style={s.rememberRow}>
-              <TouchableOpacity
+              <Ripple
                 style={s.rememberCheck}
                 onPress={() => setRememberMe(!rememberMe)}
               >
@@ -211,14 +212,14 @@ export default function LoginScreen({ navigation, route }: { navigation: any; ro
                   )}
                 </View>
                 <Text style={s.rememberLabel}>Remember me</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={switchToForgotPassword}>
+              </Ripple>
+              <Ripple onPress={switchToForgotPassword}>
                 <Text style={s.forgotLink}>Forgot password?</Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
 
             {/* Sign in button */}
-            <TouchableOpacity
+            <Ripple
               style={[s.primaryBtn, isLoading && s.primaryBtnDisabled]}
               onPress={() => handleLogin(identifier, password)}
               disabled={isLoading}
@@ -228,7 +229,7 @@ export default function LoginScreen({ navigation, route }: { navigation: any; ro
               ) : (
                 <Text style={s.primaryBtnText}>Sign in</Text>
               )}
-            </TouchableOpacity>
+            </Ripple>
 
             {/* Divider */}
             <View style={s.divider}>
@@ -238,9 +239,9 @@ export default function LoginScreen({ navigation, route }: { navigation: any; ro
             </View>
 
             {/* Create account */}
-            <TouchableOpacity style={s.secondaryBtn} onPress={switchToSignup}>
+            <Ripple style={s.secondaryBtn} onPress={switchToSignup}>
               <Text style={s.secondaryBtnText}>Create account</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
 
           {/* Terms */}

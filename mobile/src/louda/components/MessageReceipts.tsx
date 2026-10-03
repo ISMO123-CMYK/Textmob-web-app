@@ -1,5 +1,6 @@
-import React from 'react';
-import { Text, TouchableOpacity, StyleSheet } from 'react-native';
+﻿import React from 'react';
+import { Text, StyleSheet } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Icons } from '../icons';
 
 // Port of MessageReceipts (LoudaApp.jsx:1033-1047)
@@ -28,7 +29,7 @@ export function MessageReceipts({
   const Icon = isRead || isDelivered ? Icons.checkDouble : Icons.check;
 
   return (
-    <TouchableOpacity
+    <Ripple
       onPress={onClick}
       activeOpacity={0.7}
       style={s.wrap}
@@ -40,7 +41,7 @@ export function MessageReceipts({
       {isGroup && readCount > 0 && (
         <Text style={s.count}>{readCount}</Text>
       )}
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 

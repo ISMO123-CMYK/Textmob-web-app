@@ -21,17 +21,17 @@ const DevPay = require("./utilities/devpay");
 const crypto = require("crypto");
 
 // Initialize Supabase client
-const supabaseUrl = "https://apnnyqmsyxuyapamnrqg.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwbm55cW1zeXh1eWFwYW1ucnFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjA2ODgsImV4cCI6MjA1ODkzNjY4OH0.aVHtygox6NbLAvgGElkBcEFXG1QKIB8JeYNHBwBtU7Y";
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const supabaseUr = "https://ycgczjvuygmunmksarzg.supabase.co";
-const supabaseKe = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljZ2N6anZ1eWdtdW5ta3NhcnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzNjg1NjIsImV4cCI6MjA1ODk0NDU2Mn0.yH-mlb2PGj4FoXjUxCp3JUm9CYutuGRR7bRAV-Tf9fA";
+const supabaseUr = process.env.SUPABASE_2_URL;
+const supabaseKe = process.env.SUPABASE_2_KEY;
 const supabase2 = createClient(supabaseUr, supabaseKe);
 
-// --- Louda Integration (Hardcoded) ---
-const loudaSupabaseUrl = 'https://ldepewastfyohswgtgbb.supabase.co';
-const loudaSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZXBld2FzdGZ5b2hzd2d0Z2JiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5ODkwOTUsImV4cCI6MjA5MDU2NTA5NX0.57USwUSsJL1ik-RwxZgcV1cJLzr3TDxcRX7xbum0Bms';
+// --- Louda Integration ---
+const loudaSupabaseUrl = process.env.LOUDA_SUPABASE_URL;
+const loudaSupabaseKey = process.env.LOUDA_SUPABASE_KEY;
 const loudaSupabase = createClient(loudaSupabaseUrl, loudaSupabaseKey);
 
 // Default avatar for the whole app (mirrors client/src/utils/defaultAvatar.js).
@@ -935,8 +935,8 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true,
   auth: {
-    user: process.env.SMTP_USER || "sharpbrainspublishers@gmail.com",
-    pass: process.env.SMTP_PASS || "vgbp mkny nruf xtfs"
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
   }
 });
 
@@ -949,7 +949,7 @@ transporter.verify().then(() => {
 
 // Resend client — used ONLY for password reset emails (forgot-password / reset-password)
 // Nodemailer/SMTP is unreliable on Render free tier, Resend uses HTTPS API.
-const resend = new Resend(process.env.RESEND_API_KEY || "re_WEZ7aYbs_MTCCZf8HLXmBVjhzs3Et6oQU");
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * Fire-and-forget email sender.
@@ -1069,7 +1069,7 @@ function sendNotificationEmail(to, subject, message) {
 </html>`;
 
   const mailOptions = {
-    from: `"Textmob" <${process.env.SMTP_USER || "sharpbrainspublishers@gmail.com"}>`,
+    from: `"Textmob" <${process.env.SMTP_USER}>`,
     to: to,
     subject: subject,
     html: html
@@ -1096,16 +1096,16 @@ setInterval(async () => {
 }, pingInterval);
 
 cloudinary.config({
-  cloud_name: 'dtln8gnxh',
-  api_key: '694256694994696',
-  api_secret: 'cK4e4MfVHHBWS-YCwwsb18rO5GM',
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 // --- DevPay SDK Initialization ---
 const devpay = new DevPay({
-  appId: '69db6c60003a4693c61d',
-  secret: '61d92bd984bdd72ddce77c5cd2b7c4d258f4cfb63f1d143176573ee78defbe28',
-  gatewayUrl: 'https://app-devpay.onrender.com',
+  appId: process.env.DEVPAY_APP_ID,
+  secret: process.env.DEVPAY_SECRET,
+  gatewayUrl: process.env.DEVPAY_GATEWAY_URL,
 });
 
 app.use(express.json());
@@ -1344,7 +1344,7 @@ app.post("/forgot-password", async (req, res) => {
 
     // Send email with reset code
     const mailOptions = {
-      from: `"Textmob" <${process.env.SMTP_USER || "sharpbrainspublishers@gmail.com"}>`,
+      from: `"Textmob" <${process.env.SMTP_USER}>`,
       to: user.email,
       subject: "Password Reset Request — Textmob",
       html: `<!DOCTYPE html>
@@ -4763,7 +4763,7 @@ const GROQ_KEYS = [
   process.env.GROQ_API_KEY,
   process.env.GROQ_API_KEY_2,
   process.env.GROQ_API_KEY_3,
-  "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"
+  process.env.GROQ_API_KEY_FALLBACK
 ].filter(Boolean);
 
 const Groq = require('groq-sdk');
@@ -7534,7 +7534,7 @@ async function generateAIResponse(messages, mediaUrl, mediaType) {
   var imageDescription = "";
   if (mediaUrl && mediaType === "image") {
     try {
-      var visionKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEY_2 || "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";
+      var visionKey = process.env.GROQ_API_KEY || process.env.GROQ_API_KEY_2 || process.env.GROQ_API_KEY_FALLBACK;
       var visionHeaders = {
         Authorization: "Bearer " + visionKey,
         "Content-Type": "application/json"
@@ -7586,7 +7586,7 @@ async function generateAIResponse(messages, mediaUrl, mediaType) {
     process.env.GROQ_API_KEY_5
   ].filter(Boolean);
   if (apiKeys.length === 0) {
-    apiKeys.push("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");
+    apiKeys.push(process.env.GROQ_API_KEY_FALLBACK);
   }
 
   // Retry loop with backoff and key rotation
@@ -11843,7 +11843,7 @@ async function generateRecapAI(activity) {
   }
 
   const apiKeys = [process.env.GROQ_API_KEY, process.env.GROQ_API_KEY_2, process.env.GROQ_API_KEY_3].filter(Boolean);
-  if (apiKeys.length === 0) apiKeys.push("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");
+  if (apiKeys.length === 0) apiKeys.push(process.env.GROQ_API_KEY_FALLBACK);
 
   for (let attempt = 0; attempt < apiKeys.length; attempt++) {
     // Jitter to desync parallel workers
@@ -11933,7 +11933,7 @@ Textmob, 42 Marina Street, Lagos Island, Lagos, Nigeria`;
 <tr><td align="center">
 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;">
 <tr><td align="center" style="padding:28px 24px 0;">
-<img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" alt="Textmob" width="40" height="40" style="display:block;margin:0 auto 12px;border-radius:8px;">
+<img src="https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png" alt="Textmob" width="40" height="40" style="display:block;margin:0 auto 12px;border-radius:8px;">
 <h1 style="margin:0;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;">Your week on Textmob</h1>
 <p style="margin:4px 0 0;font-size:14px;color:#64748b;">${weekKey}</p>
 </td></tr>
@@ -11960,7 +11960,7 @@ ${statsBlock}
 </html>`;
 
     await transporter.sendMail({
-      from: `"Textmob" <${process.env.SMTP_USER || "sharpbrainspublishers@gmail.com"}>`,
+      from: `"Textmob" <${process.env.SMTP_USER}>`,
       to: activity.user.email,
       subject,
       text: plainText,
@@ -12904,7 +12904,7 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
   if (!signature) return res.status(401).json({ error: 'No signature' });
 
   const payload = JSON.stringify(req.body);
-  const expected = crypto.createHmac('sha256', '61d92bd984bdd72ddce77c5cd2b7c4d258f4cfb63f1d143176573ee78defbe28').update(payload).digest('hex');
+  const expected = crypto.createHmac('sha256', process.env.DEVPAY_SECRET).update(payload).digest('hex');
   if (signature !== expected) return res.status(403).json({ error: 'Invalid signature' });
 
   const { event, data } = req.body;

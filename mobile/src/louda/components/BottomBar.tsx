@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, PanResponder, useWindowDimensions } from 'react-native';
+﻿import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, PanResponder, useWindowDimensions } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLoudaTheme } from './primitives';
 import { Icons } from '../icons';
@@ -80,7 +81,7 @@ export function BottomBar({
   if (collapsed) {
     return (
       <View style={s.floatingLayer} pointerEvents="box-none">
-        <TouchableOpacity
+        <Ripple
           activeOpacity={0.85}
           onPress={() => {
             if (!dragRef.current.moved) setCollapsed(false);
@@ -99,7 +100,7 @@ export function BottomBar({
               </Text>
             </View>
           )}
-        </TouchableOpacity>
+        </Ripple>
       </View>
     );
   }
@@ -107,19 +108,19 @@ export function BottomBar({
   return (
     <View style={[s.navWrap, { bottom: 16 + insets.bottom }]} pointerEvents="box-none">
       <View style={[s.nav, { backgroundColor: isDark ? 'rgba(31,41,55,0.92)' : 'rgba(255,255,255,0.92)', borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.3)' }]}>
-        <TouchableOpacity
+        <Ripple
           activeOpacity={0.8}
           onPress={() => setCollapsed(true)}
           style={[s.collapseBtn, { backgroundColor: p.accent }]}
         >
           <Text style={s.collapseBtnText}>▾</Text>
-        </TouchableOpacity>
+        </Ripple>
 
         {items.map((item) => {
           const Icon = item.icon;
           const active = activeTab === item.id;
           return (
-            <TouchableOpacity
+            <Ripple
               key={item.id}
               activeOpacity={0.7}
               onPress={() => handlePress(item.id)}
@@ -151,7 +152,7 @@ export function BottomBar({
                 {item.label}
               </Text>
               {active && <View style={[s.activeDot, { backgroundColor: p.accent }]} />}
-            </TouchableOpacity>
+            </Ripple>
           );
         })}
       </View>

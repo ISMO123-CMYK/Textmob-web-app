@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { View } from 'react-native';
 
 interface UploadInfo {
@@ -40,8 +40,13 @@ export function UploadProgressProvider({ children }: { children: React.ReactNode
     setUploads(prev => prev[uploadId] ? { ...prev, [uploadId]: { ...prev[uploadId], status: 'error', error } } : prev);
   }, []);
 
+  const value = useMemo(
+    () => ({ uploads, startUpload, updateProgress, completeUpload, failUpload }),
+    [uploads, startUpload, updateProgress, completeUpload, failUpload],
+  );
+
   return (
-    <UploadProgressContext.Provider value={{ uploads, startUpload, updateProgress, completeUpload, failUpload }}>
+    <UploadProgressContext.Provider value={value}>
       {children}
       {/* Global Upload Progress Indicator */}
       {Object.entries(uploads || {}).map(([id, upload]) => (

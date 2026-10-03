@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+﻿import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useRoute } from '@react-navigation/native';
 import { ensureLoudaSession } from '../../louda/session';
 import LoudaHomeScreen from '../../louda/LoudaHomeScreen';
@@ -39,9 +40,9 @@ export default function ChatsScreen() {
       <View style={s.center}>
         <Text style={s.errTitle}>Messaging unavailable</Text>
         <Text style={s.errMsg}>{error}</Text>
-        <TouchableOpacity style={s.retryBtn} onPress={retry}>
+        <Ripple style={s.retryBtn} onPress={retry}>
           <Text style={s.retryText}>Try again</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
     );
   }

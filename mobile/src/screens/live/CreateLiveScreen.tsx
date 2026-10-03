@@ -1,7 +1,8 @@
-import React from 'react';
+﻿import React from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Linking,
+  View, Text, StyleSheet, Linking,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -21,20 +22,20 @@ export default function CreateLiveScreen({ navigation }: { navigation: any }) {
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Live streaming is not available on the mobile app.
         </Text>
-        <TouchableOpacity
+        <Ripple
           style={styles.webBtn}
           onPress={() => Linking.openURL(WEB_STREAM_URL)}
           activeOpacity={0.8}
         >
           <Ionicons name="globe-outline" size={18} color="#fff" />
           <Text style={styles.webBtnText}>Go to textmob.web.app to stream</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Ripple>
+        <Ripple
           style={styles.backBtn}
           onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')}
         >
           <Text style={[styles.backBtnText, { color: colors.textSecondary }]}>Go Back</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
     </SafeAreaView>
   );

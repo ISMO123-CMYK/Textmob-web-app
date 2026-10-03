@@ -159,14 +159,21 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
     return p;
   }, [text, legacyList]);
 
+  // Callers pass RN style arrays ([a, b]) — flatten before spreading so the
+  // object never ends up with numeric keys (they surface as native "style
+  // property 0/1" warnings and override nothing).
+  const flatStyle: any = Array.isArray(style)
+    ? Object.assign({}, ...style.filter(Boolean))
+    : style || {};
+
   const tagsStyles = useMemo(() => ({
     body: {
-      color: style?.color || colors.textPrimary,
-      fontSize: style?.fontSize || 14,
-      lineHeight: style?.lineHeight || 20,
+      color: flatStyle.color || colors.textPrimary,
+      fontSize: flatStyle.fontSize || 14,
+      lineHeight: flatStyle.lineHeight || 20,
       margin: 0,
       padding: 0,
-      ...style,
+      ...flatStyle,
     },
     a: {
       color: '#2563eb',

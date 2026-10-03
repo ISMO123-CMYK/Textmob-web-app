@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { User, loginAPI, signupAPI, getProfileAPI } from '../api/auth';
 import { clearApiCache } from '../api/client';
 import { storage, KEYS } from '../utils/storage';
@@ -171,8 +171,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearApiCache();
   }, []);
 
+  const value = useMemo(
+    () => ({ user, username, isLoading, isChecking, login, signup, logout, refreshProfile }),
+    [user, username, isLoading, isChecking, login, signup, logout, refreshProfile],
+  );
+
   return (
-    <AuthContext.Provider value={{ user, username, isLoading, isChecking, login, signup, logout, refreshProfile }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

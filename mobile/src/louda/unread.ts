@@ -15,9 +15,20 @@ export type LoudaUnreadSnapshot = {
 let snapshot: LoudaUnreadSnapshot = { messages: 0, statuses: 0, total: 0 };
 const listeners = new Set<(s: LoudaUnreadSnapshot) => void>();
 let refetchTimer: any = null;
+let throttleTimer: any = null;
 let reconcileTimer: any = null;
 let unsubscribers: (() => void)[] = [];
 let started = false;
+
+// Socket events fire on every message — without a floor between full badge
+// refreshes an active chat turns into a continuous 2-request HTTP loop.
+const MIN_REFRESH_GAP_MS = 3000;
+let lastRefreshAt = 0;
+
+function runRefresh() {
+  lastRefreshAt = Date.now();
+  refreshLoudaUnread().catch(() => {});
+}
 
 function publish(next: LoudaUnreadSnapshot) {
   snapshot = next;
@@ -32,7 +43,16 @@ function scheduleRefetch(ms = 500) {
   if (refetchTimer) clearTimeout(refetchTimer);
   refetchTimer = setTimeout(() => {
     refetchTimer = null;
-    refreshLoudaUnread().catch(() => {});
+    const wait = Math.max(0, MIN_REFRESH_GAP_MS - (Date.now() - lastRefreshAt));
+    if (wait === 0) {
+      runRefresh();
+      return;
+    }
+    if (throttleTimer) clearTimeout(throttleTimer);
+    throttleTimer = setTimeout(() => {
+      throttleTimer = null;
+      runRefresh();
+    }, wait);
   }, ms);
 }
 
@@ -110,6 +130,10 @@ export function stopLoudaUnreadBridge() {
   if (refetchTimer) {
     clearTimeout(refetchTimer);
     refetchTimer = null;
+  }
+  if (throttleTimer) {
+    clearTimeout(throttleTimer);
+    throttleTimer = null;
   }
   if (reconcileTimer) {
     clearInterval(reconcileTimer);

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   Pressable,
   Modal as RNModal,
   ScrollView,
@@ -15,6 +14,7 @@ import Svg, { Circle, G } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
 import { loudaPalette } from '../theme';
 import { Icons } from '../icons';
+import { Ripple } from '../../components/Ripple';
 import type { StatusItem } from '../types';
 
 export function useLoudaTheme() {
@@ -54,7 +54,7 @@ export function Button({
         ? '#5D4037'
         : p.text;
   return (
-    <TouchableOpacity
+    <Ripple
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.85}
@@ -65,7 +65,7 @@ export function Button({
       ]}
     >
       <Text style={[s.btnText, { color }]}>{children}</Text>
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -206,14 +206,14 @@ export function PhoneInput({
     <View style={[s.mb3, { width: '100%' }]}>
       {!!label && <Text style={s.inputLabel}>{label}</Text>}
       <View style={s.phoneRow}>
-        <TouchableOpacity
+        <Ripple
           onPress={() => setPickerOpen(true)}
           style={[s.phoneCode, { backgroundColor: p.cardMuted, borderColor: p.border }]}
         >
           <Text style={[s.phoneCodeText, { color: p.textSecondary }]}>
             {current ? `${current.flag} ${current.code}` : countryCode}
           </Text>
-        </TouchableOpacity>
+        </Ripple>
         <TextInput
           value={number}
           onChangeText={handleNumberChange}
@@ -233,7 +233,7 @@ export function PhoneInput({
           <View style={[s.pickerSheet, { backgroundColor: p.card }]}>
             <ScrollView style={{ maxHeight: 420 }}>
               {COUNTRY_CODES.map(c => (
-                <TouchableOpacity
+                <Ripple
                   key={c.code}
                   onPress={() => handleCodeChange(c.code)}
                   style={[s.pickerRow, { backgroundColor: c.code === countryCode ? p.accentTint : 'transparent' }]}
@@ -242,7 +242,7 @@ export function PhoneInput({
                   <Text style={[s.pickerRowText, { color: p.text }]}>
                     {c.name} {c.code}
                   </Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </ScrollView>
           </View>
@@ -279,13 +279,13 @@ export function LoudaModal({
             <Text style={[s.modalTitle, { color: p.accent }]} numberOfLines={1}>
               {title}
             </Text>
-            <TouchableOpacity
+            <Ripple
               onPress={onClose}
               style={[s.modalClose, { backgroundColor: p.cardMuted }]}
               hitSlop={8}
             >
               <Icons.x size={16} color={p.textMuted} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
           <ScrollView style={s.modalBody} contentContainerStyle={{ paddingBottom: 24 }}>
             {children}
@@ -313,7 +313,7 @@ export function Toggle({
 }) {
   const { p } = useLoudaTheme();
   return (
-    <TouchableOpacity
+    <Ripple
       activeOpacity={0.8}
       disabled={disabled}
       onPress={() => onChange(!checked)}
@@ -333,7 +333,7 @@ export function Toggle({
           ]}
         />
       </View>
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -385,7 +385,7 @@ export function ContextMenu({
           ]}
         >
           {options.map((opt, i) => (
-            <TouchableOpacity
+            <Ripple
               key={i}
               onPress={() => {
                 opt.onClick();
@@ -404,7 +404,7 @@ export function ContextMenu({
               >
                 {opt.label}
               </Text>
-            </TouchableOpacity>
+            </Ripple>
           ))}
         </View>
       </Pressable>

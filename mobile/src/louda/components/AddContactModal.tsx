@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
+﻿import React, { useState } from 'react';
+import { View, Text, Image, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme, LoudaModal, Button, PhoneInput, Input } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR, LOUDA_API_URL } from '../constants';
@@ -53,7 +54,7 @@ export function AddContactModal() {
               { id: false, label: 'Search by Phone' },
               { id: true, label: 'Search Textmob' },
             ].map((opt) => (
-              <TouchableOpacity
+              <Ripple
                 key={String(opt.id)}
                 style={[
                   s.toggleBtn,
@@ -69,7 +70,7 @@ export function AddContactModal() {
                 >
                   {opt.label}
                 </Text>
-              </TouchableOpacity>
+              </Ripple>
             ))}
           </View>
 
@@ -123,7 +124,7 @@ export function AddContactModal() {
                 ) : st.tmSearchResults.length > 0 ? (
                   <View style={{ gap: 8 }}>
                     {st.tmSearchResults.map((u: any) => (
-                      <TouchableOpacity
+                      <Ripple
                         key={u.username}
                         activeOpacity={0.8}
                         style={[s.tmRow, { backgroundColor: p.cardMuted, borderColor: p.borderLight }]}
@@ -150,7 +151,7 @@ export function AddContactModal() {
                         <View style={[s.tmChip, { backgroundColor: 'rgba(59,130,246,0.12)' }]}>
                           <Text style={s.tmChipText}>Textmob</Text>
                         </View>
-                      </TouchableOpacity>
+                      </Ripple>
                     ))}
                   </View>
                 ) : st.tmSearchQuery.length >= 2 ? (
@@ -192,7 +193,7 @@ export function AddContactModal() {
                 <View style={s.tmBadge}>
                   <Image
                     source={{
-                      uri: 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png',
+                      uri: 'https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png',
                     }}
                     style={s.tmBadgeImg}
                   />

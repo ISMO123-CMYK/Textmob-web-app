@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, StyleSheet,
   ScrollView, Alert, Image, Linking, Modal,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -129,12 +130,12 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
           </View>
         </View>
         <View style={s.featuredButtons}>
-          <TouchableOpacity style={[s.featuredBtn, { backgroundColor: '#2563eb' }]} onPress={() => navigation.navigate('AccountsCenter')}>
+          <Ripple style={[s.featuredBtn, { backgroundColor: '#2563eb' }]} onPress={() => navigation.navigate('AccountsCenter')}>
             <Text style={s.featuredBtnText}>Accounts Center</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.featuredBtnSec, { borderColor: '#3b82f6' }]} onPress={() => navigation.navigate('Wallet')}>
+          </Ripple>
+          <Ripple style={[s.featuredBtnSec, { borderColor: '#3b82f6' }]} onPress={() => navigation.navigate('Wallet')}>
             <Text style={[s.featuredBtnSecText, { color: '#2563eb' }]}>View Wallet</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
 
         {sections.map((section, si) => (
@@ -142,7 +143,7 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
             <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>{section.title}</Text>
             <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {section.items.map((item, ii) => (
-                <TouchableOpacity
+                <Ripple
                   key={ii}
                   style={[s.menuRow, ii < section.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
                   onPress={item.action}
@@ -155,13 +156,13 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
                     <Text style={[s.rowDesc, { color: colors.textSecondary }]}>{item.description}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </View>
           </View>
         ))}
 
-        <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+        <Ripple style={s.logoutBtn} onPress={handleLogout}>
           <View style={[s.logoutIconWrap, { backgroundColor: '#fee2e2' }]}>
             <Ionicons name="log-out-outline" size={18} color="#dc2626" />
           </View>
@@ -170,24 +171,24 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
             <Text style={s.logoutDesc}>End this session</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#fca5a5" />
-        </TouchableOpacity>
+        </Ripple>
 
         {/* Switch Account Modal */}
         <Modal visible={showSwitchModal} transparent animationType="fade" onRequestClose={() => setShowSwitchModal(false)}>
-          <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowSwitchModal(false)}>
+          <Ripple style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }} activeOpacity={1} onPress={() => setShowSwitchModal(false)}>
             <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }} onStartShouldSetResponder={() => true}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary }}>Switch Account</Text>
-                <TouchableOpacity onPress={() => setShowSwitchModal(false)}>
+                <Ripple onPress={() => setShowSwitchModal(false)}>
                   <Ionicons name="close" size={24} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Ripple>
               </View>
               {savedAccounts.length === 0 ? (
                 <Text style={{ color: colors.textSecondary, textAlign: 'center', paddingVertical: 24 }}>No saved accounts</Text>
               ) : (
                 savedAccounts.map((acc) => (
                   <View key={acc.username} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}>
-                    <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                    <Ripple style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
                       onPress={() => handleSwitchAccount(acc.username, acc.password)}>
                       <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ color: '#2563eb', fontWeight: '800', fontSize: 14 }}>{acc.username.slice(0, 2).toUpperCase()}</Text>
@@ -197,15 +198,15 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
                         <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: '600' }}>Tap to switch</Text>
                       </View>
                       <Ionicons name="log-in-outline" size={18} color="#2563eb" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => removeSavedAccount(acc.username)} style={{ padding: 8 }}>
+                    </Ripple>
+                    <Ripple onPress={() => removeSavedAccount(acc.username)} style={{ padding: 8 }}>
                       <Ionicons name="close" size={18} color={colors.textSecondary} />
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 ))
               )}
             </View>
-          </TouchableOpacity>
+          </Ripple>
         </Modal>
       </ScrollView>
     </SafeAreaView>

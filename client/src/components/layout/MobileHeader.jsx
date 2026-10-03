@@ -49,7 +49,7 @@ export default function MobileHeader() {
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  const profilePic = profile?.profile_pic || localStorage.getItem('cached_profile_pic') || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png';
+  const profilePic = profile?.profile_pic || localStorage.getItem('cached_profile_pic') || 'https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png';
   const name = profile?.fullname || 'User';
   const username = profile?.username || currentUser || 'user';
 

@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -8,15 +8,16 @@ import React, {
 import {
   View,
   Text,
-  TouchableOpacity,
   ScrollView,
   StyleSheet,
   LayoutChangeEvent,
   Keyboard,
   Platform,
   Image,
+  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import * as Clipboard from 'expo-clipboard';
 import { useLoudaTheme, ContextMenu } from './primitives';
 import { Icons } from '../icons';
@@ -41,7 +42,7 @@ function ReactionPicker({
   return (
     <View style={[s.reactionPicker, { backgroundColor: p.card, borderColor: p.borderLight }]}>
       {QUICK_REACTIONS.map((emoji) => (
-        <TouchableOpacity
+        <Ripple
           key={emoji}
           onPress={() => {
             onReact(emoji);
@@ -50,7 +51,7 @@ function ReactionPicker({
           style={s.reactionBtn}
         >
           <Text style={{ fontSize: 18 }}>{emoji}</Text>
-        </TouchableOpacity>
+        </Ripple>
       ))}
     </View>
   );
@@ -84,8 +85,10 @@ export function ChatMessages({
   onAddContact,
   onOpenStatus,
   wallpaper,
+  isLoading,
 }: {
   messages: any[];
+  isLoading?: boolean;
   userId?: string;
   isGroup?: boolean;
   isAdmin?: boolean;
@@ -140,21 +143,24 @@ export function ChatMessages({
     positionsRef.current = new Map();
   }
 
-  const toggleSelect = (msgId: string, isLongPress?: boolean) => {
-    if (isLongPress && !selectionMode) {
-      setSelectionMode(true);
-      setSelectedMessages(new Set([msgId]));
-      return;
-    }
-    if (!selectionMode) return;
-    setSelectedMessages((prev) => {
-      const next = new Set(prev);
-      if (next.has(msgId)) next.delete(msgId);
-      else next.add(msgId);
-      if (next.size === 0) setSelectionMode(false);
-      return next;
-    });
-  };
+  const toggleSelect = useCallback(
+    (msgId: string, isLongPress?: boolean) => {
+      if (isLongPress && !selectionMode) {
+        setSelectionMode(true);
+        setSelectedMessages(new Set([msgId]));
+        return;
+      }
+      if (!selectionMode) return;
+      setSelectedMessages((prev) => {
+        const next = new Set(prev);
+        if (next.has(msgId)) next.delete(msgId);
+        else next.add(msgId);
+        if (next.size === 0) setSelectionMode(false);
+        return next;
+      });
+    },
+    [selectionMode],
+  );
 
   const exitSelection = () => {
     setSelectionMode(false);
@@ -248,13 +254,21 @@ export function ChatMessages({
     };
   }, [jumpToMessage]);
 
-  const handleJumpReply = (replyTo: any) => {
-    if (replyTo?.quotedStatusId) {
-      onOpenStatus?.(replyTo.quotedStatusId);
-      return;
-    }
-    if (replyTo?.id) jumpToMessage(replyTo.id);
-  };
+  const handleJumpReply = useCallback(
+    (replyTo: any) => {
+      if (replyTo?.quotedStatusId) {
+        onOpenStatus?.(replyTo.quotedStatusId);
+        return;
+      }
+      if (replyTo?.id) jumpToMessage(replyTo.id);
+    },
+    [onOpenStatus, jumpToMessage],
+  );
+
+  // Stable "read by" opener — an inline () => setReadByMessage(msg) here
+  // would hand MessageBubble a fresh function every render and defeat its
+  // React.memo.
+  const showReadBy = useCallback((m: any) => setReadByMessage(m), []);
 
   // Initial positioning: bottom on open (or unread divider), like web
   useEffect(() => {
@@ -432,26 +446,26 @@ export function ChatMessages({
       {selectionMode && (
         <View style={[s.selectionBar, { backgroundColor: p.card, borderBottomColor: p.borderLight }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <TouchableOpacity onPress={exitSelection} style={s.selIcon} hitSlop={6}>
+            <Ripple onPress={exitSelection} style={s.selIcon} hitSlop={6}>
               <Icons.x size={20} color="#6b7280" />
-            </TouchableOpacity>
+            </Ripple>
             <Text style={[s.selCount, { color: p.accent }]}>{selectedMessages.size} selected</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
             {singleSelectedMessage && (
-              <TouchableOpacity onPress={handleReplySingle} style={s.selIcon} hitSlop={6}>
+              <Ripple onPress={handleReplySingle} style={s.selIcon} hitSlop={6}>
                 <Icons.reply size={18} color="#6b7280" />
-              </TouchableOpacity>
+              </Ripple>
             )}
             {singleSelectedMessage && (
               <View>
-                <TouchableOpacity
+                <Ripple
                   onPress={() => setShowReactionPicker((v) => !v)}
                   style={s.selIcon}
                   hitSlop={6}
                 >
                   <Text style={{ fontSize: 18 }}>😊</Text>
-                </TouchableOpacity>
+                </Ripple>
                 {showReactionPicker && (
                   <View style={{ position: 'absolute', top: 40, right: 0, zIndex: 60 }}>
                     <ReactionPicker onReact={handleReact} onClose={() => setShowReactionPicker(false)} />
@@ -460,32 +474,32 @@ export function ChatMessages({
               </View>
             )}
             {singleSelectedMessage && (
-              <TouchableOpacity onPress={handlePinToggle} style={s.selIcon} hitSlop={6}>
+              <Ripple onPress={handlePinToggle} style={s.selIcon} hitSlop={6}>
                 <Icons.pin
                   size={18}
                   color={singleSelectedMessage.is_pinned ? p.accent : '#6b7280'}
                 />
-              </TouchableOpacity>
+              </Ripple>
             )}
-            <TouchableOpacity onPress={handleBulkCopy} style={s.selIcon} hitSlop={6}>
+            <Ripple onPress={handleBulkCopy} style={s.selIcon} hitSlop={6}>
               <Icons.copy size={18} color="#6b7280" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleBulkForward} style={s.selIcon} hitSlop={6}>
+            </Ripple>
+            <Ripple onPress={handleBulkForward} style={s.selIcon} hitSlop={6}>
               <Icons.share size={18} color="#6b7280" />
-            </TouchableOpacity>
+            </Ripple>
             {canDeleteAll && (
-              <TouchableOpacity onPress={handleBulkDelete} style={s.selIcon} hitSlop={6}>
+              <Ripple onPress={handleBulkDelete} style={s.selIcon} hitSlop={6}>
                 <Icons.trash size={18} color="#ef4444" />
-              </TouchableOpacity>
+              </Ripple>
             )}
             {singleSelectedMessage?.text && (
-              <TouchableOpacity
+              <Ripple
                 onPress={() => setDropdownPos({ x: width, y: 56 })}
                 style={s.selIcon}
                 hitSlop={6}
               >
                 <Icons.more size={18} color="#6b7280" />
-              </TouchableOpacity>
+              </Ripple>
             )}
           </View>
         </View>
@@ -513,7 +527,13 @@ export function ChatMessages({
             <Text style={[s.loadingMore, { color: p.textMuted }]}>Loading history...</Text>
           )}
 
-          {messages.length === 0 && !hasMore && (
+          {isLoading && messages.length === 0 && (
+            <View style={s.empty}>
+              <ActivityIndicator size="large" color={p.accent} />
+            </View>
+          )}
+
+          {messages.length === 0 && !hasMore && !isLoading && (
             <View style={s.empty}>
               <Text style={{ fontSize: 56, opacity: 0.3 }}>💬</Text>
               <Text style={[s.emptyTitle, { color: p.textMuted }]}>No messages yet</Text>
@@ -581,7 +601,7 @@ export function ChatMessages({
                   lazyLoadEnabled={lazyLoadEnabled}
                   isGroup={isGroup}
                   membersMap={membersMap}
-                  onShowReadBy={() => setReadByMessage(msg)}
+                  onShowReadBy={showReadBy}
                   translatedText={translations?.[msg.id]}
                   userVoice={userVoice}
                   onViewProfile={onViewProfile}

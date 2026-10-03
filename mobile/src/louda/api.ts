@@ -1,6 +1,5 @@
 // Louda REST API — exact endpoints used by web LoudaApp.jsx + bridge/connector.js.
 import { LOUDA_API_URL, LOUDA_PROD_URL } from './constants';
-import { getLoudaUserId } from './session';
 import { API_BASE_URL as TEXMOB_API_URL } from '../api/client';
 
 let loudaBaseOverride: string | null = null;
@@ -187,6 +186,9 @@ export async function fetchTextmobLoudaUnread(username: string): Promise<number>
 
 // ─── status count (connector.js:313) ───
 export async function fetchUnviewedStatusCount(): Promise<number> {
+  // Dynamic import breaks the session <-> api require cycle (session statically
+  // imports this module; deferring here keeps both fully initialized first).
+  const { getLoudaUserId } = await import('./session');
   const loudaUserId = await getLoudaUserId();
   if (!loudaUserId) return 0;
   try {

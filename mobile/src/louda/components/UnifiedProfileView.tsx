@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,33 @@ import {
   Pressable,
   ScrollView,
   Animated,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import * as ImagePicker from 'expo-image-picker';
 import { useLoudaTheme, Button } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR } from '../constants';
 import { chatMessagesJumpRef } from '../bus';
 import { useLoudaStore } from '../store';
+import { InAppCamera } from './InAppCamera';
+
+// Server group payloads occasionally contain the same member row twice —
+// duplicate key={user_id} would crash the whole profile view.
+function uniqMembers(list: any[] | undefined): any[] {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  return list.filter((m) => {
+    const key = m?.user_id;
+    if (key === undefined || key === null) return true;
+    const k = String(key);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
 
 // Port of UnifiedProfileView (LoudaApp.jsx:4301-4799) — the right-side
 // profile drawer used for chat info, own profile and member profiles.
@@ -58,6 +74,7 @@ export function UnifiedProfileView({
 
   const [viewState, setViewState] = useState<'main' | 'settings' | 'admin'>(initialViewState);
   const [showAvatarOptions, setShowAvatarOptions] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [editField, setEditField] = useState<string | null>(null);
@@ -97,18 +114,17 @@ export function UnifiedProfileView({
 
   const pickAvatar = async (fromCamera: boolean) => {
     setShowAvatarOptions(false);
+    if (fromCamera) {
+      // Mount the camera INSIDE this RN Modal — an RN Modal is its own
+      // native window, so the global overlay would render behind it.
+      setShowCamera(true);
+      return;
+    }
     try {
-      let res: ImagePicker.ImagePickerResult;
-      if (fromCamera) {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return;
-        res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-      } else {
-        res = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          quality: 0.8,
-        });
-      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
       if (res.canceled || !res.assets?.length) return;
       const asset = res.assets[0];
       setUploading(true);
@@ -116,6 +132,14 @@ export function UnifiedProfileView({
     } finally {
       setUploading(false);
     }
+  };
+
+  const onCameraCapture = (file: { uri: string; fileName: string; mimeType: string }) => {
+    setShowCamera(false);
+    setUploading(true);
+    Promise.resolve(
+      onUploadAvatar(chat.id, { uri: file.uri, name: file.fileName, type: file.mimeType }, isGroup),
+    ).finally(() => setUploading(false));
   };
 
   const pickBackground = async () => {
@@ -168,11 +192,11 @@ export function UnifiedProfileView({
 
               {/* Top buttons (web 4377-4385) */}
               <View style={s.heroTop}>
-                <TouchableOpacity style={s.heroBtn} onPress={onClose} activeOpacity={0.8}>
+                <Ripple style={s.heroBtn} onPress={onClose} activeOpacity={0.8}>
                   <Icons.arrowLeft size={20} color="#fff" />
-                </TouchableOpacity>
+                </Ripple>
                 {(isMe || isAdmin) && (
-                  <TouchableOpacity
+                  <Ripple
                     style={s.heroBtn}
                     onPress={() => setShowAvatarOptions(true)}
                     disabled={uploading}
@@ -183,7 +207,7 @@ export function UnifiedProfileView({
                     ) : (
                       <Icons.camera size={19} color="#fff" />
                     )}
-                  </TouchableOpacity>
+                  </Ripple>
                 )}
               </View>
 
@@ -194,9 +218,9 @@ export function UnifiedProfileView({
                     {chat?.name || chat?.full_name}
                   </Text>
                   {canEditName && (
-                    <TouchableOpacity onPress={() => handleEdit('name', chat?.name || chat?.full_name)}>
+                    <Ripple onPress={() => handleEdit('name', chat?.name || chat?.full_name)}>
                       <Icons.edit size={18} color="#fff" />
-                    </TouchableOpacity>
+                    </Ripple>
                   )}
                 </View>
 
@@ -211,20 +235,20 @@ export function UnifiedProfileView({
                         <View style={s.nickChip}>
                           <Text style={s.nickChipText}>You: @{myNickname}</Text>
                         </View>
-                        <TouchableOpacity
+                        <Ripple
                           onPress={() => handleEdit('nickname', myNickname)}
                           style={{ transform: [{ scale: 0.75 }] }}
                         >
                           <Icons.edit size={16} color="#fff" />
-                        </TouchableOpacity>
+                        </Ripple>
                       </View>
                     ) : (
-                      <TouchableOpacity
+                      <Ripple
                         style={s.setNick}
                         onPress={() => handleEdit('nickname', '')}
                       >
                         <Text style={s.setNickText}>+ Set your nickname</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     );
                   })()}
 
@@ -234,12 +258,12 @@ export function UnifiedProfileView({
                       <Text style={s.nickChipText}>@{chat.nickname}</Text>
                     </View>
                     {isMe && (
-                      <TouchableOpacity
+                      <Ripple
                         onPress={() => handleEdit('nickname', chat.nickname)}
                         style={{ transform: [{ scale: 0.75 }] }}
                       >
                         <Icons.edit size={16} color="#fff" />
-                      </TouchableOpacity>
+                      </Ripple>
                     )}
                   </View>
                 )}
@@ -259,12 +283,12 @@ export function UnifiedProfileView({
               <View style={s.sectionHead}>
                 <Text style={[s.sectionLabel, { color: p.accent }]}>About</Text>
                 {(isMe || isAdmin) && (
-                  <TouchableOpacity
+                  <Ripple
                     onPress={() => handleEdit('description', chat?.description || chat?.status)}
                     style={s.iconBtn}
                   >
                     <Icons.edit size={15} color={p.textMuted} />
-                  </TouchableOpacity>
+                  </Ripple>
                 )}
               </View>
               <View style={[s.aboutCard, { backgroundColor: p.cardMuted, borderColor: p.borderLight }]}>
@@ -281,17 +305,17 @@ export function UnifiedProfileView({
                 <View style={s.section}>
                   <View style={s.sectionHead}>
                     <Text style={[s.sectionLabel, { color: p.accent }]}>
-                      {chat.members?.length} Members
+                      {uniqMembers(chat.members).length} Members
                     </Text>
                     {isAdmin && (
-                      <TouchableOpacity onPress={() => onAction('addMembers', chat)}>
+                      <Ripple onPress={() => onAction('addMembers', chat)}>
                         <Text style={[s.sectionAction, { color: p.accent }]}>+ Add Members</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     )}
                   </View>
                   <View style={{ gap: 12 }}>
-                    {chat.members?.map((m: any) => (
-                      <TouchableOpacity
+                    {uniqMembers(chat.members).map((m: any) => (
+                      <Ripple
                         key={m.user_id}
                         activeOpacity={0.8}
                         onPress={() => onAction('viewMember', m.user_id)}
@@ -324,31 +348,31 @@ export function UnifiedProfileView({
                         {isAdmin && m.user_id !== user?.id && (
                           <View style={s.memberActions}>
                             {m.role !== 'admin' ? (
-                              <TouchableOpacity
+                              <Ripple
                                 style={s.memberAction}
                                 onPress={() => onAction('promoteAdmin', m.user_id)}
                               >
                                 <Icons.shieldPlus size={18} color="#22c55e" />
-                              </TouchableOpacity>
+                              </Ripple>
                             ) : (
                               String(chat.admin_id) === String(user?.id) && (
-                                <TouchableOpacity
+                                <Ripple
                                   style={s.memberAction}
                                   onPress={() => onAction('demoteAdmin', m.user_id)}
                                 >
                                   <Icons.shieldMinus size={18} color="#f59e0b" />
-                                </TouchableOpacity>
+                                </Ripple>
                               )
                             )}
-                            <TouchableOpacity
+                            <Ripple
                               style={s.memberAction}
                               onPress={() => onAction('removeMember', m.user_id)}
                             >
                               <Icons.trash size={17} color="#ef4444" />
-                            </TouchableOpacity>
+                            </Ripple>
                           </View>
                         )}
-                      </TouchableOpacity>
+                      </Ripple>
                     ))}
                   </View>
                 </View>
@@ -365,7 +389,7 @@ export function UnifiedProfileView({
                   </View>
                   <View style={{ gap: 8 }}>
                     {pinnedMessages.map((m: any) => (
-                      <TouchableOpacity
+                      <Ripple
                         key={m.id}
                         activeOpacity={0.8}
                         style={[s.pinnedCard, { backgroundColor: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.25)' }]}
@@ -384,7 +408,7 @@ export function UnifiedProfileView({
                             {new Date(m.timestamp).toLocaleDateString()}
                           </Text>
                         </View>
-                      </TouchableOpacity>
+                      </Ripple>
                     ))}
                   </View>
                 </View>
@@ -396,7 +420,7 @@ export function UnifiedProfileView({
                   <Text style={[s.sectionLabel, { color: '#a855f7' }]}>Configuration</Text>
                 </View>
                 <View style={{ gap: 8 }}>
-                  <TouchableOpacity
+                  <Ripple
                     style={[s.configRow, { backgroundColor: p.cardMuted, borderColor: p.borderLight }]}
                     onPress={() => setViewState('settings')}
                   >
@@ -405,9 +429,9 @@ export function UnifiedProfileView({
                       <Text style={[s.configText, { color: p.textSecondary }]}>Chat Settings</Text>
                     </View>
                     <Icons.chevronRight size={17} color={p.textMuted} />
-                  </TouchableOpacity>
+                  </Ripple>
                   {isAdmin && (
-                    <TouchableOpacity
+                    <Ripple
                       style={[s.configRow, { backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.3)' }]}
                       onPress={() => setViewState('admin')}
                     >
@@ -416,7 +440,7 @@ export function UnifiedProfileView({
                         <Text style={[s.configText, { color: '#b91c1c' }]}>Admin Controls</Text>
                       </View>
                       <Icons.chevronRight size={17} color="#ef4444" />
-                    </TouchableOpacity>
+                    </Ripple>
                   )}
                 </View>
               </View>
@@ -432,7 +456,7 @@ export function UnifiedProfileView({
                 {mediaMessages.length > 0 ? (
                   <View style={s.mediaGrid}>
                     {mediaMessages.slice(0, 6).map((m: any, i: number) => (
-                      <TouchableOpacity
+                      <Ripple
                         key={i}
                         style={[s.mediaCell, { backgroundColor: p.cardMuted, borderColor: p.borderLight }]}
                         activeOpacity={0.8}
@@ -456,7 +480,7 @@ export function UnifiedProfileView({
                         ) : (
                           <Image source={{ uri: m.url }} style={s.mediaImg} resizeMode="cover" />
                         )}
-                      </TouchableOpacity>
+                      </Ripple>
                     ))}
                   </View>
                 ) : (
@@ -484,7 +508,7 @@ export function UnifiedProfileView({
                     </View>
                     <View style={{ gap: 8 }}>
                       {sharedGroups.map((g: any) => (
-                        <TouchableOpacity
+                        <Ripple
                           key={g.id}
                           style={[s.memberRow, { backgroundColor: p.cardMuted, borderColor: 'transparent' }]}
                           activeOpacity={0.8}
@@ -502,7 +526,7 @@ export function UnifiedProfileView({
                               {g.members_ids?.length || 0} members
                             </Text>
                           </View>
-                        </TouchableOpacity>
+                        </Ripple>
                       ))}
                     </View>
                   </View>
@@ -514,25 +538,25 @@ export function UnifiedProfileView({
                 {!isGroup &&
                   isInContacts &&
                   !isSpecial && (
-                    <TouchableOpacity
+                    <Ripple
                       style={[s.dangerBtn, { backgroundColor: 'rgba(239,68,68,0.08)' }]}
                       onPress={() => onAction('delete', chat)}
                     >
                       <Text style={s.dangerText}>Delete Contact</Text>
                       <Icons.trash size={16} color="#ef4444" />
-                    </TouchableOpacity>
+                    </Ripple>
                   )}
                 {isGroup && (
-                  <TouchableOpacity
+                  <Ripple
                     style={[s.dangerBtn, { backgroundColor: 'rgba(239,68,68,0.08)' }]}
                     onPress={() => onAction('leave', chat)}
                   >
                     <Text style={s.dangerText}>Leave Group</Text>
                     <Icons.trash size={16} color="#ef4444" />
-                  </TouchableOpacity>
+                  </Ripple>
                 )}
                 {!isMe && !isGroup && !isSpecial && (
-                  <TouchableOpacity
+                  <Ripple
                     style={[
                       s.dangerBtn,
                       {
@@ -547,7 +571,7 @@ export function UnifiedProfileView({
                       {isBlocked ? 'Unblock Contact' : 'Block Contact'}
                     </Text>
                     <Icons.block size={16} color={isBlocked ? p.text : p.textMuted} />
-                  </TouchableOpacity>
+                  </Ripple>
                 )}
               </View>
             </View>
@@ -557,12 +581,12 @@ export function UnifiedProfileView({
           {viewState !== 'main' && (
             <View style={[s.subview, { backgroundColor: p.card }]}>
               <View style={[s.subviewHead, { borderBottomColor: p.borderLight }]}>
-                <TouchableOpacity
+                <Ripple
                   style={[s.subviewBack, { backgroundColor: p.cardMuted }]}
                   onPress={() => setViewState('main')}
                 >
                   <Icons.arrowLeft size={18} color={p.textSecondary} />
-                </TouchableOpacity>
+                </Ripple>
                 <Text style={[s.subviewTitle, { color: p.text }]}>
                   {viewState === 'settings' ? 'Chat Settings' : 'Admin Controls'}
                 </Text>
@@ -574,7 +598,7 @@ export function UnifiedProfileView({
                       Chat Background
                     </Text>
                     <View style={{ gap: 8 }}>
-                      <TouchableOpacity
+                      <Ripple
                         style={[s.configRow, { backgroundColor: p.cardMuted, borderColor: p.borderLight }]}
                         onPress={pickBackground}
                       >
@@ -582,8 +606,8 @@ export function UnifiedProfileView({
                           <Icons.image size={17} color="#a855f7" />
                           <Text style={[s.configText, { color: p.textSecondary }]}>Upload Image</Text>
                         </View>
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Ripple>
+                      <Ripple
                         style={[s.configRow, { backgroundColor: p.cardMuted, borderColor: p.borderLight }]}
                         onPress={() => {
                           setUrlValue('');
@@ -594,15 +618,15 @@ export function UnifiedProfileView({
                           <Icons.search size={17} color="#a855f7" />
                           <Text style={[s.configText, { color: p.textSecondary }]}>Use URL</Text>
                         </View>
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                      </Ripple>
+                      <Ripple
                         style={[s.configRow, { backgroundColor: p.cardMuted, borderColor: p.borderLight }]}
                         onPress={() => onAction('setBackground', { id: chat.id, bgUrl: null })}
                       >
                         <Text style={[s.configText, { color: '#ef4444', fontWeight: '700' }]}>
                           Remove Background
                         </Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     </View>
                   </View>
                 )}
@@ -653,29 +677,40 @@ export function UnifiedProfileView({
               onPress={(e) => e.stopPropagation()}
             >
               <Text style={[s.sheetTitle, { color: p.text }]}>Update Photo</Text>
-              <TouchableOpacity
+              <Ripple
                 style={[s.sheetRow, { backgroundColor: p.cardMuted }]}
                 onPress={() => pickAvatar(true)}
               >
                 <Icons.camera size={19} color="#22c55e" />
                 <Text style={[s.sheetRowText, { color: p.textSecondary }]}>Take Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Ripple>
+              <Ripple
                 style={[s.sheetRow, { backgroundColor: p.cardMuted }]}
                 onPress={() => pickAvatar(false)}
               >
                 <Icons.image size={19} color="#3b82f6" />
                 <Text style={[s.sheetRowText, { color: p.textSecondary }]}>Upload Image</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Ripple>
+              <Ripple
                 style={s.sheetCancel}
                 onPress={() => setShowAvatarOptions(false)}
               >
                 <Text style={{ color: p.textMuted, fontSize: 12, fontWeight: '900' }}>CANCEL</Text>
-              </TouchableOpacity>
+              </Ripple>
             </Pressable>
           </Pressable>
         </Modal>
+      )}
+
+      {/* In-modal camera (photo avatar) — lives here because RN Modals are
+          their own native window above the global overlay. */}
+      {showCamera && (
+        <InAppCamera
+          mode="photo"
+          filePrefix="avatar"
+          onCancel={() => setShowCamera(false)}
+          onCapture={onCameraCapture}
+        />
       )}
 
       {/* ─── URL prompt (web window.prompt, 4730) ─── */}
@@ -763,13 +798,13 @@ export function UnifiedProfileView({
 
 function ToggleSw({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <TouchableOpacity
+    <Ripple
       activeOpacity={0.8}
       onPress={() => onChange(!value)}
       style={[s.track, { backgroundColor: value ? '#dc2626' : '#d1d5db' }]}
     >
       <View style={[s.knob, { transform: [{ translateX: value ? 22 : 0 }] }]} />
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 

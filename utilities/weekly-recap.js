@@ -68,7 +68,7 @@
 // <tr><td align="center">
 // <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:#ffffff;border-radius:12px;border:1px solid #e5e7eb;">
 // <tr><td align="center" style="padding:28px 24px 0;">
-// <img src="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png" alt="Textmob" width="40" height="40" style="display:block;margin:0 auto 12px;border-radius:8px;">
+// <img src="https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png" alt="Textmob" width="40" height="40" style="display:block;margin:0 auto 12px;border-radius:8px;">
 // <h1 style="margin:0;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.3px;">Your week on Textmob</h1>
 // <p style="margin:4px 0 0;font-size:14px;color:#64748b;">${weekKey}</p>
 // </td></tr>

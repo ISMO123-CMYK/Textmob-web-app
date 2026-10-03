@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, Alert, RefreshControl, Image, Modal,
   Dimensions, ScrollView,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -39,14 +40,14 @@ const postKeyExtractor = (item: Post) => String(item.id);
 function SuggestionCard({ sug, onNavigate }: { sug: any; onNavigate: (path: string) => void }) {
   const { colors, isDark } = useTheme();
   return (
-    <TouchableOpacity style={[sugStyles.card, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb' }]} onPress={() => onNavigate(`/@${sug.username}`)}>
+    <Ripple style={[sugStyles.card, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb' }]} onPress={() => onNavigate(`/@${sug.username}`)}>
       <Image source={{ uri: sug.profile_pic || DEFAULT_PIC }} style={sugStyles.avatar} />
       <View style={{ flex: 1 }}>
         <Text style={[sugStyles.name, { color: colors.textPrimary }]} numberOfLines={1}>{sug.fullname}</Text>
         <Text style={[sugStyles.user, { color: colors.textSecondary }]}>@{sug.username}</Text>
         {sug.mutuals > 0 && <Text style={[sugStyles.mutuals, { color: colors.textSecondary }]}>{sug.mutuals} mutual{sug.mutuals > 1 ? 's' : ''}</Text>}
       </View>
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 const sugStyles = StyleSheet.create({
@@ -603,25 +604,25 @@ export default function HomeScreen() {
     return (
       <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
         <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
+          <Ripple style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
             <Image source={{ uri: DEFAULT_PIC }} style={{ width: 32, height: 32, borderRadius: 16 }} />
-          </TouchableOpacity>
+          </Ripple>
           <Text style={s.headerTitle}>textmob</Text>
           <View style={s.headerActions}>
-            <TouchableOpacity style={s.headerBtn} onPress={() => navigation.navigate('Search')}>
+            <Ripple style={s.headerBtn} onPress={() => navigation.navigate('Search')}>
               <Ionicons name="search" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.headerBtn} onPress={() => navigation.navigate('Activity')}>
+            </Ripple>
+            <Ripple style={s.headerBtn} onPress={() => navigation.navigate('Activity')}>
               <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <Ionicons name="alert-circle-outline" size={40} color="#ef4444" />
           <Text style={{ color: '#ef4444', fontSize: 14, marginTop: 8, marginBottom: 12 }}>{error}</Text>
-          <TouchableOpacity onPress={retry} style={{ paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.primary }}>
+          <Ripple onPress={retry} style={{ paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.primary }}>
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Try again</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </SafeAreaView>
     );
@@ -632,39 +633,39 @@ export default function HomeScreen() {
     return (
       <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
         <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
+          <Ripple style={s.profileBtn} onPress={() => navigation.navigate('Profile')}>
             <Image source={{ uri: DEFAULT_PIC }} style={{ width: 32, height: 32, borderRadius: 16 }} />
-          </TouchableOpacity>
+          </Ripple>
           <Text style={s.headerTitle}>textmob</Text>
           <View style={s.headerActions}>
-            <TouchableOpacity style={s.headerBtn} onPress={() => navigation.navigate('Search')}>
+            <Ripple style={s.headerBtn} onPress={() => navigation.navigate('Search')}>
               <Ionicons name="search" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.headerBtn} onPress={() => navigation.navigate('Activity')}>
+            </Ripple>
+            <Ripple style={s.headerBtn} onPress={() => navigation.navigate('Activity')}>
               <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
         <View style={[s.tabBar, { backgroundColor: colors.card }]}>
-          <TouchableOpacity style={[s.tab, tab === 'foryou' && s.tabActive]} onPress={() => switchTab('foryou')}>
+          <Ripple style={[s.tab, tab === 'foryou' && s.tabActive]} onPress={() => switchTab('foryou')}>
             <Text style={[s.tabText, tab === 'foryou' && s.tabTextActive]}>{username ? 'For You' : 'Trending'}</Text>
-          </TouchableOpacity>
+          </Ripple>
           {username && (
-            <TouchableOpacity style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
+            <Ripple style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
               <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
-            </TouchableOpacity>
+            </Ripple>
           )}
-          <TouchableOpacity style={s.tab} onPress={() => (navigation.getParent() || navigation).navigate('Discussions')}>
+          <Ripple style={s.tab} onPress={() => (navigation.getParent() || navigation).navigate('Discussions')}>
             <Text style={s.tabText}>Discussions</Text>
-          </TouchableOpacity>
+          </Ripple>
           {username && (
-            <TouchableOpacity style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
+            <Ripple style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
               <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           )}
-          <TouchableOpacity style={s.refreshBtn} onPress={() => { setPage(1); fetchPosts(1, true); }}>
+          <Ripple style={s.refreshBtn} onPress={() => { setPage(1); fetchPosts(1, true); }}>
             <ActivityIndicator size="small" color={colors.primary} />
-          </TouchableOpacity>
+          </Ripple>
         </View>
         <View style={{ padding: 8 }}>
           {[0, 1, 2, 3].map(i => <PostSkeleton key={i} />)}
@@ -682,27 +683,27 @@ export default function HomeScreen() {
 
       {/* Tabs */}
       <View style={[s.tabBar, { backgroundColor: colors.card }]}>
-        <TouchableOpacity style={[s.tab, tab === 'foryou' && s.tabActive]} onPress={() => switchTab('foryou')}>
+        <Ripple style={[s.tab, tab === 'foryou' && s.tabActive]} onPress={() => switchTab('foryou')}>
           <Text style={[s.tabText, tab === 'foryou' && s.tabTextActive]}>{username ? 'For You' : 'Trending'}</Text>
           {tab === 'foryou' && <View style={s.tabIndicator} />}
-        </TouchableOpacity>
+        </Ripple>
         {username && (
-          <TouchableOpacity style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
+          <Ripple style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
               <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
               {tab === 'following' && <View style={s.tabIndicator} />}
-            </TouchableOpacity>
+            </Ripple>
           )}
-          <TouchableOpacity style={s.tab} onPress={() => (navigation.getParent() || navigation).navigate('Discussions')}>
+          <Ripple style={s.tab} onPress={() => (navigation.getParent() || navigation).navigate('Discussions')}>
             <Text style={s.tabText}>Discussions</Text>
-          </TouchableOpacity>
+          </Ripple>
           {username && (
-            <TouchableOpacity style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
+            <Ripple style={s.refreshBtn} onPress={() => setShowFeedSettings(true)}>
             <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Ripple>
         )}
-        <TouchableOpacity style={s.refreshBtn} onPress={() => { setPage(1); fetchPosts(1, true); }}>
+        <Ripple style={s.refreshBtn} onPress={() => { setPage(1); fetchPosts(1, true); }}>
           {loading ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="refresh" size={18} color={colors.primary} />}
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {/* Scroll content */}
@@ -742,13 +743,13 @@ export default function HomeScreen() {
                 <Text style={[s.emptyText, { color: colors.textSecondary, fontSize: 12, textAlign: 'center', maxWidth: 240, lineHeight: 18, marginTop: 4 }]}>
                   Be the first to go live and get eyes on your content instantly.
                 </Text>
-                <TouchableOpacity
+                <Ripple
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#dc2626', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, marginTop: 16, elevation: 4 }}
                   onPress={() => navigation.navigate('CreateLive')}
                 >
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' }} />
                   <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>Go Live · It's Free</Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             ) : null
           }
@@ -776,10 +777,10 @@ export default function HomeScreen() {
           ListHeaderComponent={
             newPosts.length > 0 ? (
               <View style={s.newPostBannerWrap}>
-                <TouchableOpacity style={s.newPostBanner} onPress={flushNewPosts}>
+                <Ripple style={s.newPostBanner} onPress={flushNewPosts}>
                   <Ionicons name="arrow-up" size={14} color="#fff" />
                   <Text style={s.newPostText}>{newPosts.length} new post{newPosts.length > 1 ? 's' : ''}</Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             ) : null
           }
@@ -811,7 +812,7 @@ export default function HomeScreen() {
       )}
 
       {/* FAB - toggle between feed and live streams */}
-      <TouchableOpacity
+      <Ripple
         style={s.fab}
         onPress={() => {
           if (feedTab === 'posts') {
@@ -826,11 +827,11 @@ export default function HomeScreen() {
         ) : (
           <Ionicons name="close" size={24} color="#fff" />
         )}
-      </TouchableOpacity>
+      </Ripple>
 
       {/* Reactions Modal */}
       <Modal visible={reactionsOpenFor !== null} transparent animationType="slide" onRequestClose={() => setReactionsOpenFor(null)}>
-        <TouchableOpacity style={s.reactionsOverlay} activeOpacity={1} onPress={() => setReactionsOpenFor(null)}>
+        <Ripple style={s.reactionsOverlay} activeOpacity={1} onPress={() => setReactionsOpenFor(null)}>
           <View style={[s.reactionsSheet, { backgroundColor: colors.card }]}>
             <View style={s.reactionsHandle} />
             <Text style={[s.reactionsTitle, { color: colors.textSecondary }]}>React to this post</Text>
@@ -841,7 +842,7 @@ export default function HomeScreen() {
                 const isSelected = data?.userReaction === item.r;
                 const count = data?.counts?.[item.r] || 0;
                 return (
-                  <TouchableOpacity
+                  <Ripple
                     key={item.r}
                     style={[s.reactionItem, isSelected && s.reactionItemSelected]}
                     onPress={() => {
@@ -855,12 +856,12 @@ export default function HomeScreen() {
                     {count > 0 && (
                       <Text style={[s.reactionItemCount, isSelected && { color: '#fff' }]}>{count}</Text>
                     )}
-                  </TouchableOpacity>
+                  </Ripple>
                 );
               })}
             </View>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
 
       {/* Feed Settings Modal */}
@@ -871,10 +872,10 @@ export default function HomeScreen() {
             <Text style={[modalStyles.title, { color: colors.textPrimary }]}>Feed Preferences</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
               {(['categories', 'blocked'] as const).map(t => (
-                <TouchableOpacity key={t} onPress={() => setFeedSettingsTab(t)}
+                <Ripple key={t} onPress={() => setFeedSettingsTab(t)}
                   style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: feedSettingsTab === t ? colors.textPrimary : (isDark ? '#1e293b' : '#f3f4f6'), borderWidth: 1, borderColor: feedSettingsTab === t ? 'transparent' : (isDark ? '#334155' : '#e2e8f0') }}>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: feedSettingsTab === t ? (isDark ? '#1e293b' : '#fff') : colors.textSecondary }}>{t === 'categories' ? 'Categories' : `Blocked (${blockedList.length})`}</Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </View>
             <ScrollView style={{ maxHeight: 400 }}>
@@ -884,7 +885,7 @@ export default function HomeScreen() {
                   {CATEGORIES.map(cat => {
                     const isSelected = (feedPrefs.categoryWeights[cat.id] || 1) > 1;
                     return (
-                      <TouchableOpacity
+                      <Ripple
                         key={cat.id}
                         onPress={() => {
                           const current = feedPrefs.categoryWeights[cat.id] ?? 1;
@@ -897,7 +898,7 @@ export default function HomeScreen() {
                         }}
                       >
                         <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#fff' : colors.textSecondary }}>{cat.name}</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     );
                   })}
                 </View>
@@ -906,7 +907,7 @@ export default function HomeScreen() {
                   {['live', 'media', 'poll', 'text'].map(ct => {
                     const isSelected = (feedPrefs.contentTypeWeights[ct] || 1) > 1;
                     return (
-                      <TouchableOpacity
+                      <Ripple
                         key={ct}
                         onPress={() => {
                           const current = feedPrefs.contentTypeWeights[ct] || 1;
@@ -919,7 +920,7 @@ export default function HomeScreen() {
                         }}
                       >
                         <Text style={{ fontSize: 12, fontWeight: '700', color: isSelected ? '#fff' : colors.textSecondary }}>{ct}</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     );
                   })}
                 </View>
@@ -933,18 +934,18 @@ export default function HomeScreen() {
                       <Image source={{ uri: u.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b' }} style={{ width: 32, height: 32, borderRadius: 16 }} />
                       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }} numberOfLines={1}>@{u.username}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => {
+                    <Ripple onPress={() => {
                       unblock(u.username);
                     }} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }}>
                       <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textPrimary }}>Unblock</Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 ))
               )}
             </ScrollView>
-            <TouchableOpacity onPress={() => setShowFeedSettings(false)} style={[modalStyles.doneBtn, { backgroundColor: colors.primary }]}>
+            <Ripple onPress={() => setShowFeedSettings(false)} style={[modalStyles.doneBtn, { backgroundColor: colors.primary }]}>
               <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Done</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
       </Modal>
@@ -962,7 +963,7 @@ export default function HomeScreen() {
                   {CATEGORIES.map(cat => {
                     const isSel = onboardSelected.includes(cat.id);
                     return (
-                      <TouchableOpacity
+                      <Ripple
                         key={cat.id}
                         onPress={() => setOnboardSelected(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
                         style={{
@@ -972,19 +973,19 @@ export default function HomeScreen() {
                         }}
                       >
                         <Text style={{ fontSize: 12, fontWeight: '700', color: isSel ? '#fff' : colors.textSecondary }}>{cat.name}</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     );
                   })}
                 </View>
               </ScrollView>
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity
+                <Ripple
                   onPress={() => { storage.setStore('textmob_feed_onboarded', 'true'); setShowOnboarding(false); }}
                   style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: isDark ? '#1e293b' : '#f1f5f9', alignItems: 'center' }}
                 >
                   <Text style={{ fontSize: 14, fontWeight: '600', color: colors.textSecondary }}>Skip</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                </Ripple>
+                <Ripple
                   onPress={() => {
                     if (onboardSelected.length < 3) { Alert.alert('Selection Required', 'Please select at least 3 categories'); return; }
                     storage.setStore('textmob_feed_onboarded', 'true');
@@ -997,7 +998,7 @@ export default function HomeScreen() {
                   style={{ flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center' }}
                 >
                   <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>Continue</Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             </View>
           </View>

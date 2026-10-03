@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  View, Text, Image, TouchableOpacity, StyleSheet, AppState,
+  View, Text, Image, StyleSheet, AppState,
 } from 'react-native';
+import { Ripple } from './Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -93,28 +94,28 @@ export default function MobileHeader({
   return (
     <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
       {/* Left: Profile avatar button */}
-      <TouchableOpacity
+      <Ripple
         onPress={() => navigation.navigate('Profile', { username })}
         style={s.profileBtn}
       >
         <Image source={{ uri: profile.profile_pic }} style={s.avatar} />
-      </TouchableOpacity>
+      </Ripple>
 
       {/* Center: Branding Logo */}
-      <TouchableOpacity onPress={() => navigation.navigate('HomeLauncher')} activeOpacity={0.7}>
+      <Ripple onPress={() => navigation.navigate('HomeLauncher')} activeOpacity={0.7}>
         <Text style={s.logo}>{title}</Text>
-      </TouchableOpacity>
+      </Ripple>
 
       {/* Right: Actions */}
       <View style={s.actions}>
-        <TouchableOpacity
+        <Ripple
           onPress={onSearchPress || (() => navigation.navigate('Search'))}
           style={s.iconBtn}
         >
           <Ionicons name="search-outline" size={20} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
 
-        <TouchableOpacity
+        <Ripple
           onPress={() => navigation.navigate('Chats')}
           style={s.iconBtn}
         >
@@ -124,9 +125,9 @@ export default function MobileHeader({
               <Text style={s.badgeText}>{loudaUnread > 99 ? '99+' : loudaUnread}</Text>
             </View>
           )}
-        </TouchableOpacity>
+        </Ripple>
 
-        <TouchableOpacity
+        <Ripple
           onPress={onActivityPress || (() => navigation.navigate('Activity'))}
           style={s.iconBtn}
         >
@@ -136,14 +137,14 @@ export default function MobileHeader({
               <Text style={s.badgeText}>{unreadNotifications}</Text>
             </View>
           )}
-        </TouchableOpacity>
+        </Ripple>
 
-        <TouchableOpacity
+        <Ripple
           onPress={onMenuPress || (() => navigation.navigate('Menu'))}
           style={s.iconBtn}
         >
           <Ionicons name="menu-outline" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
       </View>
     </View>
   );

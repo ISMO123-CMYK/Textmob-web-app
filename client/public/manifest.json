@@ -5,15 +5,15 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
-  "description": "Textmob - Nigeria's fastest-growing social network.",
+  "description": "Textmob — where Africa comes to talk. Join conversations, find your community, and be heard.",
   "icons": [
     {
-      "src": "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png",
+      "src": "https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png",
+      "src": "https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png",
       "sizes": "512x512",
       "type": "image/png"
     }

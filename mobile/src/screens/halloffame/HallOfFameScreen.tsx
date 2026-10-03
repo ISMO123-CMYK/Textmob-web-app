@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   Image, Modal, Pressable,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -126,9 +127,9 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
                 <Text style={s.fullname} numberOfLines={1}>{item.fullname || item.username}</Text>
                 <Text style={s.username} numberOfLines={1}>@{item.username}</Text>
               </View>
-              <TouchableOpacity style={s.menuTrigger} onPress={() => setOpenMenuIdx(isMenuOpen ? null : index)}>
+              <Ripple style={s.menuTrigger} onPress={() => setOpenMenuIdx(isMenuOpen ? null : index)}>
                 <Ionicons name="ellipsis-vertical" size={14} color="#64748b" />
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </View>
         </View>
@@ -149,12 +150,12 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
 
         {isMenuOpen && (
           <View style={[s.rowMenu, { backgroundColor: '#162033', borderColor: '#243352' }]}>
-            <TouchableOpacity style={s.menuItem} onPress={() => { setOpenMenuIdx(null); navigation.navigate('Profile', { username: item.username }); }}>
+            <Ripple style={s.menuItem} onPress={() => { setOpenMenuIdx(null); navigation.navigate('Profile', { username: item.username }); }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#e2e8f0' }}>View profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem} onPress={() => { setOpenMenuIdx(null); setGiftTarget(item); }}>
+            </Ripple>
+            <Ripple style={s.menuItem} onPress={() => { setOpenMenuIdx(null); setGiftTarget(item); }}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#60a5fa' }}>Gift Mobcoins</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         )}
       </View>
@@ -165,9 +166,9 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
     <SafeAreaView edges={['top']} style={s.safe}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={18} color="#e2e8f0" />
-        </TouchableOpacity>
+        </Ripple>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
           <View style={s.headerIcon}>
             <Ionicons name="trophy" size={14} color="#fff" />
@@ -178,13 +179,13 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
           </View>
         </View>
         <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-          <TouchableOpacity onPress={() => loadLeaders(true)} style={s.headerBtn}>
+          <Ripple onPress={() => loadLeaders(true)} style={s.headerBtn}>
             <Ionicons name="refresh-outline" size={16} color="#94a3b8" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowRankTips(true)} style={s.tipsBtn}>
+          </Ripple>
+          <Ripple onPress={() => setShowRankTips(true)} style={s.tipsBtn}>
             <Ionicons name="information-circle-outline" size={14} color="#94a3b8" />
             <Text style={s.tipsBtnText}>How to rank</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </View>
 
@@ -224,9 +225,9 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
                 <Text style={s.modalTitle}>How to rank</Text>
                 <Text style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Likes + followers</Text>
               </View>
-              <TouchableOpacity onPress={() => setShowRankTips(false)} style={s.modalClose}>
+              <Ripple onPress={() => setShowRankTips(false)} style={s.modalClose}>
                 <Ionicons name="close" size={16} color="#94a3b8" />
-              </TouchableOpacity>
+              </Ripple>
             </View>
             <View style={{ gap: 8, marginVertical: 14 }}>
               {TIPS.map((tip, i) => (
@@ -241,9 +242,9 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
                 </View>
               ))}
             </View>
-            <TouchableOpacity style={s.acknowledgeBtn} onPress={() => setShowRankTips(false)}>
+            <Ripple style={s.acknowledgeBtn} onPress={() => setShowRankTips(false)}>
               <Text style={s.acknowledgeText}>Got it</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
       </Modal>

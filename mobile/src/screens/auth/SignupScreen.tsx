@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, StyleSheet,
   ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
   Modal,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -204,7 +205,7 @@ export default function SignupScreen({ navigation, route }: { navigation: any; r
                         placeholderTextColor={colors.textSecondary}
                         editable={false}
                       />
-                      <TouchableOpacity
+                      <Ripple
                         style={s.selectOverlay}
                         onPress={() => {
                           const options = field.options || [];
@@ -217,7 +218,7 @@ export default function SignupScreen({ navigation, route }: { navigation: any; r
                         <Text style={s.selectValue}>
                           {form[field.name] || 'Tap to select'}
                         </Text>
-                      </TouchableOpacity>
+                      </Ripple>
                       <Text style={s.selectArrow}>▼</Text>
                     </View>
                   ) : (
@@ -246,19 +247,19 @@ export default function SignupScreen({ navigation, route }: { navigation: any; r
             {/* Nav buttons */}
             <View style={s.navRow}>
               {step > 0 && (
-                <TouchableOpacity style={s.backBtn} onPress={prevStep}>
+                <Ripple style={s.backBtn} onPress={prevStep}>
                   <Text style={s.backBtnText}>Back</Text>
-                </TouchableOpacity>
+                </Ripple>
               )}
               {step < STEPS.length - 1 ? (
-                <TouchableOpacity
+                <Ripple
                   style={[s.primaryBtn, { flex: 1 }]}
                   onPress={nextStep}
                 >
                   <Text style={s.primaryBtnText}>Continue →</Text>
-                </TouchableOpacity>
+                </Ripple>
               ) : (
-                <TouchableOpacity
+                <Ripple
                   style={[s.primaryBtn, { flex: 1 }, isLoading && s.primaryBtnDisabled]}
                   onPress={submitSignup}
                   disabled={isLoading}
@@ -268,15 +269,15 @@ export default function SignupScreen({ navigation, route }: { navigation: any; r
                   ) : (
                     <Text style={s.primaryBtnText}>Join Textmob</Text>
                   )}
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
 
-            <TouchableOpacity onPress={() => navigation.navigate('Login')} style={s.switchBtn}>
+            <Ripple onPress={() => navigation.navigate('Login')} style={s.switchBtn}>
               <Text style={s.switchBtnText}>
                 Already have an account? <Text style={s.switchBtnLink}>Sign in</Text>
               </Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -302,14 +303,14 @@ export default function SignupScreen({ navigation, route }: { navigation: any; r
               </View>
             </View>
 
-            <TouchableOpacity
+            <Ripple
               style={s.primaryBtn}
               onPress={async () => {
                 await loginAfterSignup();
               }}
             >
               <Text style={s.primaryBtnText}>Go to Textmob →</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
       </Modal>

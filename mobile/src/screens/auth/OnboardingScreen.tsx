@@ -1,8 +1,9 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+﻿import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Dimensions,
-  ScrollView, TouchableOpacity, StatusBar, NativeSyntheticEvent, NativeScrollEvent,
+  ScrollView, StatusBar, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts, SpaceGrotesk_700Bold, SpaceGrotesk_600SemiBold } from '@expo-google-fonts/space-grotesk';
@@ -146,7 +147,7 @@ export default function OnboardingScreen({ navigation }: { navigation: any }) {
         <View style={styles.middleControls}>
           <View style={styles.dots}>
             {slides.map((_, i) => (
-              <TouchableOpacity
+              <Ripple
                 key={i}
                 onPress={() => handleDotPress(i)}
                 activeOpacity={0.7}
@@ -158,7 +159,7 @@ export default function OnboardingScreen({ navigation }: { navigation: any }) {
             ))}
           </View>
 
-          <TouchableOpacity
+          <Ripple
             style={styles.actionBtn}
             onPress={handleNext}
             activeOpacity={0.8}
@@ -171,7 +172,7 @@ export default function OnboardingScreen({ navigation }: { navigation: any }) {
               size={20}
               color="#2563eb"
             />
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </View>
     </SafeAreaView>

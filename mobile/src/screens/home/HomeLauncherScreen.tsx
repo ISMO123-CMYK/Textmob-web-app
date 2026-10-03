@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, StyleSheet,
   ScrollView, Dimensions, Image,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -93,7 +94,7 @@ export default function HomeLauncherScreen({ navigation }: { navigation: any }) 
             <View key={pi} style={[styles.page, { width: SCREEN_WIDTH }]}>
               <View style={styles.grid}>
                 {page.map((tile, ti) => (
-                  <TouchableOpacity
+                  <Ripple
                     key={ti}
                     style={styles.tile}
                     activeOpacity={0.7}
@@ -112,7 +113,7 @@ export default function HomeLauncherScreen({ navigation }: { navigation: any }) 
                     </View>
                     <Text style={styles.tileLabel} numberOfLines={1}>{tile.label}</Text>
                     {tile.sub && <Text style={styles.tileSub} numberOfLines={1}>{tile.sub}</Text>}
-                  </TouchableOpacity>
+                  </Ripple>
                 ))}
               </View>
             </View>
@@ -134,7 +135,7 @@ export default function HomeLauncherScreen({ navigation }: { navigation: any }) 
         )}
 
         {activeLive > 0 && (
-          <TouchableOpacity
+          <Ripple
             style={styles.liveBanner}
             onPress={() => navigate('Home')}
             activeOpacity={0.8}
@@ -142,7 +143,7 @@ export default function HomeLauncherScreen({ navigation }: { navigation: any }) 
             <View style={styles.liveDot} />
             <Text style={styles.liveText}>Live Now</Text>
             <Text style={styles.liveCount}>{activeLive} room{activeLive !== 1 ? 's' : ''}</Text>
-          </TouchableOpacity>
+          </Ripple>
         )}
       </View>
     </SafeAreaView>

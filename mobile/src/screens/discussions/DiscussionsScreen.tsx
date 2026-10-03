@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, RefreshControl, Image, ScrollView, Share, KeyboardAvoidingView, Keyboard, Platform } from 'react-native';
+﻿import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, FlatList, TextInput, StyleSheet, Modal, ActivityIndicator, RefreshControl, Image, ScrollView, Share, KeyboardAvoidingView, Keyboard, Platform } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { apiGet, apiPost, API_BASE_URL } from '../../api/client';
@@ -140,13 +141,13 @@ function ListView({ onBack, onProfile, colors }: { onBack: () => void; onProfile
               <Text style={styles.roomHost}>@{room.host_username} · {room.message_count || 0} messages</Text>
             </View>
             {room.unlocked ? (
-              <TouchableOpacity onPress={() => { playClick(); onProfile(room.id); }} style={styles.viewBtn}>
+              <Ripple onPress={() => { playClick(); onProfile(room.id); }} style={styles.viewBtn}>
                 <Text style={styles.viewBtnText}>View</Text>
-              </TouchableOpacity>
+              </Ripple>
             ) : (
-              <TouchableOpacity onPress={() => { playClick(); handleUnlock(room.id); }} disabled={unlocking === room.id} style={[styles.unlockBtn, unlocking === room.id && { opacity: 0.5 }]}>
+              <Ripple onPress={() => { playClick(); handleUnlock(room.id); }} disabled={unlocking === room.id} style={[styles.unlockBtn, unlocking === room.id && { opacity: 0.5 }]}>
                 <Text style={styles.unlockBtnText}>{unlocking === room.id ? '...' : '500'}</Text>
-              </TouchableOpacity>
+              </Ripple>
             )}
           </View>
         </View>
@@ -154,7 +155,7 @@ function ListView({ onBack, onProfile, colors }: { onBack: () => void; onProfile
     }
     // Active / my-archive / search — host-pic cards exactly like desktop
     return (
-      <TouchableOpacity style={styles.roomCard} activeOpacity={0.7} onPress={() => { playClick(); onProfile(room.id); }}>
+      <Ripple style={styles.roomCard} activeOpacity={0.7} onPress={() => { playClick(); onProfile(room.id); }}>
         <View style={styles.roomRowTop}>
           <View>
             <Image source={{ uri: hostPics[room.host_username] || DEFAULT_PIC }} style={styles.hostAvatar} />
@@ -193,12 +194,12 @@ function ListView({ onBack, onProfile, colors }: { onBack: () => void; onProfile
         </View>
         {tab === 'my-archive' && currentUser === room.host_username && (
           <View style={{ alignItems: 'flex-end', marginTop: 8 }}>
-            <TouchableOpacity onPress={() => handleDelete(room.id)}>
+            <Ripple onPress={() => handleDelete(room.id)}>
               <Text style={styles.deleteText}>Delete</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         )}
-      </TouchableOpacity>
+      </Ripple>
     );
   };
 
@@ -206,17 +207,17 @@ function ListView({ onBack, onProfile, colors }: { onBack: () => void; onProfile
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header — back + Discussions + Start (mirrors desktop mobile header) */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+        <Ripple onPress={onBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={20} color="#6b7280" />
-        </TouchableOpacity>
+        </Ripple>
         <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={styles.headerTitle}>Discussions</Text>
           <View style={styles.pulseDot} />
         </View>
         {currentUser ? (
-          <TouchableOpacity onPress={() => { playClick(); setShowCreate(true); }} style={styles.startBtn}>
+          <Ripple onPress={() => { playClick(); setShowCreate(true); }} style={styles.startBtn}>
             <Text style={styles.startBtnText}>Start</Text>
-          </TouchableOpacity>
+          </Ripple>
         ) : <View style={{ width: 50 }} />}
       </View>
 
@@ -224,9 +225,9 @@ function ListView({ onBack, onProfile, colors }: { onBack: () => void; onProfile
       <View style={styles.tabsOuter}>
         <View style={styles.tabsRow}>
           {(['active', 'archives', 'my-archive'] as const).map(t => (
-            <TouchableOpacity key={t} onPress={() => { playClick(); setTab(t); setSearch(''); setSearchResults(null); }} style={[styles.tabBtn, tab === t && styles.tabBtnActive]}>
+            <Ripple key={t} onPress={() => { playClick(); setTab(t); setSearch(''); setSearchResults(null); }} style={[styles.tabBtn, tab === t && styles.tabBtnActive]}>
               <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t === 'active' ? 'Active' : t === 'archives' ? 'Archives' : 'My Archive'}</Text>
-            </TouchableOpacity>
+            </Ripple>
           ))}
         </View>
       </View>
@@ -236,7 +237,7 @@ function ListView({ onBack, onProfile, colors }: { onBack: () => void; onProfile
         <View style={styles.searchWrap}>
           <Ionicons name="search-outline" size={14} color="#9ca3af" style={{ marginRight: 6 }} />
           <TextInput style={styles.searchInput} placeholder="Search discussions" placeholderTextColor="#9ca3af" value={search} onChangeText={handleSearch} />
-          {search ? <TouchableOpacity onPress={() => handleSearch('')}><Ionicons name="close" size={14} color="#9ca3af" /></TouchableOpacity> : null}
+          {search ? <Ripple onPress={() => handleSearch('')}><Ionicons name="close" size={14} color="#9ca3af" /></Ripple> : null}
         </View>
       </View>
 
@@ -244,9 +245,9 @@ function ListView({ onBack, onProfile, colors }: { onBack: () => void; onProfile
       {tab === 'active' && !search.trim() && (
         <FlatList horizontal data={CATEGORIES} keyExtractor={c => c} showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.pillsWrap}
           renderItem={({ item: cat }) => (
-            <TouchableOpacity onPress={() => { playClick(); setCategory(cat); }} style={[styles.pill, category === cat && styles.pillActive]}>
+            <Ripple onPress={() => { playClick(); setCategory(cat); }} style={[styles.pill, category === cat && styles.pillActive]}>
               <Text numberOfLines={1} style={[styles.pillText, category === cat && styles.pillTextActive]}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</Text>
-            </TouchableOpacity>
+            </Ripple>
           )}
         />
       )}
@@ -279,12 +280,12 @@ function ListView({ onBack, onProfile, colors }: { onBack: () => void; onProfile
       )}
 
       <Modal visible={showCreate} transparent animationType="fade">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowCreate(false)}>
+        <Ripple style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowCreate(false)}>
           <View style={styles.createCard} onStartShouldSetResponder={() => true}>
             <Text style={styles.createTitle}>Start a Discussion</Text>
             <CreateRoomForm onClose={() => setShowCreate(false)} onCreated={(id) => { setShowCreate(false); loadTab(); onProfile(id); }} />
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
     </SafeAreaView>
   );
@@ -307,16 +308,16 @@ function CreateRoomForm({ onClose, onCreated }: { onClose: () => void; onCreated
       <TextInput style={[styles.createInput, { height: 64, textAlignVertical: 'top' }]} placeholder="What's the discussion about?" placeholderTextColor="#9ca3af" value={desc} onChangeText={t => setDesc(t.slice(0, 500))} maxLength={500} multiline />
       <View style={styles.catPicker}>
         {CATEGORIES.filter(c => c !== 'all').map(c => (
-          <TouchableOpacity key={c} onPress={() => setCat(c)} style={[styles.catPill, cat === c && styles.catPillActive]}>
+          <Ripple key={c} onPress={() => setCat(c)} style={[styles.catPill, cat === c && styles.catPillActive]}>
             <Text style={[styles.catPillText, cat === c && styles.catPillTextActive]}>{c.charAt(0).toUpperCase() + c.slice(1)}</Text>
-          </TouchableOpacity>
+          </Ripple>
         ))}
       </View>
       <View style={styles.createBtns}>
-        <TouchableOpacity onPress={onClose} style={styles.createCancelBtn}><Text style={styles.createCancelText}>Cancel</Text></TouchableOpacity>
-        <TouchableOpacity onPress={handleCreate} disabled={!title.trim() || loading} style={[styles.createGoBtn, (!title.trim() || loading) && { opacity: 0.5 }]}>
+        <Ripple onPress={onClose} style={styles.createCancelBtn}><Text style={styles.createCancelText}>Cancel</Text></Ripple>
+        <Ripple onPress={handleCreate} disabled={!title.trim() || loading} style={[styles.createGoBtn, (!title.trim() || loading) && { opacity: 0.5 }]}>
           <Text style={styles.createGoText}>{loading ? 'Starting...' : 'Go Live'}</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
     </View>
   );
@@ -653,7 +654,7 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
       <View style={{ alignItems: 'center', paddingTop: 80, gap: 12 }}>
         <Ionicons name="chatbubbles-outline" size={48} color="#e5e7eb" />
         <Text style={{ fontSize: 14, fontWeight: '600', color: '#9ca3af' }}>Discussion not found</Text>
-        <TouchableOpacity onPress={onBack}><Text style={{ fontSize: 14, color: '#2563eb', fontWeight: 'bold' }}>Browse discussions</Text></TouchableOpacity>
+        <Ripple onPress={onBack}><Text style={{ fontSize: 14, color: '#2563eb', fontWeight: 'bold' }}>Browse discussions</Text></Ripple>
       </View>
     </SafeAreaView>
   );
@@ -663,7 +664,7 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}><Ionicons name="arrow-back" size={20} color="#6b7280" /></TouchableOpacity>
+          <Ripple onPress={onBack} style={styles.backBtn}><Ionicons name="arrow-back" size={20} color="#6b7280" /></Ripple>
           <Text style={styles.headerTitle} numberOfLines={1}>Discussions</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -676,10 +677,10 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
               <Text style={styles.paywallBannerTitle}>Unlock this archive</Text>
               <Text style={styles.paywallBannerSub}>500 mobcoins · Host gets 50 (10%)</Text>
             </View>
-            <TouchableOpacity onPress={handleUnlock} disabled={unlocking} style={[styles.paywallBtn, unlocking && { opacity: 0.5 }]}>
+            <Ripple onPress={handleUnlock} disabled={unlocking} style={[styles.paywallBtn, unlocking && { opacity: 0.5 }]}>
               <Text style={styles.paywallBtnText}>{unlocking ? 'Unlocking...' : 'Unlock for 500 mobcoins'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onBack}><Text style={{ fontSize: 12, color: '#9ca3af', fontWeight: '600', marginTop: 16 }}>Back to discussions</Text></TouchableOpacity>
+            </Ripple>
+            <Ripple onPress={onBack}><Text style={{ fontSize: 12, color: '#9ca3af', fontWeight: '600', marginTop: 16 }}>Back to discussions</Text></Ripple>
           </View>
         </View>
       </SafeAreaView>
@@ -695,7 +696,7 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header — dot + title + subtitle + menu (mirrors desktop) */}
       <View style={styles.roomHeader}>
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}><Ionicons name="arrow-back" size={20} color="#6b7280" /></TouchableOpacity>
+        <Ripple onPress={onBack} style={styles.backBtn}><Ionicons name="arrow-back" size={20} color="#6b7280" /></Ripple>
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <View style={[styles.headerDot, !isLive && styles.headerDotEnded]} />
@@ -709,38 +710,38 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
             )}
           </Text>
         </View>
-        <TouchableOpacity onPress={() => setShowMenu(true)} style={{ padding: 8 }}>
+        <Ripple onPress={() => setShowMenu(true)} style={{ padding: 8 }}>
           <Ionicons name="ellipsis-vertical" size={18} color="#9ca3af" />
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {/* Menu dropdown — Copy link / Settings / End Room / Delete / Leave */}
       <Modal visible={showMenu} transparent animationType="fade">
-        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
+        <Ripple style={styles.menuOverlay} activeOpacity={1} onPress={() => setShowMenu(false)}>
           <View style={styles.menuPanel} onStartShouldSetResponder={() => true}>
-            <TouchableOpacity onPress={handleShareLink} style={styles.menuItem}>
+            <Ripple onPress={handleShareLink} style={styles.menuItem}>
               <Ionicons name="link-outline" size={16} color="#374151" /><Text style={styles.menuItemText}>Copy link</Text>
-            </TouchableOpacity>
+            </Ripple>
             {isLive && isHost && (
               <>
-                <TouchableOpacity onPress={() => { playClick(); setShowMenu(false); setShowHostPanel(true); }} style={styles.menuItem}>
+                <Ripple onPress={() => { playClick(); setShowMenu(false); setShowHostPanel(true); }} style={styles.menuItem}>
                   <Ionicons name="settings-outline" size={16} color="#374151" /><Text style={styles.menuItemText}>Settings</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { playClick(); setShowMenu(false); handleEndRoom(); }} style={styles.menuItem}>
+                </Ripple>
+                <Ripple onPress={() => { playClick(); setShowMenu(false); handleEndRoom(); }} style={styles.menuItem}>
                   <Ionicons name="stop-circle-outline" size={16} color="#ef4444" /><Text style={[styles.menuItemText, { color: '#ef4444' }]}>End Room</Text>
-                </TouchableOpacity>
+                </Ripple>
               </>
             )}
             {!isLive && isHost && (
-              <TouchableOpacity onPress={() => { playClick(); setShowMenu(false); handleDeleteRoom(); }} style={styles.menuItem}>
+              <Ripple onPress={() => { playClick(); setShowMenu(false); handleDeleteRoom(); }} style={styles.menuItem}>
                 <Ionicons name="trash-outline" size={16} color="#ef4444" /><Text style={[styles.menuItemText, { color: '#ef4444' }]}>Delete</Text>
-              </TouchableOpacity>
+              </Ripple>
             )}
-            <TouchableOpacity onPress={() => { playClick(); setShowMenu(false); onBack(); }} style={styles.menuItem}>
+            <Ripple onPress={() => { playClick(); setShowMenu(false); onBack(); }} style={styles.menuItem}>
               <Ionicons name="exit-outline" size={16} color="#374151" /><Text style={styles.menuItemText}>Leave</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
 
       {/* Ended banner */}
@@ -753,10 +754,10 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
 
       {/* Pinned bar */}
       {pinnedMsg && (
-        <TouchableOpacity onPress={() => scrollToMessage(pinnedMsg.id)} style={styles.pinnedBar}>
+        <Ripple onPress={() => scrollToMessage(pinnedMsg.id)} style={styles.pinnedBar}>
           <Text style={{ fontSize: 12 }}>📌</Text>
           <Text style={styles.pinnedText} numberOfLines={1}><Text style={{ fontWeight: 'bold' }}>@{pinnedMsg.username}</Text> {(pinnedMsg.content?.startsWith('http')) ? '📷 Image' : pinnedMsg.content}</Text>
-        </TouchableOpacity>
+        </Ripple>
       )}
 
       {/* Messages — Slack style like desktop, NOT bubbles */}
@@ -779,9 +780,9 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
             hasMore && messages.length > 0 ? (
               <View style={{ alignItems: 'center', paddingVertical: 12 }}>
                 {loadingMore ? <ActivityIndicator size="small" color="#2563eb" /> : (
-                  <TouchableOpacity onPress={loadMoreMessages}>
+                  <Ripple onPress={loadMoreMessages}>
                     <Text style={{ fontSize: 12, color: '#2563eb', fontWeight: '600' }}>Load earlier messages</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 )}
               </View>
             ) : null
@@ -807,101 +808,101 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
               <View style={[styles.msgBlock, isGrouped && styles.msgBlockGrouped]}>
                 {!isGrouped ? (
                   <View style={styles.msgRow}>
-                    <TouchableOpacity onPress={() => onProfile(msg.username)}>
+                    <Ripple onPress={() => onProfile(msg.username)}>
                       <Image source={{ uri: pic }} style={styles.msgAvatar} />
-                    </TouchableOpacity>
+                    </Ripple>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={styles.msgMetaRow}>
-                        <TouchableOpacity onPress={() => onProfile(msg.username)}>
+                        <Ripple onPress={() => onProfile(msg.username)}>
                           <Text style={[styles.msgUsername, isMsgHost && styles.msgUsernameHost]}>{msg.username}</Text>
-                        </TouchableOpacity>
+                        </Ripple>
                         {verified && <Ionicons name="checkmark-circle" size={14} color="#2563eb" />}
                         {isMsgHost && <View style={styles.hostBadge}><Text style={styles.hostBadgeText}>HOST</Text></View>}
                         <Text style={styles.msgTime}>{timeAgo(msg.created_at)}</Text>
                       </View>
                       {!!replyToMsg && (
-                        <TouchableOpacity onPress={() => scrollToMessage(replyToMsg.id)} style={styles.replyQuote}>
+                        <Ripple onPress={() => scrollToMessage(replyToMsg.id)} style={styles.replyQuote}>
                           <Text style={styles.replyUser}>@{replyToMsg.username}</Text>
                           <Text style={styles.replyContent} numberOfLines={1}>{replyToMsg.content?.startsWith('http') ? '📷 Image' : replyToMsg.content}</Text>
-                        </TouchableOpacity>
+                        </Ripple>
                       )}
                       {isMedia ? (
-                        <TouchableOpacity onPress={() => setLightboxUrl(mediaUrl)}>
+                        <Ripple onPress={() => setLightboxUrl(mediaUrl)}>
                           <Image source={{ uri: mediaUrl }} style={styles.msgImage} resizeMode="cover" />
-                        </TouchableOpacity>
+                        </Ripple>
                       ) : (
                         <Text style={styles.msgText}>{renderMarkdownText(msg.content)}</Text>
                       )}
                       {Object.keys(reactions).length > 0 && (
                         <View style={styles.reactionsRow}>
                           {Object.entries(reactions).map(([emoji, users]) => (
-                            <TouchableOpacity key={emoji} onPress={() => isLive && handleReact(msg.id, emoji)} style={styles.reactionChip}>
+                            <Ripple key={emoji} onPress={() => isLive && handleReact(msg.id, emoji)} style={styles.reactionChip}>
                               <Text style={styles.reactionText}>{emoji} <Text style={{ color: '#6b7280', fontWeight: '500' }}>{Array.isArray(users as any) ? (users as any[]).length : String(users as any)}</Text></Text>
-                            </TouchableOpacity>
+                            </Ripple>
                           ))}
                         </View>
                       )}
                     </View>
-                    <TouchableOpacity onPress={() => setShowActionsFor(showActionsFor === msg.id ? null : msg.id)} style={{ padding: 6 }}>
+                    <Ripple onPress={() => setShowActionsFor(showActionsFor === msg.id ? null : msg.id)} style={{ padding: 6 }}>
                       <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" />
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 ) : (
                   <View style={styles.msgRow}>
                     <View style={{ width: 40 }} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       {!!replyToMsg && (
-                        <TouchableOpacity onPress={() => scrollToMessage(replyToMsg.id)} style={styles.replyQuote}>
+                        <Ripple onPress={() => scrollToMessage(replyToMsg.id)} style={styles.replyQuote}>
                           <Text style={styles.replyUser}>@{replyToMsg.username}</Text>
                           <Text style={styles.replyContent} numberOfLines={1}>{replyToMsg.content?.startsWith('http') ? '📷 Image' : replyToMsg.content}</Text>
-                        </TouchableOpacity>
+                        </Ripple>
                       )}
                       {isMedia ? (
-                        <TouchableOpacity onPress={() => setLightboxUrl(mediaUrl)}>
+                        <Ripple onPress={() => setLightboxUrl(mediaUrl)}>
                           <Image source={{ uri: mediaUrl }} style={styles.msgImage} resizeMode="cover" />
-                        </TouchableOpacity>
+                        </Ripple>
                       ) : (
                         <Text style={styles.msgText}>{renderMarkdownText(msg.content)}</Text>
                       )}
                       {Object.keys(reactions).length > 0 && (
                         <View style={styles.reactionsRow}>
                           {Object.entries(reactions).map(([emoji, users]) => (
-                            <TouchableOpacity key={emoji} onPress={() => isLive && handleReact(msg.id, emoji)} style={styles.reactionChip}>
+                            <Ripple key={emoji} onPress={() => isLive && handleReact(msg.id, emoji)} style={styles.reactionChip}>
                               <Text style={styles.reactionText}>{emoji} <Text style={{ color: '#6b7280', fontWeight: '500' }}>{Array.isArray(users as any) ? (users as any[]).length : String(users as any)}</Text></Text>
-                            </TouchableOpacity>
+                            </Ripple>
                           ))}
                         </View>
                       )}
                     </View>
-                    <TouchableOpacity onPress={() => setShowActionsFor(showActionsFor === msg.id ? null : msg.id)} style={{ padding: 6 }}>
+                    <Ripple onPress={() => setShowActionsFor(showActionsFor === msg.id ? null : msg.id)} style={{ padding: 6 }}>
                       <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" />
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 )}
                 {showActionsFor === msg.id && (
                   <View style={styles.inlineActions}>
                     {isLive && (
-                      <TouchableOpacity onPress={() => { setShowActionsFor(null); setShowReactPicker(msg.id); }} style={styles.inlineActionBtn}>
+                      <Ripple onPress={() => { setShowActionsFor(null); setShowReactPicker(msg.id); }} style={styles.inlineActionBtn}>
                         <Ionicons name="happy-outline" size={16} color="#6b7280" />
                         <Text style={styles.inlineActionText}>React</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     )}
                     {isLive && (
-                      <TouchableOpacity onPress={() => { setShowActionsFor(null); setReplyTo(msg); }} style={styles.inlineActionBtn}>
+                      <Ripple onPress={() => { setShowActionsFor(null); setReplyTo(msg); }} style={styles.inlineActionBtn}>
                         <Ionicons name="arrow-undo-outline" size={16} color="#6b7280" />
                         <Text style={styles.inlineActionText}>Reply</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     )}
                     {isHost && (
-                      <TouchableOpacity onPress={() => { setShowActionsFor(null); handlePin(msg.id); }} style={styles.inlineActionBtn}>
+                      <Ripple onPress={() => { setShowActionsFor(null); handlePin(msg.id); }} style={styles.inlineActionBtn}>
                         <Text style={[styles.inlineActionText, { fontWeight: 'bold' }]}>PIN</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     )}
                     {canDelete && (
-                      <TouchableOpacity onPress={() => { setShowActionsFor(null); handleDeleteMessage(msg.id); }} style={styles.inlineActionBtn}>
+                      <Ripple onPress={() => { setShowActionsFor(null); handleDeleteMessage(msg.id); }} style={styles.inlineActionBtn}>
                         <Ionicons name="trash-outline" size={16} color="#6b7280" />
                         <Text style={styles.inlineActionText}>Delete</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     )}
                   </View>
                 )}
@@ -926,39 +927,39 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
         {showReactPicker && (
           <View style={styles.reactPicker}>
             {REACTION_EMOJIS.map(emoji => (
-              <TouchableOpacity key={emoji} onPress={() => handleReact(showReactPicker, emoji)} style={styles.emojiBtn}>
+              <Ripple key={emoji} onPress={() => handleReact(showReactPicker, emoji)} style={styles.emojiBtn}>
                 <Text style={{ fontSize: 22 }}>{emoji}</Text>
-              </TouchableOpacity>
+              </Ripple>
             ))}
             {isHost && (
-              <TouchableOpacity onPress={() => { handlePin(showReactPicker); setShowReactPicker(null); }} style={styles.emojiBtn}>
+              <Ripple onPress={() => { handlePin(showReactPicker); setShowReactPicker(null); }} style={styles.emojiBtn}>
                 <Text style={{ fontSize: 18 }}>📌</Text>
-              </TouchableOpacity>
+              </Ripple>
             )}
           </View>
         )}
 
         {/* Host settings panel */}
         <Modal visible={showHostPanel} transparent animationType="fade">
-          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowHostPanel(false)}>
+          <Ripple style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowHostPanel(false)}>
             <View style={styles.hostPanel} onStartShouldSetResponder={() => true}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <Text style={styles.hostPanelTitle}>Settings</Text>
-                <TouchableOpacity onPress={() => setShowHostPanel(false)}><Ionicons name="close" size={16} color="#9ca3af" /></TouchableOpacity>
+                <Ripple onPress={() => setShowHostPanel(false)}><Ionicons name="close" size={16} color="#9ca3af" /></Ripple>
               </View>
               <Text style={styles.hostPanelLabel}>ROOM MODE</Text>
               {['open', 'moderated', 'locked'].map(mode => (
-                <TouchableOpacity key={mode} onPress={async () => {
+                <Ripple key={mode} onPress={async () => {
                   playClick();
                   await apiPost(`/api/discussions/room/${roomId}/mode`, { host_username: currentUser, room_mode: mode });
                   socketRef.current?.emit('discussion_mode_change', { roomId, room_mode: mode });
                   setRoom(prev => prev ? { ...prev, room_mode: mode } : prev);
                 }} style={[styles.modeBtn, room.room_mode === mode && styles.modeBtnActive]}>
                   <Text style={[styles.modeBtnText, room.room_mode === mode && styles.modeBtnTextActive]}>{mode === 'open' ? 'Open' : mode === 'moderated' ? 'Moderated' : 'Locked'}</Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </View>
-          </TouchableOpacity>
+          </Ripple>
         </Modal>
 
         {/* Giphy panel */}
@@ -967,15 +968,15 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
             <View style={styles.giphySearchWrap}>
               <Ionicons name="search-outline" size={16} color="#9ca3af" />
               <TextInput style={styles.giphySearchInput} placeholder="Search GIFs..." placeholderTextColor="#9ca3af" value={giphyQuery} onChangeText={searchGiphy} autoFocus />
-              <TouchableOpacity onPress={() => { setShowGiphy(false); setGiphyQuery(''); setGiphyResults([]); }}><Ionicons name="close-circle" size={16} color="#9ca3af" /></TouchableOpacity>
+              <Ripple onPress={() => { setShowGiphy(false); setGiphyQuery(''); setGiphyResults([]); }}><Ionicons name="close-circle" size={16} color="#9ca3af" /></Ripple>
             </View>
             <ScrollView contentContainerStyle={styles.giphyGrid} keyboardShouldPersistTaps="handled">
               {giphyResults.length === 0 && giphyQuery ? <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', paddingVertical: 32, width: '100%' }}>Searching...</Text> : null}
               {!giphyQuery && <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', paddingVertical: 32, width: '100%' }}>Search for GIFs</Text>}
               {giphyResults.map((gif: any) => (
-                <TouchableOpacity key={gif.id} onPress={() => sendGif(gif.images.original.url)} style={styles.giphyItem}>
+                <Ripple key={gif.id} onPress={() => sendGif(gif.images.original.url)} style={styles.giphyItem}>
                   <Image source={{ uri: gif.images.fixed_height.url }} style={styles.giphyImage} resizeMode="cover" />
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </ScrollView>
           </View>
@@ -993,7 +994,7 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
                 {imagePreview && (
                   <View style={{ marginBottom: 8 }}>
                     <Image source={{ uri: imagePreview }} style={{ height: 80, width: 120, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' }} />
-                    <TouchableOpacity onPress={() => setImagePreview(null)} style={styles.previewX}><Text style={{ fontSize: 10, fontWeight: 'bold', color: '#fff' }}>X</Text></TouchableOpacity>
+                    <Ripple onPress={() => setImagePreview(null)} style={styles.previewX}><Text style={{ fontSize: 10, fontWeight: 'bold', color: '#fff' }}>X</Text></Ripple>
                   </View>
                 )}
                 {replyTo && (
@@ -1003,34 +1004,34 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
                       <Text style={styles.replyPreviewUser}>@{replyTo.username}</Text>
                       <Text style={styles.replyPreviewContent} numberOfLines={1}>{replyTo.content?.startsWith('http') ? '📷 Image' : replyTo.content}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => setReplyTo(null)}><Ionicons name="close" size={14} color="#9ca3af" /></TouchableOpacity>
+                    <Ripple onPress={() => setReplyTo(null)}><Ionicons name="close" size={14} color="#9ca3af" /></Ripple>
                   </View>
                 )}
                 {mentionQuery !== null && mentionResults.length > 0 && (
                   <View style={styles.mentionBox}>
                     {mentionResults.map((u: any) => (
-                      <TouchableOpacity key={u.username || u} onPress={() => insertMention(u.username || u)} style={styles.mentionRow}>
+                      <Ripple key={u.username || u} onPress={() => insertMention(u.username || u)} style={styles.mentionRow}>
                         <Image source={{ uri: u.profile_pic || DEFAULT_PIC }} style={{ width: 28, height: 28, borderRadius: 14 }} />
                         <Text style={{ fontSize: 14, fontWeight: '600', color: '#1f2937' }}>{u.username || u}</Text>
                         {!!u.fullname && <Text style={{ fontSize: 12, color: '#9ca3af' }}>{u.fullname}</Text>}
-                      </TouchableOpacity>
+                      </Ripple>
                     ))}
                   </View>
                 )}
                 <View style={styles.inputRow}>
-                  <TouchableOpacity onPress={pickImage} style={{ padding: 8 }}>
+                  <Ripple onPress={pickImage} style={{ padding: 8 }}>
                     {uploadingImage ? <ActivityIndicator size="small" color="#2563eb" /> : <Ionicons name="image-outline" size={20} color="#9ca3af" />}
-                  </TouchableOpacity>
+                  </Ripple>
                   <View style={styles.inputPill}>
                     <TextInput ref={inputRef} value={input} onChangeText={handleTyping} onFocus={() => setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 250)} onSubmitEditing={() => imagePreview ? sendMessage(undefined, imagePreview) : sendMessage()} placeholder="Message..." placeholderTextColor="#9ca3af" style={styles.inputField} maxLength={2000} returnKeyType="send" blurOnSubmit={false} />
-                    <TouchableOpacity onPress={() => setShowGiphy(!showGiphy)} style={{ paddingLeft: 8 }}>
+                    <Ripple onPress={() => setShowGiphy(!showGiphy)} style={{ paddingLeft: 8 }}>
                       <Text style={styles.gifLabel}>GIF</Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                   {(input.trim() || imagePreview) ? (
-                    <TouchableOpacity onPress={() => imagePreview ? sendMessage(undefined, imagePreview) : sendMessage()} style={styles.sendBtn}>
+                    <Ripple onPress={() => imagePreview ? sendMessage(undefined, imagePreview) : sendMessage()} style={styles.sendBtn}>
                       <Ionicons name="send" size={16} color="#fff" />
-                    </TouchableOpacity>
+                    </Ripple>
                   ) : <View style={{ width: 40 }} />}
                 </View>
               </>
@@ -1039,17 +1040,17 @@ function RoomView({ roomId, onBack, onProfile, colors }: { roomId: string; onBac
         ) : (
           <View style={[styles.endedInput, { paddingBottom: chatBarBottomPad }]}>
             <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#9ca3af' }}>Discussion has ended</Text>
-            <TouchableOpacity onPress={onBack}><Text style={{ fontSize: 12, color: '#2563eb', fontWeight: '600', marginTop: 4 }}>Browse more</Text></TouchableOpacity>
+            <Ripple onPress={onBack}><Text style={{ fontSize: 12, color: '#2563eb', fontWeight: '600', marginTop: 4 }}>Browse more</Text></Ripple>
           </View>
         )}
       </KeyboardAvoidingView>
 
       {/* Lightbox */}
       <Modal visible={!!lightboxUrl} transparent animationType="fade">
-        <TouchableOpacity style={styles.lightbox} activeOpacity={1} onPress={() => setLightboxUrl(null)}>
-          <TouchableOpacity onPress={() => setLightboxUrl(null)} style={styles.lightboxX}><Ionicons name="close" size={28} color="#fff" /></TouchableOpacity>
+        <Ripple style={styles.lightbox} activeOpacity={1} onPress={() => setLightboxUrl(null)}>
+          <Ripple onPress={() => setLightboxUrl(null)} style={styles.lightboxX}><Ionicons name="close" size={28} color="#fff" /></Ripple>
           {lightboxUrl && <Image source={{ uri: lightboxUrl }} style={styles.lightboxImg} resizeMode="contain" />}
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
     </SafeAreaView>
   );

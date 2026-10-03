@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Modal,
+  View, Text, StyleSheet, Modal,
   TextInput, ActivityIndicator, Image, ScrollView,
 } from 'react-native';
+import { Ripple } from './Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -92,15 +93,15 @@ export default function GiftCoinsModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={s.overlay} activeOpacity={1} onPress={onClose}>
+      <Ripple style={s.overlay} activeOpacity={1} onPress={onClose}>
         <View style={[s.sheet, { backgroundColor: colors.card }]}>
           <View style={s.handle} />
           {/* Header */}
           <View style={[s.section, s.headerSection, { borderBottomColor: colors.border }]}>
             <Text style={[s.modalTitle, { color: colors.textPrimary }]}>Gift Mobcoins</Text>
-            <TouchableOpacity onPress={onClose} style={s.closeBtn}>
+            <Ripple onPress={onClose} style={s.closeBtn}>
               <Ionicons name="close" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
           {/* Recipient */}
           <View style={[s.section, s.recipientRow, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }]}>
@@ -129,13 +130,13 @@ export default function GiftCoinsModal({
             <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>Quick Send</Text>
             <View style={s.packGrid}>
               {COIN_PACKS.map(v => (
-                <TouchableOpacity
+                <Ripple
                   key={v}
                   style={[s.packBtn, amount === String(v) && s.packBtnActive, { borderColor: colors.border }]}
                   onPress={() => handlePackClick(v)}
                 >
                   <Text style={[s.packText, amount === String(v) && s.packTextActive]}>{v}</Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </View>
           </View>
@@ -168,10 +169,10 @@ export default function GiftCoinsModal({
           )}
           {/* Actions */}
           <View style={[s.actionRow, { borderTopColor: colors.border }]}>
-            <TouchableOpacity style={[s.actionBtn, s.cancelBtn, { borderColor: colors.border }]} onPress={onClose}>
+            <Ripple style={[s.actionBtn, s.cancelBtn, { borderColor: colors.border }]} onPress={onClose}>
               <Text style={[s.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Ripple>
+            <Ripple
               style={[s.actionBtn, s.sendBtn, (sending || !!status?.success) && { opacity: 0.4 }]}
               onPress={handleSend}
               disabled={sending || !!status?.success}
@@ -181,10 +182,10 @@ export default function GiftCoinsModal({
               ) : (
                 <Text style={s.sendText}>{status?.success ? 'Sent!' : 'Send Gift'}</Text>
               )}
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
-      </TouchableOpacity>
+      </Ripple>
     </Modal>
   );
 }

@@ -1,12 +1,12 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
+﻿import React, { memo, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Pressable,
   StyleSheet,
   LayoutChangeEvent,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import {
   createVideoPlayer,
   VideoView,
@@ -230,22 +230,22 @@ export const VideoPlayer = memo(function VideoPlayer({
             </Pressable>
             <View style={s.controlRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <TouchableOpacity onPress={togglePlay} hitSlop={8}>
+                <Ripple onPress={togglePlay} hitSlop={8}>
                   {playing ? (
                     <Icons.pause size={18} color="#fff" />
                   ) : (
                     <Icons.play size={18} color="#fff" />
                   )}
-                </TouchableOpacity>
+                </Ripple>
                 <Text style={s.timeText}>
                   {fmt((progress / 100) * duration)} / {fmt(duration)}
                 </Text>
               </View>
-              <TouchableOpacity onPress={toggleMute} hitSlop={8}>
+              <Ripple onPress={toggleMute} hitSlop={8}>
                 <Text style={[s.volText, muted && { color: '#f87171', textDecorationLine: 'line-through' }]}>
                   Vol
                 </Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </Pressable>
         </View>

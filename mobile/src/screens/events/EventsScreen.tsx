@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, Linking,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -49,9 +50,9 @@ export default function EventsScreen() {
           <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Events</Text>
           <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>Explore community meetups and events</Text>
         </View>
-        <TouchableOpacity onPress={() => navigation.navigate('CreateEvent')} style={s.createBtn}>
+        <Ripple onPress={() => navigation.navigate('CreateEvent')} style={s.createBtn}>
           <Text style={s.createBtnText}>+ Create</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {loading ? (
@@ -72,7 +73,7 @@ export default function EventsScreen() {
             const dateStr = item.scheduled_for ? new Date(item.scheduled_for).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
             return (
               <View style={[s.eventRow, { borderBottomColor: colors.border }]}>
-                <TouchableOpacity onPress={() => setActiveId(expanded ? null : item.id)} style={s.rowClickable}>
+                <Ripple onPress={() => setActiveId(expanded ? null : item.id)} style={s.rowClickable}>
                   <View style={{ flex: 1, paddingRight: 8 }}>
                     <View style={[s.dateBadge, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
                       <Ionicons name="calendar-outline" size={11} color="#2563eb" />
@@ -90,7 +91,7 @@ export default function EventsScreen() {
                     </Text>
                   </View>
                   <Ionicons name="chevron-down" size={16} color={colors.textSecondary} style={expanded && { transform: [{ rotate: '180deg' }] }} />
-                </TouchableOpacity>
+                </Ripple>
 
                 {expanded && (
                   <View style={s.expandedBox}>
@@ -102,12 +103,12 @@ export default function EventsScreen() {
                       </View>
                     )}
                     {item.registration_url && (
-                      <TouchableOpacity style={s.registerLink} onPress={() => Linking.openURL(item.registration_url)}>
+                      <Ripple style={s.registerLink} onPress={() => Linking.openURL(item.registration_url)}>
                         <Ionicons name="open-outline" size={13} color="#2563eb" />
                         <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563eb' }}>Register / Learn more</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     )}
-                    <TouchableOpacity
+                    <Ripple
                       style={[s.interestBtn, liked ? { backgroundColor: '#2563eb' } : ended ? { backgroundColor: isDark ? '#334155' : '#e5e7eb' } : { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
                       onPress={() => !ended && handleInterest(item.id)}
                       disabled={ended}
@@ -116,7 +117,7 @@ export default function EventsScreen() {
                       <Text style={[s.interestText, { color: liked ? '#fff' : ended ? colors.textSecondary : '#2563eb' }]}>
                         {ended ? `${item.likes?.length || 0} attended` : liked ? `${item.likes?.length || 0} interested · remove` : `${item.likes?.length || 0} interested`}
                       </Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 )}
               </View>

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
+﻿import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, Image } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -70,7 +71,7 @@ export default function SavedPostsScreen() {
   };
 
   const renderPost = ({ item }: { item: any }) => (
-    <TouchableOpacity
+    <Ripple
       style={[styles.postCard, { backgroundColor: colors.card, borderColor: colors.border }]}
       activeOpacity={0.7}
       onPress={() => navigation.navigate('PostDetail', { postId: String(item.id) })}
@@ -83,23 +84,23 @@ export default function SavedPostsScreen() {
           </Text>
           <Text style={[styles.timeAgo, { color: colors.textSecondary }]}>{TIME_AGO(item.created_at)}</Text>
         </View>
-        <TouchableOpacity onPress={() => removeSaved(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Ripple onPress={() => removeSaved(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="bookmark" size={20} color={colors.primary} />
-        </TouchableOpacity>
+        </Ripple>
       </View>
       {item.text ? <Text style={[styles.postText, { color: colors.textPrimary }]} numberOfLines={4}>{item.text}</Text> : null}
       {item.media && item.media.length > 0 && (
         <Image source={{ uri: item.media[0] }} style={styles.postImage} resizeMode="cover" />
       )}
-    </TouchableOpacity>
+    </Ripple>
   );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Saved Posts</Text>
         <View style={{ width: 32 }} />
       </View>

@@ -1,19 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   Image,
-  TouchableOpacity,
   FlatList,
   StyleSheet,
   ActivityIndicator,
   Alert,
   Vibration,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import * as ImagePicker from 'expo-image-picker';
 import { useLoudaTheme } from './primitives';
 import { Icons } from '../icons';
 import * as api from '../api';
+import { useLoudaStore } from '../store';
 
 // Port of MediaGalleryTab (LoudaApp.jsx:6421-6685)
 export function MediaGalleryTab({
@@ -26,6 +27,7 @@ export function MediaGalleryTab({
   onShare: (payload: { files: any[] }) => void;
 }) {
   const { p } = useLoudaTheme();
+  const { setCameraRequest } = useLoudaStore();
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'image' | 'video' | 'audio'>('all');
@@ -98,18 +100,16 @@ export function MediaGalleryTab({
     });
   };
 
-  const openCamera = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return;
-    const res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (res.canceled || !res.assets?.length) return;
-    onShare({
-      files: res.assets.map((a) => ({
-        uri: a.uri,
-        name: a.fileName || `photo_${Date.now()}`,
-        type: a.mimeType || 'image/jpeg',
-        size: a.fileSize ?? 0,
-      })),
+  const openCamera = () => {
+    // In-app camera (web parity: photo + video, LoudaApp.jsx:6701)
+    setCameraRequest({
+      mode: 'both',
+      onCapture: (file: any) =>
+        onShare({
+          files: [
+            { uri: file.uri, name: file.fileName, type: file.mimeType, size: file.fileSize ?? 0 },
+          ],
+        }),
     });
   };
 
@@ -137,18 +137,18 @@ export function MediaGalleryTab({
             </View>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity
+            <Ripple
               style={[s.actionBtn, { backgroundColor: 'rgba(59,130,246,0.1)' }]}
               onPress={uploadMedia}
             >
               <Icons.plus size={17} color="#2563eb" />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Ripple>
+            <Ripple
               style={[s.actionBtn, { backgroundColor: 'rgba(34,197,94,0.1)' }]}
               onPress={openCamera}
             >
               <Icons.camera size={17} color="#16a34a" />
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
 
@@ -161,7 +161,7 @@ export function MediaGalleryTab({
               { id: 'video', label: 'Videos' },
               { id: 'audio', label: 'Audio' },
             ] as const).map((f) => (
-              <TouchableOpacity
+              <Ripple
                 key={f.id}
                 style={[s.pill, filter === f.id && { backgroundColor: p.card }]}
                 onPress={() => {
@@ -179,7 +179,7 @@ export function MediaGalleryTab({
                 >
                   {f.label}
                 </Text>
-              </TouchableOpacity>
+              </Ripple>
             ))}
           </View>
           <View style={[s.pillGroup, { backgroundColor: p.cardMuted }]}>
@@ -188,7 +188,7 @@ export function MediaGalleryTab({
               { id: 'normal', label: 'Normal' },
               { id: 'compact', label: 'Compact' },
             ] as const).map((g) => (
-              <TouchableOpacity
+              <Ripple
                 key={g.id}
                 style={[s.pill, gridSize === g.id && { backgroundColor: p.card }]}
                 onPress={() => setGridSize(g.id)}
@@ -202,7 +202,7 @@ export function MediaGalleryTab({
                 >
                   {g.label}
                 </Text>
-              </TouchableOpacity>
+              </Ripple>
             ))}
           </View>
         </View>
@@ -212,7 +212,7 @@ export function MediaGalleryTab({
       {selectionMode && (
         <View style={s.selectBar}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <TouchableOpacity
+            <Ripple
               onPress={() => {
                 setSelectedItems(new Set());
                 setSelectionMode(false);
@@ -220,13 +220,13 @@ export function MediaGalleryTab({
               style={{ padding: 4 }}
             >
               <Icons.x size={18} color="#fff" />
-            </TouchableOpacity>
+            </Ripple>
             <Text style={s.selectCount}>{selectedItems.size} selected</Text>
-            <TouchableOpacity onPress={handleSelectAll}>
+            <Ripple onPress={handleSelectAll}>
               <Text style={s.selectAll}>
                 {selectedItems.size === filteredItems.length ? 'Deselect All' : 'Select All'}
               </Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
       )}
@@ -251,7 +251,7 @@ export function MediaGalleryTab({
         renderItem={({ item, index }) => {
           const isSelected = selectedItems.has(index);
           return (
-            <TouchableOpacity
+            <Ripple
               activeOpacity={0.85}
               style={[
                 s.cell,
@@ -284,7 +284,7 @@ export function MediaGalleryTab({
               )}
 
               {/* Selection circle (web 6646-6653) */}
-              <TouchableOpacity
+              <Ripple
                 style={[s.checkWrap, { opacity: selectionMode || isSelected ? 1 : 0.6 }]}
                 onPress={() => toggleSelectItem(index)}
                 hitSlop={6}
@@ -299,7 +299,7 @@ export function MediaGalleryTab({
                 >
                   {isSelected && <Icons.check size={11} color="#fff" />}
                 </View>
-              </TouchableOpacity>
+              </Ripple>
 
               {/* Video badge (web 6656-6660) */}
               {item.type === 'video' && (
@@ -317,7 +317,7 @@ export function MediaGalleryTab({
                   {new Date(item.timestamp || Date.now()).toLocaleDateString()}
                 </Text>
               </View>
-            </TouchableOpacity>
+            </Ripple>
           );
         }}
       />

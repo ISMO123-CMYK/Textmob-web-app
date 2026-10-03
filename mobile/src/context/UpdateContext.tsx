@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+﻿import React, { createContext, useContext, useEffect, useRef, useState, useMemo, ReactNode } from 'react';
 import {
-  Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Linking,
+  Modal, View, Text, ActivityIndicator, StyleSheet, Platform, Linking,
 } from 'react-native';
+import { Ripple } from '../components/Ripple';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
@@ -195,8 +196,10 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
     return Math.max(0, Math.ceil((deadline - Date.now()) / (24 * 60 * 60 * 1000)));
   })();
 
+  const value = useMemo(() => ({ updateInfo, forced }), [updateInfo, forced]);
+
   return (
-    <UpdateContext.Provider value={{ updateInfo, forced }}>
+    <UpdateContext.Provider value={value}>
       {children}
       <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
         <View style={styles.overlay}>
@@ -240,23 +243,23 @@ export function UpdateProvider({ children }: { children: ReactNode }) {
                 {error && <Text style={styles.errorText}>{error}</Text>}
                 <View style={styles.actions}>
                   {!forced && (
-                    <TouchableOpacity onPress={dismiss} style={[styles.btn, styles.btnGhost, { borderColor: colors.border }]}>
+                    <Ripple onPress={dismiss} style={[styles.btn, styles.btnGhost, { borderColor: colors.border }]}>
                       <Text style={[styles.btnText, { color: colors.textSecondary }]}>Later</Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   )}
-                  <TouchableOpacity
+                  <Ripple
                     onPress={startUpdate}
                     activeOpacity={0.85}
                     style={[styles.btn, { backgroundColor: accent }]}
                   >
                     <Text style={styles.btnPrimaryText}>Update now</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 </View>
-                <TouchableOpacity onPress={downloadManually} style={styles.manualWrap}>
+                <Ripple onPress={downloadManually} style={styles.manualWrap}>
                   <Text style={[styles.manualText, { color: colors.textSecondary }]}>
                     Install not working? Download the APK manually
                   </Text>
-                </TouchableOpacity>
+                </Ripple>
               </>
             )}
           </View>

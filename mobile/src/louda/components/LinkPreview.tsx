@@ -1,5 +1,6 @@
-import React, { memo, useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+﻿import React, { memo, useEffect, useState } from 'react';
+import { View, Text, Image, Linking, StyleSheet } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme } from './primitives';
 import { LOUDA_API_URL as API_BASE_URL } from '../constants';
 
@@ -26,11 +27,11 @@ export const LinkPreview = memo(function LinkPreview({ url }: { url: string }) {
   }
   if (!preview || !preview.title) {
     return (
-      <TouchableOpacity onPress={() => Linking.openURL(url).catch(() => {})}>
+      <Ripple onPress={() => Linking.openURL(url).catch(() => {})}>
         <Text style={[s.fallback, { color: '#2563eb' }]} numberOfLines={3}>
           {url}
         </Text>
-      </TouchableOpacity>
+      </Ripple>
     );
   }
 
@@ -42,7 +43,7 @@ export const LinkPreview = memo(function LinkPreview({ url }: { url: string }) {
   }
 
   return (
-    <TouchableOpacity
+    <Ripple
       activeOpacity={0.85}
       onPress={() => Linking.openURL(url).catch(() => {})}
       style={[s.card, { backgroundColor: 'rgba(0,0,0,0.05)', borderColor: p.border }]}
@@ -61,7 +62,7 @@ export const LinkPreview = memo(function LinkPreview({ url }: { url: string }) {
         )}
         <Text style={[s.host, { color: p.textMuted }]}>{hostname}</Text>
       </View>
-    </TouchableOpacity>
+    </Ripple>
   );
 });
 

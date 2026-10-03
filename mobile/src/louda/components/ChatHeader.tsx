@@ -1,5 +1,6 @@
-import React, { memo, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+﻿import React, { memo, useState } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme, ContextMenu } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR } from '../constants';
@@ -69,12 +70,12 @@ export const ChatHeader = memo(function ChatHeader({
       ]}
     >
       {!!onBack && (
-        <TouchableOpacity onPress={onBack} style={s.backBtn} hitSlop={8}>
+        <Ripple onPress={onBack} style={s.backBtn} hitSlop={8}>
           <Icons.arrowLeft size={22} color="#6b7280" />
-        </TouchableOpacity>
+        </Ripple>
       )}
 
-      <TouchableOpacity
+      <Ripple
         activeOpacity={0.8}
         style={s.avatarWrap}
         onPress={() => onViewProfile?.(chat)}
@@ -88,9 +89,9 @@ export const ChatHeader = memo(function ChatHeader({
               : { borderWidth: 2, borderColor: 'rgba(34,197,94,0.25)' },
           ]}
         />
-      </TouchableOpacity>
+      </Ripple>
 
-      <TouchableOpacity
+      <Ripple
         activeOpacity={0.8}
         style={{ flex: 1, overflow: 'hidden' }}
         onPress={() => onViewProfile?.(chat)}
@@ -125,21 +126,21 @@ export const ChatHeader = memo(function ChatHeader({
             </View>
           )}
         </View>
-      </TouchableOpacity>
+      </Ripple>
 
       {!!onSearchClick && (
-        <TouchableOpacity onPress={onSearchClick} style={s.iconBtn} hitSlop={8}>
+        <Ripple onPress={onSearchClick} style={s.iconBtn} hitSlop={8}>
           <Icons.search size={20} color="#6b7280" />
-        </TouchableOpacity>
+        </Ripple>
       )}
 
-      <TouchableOpacity
+      <Ripple
         onPress={() => setMenuPos({ x: 60, y: 90 })}
         style={[s.iconBtn, menuPos ? { backgroundColor: p.cardMuted } : null]}
         hitSlop={8}
       >
         <Icons.more size={20} color="#6b7280" />
-      </TouchableOpacity>
+      </Ripple>
 
       <ContextMenu
         position={menuPos}

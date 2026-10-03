@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Image,
-  TouchableOpacity,
   Animated,
   Easing,
   StyleSheet,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { getOptimizedMediaUrl } from '../utils';
 import { Icons } from '../icons';
 
@@ -38,7 +38,7 @@ export function LazyImage({
   }, [pulse]);
 
   return (
-    <TouchableOpacity
+    <Ripple
       activeOpacity={0.85}
       disabled={!onPress}
       onPress={onPress}
@@ -55,7 +55,7 @@ export function LazyImage({
         resizeMode={contentFit}
         onLoad={() => setIsLoaded(true)}
       />
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -69,14 +69,14 @@ export function JumpToLatest({
 }) {
   if (!visible) return null;
   return (
-    <TouchableOpacity
+    <Ripple
       activeOpacity={0.85}
       onPress={onPress}
       style={s.jump}
       hitSlop={8}
     >
       <Icons.chevronRight size={18} color="#4b5563" style={{ transform: [{ rotate: '90deg' }] }} />
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 

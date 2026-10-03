@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -9,7 +9,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   Image,
   StyleSheet,
@@ -17,6 +16,7 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -39,6 +39,7 @@ import {
 import { uploadFile, deleteUpload } from '../api';
 import { loudaAlert } from '../utils';
 import { getStore, setStore } from '../../utils/storage';
+import { useLoudaStore } from '../store';
 
 const FAV_KEY = 'louda:favEmojis';
 const SAVED_KEY = 'louda:savedStickers';
@@ -67,8 +68,9 @@ export function ChatInput({
   onCancelEdit?: () => void;
   onEdit?: (id: string, text: string) => void;
 }) {
-  const { p } = useLoudaTheme();
+  const { p, isDark } = useLoudaTheme();
   const insets = useSafeAreaInsets();
+  const { setCameraRequest } = useLoudaStore();
   const [kbOpen, setKbOpen] = useState(false);
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -240,6 +242,9 @@ export function ChatInput({
   // ─── Recording (LoudaApp.jsx:3371-3420) ───
   const startRecording = async () => {
     try {
+      Keyboard.dismiss();
+      setShowAttachMenu(false);
+      setShowEmojiPicker(false);
       const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
         loudaAlert({ title: 'Error', message: 'Microphone access denied' });
@@ -397,17 +402,15 @@ export function ChatInput({
     if (!res.canceled) await uploadLocal(res.assets || []);
   };
 
-  const takePhoto = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      loudaAlert({ title: 'Error', message: 'Camera access denied' });
-      return;
-    }
-    const res = await ImagePicker.launchCameraAsync({
-      quality: 0.85,
-      mediaTypes: ['images', 'videos'],
+  const takePhoto = () => {
+    Keyboard.dismiss();
+    setShowAttachMenu(false);
+    // In-app camera (web parity: photo + video, LoudaApp.jsx:3876)
+    setCameraRequest({
+      mode: 'both',
+      maxVideoSeconds: 60,
+      onCapture: (file: any) => uploadLocal([file]),
     });
-    if (!res.canceled) await uploadLocal(res.assets || []);
   };
 
   const pickFiles = async (audioOnly = false) => {
@@ -495,7 +498,10 @@ export function ChatInput({
     <View
       style={[
         s.wrap,
-        { backgroundColor: 'rgba(255,255,255,0.97)', borderTopColor: p.borderLight },
+        {
+          backgroundColor: isDark ? 'rgba(24,24,27,0.97)' : 'rgba(255,255,255,0.97)',
+          borderTopColor: p.borderLight,
+        },
         !kbOpen && insets.bottom > 0 ? { paddingBottom: 8 + insets.bottom } : null,
       ]}
     >
@@ -504,7 +510,7 @@ export function ChatInput({
         <View style={[s.picker, { backgroundColor: p.card, borderColor: p.borderLight, height: 340 }]}>
           <View style={[s.pickerTabs, { borderBottomColor: p.borderLight }]}>
             {(['emoji', 'sticker'] as const).map((tab) => (
-              <TouchableOpacity
+              <Ripple
                 key={tab}
                 style={s.pickerTab}
                 onPress={() => setPickerTab(tab)}
@@ -521,7 +527,7 @@ export function ChatInput({
                 >
                   {tab === 'emoji' ? '😀 Emoji' : '🎭 Stickers'}
                 </Text>
-              </TouchableOpacity>
+              </Ripple>
             ))}
           </View>
 
@@ -537,15 +543,15 @@ export function ChatInput({
                   style={[s.pickerSearch, { color: p.text }]}
                 />
                 {!!emojiSearch && (
-                  <TouchableOpacity onPress={() => setEmojiSearch('')}>
+                  <Ripple onPress={() => setEmojiSearch('')}>
                     <Text style={{ color: p.textMuted, fontSize: 12 }}>✕</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 )}
               </View>
 
               {!emojiSearch && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catRow} contentContainerStyle={{ gap: 4, paddingHorizontal: 8 }}>
-                  <TouchableOpacity
+                  <Ripple
                     onPress={() => setActiveCategory(-1)}
                     style={[
                       s.catChip,
@@ -553,9 +559,9 @@ export function ChatInput({
                     ]}
                   >
                     <Text style={{ fontSize: 14, color: activeCategory === -1 ? '#047857' : p.textMuted }}>⭐</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                   {EMOJI_CATEGORIES.map((cat, i) => (
-                    <TouchableOpacity
+                    <Ripple
                       key={i}
                       onPress={() => setActiveCategory(i)}
                       style={[
@@ -572,7 +578,7 @@ export function ChatInput({
                       >
                         {cat.label.split(' ')[0]}
                       </Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   ))}
                 </ScrollView>
               )}
@@ -591,7 +597,7 @@ export function ChatInput({
                 {filteredEmojis.map((item, i) => {
                   const isFav = favEmojis.includes(item.emoji);
                   return (
-                    <TouchableOpacity
+                    <Ripple
                       key={i}
                       style={[s.emojiCell, isFav && { backgroundColor: 'rgba(254,243,199,0.6)' }]}
                       onPress={() => setText((prev) => prev + item.emoji)}
@@ -602,7 +608,7 @@ export function ChatInput({
                       {isFav && (
                         <Text style={s.favStar}>⭐</Text>
                       )}
-                    </TouchableOpacity>
+                    </Ripple>
                   );
                 })}
               </ScrollView>
@@ -619,9 +625,9 @@ export function ChatInput({
                   style={[s.pickerSearch, { color: p.text }]}
                 />
                 {!!stickerQuery && (
-                  <TouchableOpacity onPress={() => setStickerQuery('')}>
+                  <Ripple onPress={() => setStickerQuery('')}>
                     <Text style={{ color: p.textMuted, fontSize: 12 }}>✕</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 )}
               </View>
 
@@ -632,15 +638,15 @@ export function ChatInput({
                     <View style={s.stickerGrid}>
                       {savedStickers.map((st, i) => (
                         <View key={i} style={s.stickerCellWrap}>
-                          <TouchableOpacity onPress={() => selectSticker(st)} activeOpacity={0.85}>
+                          <Ripple onPress={() => selectSticker(st)} activeOpacity={0.85}>
                             <Image source={{ uri: st.url }} style={s.stickerCell} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
+                          </Ripple>
+                          <Ripple
                             style={s.stickerRemove}
                             onPress={() => removeSavedSticker(st.id)}
                           >
                             <Text style={{ color: '#fff', fontSize: 9 }}>✕</Text>
-                          </TouchableOpacity>
+                          </Ripple>
                         </View>
                       ))}
                     </View>
@@ -677,7 +683,7 @@ export function ChatInput({
                         const saved = savedStickers.find((sv) => sv.id === st.id);
                         return (
                           <View key={i} style={s.stickerCellWrap}>
-                            <TouchableOpacity
+                            <Ripple
                               onPress={() => selectSticker(st)}
                               activeOpacity={0.85}
                             >
@@ -691,13 +697,13 @@ export function ChatInput({
                                   setImagesLoadedCount((prev) => prev + 1)
                                 }
                               />
-                            </TouchableOpacity>
-                            <TouchableOpacity
+                            </Ripple>
+                            <Ripple
                               style={[s.stickerSave, saved && { backgroundColor: '#ef4444' }]}
                               onPress={() => saveSticker(st)}
                             >
                               <Text style={{ fontSize: 10 }}>{saved ? '❤️' : '🤍'}</Text>
-                            </TouchableOpacity>
+                            </Ripple>
                           </View>
                         );
                       })}
@@ -736,14 +742,8 @@ export function ChatInput({
               bg: '#ffedd5',
               onClick: () => pickFiles(true),
             },
-            {
-              icon: <Icons.user size={24} color="#2563eb" />,
-              label: 'Contact',
-              bg: '#dbeafe',
-              onClick: () => loudaAlert({ title: 'Contact', message: 'Coming soon!' }),
-            },
           ].map((item) => (
-            <TouchableOpacity
+            <Ripple
               key={item.label}
               activeOpacity={0.8}
               onPress={() => {
@@ -754,15 +754,38 @@ export function ChatInput({
             >
               <View style={[s.attachIcon, { backgroundColor: item.bg }]}>{item.icon}</View>
               <Text style={[s.attachLabel, { color: p.textSecondary }]}>{item.label}</Text>
-            </TouchableOpacity>
+            </Ripple>
           ))}
         </View>
       )}
 
       {/* ─── Main input bar ─── */}
       <View style={s.bar}>
+        {isRecording ? (
+          /* Recording UI inline (was an absolute overlay that fell out of
+             bounds under the home-indicator inset). flex:1 pill in place of
+             the input shell; send button stops the recording. */
+          <View
+            style={[
+              s.inputShell,
+              s.recShell,
+              { backgroundColor: p.card, borderColor: '#fecaca' },
+            ]}
+          >
+            <View style={[s.recDot, { backgroundColor: '#ef4444' }]} />
+            <Text style={[s.recTime, { color: p.text }]}>
+              {Math.floor(recordingTime / 60)}:
+              {String(recordingTime % 60).padStart(2, '0')}
+            </Text>
+            <Ripple onPress={() => finishRecording(true)} style={s.recCancel}>
+              <Text style={{ color: '#ef4444', fontWeight: '800', fontSize: 14 }}>
+                Cancel
+              </Text>
+            </Ripple>
+          </View>
+        ) : (
         <View style={[s.inputShell, { backgroundColor: p.card, borderColor: p.border }]}>
-          <TouchableOpacity
+          <Ripple
             onPress={() => {
               setShowEmojiPicker(false);
               setShowAttachMenu((v) => !v);
@@ -771,10 +794,10 @@ export function ChatInput({
           >
             <Icons.plus
               size={22}
-              color={showAttachMenu ? '#111827' : '#6b7280'}
+              color={showAttachMenu ? p.text : '#6b7280'}
               style={showAttachMenu ? { transform: [{ rotate: '45deg' }] } : undefined}
             />
-          </TouchableOpacity>
+          </Ripple>
 
           <View style={{ flex: 1, minWidth: 0 }}>
             {!!replyTo && (
@@ -782,9 +805,9 @@ export function ChatInput({
                 <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: p.textSecondary }}>
                   Replying to {replyTo.fromName}
                 </Text>
-                <TouchableOpacity onPress={onCancelReply} hitSlop={6}>
+                <Ripple onPress={onCancelReply} hitSlop={6}>
                   <Text style={{ color: '#6b7280', fontSize: 12 }}>✕</Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             )}
 
@@ -803,21 +826,21 @@ export function ChatInput({
                         )}
                       </View>
                     )}
-                    <TouchableOpacity style={s.previewRemove} onPress={() => removePreview(i)}>
+                    <Ripple style={s.previewRemove} onPress={() => removePreview(i)}>
                       <Text style={{ color: '#fff', fontSize: 10 }}>✕</Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 ))}
               </ScrollView>
             )}
 
             <View style={s.inputRow}>
-              <TouchableOpacity onPress={openPicker} style={s.innerBtn}>
+              <Ripple onPress={openPicker} style={s.innerBtn}>
                 <Icons.smile
                   size={22}
                   color={showEmojiPicker ? '#10b981' : '#9ca3af'}
                 />
-              </TouchableOpacity>
+              </Ripple>
               <TextInput
                 value={text}
                 onChangeText={(next) => {
@@ -861,23 +884,23 @@ export function ChatInput({
                 }
               />
               {!isTyping && !editingMessage && (
-                <TouchableOpacity onPress={takePhoto} style={s.innerBtn}>
+                <Ripple onPress={takePhoto} style={s.innerBtn}>
                   <Icons.camera size={20} color="#9ca3af" />
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
+            </View>
           </View>
-        </View>
-
-        <TouchableOpacity
+        )}
+        <Ripple
           activeOpacity={0.85}
           disabled={uploading}
-          onPress={() =>
-            showSend
-              ? send()
-              : isRecording
-                ? finishRecording(false)
-                : startRecording()
+          onPress={
+            isRecording
+              ? () => finishRecording(false)
+              : showSend
+                ? send
+                : startRecording
           }
           style={[
             s.sendBtn,
@@ -902,25 +925,8 @@ export function ChatInput({
           ) : (
             <Icons.mic size={20} color="#fff" />
           )}
-        </TouchableOpacity>
+        </Ripple>
       </View>
-
-      {/* ─── Recording overlay ─── */}
-      {isRecording && (
-        <View style={[s.recordingBar, { backgroundColor: p.card, borderColor: p.borderLight }]}>
-          <View style={[s.recDot, { backgroundColor: '#ef4444' }]} />
-          <Text style={[s.recTime, { color: p.text }]}>
-            {Math.floor(recordingTime / 60)}:
-            {String(recordingTime % 60).padStart(2, '0')}
-          </Text>
-          <TouchableOpacity
-            onPress={() => finishRecording(true)}
-            style={s.recCancel}
-          >
-            <Text style={{ color: '#ef4444', fontWeight: '800', fontSize: 14 }}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 }
@@ -1137,24 +1143,14 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   attachLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
-  recordingBar: {
-    position: 'absolute',
-    left: 8,
-    right: 76,
-    bottom: 8,
-    height: 56,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
+  // Inline recording pill (replaces the old absolute recordingBar that
+  // overflowed past the home-indicator inset).
+  recShell: {
+    flex: 1,
+    minHeight: 44,
     alignItems: 'center',
     paddingHorizontal: 16,
     gap: 12,
-    zIndex: 30,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
   },
   recDot: { width: 12, height: 12, borderRadius: 6 },
   recTime: { flex: 1, fontSize: 15, fontFamily: 'monospace', fontWeight: '600' },

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, RefreshControl, Image, Alert,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -128,7 +129,7 @@ export default function ActivityScreen() {
       !item.link.startsWith('/wallet');
 
     return (
-      <TouchableOpacity
+      <Ripple
         style={[s.notifRow, isUnread && s.notifUnread, { borderBottomColor: colors.border }]}
         onPress={() => handleNavigate(item)}
         onLongPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
@@ -143,32 +144,32 @@ export default function ActivityScreen() {
           <SafeHTML text={item.message} style={{ fontSize: 13, lineHeight: 18, color: colors.textPrimary }} />
           <Text style={[s.notifTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>
           {showChip && (
-            <TouchableOpacity onPress={() => handleNavigate(item)} style={[s.viewPostChip, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
+            <Ripple onPress={() => handleNavigate(item)} style={[s.viewPostChip, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
               <Text style={{ fontSize: 10, fontWeight: '700', color: '#2563eb' }}>View post →</Text>
-            </TouchableOpacity>
+            </Ripple>
           )}
         </View>
-        <TouchableOpacity style={s.menuBtn} onPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}>
+        <Ripple style={s.menuBtn} onPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}>
           <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
+        </Ripple>
 
         {/* Dropdown menu */}
         {openMenuId === item.id && (
           <>
-            <TouchableOpacity style={s.menuBg} onPress={() => setOpenMenuId(null)} />
+            <Ripple style={s.menuBg} onPress={() => setOpenMenuId(null)} />
             <View style={[s.dropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <TouchableOpacity style={s.dropdownItem} onPress={() => { setOpenMenuId(null); handleNavigate(item); }}>
+              <Ripple style={s.dropdownItem} onPress={() => { setOpenMenuId(null); handleNavigate(item); }}>
                 <Ionicons name="open-outline" size={14} color={colors.textSecondary} />
                 <Text style={[s.dropdownText, { color: colors.textPrimary }]}>Open</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.dropdownItem} onPress={() => handleDelete(item.id)}>
+              </Ripple>
+              <Ripple style={s.dropdownItem} onPress={() => handleDelete(item.id)}>
                 <Ionicons name="trash-outline" size={14} color="#ef4444" />
                 <Text style={{ fontSize: 13, color: '#ef4444', fontWeight: '600' }}>Delete</Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </>
         )}
-      </TouchableOpacity>
+      </Ripple>
     );
   };
 
@@ -177,17 +178,17 @@ export default function ActivityScreen() {
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <View style={{ flex: 1 }}>
           <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Activity</Text>
           <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>Who noticed you today</Text>
         </View>
         {notifications.length > 0 && (
-          <TouchableOpacity onPress={() => setShowConfirm(true)} style={s.clearBtn}>
+          <Ripple onPress={() => setShowConfirm(true)} style={s.clearBtn}>
             <Ionicons name="trash-outline" size={18} color="#ef4444" />
-          </TouchableOpacity>
+          </Ripple>
         )}
       </View>
 
@@ -195,12 +196,12 @@ export default function ActivityScreen() {
         <View style={[s.confirmBanner, { backgroundColor: isDark ? '#7f1d1d' : '#fef2f2', borderColor: isDark ? '#b91c1c' : '#fee2e2' }]}>
           <Text style={{ fontSize: 12, color: isDark ? '#fecaca' : '#b91c1c', fontWeight: '600', flex: 1 }}>Clear all notifications?</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity style={s.bannerBtnSec} onPress={() => setShowConfirm(false)}>
+            <Ripple style={s.bannerBtnSec} onPress={() => setShowConfirm(false)}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.bannerBtn} onPress={handleClearAll} disabled={clearing}>
+            </Ripple>
+            <Ripple style={s.bannerBtn} onPress={handleClearAll} disabled={clearing}>
               <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>Clear</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
       )}

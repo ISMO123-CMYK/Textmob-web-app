@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+﻿import React, { useState } from 'react';
+import { View, Text, Image, TextInput, StyleSheet } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme, LoudaModal } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR } from '../constants';
@@ -52,7 +53,7 @@ export function ForwardModal({
       onClose={onClose}
       title="FORWARD TO..."
       footer={
-        <TouchableOpacity
+        <Ripple
           activeOpacity={0.85}
           disabled={selected.size === 0}
           onPress={handleConfirm}
@@ -72,7 +73,7 @@ export function ForwardModal({
           >
             FORWARD ({selected.size})
           </Text>
-        </TouchableOpacity>
+        </Ripple>
       }
     >
       <View style={s.searchWrap}>
@@ -92,7 +93,7 @@ export function ForwardModal({
         {filteredChats.map((chat) => {
           const sel = selected.has(chat.id);
           return (
-            <TouchableOpacity
+            <Ripple
               key={chat.id}
               activeOpacity={0.75}
               onPress={() => toggle(chat.id)}
@@ -127,7 +128,7 @@ export function ForwardModal({
               >
                 {sel && <Text style={s.checkMark}>✓</Text>}
               </View>
-            </TouchableOpacity>
+            </Ripple>
           );
         })}
         {filteredChats.length === 0 && (

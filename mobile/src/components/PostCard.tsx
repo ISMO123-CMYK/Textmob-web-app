@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, Image, TouchableOpacity, StyleSheet, TextInput, Modal,
+  View, Text, Image, StyleSheet, TextInput, Modal,
   FlatList, ActivityIndicator, Alert, Pressable, ScrollView, Dimensions, Share, Animated, useWindowDimensions, PanResponder,
 } from 'react-native';
+import { Ripple } from './Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -101,7 +102,7 @@ function PostMenu({ visible, onClose, post, onNegativeSignal, onBlocked }: { vis
   ];
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={pmStyles.overlay} activeOpacity={1} onPress={onClose}>
+      <Ripple style={pmStyles.overlay} activeOpacity={1} onPress={onClose}>
         <View style={[pmStyles.sheet, { backgroundColor: colors.card }]}>
           <View style={[pmStyles.handle, { backgroundColor: isDark ? '#475569' : '#cbd5e1' }]} />
           {items.map((item: any) => {
@@ -109,7 +110,7 @@ function PostMenu({ visible, onClose, post, onNegativeSignal, onBlocked }: { vis
               return <View key={Math.random()} style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />;
             }
             return (
-              <TouchableOpacity
+              <Ripple
                 key={item.label}
                 style={pmStyles.row}
                   onPress={() => {
@@ -148,14 +149,14 @@ function PostMenu({ visible, onClose, post, onNegativeSignal, onBlocked }: { vis
               >
                 <Ionicons name={item.icon} size={20} color={item.danger ? '#ef4444' : colors.textSecondary} />
                 <Text style={[pmStyles.label, { color: item.danger ? '#ef4444' : colors.textPrimary }]}>{item.label}</Text>
-              </TouchableOpacity>
+              </Ripple>
             );
           })}
-          <TouchableOpacity style={[pmStyles.cancelBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]} onPress={onClose}>
+          <Ripple style={[pmStyles.cancelBtn, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]} onPress={onClose}>
             <Text style={[pmStyles.cancelText, { color: colors.textPrimary }]}>Cancel</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
-      </TouchableOpacity>
+      </Ripple>
     </Modal>
   );
 }
@@ -215,11 +216,11 @@ function FollowButton({ targetUsername, onUpdate }: { targetUsername: string; on
   }
 
   return (
-    <TouchableOpacity onPress={toggle} disabled={submitting || status === 'loading'} style={{ marginRight: 4 }}>
+    <Ripple onPress={toggle} disabled={submitting || status === 'loading'} style={{ marginRight: 4 }}>
       <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary }}>
         {status === 'loading' ? '...' : status === 'not_following' ? 'Follow' : 'Add Friend'}
       </Text>
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -235,7 +236,7 @@ function QuotedPostView({ quotedPostId, onNavigate }: { quotedPostId: string; on
   }, [quotedPostId]);
   if (!post) return null;
   return (
-    <TouchableOpacity
+    <Ripple
       style={[qStyles.card, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }]}
       onPress={() => { if (!username) { Alert.alert('Sign in', 'Create an account to view posts'); return; } onNavigate?.(`/post/${post.id}`); }}
     >
@@ -249,7 +250,7 @@ function QuotedPostView({ quotedPostId, onNavigate }: { quotedPostId: string; on
       {post.media && post.media.length > 0 && (
         <Image source={{ uri: post.media[0] }} style={qStyles.thumb} resizeMode="cover" />
       )}
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 const qStyles = StyleSheet.create({
@@ -266,7 +267,7 @@ function VideoThumbnail({ uri, aspectRatio, noMargin, onPress }: { uri: string; 
   const [imgError, setImgError] = useState(false);
   const { SCREEN_HEIGHT } = getScreenDims();
   return (
-    <TouchableOpacity
+    <Ripple
       onPress={onPress}
       activeOpacity={0.9}
       style={{ width: '100%', aspectRatio, maxHeight: SCREEN_HEIGHT * 0.75, borderRadius: noMargin ? 0 : 12, overflow: 'hidden', marginBottom: noMargin ? 0 : 10 }}
@@ -283,7 +284,7 @@ function VideoThumbnail({ uri, aspectRatio, noMargin, onPress }: { uri: string; 
           <Ionicons name="play" size={28} color="#fff" style={{ marginLeft: 3 }} />
         </View>
       </View>
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -297,9 +298,9 @@ function VideoPlayerFullscreen({ uri, visible, onClose }: { uri: string; visible
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         <VideoView player={player} style={{ flex: 1 }} nativeControls contentFit="contain" />
-        <TouchableOpacity onPress={onClose} style={{ position: 'absolute', top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+        <Ripple onPress={onClose} style={{ position: 'absolute', top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name="close" size={22} color="#fff" />
-        </TouchableOpacity>
+        </Ripple>
       </View>
     </Modal>
   );
@@ -311,9 +312,9 @@ function MediaItem({ uri, isActive, onPress }: { uri: string; isActive?: boolean
     return <VideoItem uri={uri} isActive={isActive} />;
   }
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
+    <Ripple onPress={onPress} activeOpacity={0.9}>
       <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -337,9 +338,9 @@ function SingleImage({ src, onOpenLightbox }: { src: string; onOpenLightbox?: (i
   }, [src]);
 
   return (
-    <TouchableOpacity onPress={() => onOpenLightbox?.(0)} style={{ marginBottom: 10 }}>
+    <Ripple onPress={() => onOpenLightbox?.(0)} style={{ marginBottom: 10 }}>
       <Image source={{ uri: src }} style={{ width: '100%', aspectRatio, borderRadius: 12 }} resizeMode="contain" />
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -358,10 +359,10 @@ function MediaGallery({ media, isActive, onOpenLightbox }: { media: string[]; is
   const cells = media.slice(0, 6).map((src, i) => {
     const isLast = i === 5 && count > 6;
     return (
-      <TouchableOpacity key={i} onPress={() => onOpenLightbox?.(i)} style={{ flex: 1, aspectRatio: 1, overflow: 'hidden' }}>
+      <Ripple key={i} onPress={() => onOpenLightbox?.(i)} style={{ flex: 1, aspectRatio: 1, overflow: 'hidden' }}>
         {isVideo(src) ? <VideoItem uri={src} /> : <Image source={{ uri: src }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />}
         {isLast && <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>+{count - 6}</Text></View>}
-      </TouchableOpacity>
+      </Ripple>
     );
   });
 
@@ -442,9 +443,9 @@ function MediaLightbox({ media, startIndex, onClose }: { media: string[]; startI
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 }}>
-          <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+          <Ripple onPress={onClose} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="close" size={20} color="#fff" />
-          </TouchableOpacity>
+          </Ripple>
           {media.length > 1 && <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600' }}>{idx + 1} / {media.length}</Text>}
           <View style={{ width: 36 }} />
         </View>
@@ -458,7 +459,7 @@ function MediaLightbox({ media, startIndex, onClose }: { media: string[]; startI
         {media.length > 1 && (
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: 16 }}>
             {media.map((_, i) => (
-              <TouchableOpacity key={i} onPress={() => setIdx(i)} style={{ width: i === idx ? 20 : 6, height: 6, borderRadius: 3, backgroundColor: i === idx ? '#fff' : 'rgba(255,255,255,0.35)' }} />
+              <Ripple key={i} onPress={() => setIdx(i)} style={{ width: i === idx ? 20 : 6, height: 6, borderRadius: 3, backgroundColor: i === idx ? '#fff' : 'rgba(255,255,255,0.35)' }} />
             ))}
           </View>
         )}
@@ -479,7 +480,7 @@ function PollContent({ post, onVote }: { post: Post; onVote: (postId: string | n
         const voted = optVotes.includes(username || '');
         const pct = totalVotes > 0 ? Math.round(optVotes.length / totalVotes * 100) : 0;
         return (
-          <TouchableOpacity
+          <Ripple
             key={opt.id}
             style={[polStyles.option, { borderColor: colors.border }]}
             onPress={() => { if (!username) { Alert.alert('Sign in', 'Log in to vote in polls'); return; } onVote(post.id, opt.id); }}
@@ -489,7 +490,7 @@ function PollContent({ post, onVote }: { post: Post; onVote: (postId: string | n
               <Text style={[polStyles.optText, voted && { color: colors.primary }]}>{opt.text}</Text>
               <Text style={[polStyles.optPct, { color: colors.textSecondary }]}>{pct}%</Text>
             </View>
-          </TouchableOpacity>
+          </Ripple>
         );
       })}
       <Text style={[polStyles.voteInfo, { color: colors.textSecondary }]}>{totalVotes} vote{totalVotes === 1 ? '' : 's'}</Text>
@@ -529,7 +530,7 @@ function EventCard({ post, onLike }: { post: Post; onLike: (id: string | number)
               <Text style={[eStyles.locationText, { color: colors.textSecondary }]}>{post.location}</Text>
             </View>
           )}
-          <TouchableOpacity
+          <Ripple
             style={[eStyles.interestBtn, liked ? { backgroundColor: colors.primary } : ended ? { backgroundColor: colors.border } : { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
             onPress={() => !ended && onLike(post.id)}
             disabled={ended}
@@ -538,7 +539,7 @@ function EventCard({ post, onLike }: { post: Post; onLike: (id: string | number)
             <Text style={[eStyles.interestText, { color: liked ? '#fff' : ended ? colors.textSecondary : colors.primary }]}>
               {ended ? `${post.likes?.length || 0} attended` : liked ? `${post.likes?.length || 0} interested · tap to remove` : `${post.likes?.length || 0} interested`}
             </Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </View>
     </View>
@@ -608,9 +609,9 @@ function LiveCard({ post, viewerCount, onLike, onWatch }: { post: Post; viewerCo
             <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>{post.text || 'Live now'}</Text>
             <Text style={{ color: '#d1d5db', fontSize: 11 }}>{timeAgo(post.created_at)}</Text>
           </View>
-          <TouchableOpacity onPress={onWatch} style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16 }}>
+          <Ripple onPress={onWatch} style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16 }}>
             <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>Watch →</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
@@ -625,14 +626,14 @@ function LiveCard({ post, viewerCount, onLike, onWatch }: { post: Post; viewerCo
           </View>
         </View>
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <TouchableOpacity onPress={() => onLike(post.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Ripple onPress={() => onLike(post.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={16} color={liked ? '#ef4444' : colors.textSecondary} />
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{post.likes?.length || 0}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          </Ripple>
+          <Ripple style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{post.comments?.length || 0}</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </View>
     </View>
@@ -712,7 +713,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
 
       {/* Top Overlay Header */}
       <View style={{ position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }} onPress={() => navigate(`/@${post.username}`)}>
+        <Ripple style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }} onPress={() => navigate(`/@${post.username}`)}>
           <Image source={{ uri: authorProfile.profile_pic }} style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: '#fff' }} />
           <View>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
@@ -722,41 +723,41 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
               {timeAgo(post.created_at)}
             </Text>
           </View>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Snaps')} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: '#2563eb' }}>
+        </Ripple>
+        <Ripple onPress={() => navigation.navigate('Snaps')} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: '#2563eb' }}>
           <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>Watch Snaps</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {/* Floating Side Actions */}
       <View style={{ position: 'absolute', right: 12, bottom: 80, alignItems: 'center', gap: 14, zIndex: 10 }}>
-        <TouchableOpacity style={{ alignItems: 'center' }} onPress={handleLike}>
+        <Ripple style={{ alignItems: 'center' }} onPress={handleLike}>
           <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? '#ef4444' : '#fff'} />
           </View>
           <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600', marginTop: 2 }}>{post.likes?.length || 0}</Text>
-        </TouchableOpacity>
+        </Ripple>
 
-        <TouchableOpacity style={{ alignItems: 'center' }} onPress={() => navigation.navigate('Snaps')}>
+        <Ripple style={{ alignItems: 'center' }} onPress={() => navigation.navigate('Snaps')}>
           <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chatbubble-outline" size={18} color="#fff" />
           </View>
           <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600', marginTop: 2 }}>{post.comments?.length || 0}</Text>
-        </TouchableOpacity>
+        </Ripple>
 
         {isVid && (
-          <TouchableOpacity onPress={() => setMuted(!muted)}>
+          <Ripple onPress={() => setMuted(!muted)}>
             <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#fff" />
             </View>
-          </TouchableOpacity>
+          </Ripple>
         )}
 
-        <TouchableOpacity onPress={doShare}>
+        <Ripple onPress={doShare}>
           <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="share-social-outline" size={18} color="#fff" />
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {/* Bottom Caption */}
@@ -900,7 +901,7 @@ const PostCard = React.memo(function PostCard({
     <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity style={s.authorRow} onPress={() => navigate(`/@${post.username}`)}>
+        <Ripple style={s.authorRow} onPress={() => navigate(`/@${post.username}`)}>
           <Image source={{ uri: authorProfile.profile_pic }} style={s.avatar} />
           <View style={{ flex: 1 }}>
             <View style={s.nameRow}>
@@ -916,12 +917,12 @@ const PostCard = React.memo(function PostCard({
             </View>
             <Text style={[s.time, { color: colors.textSecondary }]}>{timeAgo(post.created_at)}</Text>
           </View>
-        </TouchableOpacity>
+        </Ripple>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <FollowButton targetUsername={post.username} />
-          <TouchableOpacity onPress={() => setMenuOpen(!menuOpen)} style={s.menuBtn}>
+          <Ripple onPress={() => setMenuOpen(!menuOpen)} style={s.menuBtn}>
             <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Ripple>
         </View>
         <PostMenu visible={menuOpen} onClose={() => setMenuOpen(false)} post={post} onNegativeSignal={onNegativeSignal} onBlocked={onBlocked} />
       </View>
@@ -931,9 +932,9 @@ const PostCard = React.memo(function PostCard({
         <View style={{ marginBottom: 10 }}>
           <RichText text={displayText || ''} style={[s.postText, { color: colors.textPrimary }]} />
           {isLongText && (
-            <TouchableOpacity onPress={() => setTextExpanded(!textExpanded)} style={{ marginTop: 2 }}>
+            <Ripple onPress={() => setTextExpanded(!textExpanded)} style={{ marginTop: 2 }}>
               <Text style={s.seeMore}>{textExpanded ? 'Show less' : 'See more'}</Text>
-            </TouchableOpacity>
+            </Ripple>
           )}
         </View>
       ) : null}
@@ -972,27 +973,27 @@ const PostCard = React.memo(function PostCard({
 
       {/* Action buttons */}
       <View style={s.actionRow}>
-        <TouchableOpacity style={[s.actionBtn, liked && s.actionBtnLiked]} onPress={handleLike}>
+        <Ripple style={[s.actionBtn, liked && s.actionBtnLiked]} onPress={handleLike}>
           <Ionicons name={liked ? 'heart' : 'heart-outline'} size={18} color={liked ? '#ef4444' : colors.textSecondary} />
           <Text style={[s.actionCount, liked && { color: '#ef4444' }]}>{localLikes.length}</Text>
-        </TouchableOpacity>
+        </Ripple>
 
-        <TouchableOpacity style={s.actionBtn} onPress={() => { if (authGuard('Log in to comment')) return; showCommentInput ? setShowCommentField(!showCommentField) : navigate(`/post/${post.id}`); }}>
+        <Ripple style={s.actionBtn} onPress={() => { if (authGuard('Log in to comment')) return; showCommentInput ? setShowCommentField(!showCommentField) : navigate(`/post/${post.id}`); }}>
           <Ionicons name="chatbubble-outline" size={18} color={colors.textSecondary} />
           <Text style={s.actionCount}>{localComments.length}</Text>
-        </TouchableOpacity>
+        </Ripple>
 
-        <TouchableOpacity style={s.actionBtn} onPress={() => { if (authGuard('Log in to quote posts')) return; navigate(`/make-post/${post.id}`); }}>
+        <Ripple style={s.actionBtn} onPress={() => { if (authGuard('Log in to quote posts')) return; navigate(`/make-post/${post.id}`); }}>
           <Ionicons name="repeat-outline" size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
+        </Ripple>
 
-        <TouchableOpacity style={s.actionBtn} onPress={() => { if (authGuard('Log in to send gifts')) return; setShowGift(true); }}>
+        <Ripple style={s.actionBtn} onPress={() => { if (authGuard('Log in to send gifts')) return; setShowGift(true); }}>
           <Ionicons name="gift-outline" size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
+        </Ripple>
 
-        <TouchableOpacity style={s.actionBtn} onPress={() => { if (authGuard('Log in to react')) return; onReactionToggle?.(post.id); }}>
+        <Ripple style={s.actionBtn} onPress={() => { if (authGuard('Log in to react')) return; onReactionToggle?.(post.id); }}>
           <Ionicons name="happy-outline" size={18} color={colors.textSecondary} />
-        </TouchableOpacity>
+        </Ripple>
 
         <View style={[s.actionBtn, { marginLeft: 'auto' }]}>
           <Ionicons name="eye-outline" size={18} color={colors.textSecondary} />
@@ -1002,13 +1003,13 @@ const PostCard = React.memo(function PostCard({
 
       {/* Comment modal */}
       <Modal visible={showCommentField && !!username} transparent animationType="fade" onRequestClose={() => setShowCommentField(false)}>
-        <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowCommentField(false)}>
-          <TouchableOpacity activeOpacity={1} onPress={() => { }} style={{ width: '90%', maxHeight: '80%', backgroundColor: isDark ? '#1e293b' : '#fff', borderRadius: 16, padding: 20 }}>
+        <Ripple style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowCommentField(false)}>
+          <Ripple activeOpacity={1} onPress={() => { }} style={{ width: '90%', maxHeight: '80%', backgroundColor: isDark ? '#1e293b' : '#fff', borderRadius: 16, padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <Text style={{ fontWeight: '700', fontSize: 16, color: colors.textPrimary }}>Add comment</Text>
-              <TouchableOpacity onPress={() => setShowCommentField(false)}>
+              <Ripple onPress={() => setShowCommentField(false)}>
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
             </View>
             <TextInput
               style={{ minHeight: 100, maxHeight: 200, fontSize: 15, color: colors.textPrimary, textAlignVertical: 'top', backgroundColor: isDark ? '#0f172a' : '#f3f4f6', borderRadius: 12, padding: 14 }}
@@ -1019,16 +1020,16 @@ const PostCard = React.memo(function PostCard({
               multiline
             />
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
-              <TouchableOpacity onPress={() => setShowStickerPicker(true)} style={{ padding: 4 }}>
+              <Ripple onPress={() => setShowStickerPicker(true)} style={{ padding: 4 }}>
                 <Ionicons name="image-outline" size={22} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
               <View style={{ flex: 1 }} />
-              <TouchableOpacity onPress={handleComment} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24, opacity: commentText.trim() ? 1 : 0.4 }} disabled={!commentText.trim()}>
+              <Ripple onPress={handleComment} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24, opacity: commentText.trim() ? 1 : 0.4 }} disabled={!commentText.trim()}>
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Post</Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </Ripple>
+        </Ripple>
       </Modal>
       <StickerPicker
         visible={showStickerPicker}
@@ -1036,11 +1037,11 @@ const PostCard = React.memo(function PostCard({
         onClose={() => setShowStickerPicker(false)}
       />
       {showCommentField && !username && (
-        <TouchableOpacity style={[s.guestComment, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]} onPress={() => { setShowCommentField(false); Alert.alert('Sign in', 'Log in to leave a comment'); }}>
+        <Ripple style={[s.guestComment, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]} onPress={() => { setShowCommentField(false); Alert.alert('Sign in', 'Log in to leave a comment'); }}>
           <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
             <Text style={{ fontWeight: '700', color: colors.primary }}>Log in</Text> to leave a comment
           </Text>
-        </TouchableOpacity>
+        </Ripple>
       )}
 
       {/* Gift Modal */}

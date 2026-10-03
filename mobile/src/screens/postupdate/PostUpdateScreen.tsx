@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
+  View, Text, TextInput, StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -60,17 +61,17 @@ export default function PostUpdateScreen({ route, navigation }: any) {
     <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="close" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Edit Post</Text>
-        <TouchableOpacity
+        <Ripple
           onPress={handleSave}
           disabled={saving}
           style={[s.saveBtn, { backgroundColor: '#2563eb', opacity: saving ? 0.5 : 1 }]}
         >
           <Text style={s.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {/* Form */}

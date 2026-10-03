@@ -20,7 +20,8 @@
       },
       "package": "com.bossprogrammer20.mobile",
       "versionCode": 4,
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json"
     },
     "extra": {
       "eas": {
@@ -45,6 +46,7 @@
         }
       ],
       "expo-audio",
+      "expo-camera",
       "expo-asset",
       "expo-notifications",
       "expo-font",

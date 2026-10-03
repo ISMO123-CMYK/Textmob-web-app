@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+﻿import React from 'react';
+import { View, Text, ScrollView } from 'react-native';
+import { Ripple } from './Ripple';
 
 type Props = { children: React.ReactNode; onClose?: () => void };
 type State = { hasError: boolean; error?: Error; componentStack?: string; showDetails: boolean };
@@ -19,25 +20,25 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <View style={{ flex: 1, backgroundColor: '#09090b' }}>
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 48, paddingHorizontal: 16 }}>
-            <TouchableOpacity onPress={this.props.onClose || this.reset} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ripple onPress={this.props.onClose || this.reset} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>×</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, marginTop: -48 }}>
             <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16, marginBottom: 8 }}>Something went wrong</Text>
             <Text style={{ color: '#9ca3af', fontSize: 12, textAlign: 'center', marginBottom: 16 }}>{this.state.error?.message || 'Unexpected error'}</Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity onPress={this.reset} style={{ backgroundColor: '#2563eb', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 }}>
+              <Ripple onPress={this.reset} style={{ backgroundColor: '#2563eb', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 }}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={this.props.onClose || this.reset} style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
+              </Ripple>
+              <Ripple onPress={this.props.onClose || this.reset} style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>Close</Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
             <Text style={{ color: '#6b7280', fontSize: 10, marginTop: 12, textAlign: 'center' }}>Dismiss to continue to app</Text>
-            <TouchableOpacity onPress={() => this.setState(s => ({ showDetails: !s.showDetails }))} style={{ marginTop: 10, padding: 8 }}>
+            <Ripple onPress={() => this.setState(s => ({ showDetails: !s.showDetails }))} style={{ marginTop: 10, padding: 8 }}>
               <Text style={{ color: '#60a5fa', fontSize: 11, fontWeight: '700' }}>{this.state.showDetails ? 'Hide details' : 'Show details'}</Text>
-            </TouchableOpacity>
+            </Ripple>
             {this.state.showDetails && (
               <ScrollView style={{ maxHeight: 220, marginTop: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 10, width: '100%' }}>
                 <Text selectable style={{ color: '#d1d5db', fontSize: 10, fontFamily: 'monospace' }}>

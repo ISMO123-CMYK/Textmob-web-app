@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+﻿import React, { useState } from 'react';
+import { View, Text, Image, StyleSheet, TextInput } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme, LoudaModal, Button } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR } from '../constants';
@@ -84,7 +85,7 @@ export function AddMembersModal({
             filteredContacts.map((c) => {
               const checked = selectedMembers.includes(c.id);
               return (
-                <TouchableOpacity
+                <Ripple
                   key={c.id}
                   activeOpacity={0.8}
                   style={[
@@ -108,7 +109,7 @@ export function AddMembersModal({
                   <Text style={[s.rowName, { color: p.text }]} numberOfLines={1}>
                     {c.name}
                   </Text>
-                </TouchableOpacity>
+                </Ripple>
               );
             })
           )}

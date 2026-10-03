@@ -464,7 +464,7 @@ export default function InstallPage() {
         </section>
 
         <footer className="tm-footer">
-          Textmob · Africa's microblogging social network · <a href="/">Back to web app</a>
+          Textmob · Where Africa comes to talk · <a href="/">Back to web app</a>
         </footer>
       </main>
 

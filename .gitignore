@@ -1,4 +1,6 @@
 .env
+.env.*
+*.env
 node_modules/
 .gemini/
 thetextmobapp.apk
@@ -7,3 +9,5 @@ outgoing.mp3
 tmp-live/
 pnpm-lock.yaml
 package-lock.json
+service-account*.json
+firebase-service-account*.json

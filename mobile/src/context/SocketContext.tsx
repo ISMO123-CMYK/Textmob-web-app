@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { API_BASE_URL } from '../api/client';
 import io from 'socket.io-client';
 
@@ -111,8 +111,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Memoized so socket reconnects don't re-render every useSocket consumer
+  // unless (isConnected | handlers) actually changed.
+  const value = useMemo(
+    () => ({ socket: socketRef.current, isConnected, emit, on, off }),
+    [isConnected, emit, on, off],
+  );
+
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, isConnected, emit, on, off }}>
+    <SocketContext.Provider value={value}>
       {children}
     </SocketContext.Provider>
   );

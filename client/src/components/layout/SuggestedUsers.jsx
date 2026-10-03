@@ -12,7 +12,7 @@ function SuggestedUserItem({ username, fullname, profile_pic, mutuals }) {
       onClick={() => window.Lexum?.navigate(`/@${username}`)}
     >
       <img
-        src={profile.profile_pic || profile_pic || 'https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png'}
+        src={profile.profile_pic || profile_pic || 'https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png'}
         alt={username}
         className="w-10 h-10 rounded-full object-cover flex-shrink-0"
         loading="lazy"

@@ -1,7 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { createVideoPlayer } from 'expo-video';
 import { LOUDA_API_URL } from './constants';
-import { pushSoundEnabled } from './push';
 
 export type LoudaConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -161,12 +160,11 @@ function registerCoreHandlers(s: Socket) {
   });
 
   s.on('new-message', (payload: any) => {
-    // push banner (with its own sound) replaces the in-chat beep once granted
-    if (payload?.message?.from !== currentUserId && !pushSoundEnabled()) playNotificationSound();
+    if (payload?.message?.from !== currentUserId) playNotificationSound();
     emitLocal('new-message', payload);
   });
   s.on('new-group-message', (payload: any) => {
-    if (payload?.message?.from !== currentUserId && !pushSoundEnabled()) playNotificationSound();
+    if (payload?.message?.from !== currentUserId) playNotificationSound();
     emitLocal('new-group-message', payload);
   });
 

@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator, Modal, Pressable, StyleSheet } from 'react-native';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { View, Text, TextInput, FlatList, Image, ActivityIndicator, Modal, Pressable, StyleSheet } from 'react-native';
+import { Ripple } from './Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { searchGiphStickers, StickerResult } from '../utils/stickerUtils';
 
@@ -58,9 +59,9 @@ export default function StickerPicker({ visible, onSelect, onClose }: StickerPic
   };
 
   const renderItem = ({ item }: { item: StickerResult }) => (
-    <TouchableOpacity style={styles.gridItem} onPress={() => handleSelect(item.url)} activeOpacity={0.7}>
+    <Ripple style={styles.gridItem} onPress={() => handleSelect(item.url)} activeOpacity={0.7}>
       <Image source={{ uri: item.url }} style={styles.stickerImage} resizeMode="cover" />
-    </TouchableOpacity>
+    </Ripple>
   );
 
   return (
@@ -80,14 +81,14 @@ export default function StickerPicker({ visible, onSelect, onClose }: StickerPic
                 autoFocus
               />
               {query.length > 0 && (
-                <TouchableOpacity onPress={() => setQuery('')}>
+                <Ripple onPress={() => setQuery('')}>
                   <Ionicons name="close-circle" size={16} color="#9ca3af" />
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
-            <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
+            <Ripple onPress={handleClose} style={styles.closeBtn}>
               <Ionicons name="close" size={20} color="#6b7280" />
-            </TouchableOpacity>
+            </Ripple>
           </View>
           <FlatList
             data={results}

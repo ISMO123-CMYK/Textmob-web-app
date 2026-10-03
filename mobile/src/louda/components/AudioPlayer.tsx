@@ -1,12 +1,12 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Pressable,
   StyleSheet,
   LayoutChangeEvent,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { createAudioPlayer, type AudioPlayer as AudioPlayerInstance } from 'expo-audio';
 import { useLoudaTheme } from './primitives';
 import { Icons } from '../icons';
@@ -116,12 +116,12 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
   const activeColor = p.accent;
 
   return (
-    <TouchableOpacity
+    <Ripple
       activeOpacity={1}
       onPress={() => {}}
       style={[s.wrap, { backgroundColor: 'rgba(255,255,255,0.4)' }]}
     >
-      <TouchableOpacity
+      <Ripple
         activeOpacity={0.85}
         onPress={toggle}
         style={[s.playBtn, { backgroundColor: p.accent }]}
@@ -131,7 +131,7 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
         ) : (
           <Icons.play size={16} color="#fff" />
         )}
-      </TouchableOpacity>
+      </Ripple>
 
       <View style={{ flex: 1, minWidth: 0 }}>
         <Pressable onPress={seek} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
@@ -164,7 +164,7 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Ripple>
   );
 });
 

@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, Image, Linking, Alert,
   RefreshControl,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -197,9 +198,9 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
           <Text style={{ color: '#ef4444', fontSize: 15, marginTop: 8, marginBottom: 16 }}>{error}</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.primary }}>
+          <Ripple onPress={() => navigation.goBack()} style={{ paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.primary }}>
             <Text style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>Go back</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </SafeAreaView>
     );
@@ -211,7 +212,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
     const mediaUrl = Array.isArray(item.media) && item.media.length ? item.media[0] : null;
     const isVideo = mediaUrl && /\.(mp4|webm|ogg)$/i.test(mediaUrl);
     return (
-      <TouchableOpacity style={s.gridItem} onPress={() => navigation.navigate('PostDetail', { postId: item.id })} activeOpacity={0.8}>
+      <Ripple style={s.gridItem} onPress={() => navigation.navigate('PostDetail', { postId: item.id })} activeOpacity={0.8}>
         {mediaUrl ? (
           <Image source={{ uri: mediaUrl }} style={s.gridImage} />
         ) : (
@@ -232,7 +233,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
           </View>
         </View>
         {isVideo && <Ionicons name="play" size={16} color="#fff" style={s.gridPlayIcon} />}
-      </TouchableOpacity>
+      </Ripple>
     );
   };
 
@@ -240,7 +241,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
     const mediaUrl = Array.isArray(item.media) && item.media.length ? item.media[0] : null;
     const isVideo = mediaUrl && /\.(mp4|webm|ogg)$/i.test(mediaUrl);
     return (
-      <TouchableOpacity
+      <Ripple
         style={[s.feedItem, { borderBottomColor: colors.border }]}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
         activeOpacity={0.7}
@@ -271,7 +272,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
             </View>
           </View>
         </View>
-      </TouchableOpacity>
+      </Ripple>
     );
   };
 
@@ -283,9 +284,9 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         ) : (
           <Image source={{ uri: DEFAULT_PIC }} style={s.coverFallback} />
         )}
-        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
+        <Ripple style={s.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={18} color="#fff" />
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       <View style={s.profileSection}>
@@ -293,12 +294,12 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
           <Image source={{ uri: profile?.profile_pic || DEFAULT_PIC }} style={s.avatar} />
           <View style={s.actionBtns}>
             {isOwn ? (
-              <TouchableOpacity style={s.editBtn} onPress={() => navigation.navigate('AccountsCenter')}>
+              <Ripple style={s.editBtn} onPress={() => navigation.navigate('AccountsCenter')}>
                 <Text style={[s.editBtnText, { color: colors.textPrimary }]}>Edit profile</Text>
-              </TouchableOpacity>
+              </Ripple>
             ) : currentUser ? (
               <>
-                <TouchableOpacity
+                <Ripple
                   style={[s.followBtn, followStatus === 'following' ? s.followingBtn : null]}
                   onPress={handleFollow}
                   disabled={followLoading}
@@ -306,19 +307,19 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
                   <Text style={[s.followBtnText, followStatus === 'following' ? s.followingBtnText : null]}>
                     {followLoading ? 'Wait...' : followStatus === 'friended' ? 'Friends' : followStatus === 'following' ? 'Following' : followStatus === 'not_following' ? 'Follow' : 'Add Friend'}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.msgBtn} onPress={() => navigation.navigate('Chats', { with: targetUsername })}>
+                </Ripple>
+                <Ripple style={s.msgBtn} onPress={() => navigation.navigate('Chats', { with: targetUsername })}>
                   <Text style={s.msgBtnText}>Message</Text>
-                </TouchableOpacity>
+                </Ripple>
               </>
             ) : (
               <>
-                <TouchableOpacity style={s.followBtn} onPress={() => navigation.navigate('Login')}>
+                <Ripple style={s.followBtn} onPress={() => navigation.navigate('Login')}>
                   <Text style={s.followBtnText}>Log in</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.editBtn} onPress={() => navigation.navigate('Signup')}>
+                </Ripple>
+                <Ripple style={s.editBtn} onPress={() => navigation.navigate('Signup')}>
                   <Text style={[s.editBtnText, { color: colors.textPrimary }]}>Sign up</Text>
-                </TouchableOpacity>
+                </Ripple>
               </>
             )}
           </View>
@@ -346,9 +347,9 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
           <View style={s.bioSection}>
             <Text style={[s.bio, { color: colors.textPrimary }]}>{displayedBio}</Text>
             {bioLong && (
-              <TouchableOpacity onPress={() => setBioExpanded(!bioExpanded)}>
+              <Ripple onPress={() => setBioExpanded(!bioExpanded)}>
                 <Text style={s.bioToggle}>{bioExpanded ? 'Show less' : 'Show more'}</Text>
-              </TouchableOpacity>
+              </Ripple>
             )}
           </View>
         ) : null}
@@ -361,10 +362,10 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
             </View>
           )}
           {profile?.website && (
-            <TouchableOpacity style={s.metaItem} onPress={() => Linking.openURL(profile.website)}>
+            <Ripple style={s.metaItem} onPress={() => Linking.openURL(profile.website)}>
               <Ionicons name="link-outline" size={12} color={colors.primary} />
               <Text style={[s.metaText, { color: colors.primary }]}>{profile.website.replace(/^https?:\/\//, '')}</Text>
-            </TouchableOpacity>
+            </Ripple>
           )}
           {profile?.created_at && !isNaN(new Date(profile.created_at).getTime()) && (
             <View style={s.metaItem}>
@@ -377,14 +378,14 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         </View>
 
         <View style={[s.statsRow, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity style={s.statItem} onPress={() => setActiveTab('connections')}>
+          <Ripple style={s.statItem} onPress={() => setActiveTab('connections')}>
             <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(connections.length)}</Text>
             <Text style={[s.statLabel, { color: colors.textSecondary }]}>{isOrg ? 'Followers' : 'Friends'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.statItem} onPress={() => setActiveTab('following')}>
+          </Ripple>
+          <Ripple style={s.statItem} onPress={() => setActiveTab('following')}>
             <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(followingList.length)}</Text>
             <Text style={[s.statLabel, { color: colors.textSecondary }]}>Following</Text>
-          </TouchableOpacity>
+          </Ripple>
           <View style={s.statItem}>
             <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(profile?.post_count ?? posts.length)}</Text>
             <Text style={[s.statLabel, { color: colors.textSecondary }]}>Posts</Text>
@@ -398,7 +399,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
 
       <View style={[s.tabBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         {tabs.map(tab => (
-          <TouchableOpacity key={tab.id} style={s.tab} onPress={() => setActiveTab(tab.id)}>
+          <Ripple key={tab.id} style={s.tab} onPress={() => setActiveTab(tab.id)}>
             <Text style={[s.tabLabel, { color: activeTab === tab.id ? colors.textPrimary : colors.textSecondary }]}>
               {tab.label}
             </Text>
@@ -408,15 +409,15 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
               </Text>
             )}
             {activeTab === tab.id && <View style={[s.tabIndicator, { backgroundColor: colors.primary }]} />}
-          </TouchableOpacity>
+          </Ripple>
         ))}
         {activeTab === 'posts' && (
-          <TouchableOpacity
+          <Ripple
             style={{ paddingHorizontal: 8, justifyContent: 'center' }}
             onPress={() => setViewMode(v => v === 'grid' ? 'feed' : 'grid')}
           >
             <Ionicons name={viewMode === 'grid' ? 'list-outline' : 'grid-outline'} size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Ripple>
         )}
       </View>
     </View>
@@ -435,17 +436,17 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
               ? ({ item }) => <PostGridItem item={item} />
               : ({ item }) => <PostFeedItem item={item} />
             : ({ item: uname }) => (
-              <TouchableOpacity style={[s.userRow, { borderBottomColor: colors.border }]} onPress={() => navigation.push('Profile', { username: uname })}>
+              <Ripple style={[s.userRow, { borderBottomColor: colors.border }]} onPress={() => navigation.push('Profile', { username: uname })}>
                 <View style={s.userAvatar}>
                   <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{(uname || '?')[0].toUpperCase()}</Text>
                 </View>
                 <Text style={[s.userName, { color: colors.textPrimary }]}>@{uname}</Text>
                 {uname !== currentUser && (
-                  <TouchableOpacity style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.primary }}>
+                  <Ripple style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.primary }}>
                     <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>Follow</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 )}
-              </TouchableOpacity>
+              </Ripple>
             )
         }
         ListHeaderComponent={ListHeader}
@@ -458,12 +459,12 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
               <ActivityIndicator color={colors.primary} />
             </View>
           ) : hasMorePosts ? (
-            <TouchableOpacity
+            <Ripple
               onPress={loadMorePosts}
               style={{ marginVertical: 20, alignSelf: 'center', paddingHorizontal: 28, paddingVertical: 10, borderRadius: 24, backgroundColor: isDark ? '#334155' : '#f3f4f6' }}
             >
               <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>Load more</Text>
-            </TouchableOpacity>
+            </Ripple>
           ) : null
         ) : null}
         ListEmptyComponent={

@@ -19,6 +19,7 @@ import {
   getTextmobUserSync,
   onLoudaEvent,
 } from './session';
+import { subscribePendingChatShare } from './pendingShare';
 import {
   connectLoudaSocket,
   emitLoudaSocket,
@@ -32,6 +33,47 @@ import {
 } from './socket';
 import { formatTimeAgo, loudaAlert, translateMessage } from './utils';
 import { Icons } from './icons';
+
+// ─── dedupe helpers ───
+// Server rows, socket echoes and pagination overlaps can all deliver the same
+// id twice — React then dies on duplicate keys, so every append/replace path
+// funnels through these.
+function uniqByIdList<T extends { id?: any }>(list: T[]): T[] {
+  if (!Array.isArray(list)) return list;
+  const seen = new Set<any>();
+  const out: T[] = [];
+  for (const item of list) {
+    const key = item?.id;
+    if (key !== undefined && key !== null) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    out.push(item);
+  }
+  return out;
+}
+function uniqByField(list: any[], field: string): any[] {
+  if (!Array.isArray(list)) return list;
+  const seen = new Set<any>();
+  return list.filter((item) => {
+    const key = item?.[field];
+    if (key === undefined || key === null) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function appendUniqueMsg(prev: any[], message: any): any[] {
+  if (!message) return prev;
+  if (message.id != null && prev.some((m) => m?.id === message.id)) return prev;
+  return [...prev, message];
+}
+function prependUniqueMsgs(newer: any[], prev: any[]): any[] {
+  if (!Array.isArray(newer) || !newer.length) return prev;
+  const seen = new Set(prev.map((m) => m?.id));
+  const fresh = newer.filter((m) => m?.id == null || !seen.has(m.id));
+  return fresh.length ? [...fresh, ...prev] : prev;
+}
 
 // Push notify payload for a chat send (mirrors web fireLoudaPushNotify).
 function buildPushNotifyPayload(user: any, chat: any, msg: any) {
@@ -150,6 +192,16 @@ export type LoudaStoreValue = {
   viewerStatusId: string | null;
   showStatusCamera: boolean;
   statusCameraMedia: any;
+  // Shared in-app camera request (non-modal screens only — RN Modals sit in
+  // their own window, so those mount <InAppCamera> inline themselves).
+  cameraRequest: {
+    mode?: 'photo' | 'video' | 'both';
+    maxVideoSeconds?: number;
+    hint?: string;
+    filePrefix?: string;
+    onCapture: (file: any) => void;
+  } | null;
+  messagesLoading: boolean;
   contextMenu: ContextMenuState;
   replyTo: any;
   translations: Record<string, string>;
@@ -183,6 +235,7 @@ export type LoudaStoreValue = {
   setViewerStatusId: React.Dispatch<string | null>;
   setShowStatusCamera: React.Dispatch<boolean>;
   setStatusCameraMedia: React.Dispatch<any>;
+  setCameraRequest: React.Dispatch<any>;
   setContextMenu: React.Dispatch<ContextMenuState>;
   setReplyTo: React.Dispatch<any>;
   setTranslations: React.Dispatch<Record<string, string>>;
@@ -289,12 +342,21 @@ export function LoudaStoreProvider({
   const [viewerStatusId, setViewerStatusId] = useState<string | null>(null);
   const [showStatusCamera, setShowStatusCamera] = useState(false);
   const [statusCameraMedia, setStatusCameraMedia] = useState<any>(null);
+  const [cameraRequest, setCameraRequest] = useState<any>(null);
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const [typingRegistry, setTypingRegistry] = useState<Record<string, string[]>>({});
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [translations, setTranslations] = useState<Record<string, string>>({});
+  // Mirror of `translations` so handleTranslate can stay referentially stable
+  // (it's a dep of the socket-wiring effect — unstable meant tearing down and
+  // re-subscribing all 29 socket handlers every time a translation landed).
+  const translationsRef = useRef(translations);
+  useEffect(() => {
+    translationsRef.current = translations;
+  }, [translations]);
   const [messageInfo, setMessageInfo] = useState<any>(null);
   const [editingMessage, setEditingMessage] = useState<any>(null);
   const [mediaView, setMediaView] = useState<any>(null);
@@ -320,6 +382,22 @@ export function LoudaStoreProvider({
   const typingTimerRef = useRef<any>(null);
   const userRef = useRef<any>(null);
   const viewProfileRef = useRef<any>(null);
+  // Slow-message fixes: remember resolved chat ids and per-chat message
+  // pages so reopening a chat paints instantly (stale-while-revalidate).
+  const chatIdCacheRef = useRef<Record<string, string>>({});
+  const messagesCacheRef = useRef<
+    Record<string, { messages: LoudaMessage[]; hasMore: boolean }>
+  >({});
+  const messagesKeyRef = useRef<string | null>(null);
+
+  const putMessagesCache = (
+    key: string,
+    entry: { messages: LoudaMessage[]; hasMore: boolean },
+  ) => {
+    messagesCacheRef.current[key] = entry;
+    const keys = Object.keys(messagesCacheRef.current);
+    if (keys.length > 12) delete messagesCacheRef.current[keys[0]];
+  };
 
   useEffect(() => {
     selectedChatRef.current = selectedChat;
@@ -359,10 +437,12 @@ export function LoudaStoreProvider({
       setContacts((prev) => {
         const onlineMap = new Map(prev.map((p: any) => [p.id, p.online]));
         const onlineList = getOnlineFriends();
-        return data.map((c: any) => {
-          const isOnline = onlineMap.get(c.id) || onlineList.includes(c.id) || false;
-          return mapContactStatus(c, isOnline, c.lastSeen);
-        });
+        return uniqByIdList(
+          data.map((c: any) => {
+            const isOnline = onlineMap.get(c.id) || onlineList.includes(c.id) || false;
+            return mapContactStatus(c, isOnline, c.lastSeen);
+          }),
+        );
       });
     } catch (e: any) {
       console.error('[Louda] loadContacts failed', e);
@@ -377,7 +457,13 @@ export function LoudaStoreProvider({
       const data = await api.getGroups(id);
       if (!Array.isArray(data)) return;
       setGroups(
-        data.map((g: any) => ({ ...g, lastMessage: g.last_message_preview || 'No messages yet' })),
+        uniqByIdList(
+          data.map((g: any) => ({
+            ...g,
+            members: uniqByField(g.members, 'user_id'),
+            lastMessage: g.last_message_preview || 'No messages yet',
+          })),
+        ),
       );
     } catch (e: any) {
       console.error('[Louda] loadGroups failed', e);
@@ -466,11 +552,14 @@ export function LoudaStoreProvider({
 
   // ─── translate helpers (LoudaApp.jsx:7099-7122) ───
   const handleTranslate = useCallback(async (messageId: string, text: string) => {
-    if (translations[messageId]) return;
+    if (translationsRef.current[messageId]) return;
     const lang = userRef.current?.preferences?.language_preferences?.preferred_language || 'en';
     const result = await translateMessage(text, lang);
-    if (result) setTranslations((prev) => ({ ...prev, [messageId]: result }));
-  }, [translations]);
+    if (result) {
+      translationsRef.current = { ...translationsRef.current, [messageId]: result };
+      setTranslations(translationsRef.current);
+    }
+  }, []);
 
   const handleViewInfo = useCallback(
     async (message: any) => {
@@ -594,7 +683,7 @@ export function LoudaStoreProvider({
     on('new-message', ({ chatId, message }: any) => {
       const currentChat = selectedChatRef.current;
       if (currentChat && !currentChat.isGroup && currentChat.chatId === chatId) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => appendUniqueMsg(prev, message));
         if (autoTranslate() && message.from !== uid() && message.text) {
           handleTranslate(message.id, message.text);
         }
@@ -621,7 +710,7 @@ export function LoudaStoreProvider({
     on('new-group-message', ({ groupId, message }: any) => {
       const currentChat = selectedChatRef.current;
       if (currentChat && currentChat.isGroup && currentChat.id === groupId) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => appendUniqueMsg(prev, message));
         if (autoTranslate() && message.from !== uid() && message.text) {
           handleTranslate(message.id, message.text);
         }
@@ -786,37 +875,102 @@ export function LoudaStoreProvider({
 
   // ─── open chat (LoudaApp.jsx:7858-7924) ───
   useEffect(() => {
-    if (!selectedChat || !user?.id) return;
+    // Cache the messages currently on screen BEFORE any early return — runs
+    // on chat switch and on close, so the previous chat repaints instantly
+    // on its next open.
+    const prevKey = messagesKeyRef.current;
+    if (prevKey) putMessagesCache(prevKey, { messages, hasMore: hasMoreMessages });
 
-    setMessages([]);
-    setHasMoreMessages(false);
+    if (!selectedChat || !user?.id) {
+      messagesKeyRef.current = null;
+      setMessagesLoading(false);
+      return;
+    }
+
+    const isGroup = !!selectedChat.isGroup;
+    const contactId = String(selectedChat.id);
+    const cacheKey = (isGroup ? 'g:' : 'c:') + contactId;
+    const cached = messagesCacheRef.current[cacheKey];
+
+    // Stale-while-revalidate: paint the cached page instantly instead of an
+    // empty spinner while the network round-trip completes.
+    if (cached) {
+      setMessages(cached.messages);
+      setHasMoreMessages(cached.hasMore);
+      setMessagesLoading(false);
+    } else {
+      setMessages([]);
+      setHasMoreMessages(false);
+      setMessagesLoading(true);
+    }
+    // From here on, `messages` belongs to this chat — so a failed open still
+    // caches under the right key on the next switch/close.
+    messagesKeyRef.current = cacheKey;
+
     let stale = false;
 
     const openChat = async () => {
-      let chatIdToUse: string | null = null;
+      let chatIdToUse: string | null = isGroup
+        ? contactId
+        : selectedChat.chatId ||
+          (selectedChat as any).chat_id ||
+          chatIdCacheRef.current[contactId] ||
+          null;
       let loadedMessages: LoudaMessage[] = [];
       let fullData: any;
 
-      if (selectedChat.isGroup) {
-        chatIdToUse = selectedChat.id;
-        fullData = await api.getMessages(chatIdToUse, true);
+      if (isGroup) {
+        fullData = await api.getMessages(chatIdToUse!, true);
         loadedMessages = fullData?.messages || [];
         if (!stale) setSelectedChat((prev) => (prev ? { ...prev, ...fullData, isGroup: true } : prev));
       } else {
-        chatIdToUse = await fetchChatId(selectedChat.id);
-        if (!chatIdToUse) {
-          loudaAlert({ title: 'Error', message: 'Could not open chat' });
-          if (!stale) setSelectedChat(null);
-          return;
+        if (chatIdToUse) {
+          // Short-circuit: reuse the known chat id — skips the fetchChatId
+          // round trip that used to gate every open.
+          const fast = await api.getMessages(chatIdToUse, false, 20);
+          if (Array.isArray(fast?.messages)) {
+            fullData = fast;
+            loadedMessages = fast.messages;
+          } else {
+            chatIdToUse = null; // stale/invalid cached id → re-resolve
+          }
         }
-        fullData = await api.getMessages(chatIdToUse, false, 20);
-        loadedMessages = fullData?.messages || [];
+        if (!chatIdToUse) {
+          chatIdToUse = await fetchChatId(contactId);
+          if (!chatIdToUse) {
+            if (stale) return;
+            loudaAlert({ title: 'Error', message: 'Could not open chat' });
+            setSelectedChat(null);
+            return;
+          }
+          fullData = await api.getMessages(chatIdToUse, false, 20);
+          loadedMessages = fullData?.messages || [];
+        }
         if (!stale) setSelectedChat((prev) => (prev ? { ...prev, chatId: chatIdToUse! } : prev));
+        // Persist the resolved id: the ref survives loadContacts wiping
+        // contact rows, the setContacts patch feeds memoizedChats/selectedChat.
+        chatIdCacheRef.current[contactId] = chatIdToUse;
+        setContacts((prev) =>
+          prev.map((c: any) =>
+            String(c.id) === contactId ? { ...c, chatId: chatIdToUse! } : c,
+          ),
+        );
       }
 
       if (stale) return;
-      setMessages(loadedMessages);
-      setHasMoreMessages(loadedMessages.length >= 20);
+
+      // Union fresh page + cached history (older pages from handleLoadMore),
+      // de-duped and sorted oldest → newest — never a blind replace.
+      const merged = uniqByIdList([...loadedMessages, ...(cached?.messages || [])]).sort(
+        (a: any, b: any) =>
+          new Date(a.timestamp || a.created_at || 0).getTime() -
+          new Date(b.timestamp || b.created_at || 0).getTime(),
+      );
+      setMessages(merged);
+      const more = loadedMessages.length >= 20 || (cached?.hasMore ?? false);
+      setHasMoreMessages(more);
+      putMessagesCache(cacheKey, { messages: merged, hasMore: more });
+      messagesKeyRef.current = cacheKey;
 
       const autoTranslate =
         userRef.current?.preferences?.language_preferences?.auto_translate ?? false;
@@ -830,7 +984,7 @@ export function LoudaStoreProvider({
       const unreadIds = loadedMessages
         .filter((m: any) => {
           if (m.from === currentUserId) return false;
-          if (selectedChat.isGroup) {
+          if (isGroup) {
             if (!m.read_by) return true;
             return !m.read_by.some((r: any) =>
               typeof r === 'object' ? r.userId === currentUserId : r === currentUserId,
@@ -843,12 +997,14 @@ export function LoudaStoreProvider({
         emitLoudaSocket('mark-read', {
           chatId: chatIdToUse,
           messageIds: unreadIds,
-          isGroup: selectedChat.isGroup,
+          isGroup,
         });
       }
     };
 
-    openChat();
+    openChat().finally(() => {
+      if (!stale) setMessagesLoading(false);
+    });
     return () => {
       stale = true;
     };
@@ -866,7 +1022,7 @@ export function LoudaStoreProvider({
       const data = await api.getMessages(chatId, chat.isGroup, 20, oldest);
       const newMessages = data?.messages || [];
       if (newMessages.length < 20) setHasMoreMessages(false);
-      if (newMessages.length > 0) setMessages((prev) => [...newMessages, ...prev]);
+      if (newMessages.length > 0) setMessages((prev) => prependUniqueMsgs(newMessages, prev));
     } catch (e) {
       console.error('[Louda] load more failed', e);
     }
@@ -874,6 +1030,11 @@ export function LoudaStoreProvider({
   }, [isLoadingMore, messages]);
 
   // ─── Textmob bridge intents (LoudaApp.jsx:6898-6979) ───
+  // Native share sheet → chat picker: ShareToTextmobScreen parks the payload
+  // in pendingShare before navigating to Chats (delivered immediately if we
+  // are already mounted).
+  useEffect(() => subscribePendingChatShare((p) => setSharePayload(p)), []);
+
   const openChatWithUsername = useCallback(
     async (username?: string) => {
       if (!username) return;
@@ -1297,24 +1458,47 @@ export function LoudaStoreProvider({
 
   const handleConfirmShareMedia = useCallback(
     async (targets: any[]) => {
-      if (!sharePayload || !sharePayload.files || !targets.length) return;
+      if (!sharePayload || !targets.length) return;
+      const shareText: string =
+        typeof sharePayload.text === 'string' ? sharePayload.text.trim() : '';
+      const rawFiles = Array.isArray(sharePayload.files) ? sharePayload.files : [];
+      if (!rawFiles.length && !shareText) return;
 
-      let files = sharePayload.files;
+      let files = rawFiles;
       if (files.length > 6) {
         loudaAlert({ title: 'Notice', message: 'Only the first 6 files will be sent.' });
         files = files.slice(0, 6);
       }
-      const validFiles = files.filter((f: any) => f.size <= 10 * 1024 * 1024);
+      const validFiles = files.filter((f: any) => f.size == null || f.size <= 10 * 1024 * 1024);
       if (validFiles.length < files.length) {
-        loudaAlert({ title: 'Notice', message: 'Some files were skipped because they exceed the 10MB limit.' });
+        loudaAlert({
+          title: 'Notice',
+          message: 'Some files were skipped because they exceed the 10MB limit.',
+        });
       }
-      if (validFiles.length === 0) {
+      if (validFiles.length === 0 && !shareText) {
         loudaAlert({ title: 'Error', message: 'No valid files to send.' });
         setSharePayload(null);
         return;
       }
 
-      loudaAlert({ title: 'Sending...', message: 'Uploading media...' });
+      // Memoized contact rows don't always carry a chat id — resolve like the
+      // forward flow does, otherwise send-message goes out with chatId: undefined.
+      const resolved: any[] = [];
+      for (const t of targets) {
+        if (t.isGroup) {
+          resolved.push(t);
+          continue;
+        }
+        const chatId = t.chatId || (await fetchChatId(t.id));
+        if (chatId) resolved.push({ ...t, chatId });
+      }
+      if (!resolved.length) {
+        loudaAlert({ title: 'Error', message: 'Could not open the selected chat(s)' });
+        return;
+      }
+
+      if (validFiles.length) loudaAlert({ title: 'Sending...', message: 'Uploading media...' });
       try {
         const media: any[] = [];
         for (const f of validFiles) {
@@ -1325,30 +1509,34 @@ export function LoudaStoreProvider({
           });
           media.push({ type: data.type, url: data.url });
         }
-        for (const target of targets) {
+        for (const target of resolved) {
+          const message = { text: shareText, media };
           if (target.isGroup) {
             emitLoudaSocket('send-group-message', {
               groupId: target.id,
-              message: { text: '', media },
+              message,
             });
           } else {
             emitLoudaSocket('send-message', {
               chatId: target.chatId,
               toUserId: target.id,
-              message: { text: '', media },
+              message,
             });
           }
-          const notifyPayload = buildPushNotifyPayload(userRef.current, target, { text: '', media });
+          const notifyPayload = buildPushNotifyPayload(userRef.current, target, message);
           if (notifyPayload) api.notifyLoudaMessage(notifyPayload);
         }
         setSharePayload(null);
-        loudaAlert({ title: 'Success', message: `Media sent to ${targets.length} chat(s)!` });
+        loudaAlert({
+          title: 'Success',
+          message: `${validFiles.length ? 'Media' : 'Message'} sent to ${resolved.length} chat(s)!`,
+        });
       } catch (e) {
         console.error('[Louda] share media failed', e);
         loudaAlert({ title: 'Error', message: 'Failed to share media.' });
       }
     },
-    [sharePayload],
+    [sharePayload, fetchChatId],
   );
 
   // ─── settings / profile (LoudaApp.jsx:8269-8565) ───
@@ -1584,15 +1772,27 @@ export function LoudaStoreProvider({
       let url = fileOrUrl;
       const userId = userIdRef.current;
       if (fileOrUrl && typeof fileOrUrl === 'object' && fileOrUrl.uri) {
-        try {
-          const uploadData = await api.uploadFile({
-            uri: fileOrUrl.uri,
-            name: fileOrUrl.name,
-            type: fileOrUrl.type || 'image/jpeg',
+        let uploadErr: any = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const uploadData = await api.uploadFile({
+              uri: fileOrUrl.uri,
+              name: fileOrUrl.name,
+              type: fileOrUrl.type || 'image/jpeg',
+            });
+            url = uploadData.url;
+            uploadErr = null;
+            break;
+          } catch (err) {
+            uploadErr = err;
+          }
+        }
+        if (uploadErr) {
+          loudaAlert({
+            title: 'Upload Failed',
+            message:
+              (uploadErr as any)?.message || 'Image upload failed. Check your connection and try again.',
           });
-          url = uploadData.url;
-        } catch (err) {
-          loudaAlert({ title: 'Error', message: 'Image upload failed' });
           return;
         }
       }
@@ -1943,6 +2143,8 @@ export function LoudaStoreProvider({
   setViewerStatusId,
     showStatusCamera,
     statusCameraMedia,
+    cameraRequest,
+    messagesLoading,
     contextMenu,
     replyTo,
     translations,
@@ -1974,6 +2176,7 @@ export function LoudaStoreProvider({
     setViewerTarget,
     setShowStatusCamera,
     setStatusCameraMedia,
+    setCameraRequest,
     setContextMenu,
     setReplyTo,
     setTranslations,

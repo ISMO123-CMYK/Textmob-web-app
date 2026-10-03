@@ -1,9 +1,8 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
+﻿import React, { memo, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   Modal,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import {
   createVideoPlayer,
   VideoView,
@@ -257,18 +257,18 @@ export const StatusCreator = memo(function StatusCreator({
       <View style={[s.root, { backgroundColor: BG_COLORS[bgIndex] }]}>
         {/* Top bar (web 383-396) */}
         <View style={s.topBar}>
-          <TouchableOpacity onPress={onClose} style={s.topBtn}>
+          <Ripple onPress={onClose} style={s.topBtn}>
             <Icons.x size={20} color="#fff" />
-          </TouchableOpacity>
+          </Ripple>
           <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-            <TouchableOpacity style={s.topAction} onPress={() => setShowMusicSearch(true)}>
+            <Ripple style={s.topAction} onPress={() => setShowMusicSearch(true)}>
               <Icons.music size={17} color="#fff" />
               <Text style={s.topActionText}>Music</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.topAction} onPress={pickMedia}>
+            </Ripple>
+            <Ripple style={s.topAction} onPress={pickMedia}>
               <Icons.image size={17} color="#fff" />
               <Text style={s.topActionText}>Media</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
 
@@ -306,24 +306,24 @@ export const StatusCreator = memo(function StatusCreator({
           {/* Selected music chip (web 419-431) */}
           {selectedMusic && (
             <View style={s.musicChip}>
-              <TouchableOpacity style={s.musicPlay} onPress={() => toggleMusicPreview(selectedMusic)}>
+              <Ripple style={s.musicPlay} onPress={() => toggleMusicPreview(selectedMusic)}>
                 {playingMusicId === selectedMusic.id ? (
                   <Icons.pause size={12} color="#fff" />
                 ) : (
                   <Icons.play size={12} color="#fff" />
                 )}
-              </TouchableOpacity>
+              </Ripple>
               <Text style={s.musicChipText} numberOfLines={1}>
                 {selectedMusic.name}
               </Text>
-              <TouchableOpacity
+              <Ripple
                 onPress={() => {
                   setSelectedMusic(null);
                   stopMusicPreview();
                 }}
               >
                 <Icons.x size={13} color="#fff" />
-              </TouchableOpacity>
+              </Ripple>
             </View>
           )}
         </View>
@@ -334,7 +334,7 @@ export const StatusCreator = memo(function StatusCreator({
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pickerRow}>
               <Text style={s.pickerLabel}>Color</Text>
               {BG_COLORS.map((color, i) => (
-                <TouchableOpacity
+                <Ripple
                   key={color}
                   onPress={() => setBgIndex(i)}
                   style={[
@@ -351,7 +351,7 @@ export const StatusCreator = memo(function StatusCreator({
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pickerRow}>
               <Text style={s.pickerLabel}>Font</Text>
               {FONT_CSS.map((f, i) => (
-                <TouchableOpacity
+                <Ripple
                   key={f}
                   onPress={() => setFontIndex(i)}
                   style={[
@@ -369,7 +369,7 @@ export const StatusCreator = memo(function StatusCreator({
                   >
                     {f.split(',')[0].replace(/"/g, '')}
                   </Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </ScrollView>
           </View>
@@ -377,22 +377,22 @@ export const StatusCreator = memo(function StatusCreator({
 
         {/* Post FAB (web 453-461) */}
         <View style={s.fabWrap}>
-          <TouchableOpacity
+          <Ripple
             style={[s.fab, { backgroundColor: '#2563eb', opacity: canPost ? 1 : 0.5 }]}
             disabled={!canPost}
             onPress={postStatus}
           >
             {uploading ? <ActivityIndicator size="small" color="#fff" /> : <Icons.send size={23} color="#fff" />}
-          </TouchableOpacity>
+          </Ripple>
         </View>
 
         {/* Music search sheet (web 463-493) */}
         <Modal transparent statusBarTranslucent visible={showMusicSearch} onRequestClose={() => setShowMusicSearch(false)}>
           <View style={s.musicSheet}>
             <View style={s.musicHead}>
-              <TouchableOpacity onPress={() => setShowMusicSearch(false)} style={{ padding: 6 }}>
+              <Ripple onPress={() => setShowMusicSearch(false)} style={{ padding: 6 }}>
                 <Icons.arrowLeft size={22} color="#6b7280" />
-              </TouchableOpacity>
+              </Ripple>
               <TextInput
                 value={musicQuery}
                 onChangeText={setMusicQuery}
@@ -402,9 +402,9 @@ export const StatusCreator = memo(function StatusCreator({
                 style={s.musicSearchInput}
                 autoFocus
               />
-              <TouchableOpacity onPress={searchMusic} style={{ paddingHorizontal: 8 }}>
+              <Ripple onPress={searchMusic} style={{ paddingHorizontal: 8 }}>
                 <Text style={s.searchBtn}>Search</Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
             <ScrollView contentContainerStyle={{ padding: 8 }}>
               {searchingMusic && (
@@ -412,7 +412,7 @@ export const StatusCreator = memo(function StatusCreator({
               )}
               {!searchingMusic &&
                 musicResults.map((m) => (
-                  <TouchableOpacity
+                  <Ripple
                     key={m.id}
                     activeOpacity={0.8}
                     style={s.musicRow}
@@ -422,13 +422,13 @@ export const StatusCreator = memo(function StatusCreator({
                       stopMusicPreview();
                     }}
                   >
-                    <TouchableOpacity style={s.musicRowPlay} onPress={() => toggleMusicPreview(m)}>
+                    <Ripple style={s.musicRowPlay} onPress={() => toggleMusicPreview(m)}>
                       {playingMusicId === m.id ? (
                         <Icons.pause size={18} color="#2563eb" />
                       ) : (
                         <Icons.play size={18} color="#6b7280" />
                       )}
-                    </TouchableOpacity>
+                    </Ripple>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={s.musicName} numberOfLines={1}>
                         {m.name}
@@ -437,7 +437,7 @@ export const StatusCreator = memo(function StatusCreator({
                         {m.artist_name}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                  </Ripple>
                 ))}
               {!searchingMusic && musicResults.length === 0 && musicQuery.length > 0 && (
                 <Text style={s.musicEmpty}>Press Search to find music</Text>

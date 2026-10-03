@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, Dimensions, Image, Modal, Animated,
   TextInput, Alert, Share, RefreshControl,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { apiGet, apiPost, uploadFile, API_BASE_URL } from '../../api/client';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
 import StickerPicker from '../../components/StickerPicker';
 import { makeStickerText, parseStickerText } from '../../utils/stickerUtils';
+import { InAppCamera } from '../../louda/components/InAppCamera';
 import MentionAutocomplete from '../../components/MentionAutocomplete';
 import useProfileCache from '../../hooks/useProfileCache';
 import { ParticleBurst } from '../../utils/animations';
@@ -104,21 +106,21 @@ export function SnapVideoPlayer({ mediaUrl, isActive, isMuted, onDoubleTap }: { 
       <VideoView player={player} style={styles.snapVideo} contentFit="cover" nativeControls={false} />
       
       {/* Left tap area (rewind) */}
-      <TouchableOpacity 
+      <Ripple 
         style={[styles.seekTapArea, { left: 0 }]} 
         activeOpacity={1}
         onPress={() => handleSeek('backward')}
       />
 
       {/* Center tap area (double-tap to like) */}
-      <TouchableOpacity 
+      <Ripple 
         style={styles.centerTapArea}
         activeOpacity={1}
         onPress={handleCenterTap}
       />
 
       {/* Right tap area (forward) */}
-      <TouchableOpacity 
+      <Ripple 
         style={[styles.seekTapArea, { right: 0 }]} 
         activeOpacity={1}
         onPress={() => handleSeek('forward')}
@@ -211,7 +213,7 @@ function SnapFollowButton({ targetUsername, currentUsername }: { targetUsername:
   const label = status === 'loading' ? '...' : status === 'not_following' ? 'Follow' : 'Add Friend';
 
   return (
-    <TouchableOpacity
+    <Ripple
       onPress={handleToggle}
       disabled={submitting || status === 'loading'}
       style={styles.followChip}
@@ -219,7 +221,7 @@ function SnapFollowButton({ targetUsername, currentUsername }: { targetUsername:
       <Text style={styles.followChipText}>
         {submitting ? 'Wait...' : label}
       </Text>
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -230,7 +232,7 @@ function SnapText({ text, expanded, onToggle }: { text: string; expanded: boolea
   return (
     <>
       <Text style={styles.snapText}>{display}</Text>
-      {long && <TouchableOpacity onPress={onToggle}><Text style={styles.seeMore}>{expanded ? 'Show less' : 'See more'}</Text></TouchableOpacity>}
+      {long && <Ripple onPress={onToggle}><Text style={styles.seeMore}>{expanded ? 'Show less' : 'See more'}</Text></Ripple>}
     </>
   );
 }
@@ -275,7 +277,7 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
 
       {/* Right side actions */}
       <View style={styles.rightActions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => {
+        <Ripple style={styles.actionBtn} onPress={() => {
           Animated.sequence([
             Animated.spring(likeScale, { toValue: 0.8, useNativeDriver: true, friction: 4, tension: 300 }),
             Animated.spring(likeScale, { toValue: 1, useNativeDriver: true, friction: 3, tension: 200 }),
@@ -290,25 +292,25 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
           </Animated.View>
           {showParticles && <ParticleBurst color="#ef4444" size={5} count={10} />}
           <Text style={styles.actionCount}>{item.likes?.length || 0}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => onOpenComments(item.id)}>
+        </Ripple>
+        <Ripple style={styles.actionBtn} onPress={() => onOpenComments(item.id)}>
           <Ionicons name="chatbubble-ellipses-outline" size={26} color="#fff" />
           <Text style={styles.actionCount}>{item.comments?.length || 0}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => onOpenReactions(item.id)}>
+        </Ripple>
+        <Ripple style={styles.actionBtn} onPress={() => onOpenReactions(item.id)}>
           <Ionicons name="happy-outline" size={26} color="#fff" />
           <Text style={styles.actionCount} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => onOpenGift(item)}>
+        </Ripple>
+        <Ripple style={styles.actionBtn} onPress={() => onOpenGift(item)}>
           <Ionicons name="gift-outline" size={26} color="#fbbf24" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={onToggleMute}>
+        </Ripple>
+        <Ripple style={styles.actionBtn} onPress={onToggleMute}>
           <Ionicons name={muted ? 'volume-mute-outline' : 'volume-high-outline'} size={26} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => onShare(item)}>
+        </Ripple>
+        <Ripple style={styles.actionBtn} onPress={() => onShare(item)}>
           <Ionicons name="share-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={async () => {
+        </Ripple>
+        <Ripple style={styles.actionBtn} onPress={async () => {
           try {
             const AsyncStorage = require('@react-native-async-storage/async-storage').default;
             const raw = await AsyncStorage.getItem('textmob_saved_posts');
@@ -322,7 +324,7 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
           } catch {}
         }}>
           <Ionicons name="bookmark-outline" size={24} color="#fff" />
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {/* Bottom info */}
@@ -369,7 +371,7 @@ function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUser
   const profile = useProfileCache(comment.username);
   const initials = (profile?.fullname || comment.username || '?').slice(0, 2).toUpperCase();
   return (
-    <TouchableOpacity style={styles.commentRow} onPress={() => onPress(comment.username)} activeOpacity={0.7}>
+    <Ripple style={styles.commentRow} onPress={() => onPress(comment.username)} activeOpacity={0.7}>
       {profile?.profile_pic ? (
         <Image source={{ uri: profile.profile_pic }} style={styles.commentAvatarImg} />
       ) : (
@@ -396,7 +398,7 @@ function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUser
         </View>
         {(() => { const s = parseStickerText(comment.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <Text style={styles.commentText}>{comment.text}</Text>; })()}
       </View>
-    </TouchableOpacity>
+    </Ripple>
   );
 }
 
@@ -412,6 +414,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
   const [snaps, setSnaps] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [showSnapsCamera, setShowSnapsCamera] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
@@ -640,20 +643,29 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
     }
   };
 
-  const recordVideo = async () => {
-    const perms = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perms.granted) {
-      Alert.alert('Permission needed', 'Camera permission is required to record video');
+  const recordVideo = () => {
+    // In-app camera: the system camera could not record video here (and this
+    // screen sits outside the Louda store — mount our own InAppCamera).
+    // Close the upload Modal first: RN Modals are their own native window,
+    // above any overlay rendered at this screen's root.
+    setShowUpload(false);
+    setShowSnapsCamera(true);
+  };
+
+  const onSnapCapture = (file: { uri: string; fileName: string; mimeType: string; fileSize?: number }) => {
+    setShowSnapsCamera(false);
+    if (file.fileSize && file.fileSize > MAX_SNAP_VIDEO_BYTES) {
+      Alert.alert('File too large', 'Video must be under 100 MB');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['videos'], quality: 0.8 });
-    if (!result.canceled && result.assets[0]) {
-      if (!checkVideoSize(result.assets[0])) return;
-      setShowUpload(false);
-      setSelectedVideo(result.assets[0]);
-      setCaption('');
-      setShowCreateModal(true);
-    }
+    setSelectedVideo({
+      uri: file.uri,
+      fileName: file.fileName,
+      mimeType: file.mimeType,
+      fileSize: file.fileSize ?? 0,
+    });
+    setCaption('');
+    setShowCreateModal(true);
   };
 
   const MAX_SNAP_VIDEO_BYTES = 100 * 1024 * 1024;
@@ -745,20 +757,20 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
     >
       {/* Fixed header */}
       <View style={[styles.header, { top: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Ripple onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={styles.headerTitle}>Snaps</Text>
         <View style={{ flexDirection: 'row', gap: 4 }}>
-          <TouchableOpacity style={styles.uploadBtn} onPress={() => setShowSearch(true)}>
+          <Ripple style={styles.uploadBtn} onPress={() => setShowSearch(true)}>
             <Ionicons name="search" size={22} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.uploadBtn} onPress={() => { loadSnaps(); }}>
+          </Ripple>
+          <Ripple style={styles.uploadBtn} onPress={() => { loadSnaps(); }}>
             {loading ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="refresh" size={22} color="#fff" />}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.uploadBtn} onPress={() => setShowUpload(true)}>
+          </Ripple>
+          <Ripple style={styles.uploadBtn} onPress={() => setShowUpload(true)}>
             <Ionicons name="cloud-upload-outline" size={24} color="#fff" />
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </View>
 
@@ -781,10 +793,10 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
         ListEmptyComponent={
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: containerHeight * 0.4 }}>
             <Text style={{ color: '#fff', fontSize: 16 }}>No snaps yet</Text>
-            <TouchableOpacity style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, borderWidth: 1, borderColor: '#fff' }}
+            <Ripple style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24, borderWidth: 1, borderColor: '#fff' }}
               onPress={() => setShowUpload(true)}>
               <Text style={{ color: '#fff', fontWeight: '600' }}>Upload your first snap</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         }
       />
@@ -793,9 +805,9 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
       <Modal visible={showSearch} transparent animationType="slide" onRequestClose={() => { setShowSearch(false); setSearchSnapQuery(''); setSearchSnapResults([]); }}>
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
           <View style={[styles.commentHeader, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => { setShowSearch(false); setSearchSnapQuery(''); setSearchSnapResults([]); }}>
+            <Ripple onPress={() => { setShowSearch(false); setSearchSnapQuery(''); setSearchSnapResults([]); }}>
               <Text style={{ color: colors.textSecondary, fontSize: 16 }}>Cancel</Text>
-            </TouchableOpacity>
+            </Ripple>
             <Text style={[styles.commentHeaderTitle, { color: colors.textPrimary }]}>Search Snaps</Text>
             <View style={{ width: 50 }} />
           </View>
@@ -823,7 +835,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
               contentContainerStyle={{ padding: 4 }}
               columnWrapperStyle={{ gap: 4 }}
               renderItem={({ item }) => (
-                <TouchableOpacity
+                <Ripple
                   style={{ width: (Dimensions.get('window').width - 12) / 2, borderRadius: 12, overflow: 'hidden', marginBottom: 4 }}
                   activeOpacity={0.85}
                   onPress={() => handleSnapSearchPress(item)}
@@ -854,7 +866,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
                       <Ionicons name="videocam" size={24} color="rgba(255,255,255,0.15)" />
                     </View>
                   )}
-                </TouchableOpacity>
+                </Ripple>
               )}
               ListEmptyComponent={<Text style={{ color: colors.textSecondary, textAlign: 'center', marginTop: 40 }}>No snaps found</Text>}
             />
@@ -887,30 +899,41 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
 
       {/* Upload modal */}
       <Modal visible={showUpload} transparent animationType="fade" onRequestClose={() => setShowUpload(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUpload(false)}>
+        <Ripple style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowUpload(false)}>
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <TouchableOpacity style={styles.uploadOption} onPress={recordVideo}>
+            <Ripple style={styles.uploadOption} onPress={recordVideo}>
               <Ionicons name="camera" size={24} color={colors.textPrimary} />
               <Text style={[styles.uploadOptionText, { color: colors.textPrimary }]}>Record Video</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.uploadOption} onPress={pickVideo}>
+            </Ripple>
+            <Ripple style={styles.uploadOption} onPress={pickVideo}>
               <Ionicons name="videocam" size={24} color={colors.textPrimary} />
               <Text style={[styles.uploadOptionText, { color: colors.textPrimary }]}>Upload Video</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
+
+      {/* In-app video camera (Record Video) */}
+      {showSnapsCamera && (
+        <InAppCamera
+          mode="video"
+          filePrefix="snap"
+          hint="Tap to record · Tap to stop"
+          onCancel={() => setShowSnapsCamera(false)}
+          onCapture={onSnapCapture}
+        />
+      )}
 
       {/* Create Snap Modal - 3-Step Wizard */}
       <Modal visible={showCreateModal} transparent animationType="slide" onRequestClose={closeCreateModal}>
         <View style={styles.modalOverlay}>
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeCreateModal} />
+          <Ripple style={styles.modalBackdrop} activeOpacity={1} onPress={closeCreateModal} />
           <View style={[styles.createModalContent, { backgroundColor: colors.card }]}>
             <View style={styles.createModalHeader}>
               <Text style={[styles.createModalTitle, { color: colors.textPrimary }]}>New Snap</Text>
-              <TouchableOpacity onPress={closeCreateModal}>
+              <Ripple onPress={closeCreateModal}>
                 <Ionicons name="close" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
+              </Ripple>
             </View>
 
             {uploading ? (
@@ -952,10 +975,10 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
                 {selectedVideo ? (
                   <View style={styles.createVideoPreview}>
                     <SnapVideoPreview uri={selectedVideo.uri} />
-                    <TouchableOpacity style={styles.changeVideoBtn} onPress={() => { setShowCreateModal(false); setShowUpload(true); }}>
+                    <Ripple style={styles.changeVideoBtn} onPress={() => { setShowCreateModal(false); setShowUpload(true); }}>
                       <Ionicons name="refresh" size={18} color="#fff" />
                       <Text style={styles.changeVideoText}>Change</Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 ) : (
                   <View style={[styles.noVideoPlaceholder, { borderColor: colors.border }]}>
@@ -963,9 +986,9 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
                     <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No video selected</Text>
                   </View>
                 )}
-                <TouchableOpacity style={styles.postSnapBtn} onPress={() => setWizardStep(2)} disabled={!selectedVideo}>
+                <Ripple style={styles.postSnapBtn} onPress={() => setWizardStep(2)} disabled={!selectedVideo}>
                   <Text style={styles.postSnapBtnText}>Next →</Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             )}
 
@@ -994,12 +1017,12 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
                 </View>
                 <Text style={[styles.charCount, { color: colors.textSecondary }]}>{caption.length}/280</Text>
                 <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TouchableOpacity style={[styles.postSnapBtn, { flex: 1, backgroundColor: isDark ? '#374151' : '#e5e7eb' }]} onPress={() => setWizardStep(1)}>
+                  <Ripple style={[styles.postSnapBtn, { flex: 1, backgroundColor: isDark ? '#374151' : '#e5e7eb' }]} onPress={() => setWizardStep(1)}>
                     <Text style={[styles.postSnapBtnText, { color: colors.textPrimary }]}>← Back</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.postSnapBtn, { flex: 1 }]} onPress={() => setWizardStep(3)}>
+                  </Ripple>
+                  <Ripple style={[styles.postSnapBtn, { flex: 1 }]} onPress={() => setWizardStep(3)}>
                     <Text style={styles.postSnapBtnText}>Next →</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 </View>
               </View>
             )}
@@ -1020,19 +1043,19 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
                   {CATEGORIES.map(cat => {
                     const isSelected = selectedCategories.includes(cat.id);
                     return (
-                      <TouchableOpacity key={cat.id} onPress={() => setSelectedCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
+                      <Ripple key={cat.id} onPress={() => setSelectedCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
                         style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: isSelected ? cat.color + '30' : (isDark ? '#1e293b' : '#f3f4f6') }}>
                         <Text style={{ fontSize: 11, fontWeight: '700', color: isSelected ? cat.color : colors.textSecondary }}>{cat.name}</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     );
                   })}
                 </View>
-                <TouchableOpacity style={styles.postSnapBtn} onPress={() => { setWizardStep(1); handleCreateSnap(); }}>
+                <Ripple style={styles.postSnapBtn} onPress={() => { setWizardStep(1); handleCreateSnap(); }}>
                   <Text style={styles.postSnapBtnText}>✦ Post Snap</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={{ paddingVertical: 10, alignItems: 'center', marginTop: 8 }} onPress={() => setWizardStep(2)}>
+                </Ripple>
+                <Ripple style={{ paddingVertical: 10, alignItems: 'center', marginTop: 8 }} onPress={() => setWizardStep(2)}>
                   <Text style={{ color: colors.textSecondary, fontSize: 13 }}>← Back</Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             )}
               </React.Fragment>
@@ -1043,28 +1066,28 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
 
       {/* Reactions modal */}
       <Modal visible={!!showReactions} transparent animationType="slide" onRequestClose={() => setShowReactions(null)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowReactions(null)}>
+        <Ripple style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowReactions(null)}>
           <View style={[styles.reactionsSheet, { backgroundColor: colors.card }]}>
             <Text style={[styles.reactionsTitle, { color: colors.textPrimary }]}>React</Text>
             <View style={styles.emojiGrid}>
               {EMOJIS.map(e => (
-                <TouchableOpacity key={e} style={[styles.emojiBtn, reactingPost === showReactions && { opacity: 0.5 }]}
+                <Ripple key={e} style={[styles.emojiBtn, reactingPost === showReactions && { opacity: 0.5 }]}
                   onPress={() => showReactions && handleReact(showReactions, e)}>
                   <Text style={{ fontSize: 28 }}>{e}</Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </View>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
 
       {/* Comments modal */}
       <Modal visible={!!showComments} animationType="slide" onRequestClose={() => setShowComments(null)}>
         <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
           <View style={[styles.commentHeader, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => setShowComments(null)}>
+            <Ripple onPress={() => setShowComments(null)}>
               <Text style={{ color: colors.textSecondary, fontSize: 16 }}>Close</Text>
-            </TouchableOpacity>
+            </Ripple>
             <Text style={[styles.commentHeaderTitle, { color: colors.textPrimary }]}>Comments</Text>
             <View style={{ width: 40 }} />
           </View>
@@ -1081,9 +1104,9 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
             }
           />
           <View style={[styles.commentInputRow, { borderTopColor: colors.border, backgroundColor: colors.card, position: 'relative' }]}>
-            <TouchableOpacity onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
+            <Ripple onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
               <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
             <View style={{ flex: 1, position: 'relative' }}>
               <TextInput ref={commentInputRef}
                 style={[styles.commentInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
@@ -1099,10 +1122,10 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
                 isDark={isDark}
               />
             </View>
-            <TouchableOpacity style={[styles.commentSendBtn, commenting && { opacity: 0.5 }]}
+            <Ripple style={[styles.commentSendBtn, commenting && { opacity: 0.5 }]}
               onPress={() => showComments && handleComment(showComments)} disabled={commenting || !commentText.trim()}>
               {commenting ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
-            </TouchableOpacity>
+            </Ripple>
           </View>
           <StickerPicker
             visible={showStickerPicker}

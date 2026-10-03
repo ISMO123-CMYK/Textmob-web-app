@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, Image, Modal,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -61,13 +62,13 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Ripple onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Stories</Text>
-        <TouchableOpacity onPress={() => setShowCreate(true)}>
+        <Ripple onPress={() => setShowCreate(true)}>
           <Ionicons name="add" size={24} color="#2563eb" />
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       {loading ? (
@@ -78,7 +79,7 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
           keyExtractor={(_, i) => String(i)}
           numColumns={3}
           renderItem={({ item }) => (
-            <TouchableOpacity style={s.storyItem} onPress={() => setViewingStory(item)}>
+            <Ripple style={s.storyItem} onPress={() => setViewingStory(item)}>
               {item.media?.[0] ? (
                 <Image source={{ uri: item.media[0] }} style={s.storyMedia} />
               ) : (
@@ -89,7 +90,7 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
               <View style={s.storyOverlay}>
                 <Text style={s.storyUserOverlay}>{item.username}</Text>
               </View>
-            </TouchableOpacity>
+            </Ripple>
           )}
           contentContainerStyle={{ paddingBottom: 100 }}
           ListEmptyComponent={
@@ -102,21 +103,21 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
       )}
 
       <Modal visible={showCreate} transparent animationType="slide">
-        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowCreate(false)}>
+        <Ripple style={s.modalOverlay} activeOpacity={1} onPress={() => setShowCreate(false)}>
           <View style={[s.modalContent, { backgroundColor: colors.card }]}>
-            <TouchableOpacity style={s.createOption} onPress={pickMedia}>
+            <Ripple style={s.createOption} onPress={pickMedia}>
               <Ionicons name="images" size={24} color={colors.textPrimary} />
               <Text style={[s.createOptionText, { color: colors.textPrimary }]}>Upload Photo/Video</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
 
       <Modal visible={!!viewingStory} transparent animationType="fade">
         <View style={s.viewerOverlay}>
-          <TouchableOpacity style={s.viewerClose} onPress={() => setViewingStory(null)}>
+          <Ripple style={s.viewerClose} onPress={() => setViewingStory(null)}>
             <Ionicons name="close" size={24} color="#fff" />
-          </TouchableOpacity>
+          </Ripple>
           {viewingStory?.media?.[0] && (
             <Image source={{ uri: viewingStory.media[0] }} style={s.viewerMedia} resizeMode="contain" />
           )}

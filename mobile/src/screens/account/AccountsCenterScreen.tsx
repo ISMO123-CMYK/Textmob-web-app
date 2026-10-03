@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, StyleSheet,
   ScrollView, Alert, Image, Modal, TextInput, ActivityIndicator, Linking
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -142,9 +143,9 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => activeSub ? setActiveSub(null) : navigation.goBack()} style={{ padding: 4 }}>
+        <Ripple onPress={() => activeSub ? setActiveSub(null) : navigation.goBack()} style={{ padding: 4 }}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
           {activeSub ? getTabLabel(activeSub) : 'Accounts Center'}
         </Text>
@@ -153,7 +154,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
 
       {activeSub ? renderSubScreen() : (
         <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-          <TouchableOpacity style={[styles.profileCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]} onPress={() => navigation.navigate('Profile', { username })}>
+          <Ripple style={[styles.profileCard, { backgroundColor: colors.card, borderBottomColor: colors.border }]} onPress={() => navigation.navigate('Profile', { username })}>
             <Image source={{ uri: profile.profile_pic || DEFAULT_PIC }} style={styles.profileAvatar} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.profileName, { color: colors.textPrimary }]}>@{username}</Text>
@@ -165,7 +166,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
               )}
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Ripple>
 
           {SECTIONS.map((section, si) => (
             <View key={si} style={{ marginTop: 16, paddingHorizontal: 12 }}>
@@ -174,7 +175,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
                 {section.items.map((item, ii) => {
                   const im = iconMap[item.icon];
                   return (
-                    <TouchableOpacity
+                    <Ripple
                       key={item.key}
                       style={[styles.menuRow, ii < section.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
                       onPress={() => handleNav(item.key)}
@@ -184,7 +185,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
                       </View>
                       <Text style={[styles.menuText, { color: item.key === 'danger' ? '#dc2626' : colors.textPrimary }]}>{item.label}</Text>
                       <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-                    </TouchableOpacity>
+                    </Ripple>
                   );
                 })}
               </View>
@@ -219,7 +220,7 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
   return (
     <ScrollView style={{ padding: 16 }}>
       {!profile?.verified && (
-        <TouchableOpacity onPress={() => setActiveSub('verification')} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#bfdbfe', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+        <Ripple onPress={() => setActiveSub('verification')} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#bfdbfe', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
           </View>
@@ -230,7 +231,7 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
           <View style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Get Verified</Text>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       )}
       {!isOrg && (
         <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#e9d5ff', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
@@ -241,9 +242,9 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
             <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary }}>Switch to Professional</Text>
             <Text style={{ fontSize: 11, color: colors.textSecondary }}>Unlock earnings & analytics</Text>
           </View>
-          <TouchableOpacity onPress={() => setActiveSub('profile')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
+          <Ripple onPress={() => setActiveSub('profile')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Switch</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       )}
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Dashboard</Text>
@@ -278,12 +279,12 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
           { label: 'Analytics', icon: 'bar-chart', tab: 'analytics', bg: '#faf5ff', color: '#9333ea' },
           { label: 'Profile', icon: 'person', tab: 'profile', bg: '#fff7ed', color: '#ea580c' },
         ].map(a => (
-          <TouchableOpacity key={a.tab} onPress={() => setActiveSub(a.tab)} style={{ flex: 1, alignItems: 'center', gap: 6, padding: 10, borderRadius: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}>
+          <Ripple key={a.tab} onPress={() => setActiveSub(a.tab)} style={{ flex: 1, alignItems: 'center', gap: 6, padding: 10, borderRadius: 12, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }}>
             <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: a.bg, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name={a.icon as any} size={16} color={a.color} />
             </View>
             <Text style={{ fontSize: 9, fontWeight: '600', color: colors.textSecondary }}>{a.label}</Text>
-          </TouchableOpacity>
+          </Ripple>
         ))}
       </View>
       <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -297,7 +298,7 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
         <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 6 }}>{totalInteractions} total across {posts.length} posts</Text>
       </View>
       {rank && (
-        <TouchableOpacity style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }]} onPress={() => setActiveSub('grow')}>
+        <Ripple style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 12 }]} onPress={() => setActiveSub('grow')}>
           <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#fefce8', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="trophy" size={18} color="#eab308" />
           </View>
@@ -306,7 +307,7 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
             <Text style={{ fontSize: 11, color: colors.textSecondary }}>Keep posting to climb higher</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-        </TouchableOpacity>
+        </Ripple>
       )}
     </ScrollView>
   );
@@ -368,12 +369,12 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
             Earnings and payouts are only available to verified accounts. Get your blue tick to unlock monetization.
           </Text>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 16, width: '100%' }}>
-            <TouchableOpacity onPress={() => setActiveSub?.('verification')} style={{ flex: 1, height: 44, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }}>
+            <Ripple onPress={() => setActiveSub?.('verification')} style={{ flex: 1, height: 44, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>Get verified</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL('https://wa.me/2347087421125')} style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}>
+            </Ripple>
+            <Ripple onPress={() => Linking.openURL('https://wa.me/2347087421125')} style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 12 }}>Contact support</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
           <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 12 }}>Verified users can cash out MobCoins.</Text>
         </View>
@@ -388,13 +389,13 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
         <Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginBottom: 4 }}>₦{ngnValue}</Text>
         <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>= {balance.toLocaleString()} coins</Text>
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 16, alignItems: 'center' }}>
-          <TouchableOpacity
+          <Ripple
             disabled={!isOrg || balance < 2000}
             onPress={() => isOrg ? setShowRedeem(true) : Alert.alert('Access Restricted', 'Switch to Professional account to redeem earnings.')}
             style={{ flex: 1, height: 44, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', opacity: (!isOrg || balance < 2000) ? 0.4 : 1 }}
           >
             <Text style={{ color: '#059669', fontWeight: '700', fontSize: 13 }}>{isOrg ? 'Cash out' : 'Upgrade to cash out'}</Text>
-          </TouchableOpacity>
+          </Ripple>
           <View style={{ paddingLeft: 12, borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.1)' }}>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9 }}>Minimum</Text>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>2,000 coins</Text>
@@ -489,9 +490,9 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
               />
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 {['CASH', 'AIRTIME'].map(t => (
-                  <TouchableOpacity key={t} onPress={() => setRedeemType(t)} style={{ flex: 1, paddingVertical: 10, borderRadius: 8, backgroundColor: redeemType === t ? accentBg : isDark ? '#1e293b' : '#f8fafc', alignItems: 'center' }}>
+                  <Ripple key={t} onPress={() => setRedeemType(t)} style={{ flex: 1, paddingVertical: 10, borderRadius: 8, backgroundColor: redeemType === t ? accentBg : isDark ? '#1e293b' : '#f8fafc', alignItems: 'center' }}>
                     <Text style={{ color: redeemType === t ? '#fff' : colors.textPrimary, fontWeight: '600', fontSize: 12 }}>{t}</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 ))}
               </View>
               {redeemType === 'CASH' ? (
@@ -504,9 +505,9 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
                 <>
                   <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                     {['MTN', 'GLO', 'AIRTEL', '9MOBILE'].map(n => (
-                      <TouchableOpacity key={n} onPress={() => setDetails(prev => ({ ...prev, network: n }))} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, backgroundColor: details.network === n ? accentBg : isDark ? '#1e293b' : '#f8fafc' }}>
+                      <Ripple key={n} onPress={() => setDetails(prev => ({ ...prev, network: n }))} style={{ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, backgroundColor: details.network === n ? accentBg : isDark ? '#1e293b' : '#f8fafc' }}>
                         <Text style={{ color: details.network === n ? '#fff' : colors.textPrimary, fontWeight: '600', fontSize: 10 }}>{n}</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     ))}
                   </View>
                   <TextInput placeholder="Phone number" placeholderTextColor={colors.textSecondary} value={details.phone} onChangeText={v => setDetails(prev => ({ ...prev, phone: v }))} keyboardType="phone-pad" style={[styles.input, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', color: colors.textPrimary, borderColor: colors.border }]} />
@@ -517,12 +518,12 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
                   <Text style={{ color: status.ok ? '#065f46' : '#991b1b', fontSize: 12, fontWeight: '600' }}>{status.text}</Text>
                 </View>
               )}
-              <TouchableOpacity style={{ backgroundColor: '#10b981', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }} onPress={handleRedeem} disabled={submitting}>
+              <Ripple style={{ backgroundColor: '#10b981', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }} onPress={handleRedeem} disabled={submitting}>
                 {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Submit</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={{ marginTop: 12, paddingVertical: 12, alignItems: 'center' }} onPress={() => setShowRedeem(false)}>
+              </Ripple>
+              <Ripple style={{ marginTop: 12, paddingVertical: 12, alignItems: 'center' }} onPress={() => setShowRedeem(false)}>
                 <Text style={{ color: colors.textSecondary }}>Cancel</Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </ScrollView>
         </View>
@@ -572,9 +573,9 @@ function VerificationTab({ colors, username, isDark }: any) {
           <View style={{ backgroundColor: '#dbeafe', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 12 }}>
             <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '600' }}>Renews at ₦500/month via WhatsApp</Text>
           </View>
-          <TouchableOpacity onPress={() => Linking.openURL(waLink)} style={{ backgroundColor: '#2563eb', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}>
+          <Ripple onPress={() => Linking.openURL(waLink)} style={{ backgroundColor: '#2563eb', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Renew via WhatsApp</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       )}
 
@@ -604,13 +605,13 @@ function VerificationTab({ colors, username, isDark }: any) {
               </View>
             </View>
 
-            <TouchableOpacity
+            <Ripple
               onPress={() => Linking.openURL(waLink)}
               style={{ width: '100%', height: 48, backgroundColor: '#2563eb', borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
             >
               <Ionicons name="logo-whatsapp" size={18} color="#fff" />
               <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Pay ₦500 via WhatsApp</Text>
-            </TouchableOpacity>
+            </Ripple>
             <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 8, textAlign: 'center' }}>
               You'll chat with {waDisplay}
             </Text>
@@ -743,18 +744,18 @@ function ComposerTab({ username, posts, setPosts, colors, isDark, setActiveSub }
           { key: 'post', label: 'Text' },
           { key: 'poll', label: 'Poll' },
         ].map(t => (
-          <TouchableOpacity key={t.key} onPress={() => setPostType(t.key)} style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: postType === t.key ? '#2563eb' : isDark ? '#1e293b' : '#f3f4f6' }}>
+          <Ripple key={t.key} onPress={() => setPostType(t.key)} style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: postType === t.key ? '#2563eb' : isDark ? '#1e293b' : '#f3f4f6' }}>
             <Text style={{ color: postType === t.key ? '#fff' : colors.textPrimary, fontWeight: '600', fontSize: 12 }}>{t.label}</Text>
-          </TouchableOpacity>
+          </Ripple>
         ))}
       </View>
-      <TouchableOpacity
+      <Ripple
         onPress={handleSubmit}
         disabled={submitting || !text.trim()}
         style={{ backgroundColor: '#2563eb', paddingVertical: 14, borderRadius: 12, alignItems: 'center', opacity: (!text.trim() || submitting) ? 0.5 : 1 }}
       >
         {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Post</Text>}
-      </TouchableOpacity>
+      </Ripple>
     </ScrollView>
   );
 }
@@ -859,9 +860,9 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
         </View>
         <Text style={{ fontWeight: '700', fontSize: 15, color: colors.textPrimary, marginBottom: 4 }}>No posts yet</Text>
         <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 16, textAlign: 'center' }}>Create your first post to get started.</Text>
-        <TouchableOpacity onPress={() => setActiveSub('composer')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 }}>
+        <Ripple onPress={() => setActiveSub('composer')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 }}>
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>New post</Text>
-        </TouchableOpacity>
+        </Ripple>
       </ScrollView>
     );
   }
@@ -873,9 +874,9 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
           <Text style={[styles.subTitle, { color: colors.textPrimary, marginBottom: 0 }]}>My Posts</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{filtered.length} posts</Text>
         </View>
-        <TouchableOpacity onPress={() => setActiveSub('composer')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
+        <Ripple onPress={() => setActiveSub('composer')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>New post</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       <View style={{ backgroundColor: isDark ? '#1e293b' : '#f3f4f6', borderRadius: 10, paddingHorizontal: 12, height: 40, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -891,9 +892,9 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 6 }}>
         {[{ k: 'newest', l: 'Newest' }, { k: 'liked', l: 'Most Liked' }, { k: 'closest-to-payout', l: 'Closest to Payout' }, { k: 'earned', l: 'Top Earned' }].map(s => (
-          <TouchableOpacity key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2563eb' : isDark ? '#374151' : '#e5e7eb' }}>
+          <Ripple key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2563eb' : isDark ? '#374151' : '#e5e7eb' }}>
             <Text style={{ color: sortBy === s.k ? '#fff' : colors.textSecondary, fontSize: 11, fontWeight: '600' }}>{s.l}</Text>
-          </TouchableOpacity>
+          </Ripple>
         ))}
       </ScrollView>
 
@@ -919,12 +920,12 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
               </Text>
             </View>
             <View style={{ flexDirection: 'row', gap: 4 }}>
-              <TouchableOpacity onPress={() => { setEditingPost(post); setEditText(post.text?.replace(/<[^>]*>/g, '') || ''); }} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+              <Ripple onPress={() => { setEditingPost(post); setEditText(post.text?.replace(/<[^>]*>/g, '') || ''); }} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="pencil" size={14} color={colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => deletePost(post.id)} disabled={deletingId === post.id} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+              </Ripple>
+              <Ripple onPress={() => deletePost(post.id)} disabled={deletingId === post.id} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="trash-outline" size={14} color="#dc2626" />
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </View>
           <Text style={{ color: colors.textPrimary, fontSize: 13, marginTop: 6, lineHeight: 20 }}>{post.text?.replace(/<[^>]*>/g, '')}</Text>
@@ -955,11 +956,11 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
             </View>
           )}
 
-          <TouchableOpacity onPress={() => { setBoostingPost(post); setBoostAmount(1); }} style={{ marginTop: 10, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#fed7aa', backgroundColor: '#fff7ed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <Ripple onPress={() => { setBoostingPost(post); setBoostAmount(1); }} style={{ marginTop: 10, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: '#fed7aa', backgroundColor: '#fff7ed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Ionicons name="flash" size={14} color="#f97316" />
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#f97316' }}>Boost Post</Text>
             {post.boost_score > 0 && <Text style={{ fontSize: 11, color: '#f97316', opacity: 0.7 }}>({post.boost_score} pts)</Text>}
-          </TouchableOpacity>
+          </Ripple>
         </View>
         );
       })}
@@ -978,18 +979,18 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
 
                 <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary, marginBottom: 8 }}>Boost amount</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <TouchableOpacity onPress={() => setBoostAmount(Math.max(1, boostAmount - 1))} style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ripple onPress={() => setBoostAmount(Math.max(1, boostAmount - 1))} style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary }}>−</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                   <TextInput
                     value={String(boostAmount)}
                     onChangeText={t => setBoostAmount(Math.min(100, Math.max(1, parseInt(t) || 1)))}
                     keyboardType="number-pad"
                     style={{ flex: 1, height: 40, textAlign: 'center', backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: colors.border, color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}
                   />
-                  <TouchableOpacity onPress={() => setBoostAmount(Math.min(100, boostAmount + 1))} style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ripple onPress={() => setBoostAmount(Math.min(100, boostAmount + 1))} style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: isDark ? '#374151' : '#f3f4f6', alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ fontSize: 18, fontWeight: '700', color: colors.textPrimary }}>+</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 </View>
 
                 <View style={{ backgroundColor: isDark ? '#1e293b' : '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 16 }}>
@@ -1008,12 +1009,12 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TouchableOpacity onPress={() => setBoostingPost(null)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+                  <Ripple onPress={() => setBoostingPost(null)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
                     <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleBoost} disabled={boosting || balance < boostAmount * 500} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#f97316', alignItems: 'center', opacity: (boosting || balance < boostAmount * 500) ? 0.5 : 1, flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
+                  </Ripple>
+                  <Ripple onPress={handleBoost} disabled={boosting || balance < boostAmount * 500} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#f97316', alignItems: 'center', opacity: (boosting || balance < boostAmount * 500) ? 0.5 : 1, flexDirection: 'row', justifyContent: 'center', gap: 6 }}>
                     {boosting ? <ActivityIndicator color="#fff" /> : <><Ionicons name="flash" size={16} color="#fff" /><Text style={{ color: '#fff', fontWeight: '800' }}>Boost {boostAmount}pt</Text></>}
-                  </TouchableOpacity>
+                  </Ripple>
                 </View>
               </>
             )}
@@ -1033,12 +1034,12 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
               style={[styles.input, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', color: colors.textPrimary, borderColor: colors.border, minHeight: 120, textAlignVertical: 'top', paddingTop: 14 }]}
             />
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity onPress={() => setEditingPost(null)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+              <Ripple onPress={() => setEditingPost(null)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
                 <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={saveEdit} disabled={saving} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center', opacity: saving ? 0.5 : 1 }}>
+              </Ripple>
+              <Ripple onPress={saveEdit} disabled={saving} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center', opacity: saving ? 0.5 : 1 }}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800' }}>Save</Text>}
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </View>
         </View>
@@ -1090,9 +1091,9 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 6 }}>
         {[{ k: 'newest', l: 'Newest' }, { k: 'liked', l: 'Most Liked' }, { k: 'viewed', l: 'Most Viewed' }, { k: 'earned', l: 'Top Earned' }].map(s => (
-          <TouchableOpacity key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2563eb' : isDark ? '#374151' : '#e5e7eb' }}>
+          <Ripple key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2563eb' : isDark ? '#374151' : '#e5e7eb' }}>
             <Text style={{ color: sortBy === s.k ? '#fff' : colors.textSecondary, fontSize: 11, fontWeight: '600' }}>{s.l}</Text>
-          </TouchableOpacity>
+          </Ripple>
         ))}
       </ScrollView>
 
@@ -1108,7 +1109,7 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
             const earned = Math.floor(likes / 10) * 5;
             const views = snap.views?.length || 0;
             return (
-            <TouchableOpacity key={snap.id} onPress={() => setPreview(snap)} style={{ width: '32%', aspectRatio: 9 / 16, backgroundColor: '#111827', borderRadius: 4, overflow: 'hidden' }}>
+            <Ripple key={snap.id} onPress={() => setPreview(snap)} style={{ width: '32%', aspectRatio: 9 / 16, backgroundColor: '#111827', borderRadius: 4, overflow: 'hidden' }}>
               {snap.media?.[0] && (
                 <Image source={{ uri: snap.media[0] }} style={{ width: '100%', height: '100%', opacity: 0.8 }} />
               )}
@@ -1128,7 +1129,7 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
                   </View>}
                 </View>
               </View>
-            </TouchableOpacity>
+            </Ripple>
             );
           })}
         </View>
@@ -1167,12 +1168,12 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
                 <Text style={{ fontSize: 10, color: '#047857', marginTop: 4 }}>+5 coins every 10 likes</Text>
               </View>
             )}
-            <TouchableOpacity onPress={() => deleteSnap(preview?.id)} style={{ backgroundColor: '#dc2626', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}>
+            <Ripple onPress={() => deleteSnap(preview?.id)} style={{ backgroundColor: '#dc2626', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}>
               <Text style={{ color: '#fff', fontWeight: '800' }}>Delete snap</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={{ marginTop: 8, paddingVertical: 12, alignItems: 'center' }} onPress={() => setPreview(null)}>
+            </Ripple>
+            <Ripple style={{ marginTop: 8, paddingVertical: 12, alignItems: 'center' }} onPress={() => setPreview(null)}>
               <Text style={{ color: colors.textSecondary }}>Close</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
       </Modal>
@@ -1221,7 +1222,7 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, isDark, 
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Milestones</Text>
       <View style={{ gap: 8, marginBottom: 16 }}>
         {milestones.map((m, i) => (
-          <TouchableOpacity key={i} onPress={() => m.done && m.tab ? setActiveSub(m.tab) : null}
+          <Ripple key={i} onPress={() => m.done && m.tab ? setActiveSub(m.tab) : null}
             style={[styles.cardBlock, { backgroundColor: m.done ? '#ecfdf5' : colors.card, borderColor: m.done ? '#a7f3d0' : colors.border, opacity: m.done ? 1 : 0.6 }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Ionicons name={m.done ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={m.done ? '#10b981' : colors.textSecondary} />
@@ -1231,7 +1232,7 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, isDark, 
               </View>
               {m.done && <Ionicons name="checkmark" size={18} color="#10b981" />}
             </View>
-          </TouchableOpacity>
+          </Ripple>
         ))}
       </View>
       <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
@@ -1267,12 +1268,12 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, isDark, 
       </View>
 
       <View style={{ flexDirection: 'row', gap: 12 }}>
-        <TouchableOpacity onPress={() => setActiveSub('composer')} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: accent, alignItems: 'center' }}>
+        <Ripple onPress={() => setActiveSub('composer')} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: accent, alignItems: 'center' }}>
           <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>New post</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+        </Ripple>
+        <Ripple style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
           <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>Go live</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
     </ScrollView>
   );
@@ -1420,13 +1421,13 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
     <ScrollView style={{ padding: 16 }}>
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Edit Profile</Text>
 
-      <TouchableOpacity onPress={handlePhotoPick} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
+      <Ripple onPress={handlePhotoPick} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
         <Image source={{ uri: photoPreview }} style={{ width: 60, height: 60, borderRadius: 12 }} />
         <View>
           <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 13 }}>Profile photo</Text>
           <Text style={{ color: accent, fontSize: 12, fontWeight: '600', marginTop: 4 }}>Change photo</Text>
         </View>
-      </TouchableOpacity>
+      </Ripple>
 
       <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, padding: 0, overflow: 'hidden' }]}>
         <View style={{ height: 100, backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }}>
@@ -1446,19 +1447,19 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
             <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>Recommended 1200 x 400px</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity onPress={handleCoverPick} style={{ backgroundColor: accent, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 }}>
+            <Ripple onPress={handleCoverPick} style={{ backgroundColor: accent, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 }}>
               <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{coverPreview ? 'Change' : 'Add'}</Text>
-            </TouchableOpacity>
+            </Ripple>
             {coverPreview ? (
-              <TouchableOpacity onPress={handleCoverRemove} style={{ borderWidth: 1, borderColor: '#ef4444', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 }}>
+              <Ripple onPress={handleCoverRemove} style={{ borderWidth: 1, borderColor: '#ef4444', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 }}>
                 <Text style={{ color: '#ef4444', fontSize: 11, fontWeight: '700' }}>Remove</Text>
-              </TouchableOpacity>
+              </Ripple>
             ) : null}
           </View>
         </View>
       </View>
 
-      <TouchableOpacity onPress={() => setModeModal(true)} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+      <Ripple onPress={() => setModeModal(true)} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ionicons name="flash" size={18} color={isOrg ? '#7c3aed' : colors.textSecondary} />
           <View>
@@ -1470,7 +1471,7 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
           </View>
         </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-      </TouchableOpacity>
+      </Ripple>
 
       <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary, marginBottom: 12 }}>PERSONAL DETAILS</Text>
@@ -1485,12 +1486,12 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
             <Text style={{ color: statusMsg.ok ? '#065f46' : '#991b1b', fontSize: 12, fontWeight: '600' }}>{statusMsg.text}</Text>
           </View>
         )}
-          <TouchableOpacity onPress={handleProfileUpdate} disabled={saving} style={{ backgroundColor: accent, paddingVertical: 14, borderRadius: 12, alignItems: 'center', opacity: saving ? 0.5 : 1 }}>
+          <Ripple onPress={handleProfileUpdate} disabled={saving} style={{ backgroundColor: accent, paddingVertical: 14, borderRadius: 12, alignItems: 'center', opacity: saving ? 0.5 : 1 }}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Save changes</Text>}
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
-      <TouchableOpacity onPress={() => { setPasswordModal(true); setPwStatus(null); setPwFields({ current: '', newPw: '', confirm: '' }); }} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+      <Ripple onPress={() => { setPasswordModal(true); setPwStatus(null); setPwFields({ current: '', newPw: '', confirm: '' }); }} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
           <View>
@@ -1499,7 +1500,7 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
           </View>
         </View>
         <Text style={{ color: accent, fontSize: 12, fontWeight: '600' }}>Change</Text>
-      </TouchableOpacity>
+      </Ripple>
 
       <Modal visible={passwordModal} transparent animationType="slide" onRequestClose={() => setPasswordModal(false)}>
         <View style={styles.modalOverlay}>
@@ -1514,12 +1515,12 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
               </View>
             )}
             <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity onPress={() => setPasswordModal(false)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+              <Ripple onPress={() => setPasswordModal(false)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
                 <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handlePasswordChange} disabled={pwSaving} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: accent, alignItems: 'center', opacity: pwSaving ? 0.5 : 1 }}>
+              </Ripple>
+              <Ripple onPress={handlePasswordChange} disabled={pwSaving} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: accent, alignItems: 'center', opacity: pwSaving ? 0.5 : 1 }}>
                 {pwSaving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800' }}>Update</Text>}
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </View>
         </View>
@@ -1542,9 +1543,9 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
                 {!isOrg && <Ionicons name="checkmark-circle" size={20} color="#2563eb" />}
               </View>
               {isOrg && (
-                <TouchableOpacity onPress={() => handleModeSwitch('Individual')} disabled={modeSaving} style={{ marginTop: 12, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+                <Ripple onPress={() => handleModeSwitch('Individual')} disabled={modeSaving} style={{ marginTop: 12, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
                   <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 12 }}>{modeSaving ? 'Switching...' : 'Switch to Personal'}</Text>
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
 
@@ -1563,9 +1564,9 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
                 {isOrg && <Ionicons name="checkmark-circle" size={20} color="#7c3aed" />}
               </View>
               {!isOrg && (
-                <TouchableOpacity onPress={() => setMigrationModal(true)} style={{ marginTop: 12, paddingVertical: 10, borderRadius: 8, backgroundColor: '#7c3aed', alignItems: 'center' }}>
+                <Ripple onPress={() => setMigrationModal(true)} style={{ marginTop: 12, paddingVertical: 10, borderRadius: 8, backgroundColor: '#7c3aed', alignItems: 'center' }}>
                   <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12 }}>{modeSaving ? 'Switching...' : 'Switch to Professional'}</Text>
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
 
@@ -1579,12 +1580,12 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Migrate Friends?</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 20 }}>Do you want to migrate your friends to followers for your new Organisation account?</Text>
-            <TouchableOpacity onPress={() => { setMigrationModal(false); handleModeSwitch('Organisation', true); }} style={{ backgroundColor: '#7c3aed', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 8 }}>
+            <Ripple onPress={() => { setMigrationModal(false); handleModeSwitch('Organisation', true); }} style={{ backgroundColor: '#7c3aed', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ color: '#fff', fontWeight: '800' }}>Yes, migrate</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setMigrationModal(false); handleModeSwitch('Organisation', false); }} style={{ paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+            </Ripple>
+            <Ripple onPress={() => { setMigrationModal(false); handleModeSwitch('Organisation', false); }} style={{ paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
               <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>No, skip</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </View>
       </Modal>
@@ -1662,10 +1663,10 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
           { value: 'light', label: 'Light mode' },
           { value: 'dark', label: 'Dark mode' },
         ].map(t => (
-          <TouchableOpacity key={t.value} onPress={() => setThemeMode(t.value as any)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Ripple key={t.value} onPress={() => setThemeMode(t.value as any)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <Text style={{ color: colors.textPrimary, fontSize: 13 }}>{t.label}</Text>
             {themeMode === t.value && <Ionicons name="checkmark-circle" size={18} color={accent} />}
-          </TouchableOpacity>
+          </Ripple>
         ))}
       </View>
 
@@ -1677,7 +1678,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
             <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 13 }}>Offline Mode</Text>
             <Text style={{ fontSize: 11, color: colors.textSecondary }}>Browse cached content when offline</Text>
           </View>
-          <TouchableOpacity
+          <Ripple
             onPress={() => {
               const next = !offlineMode;
               setOfflineMode(next);
@@ -1686,7 +1687,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
             style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: offlineMode ? '#2563eb' : '#d1d5db', padding: 2, justifyContent: 'center' }}
           >
             <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: offlineMode ? 'flex-end' : 'flex-start' }} />
-          </TouchableOpacity>
+          </Ripple>
         </View>
         <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 8, lineHeight: 16 }}>
           {offlineMode ? 'Content you load will be cached for offline browsing.' : 'Turn on to cache posts and snaps for offline browsing.'}
@@ -1699,7 +1700,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
             <Text style={{ fontWeight: '600', color: colors.textPrimary, fontSize: 13 }}>Data Saver</Text>
             <Text style={{ fontSize: 11, color: colors.textSecondary }}>Lower quality images to save data</Text>
           </View>
-          <TouchableOpacity
+          <Ripple
             onPress={() => {
               const next = !dataSaver;
               setDataSaver(next);
@@ -1708,7 +1709,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
             style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: dataSaver ? '#2563eb' : '#d1d5db', padding: 2, justifyContent: 'center' }}
           >
             <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: dataSaver ? 'flex-end' : 'flex-start' }} />
-          </TouchableOpacity>
+          </Ripple>
         </View>
         <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 8, lineHeight: 16 }}>
           {dataSaver ? 'Images will use low-quality Cloudinary compression.' : 'Images load at original quality.'}
@@ -1727,12 +1728,12 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
                 <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>{item.sub}</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {['inApp', 'email'].map(channel => (
-                    <TouchableOpacity key={channel} onPress={() => updateNotifPref(item.id, channel)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: prefVal[channel] ? '#eff6ff' : isDark ? '#1e293b' : '#f3f4f6', borderWidth: 1, borderColor: prefVal[channel] ? '#bfdbfe' : colors.border }}>
+                    <Ripple key={channel} onPress={() => updateNotifPref(item.id, channel)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: prefVal[channel] ? '#eff6ff' : isDark ? '#1e293b' : '#f3f4f6', borderWidth: 1, borderColor: prefVal[channel] ? '#bfdbfe' : colors.border }}>
                       <View style={{ width: 28, height: 16, borderRadius: 8, backgroundColor: prefVal[channel] ? '#2563eb' : '#d1d5db', padding: 2 }}>
                         <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff', transform: [{ translateX: prefVal[channel] ? 12 : 0 }] }} />
                       </View>
                       <Text style={{ fontSize: 11, fontWeight: '600', color: prefVal[channel] ? '#2563eb' : colors.textSecondary }}>{channel === 'inApp' ? 'In-app' : 'Email'}</Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   ))}
                 </View>
               </View>
@@ -1777,9 +1778,9 @@ function DangerTab({ username, handleLogout, colors, isDark }: any) {
             <Text style={{ fontSize: 11, color: colors.textSecondary }}>Sign out of your account</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={{ paddingVertical: 8, paddingHorizontal: 14, backgroundColor: isDark ? '#374151' : '#f3f4f6', borderRadius: 8 }}>
+        <Ripple onPress={handleLogout} style={{ paddingVertical: 8, paddingHorizontal: 14, backgroundColor: isDark ? '#374151' : '#f3f4f6', borderRadius: 8 }}>
           <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 12 }}>Log out</Text>
-        </TouchableOpacity>
+        </Ripple>
       </View>
 
       <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#fecaca', borderWidth: 2 }]}>
@@ -1800,13 +1801,13 @@ function DangerTab({ username, handleLogout, colors, isDark }: any) {
           onChangeText={setConfirmVal}
           style={[styles.input, { backgroundColor: isDark ? '#1e293b' : '#f8fafc', color: colors.textPrimary, borderColor: colors.border }]}
         />
-        <TouchableOpacity
+        <Ripple
           onPress={handleDeactivate}
           disabled={confirmVal !== username || deactivating}
           style={{ backgroundColor: '#dc2626', paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 12, opacity: (confirmVal !== username || deactivating) ? 0.3 : 1 }}
         >
           {deactivating ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Delete my account permanently</Text>}
-        </TouchableOpacity>
+        </Ripple>
       </View>
     </ScrollView>
   );

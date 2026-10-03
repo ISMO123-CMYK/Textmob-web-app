@@ -21,6 +21,19 @@ import ShareToTextmobScreen from './src/screens/share/ShareToTextmobScreen';
 import { navigationRef, linking } from './src/navigation/navigationRef';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 
+// Last line of defense: a stray fatal JS error must never white-screen the
+// app. Render errors are already caught by ErrorBoundary above; this catches
+// everything else (unhandled async, timers, socket callbacks). In dev we keep
+// RN's default handler so the red box still appears while debugging.
+const errorUtils: any = (globalThis as any).ErrorUtils;
+if (errorUtils && typeof errorUtils.setGlobalHandler === 'function') {
+  const previous = typeof errorUtils.getGlobalHandler === 'function' ? errorUtils.getGlobalHandler() : null;
+  errorUtils.setGlobalHandler((error: any, isFatal?: boolean) => {
+    console.error('[Textmob] Uncaught error', isFatal ? '(fatal)' : '', error);
+    if (__DEV__ && previous) previous(error, isFatal);
+  });
+}
+
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppNavigator() {

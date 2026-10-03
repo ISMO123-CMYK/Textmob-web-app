@@ -1,12 +1,13 @@
-import React, { memo, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+﻿import React, { memo, useState } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme, StatusRing } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR } from '../constants';
 
 type Props = {
   chat: any;
-  onClick?: () => void;
+  onClick?: (chat?: any) => void;
   isActive?: boolean;
   isGroup?: boolean;
   selectionMode?: boolean;
@@ -43,8 +44,8 @@ export const ChatItem = memo(function ChatItem({
   }, [chat.avatar_url]);
 
   const handlePress = () => {
-    if (selectionMode && onSelect) onSelect(chat.id);
-    else onClick?.();
+  if (selectionMode && onSelect) onSelect(chat.id);
+  else onClick?.(chat);
   };
 
   // Web's row is separate from its avatar zone (876-886): tap on the avatar
@@ -76,7 +77,7 @@ export const ChatItem = memo(function ChatItem({
     : '';
 
   return (
-    <TouchableOpacity
+    <Ripple
       activeOpacity={0.7}
       onPress={handlePress}
       onLongPress={() => onSelect?.(chat.id, true)}
@@ -98,7 +99,7 @@ export const ChatItem = memo(function ChatItem({
         </View>
       )}
 
-      <TouchableOpacity
+      <Ripple
         activeOpacity={0.8}
         disabled={!avatarEnabled}
         onPress={
@@ -122,7 +123,7 @@ export const ChatItem = memo(function ChatItem({
             style={[s.onlineDot, { backgroundColor: p.accent, borderColor: p.card }]}
           />
         )}
-      </TouchableOpacity>
+      </Ripple>
 
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={s.topRow}>
@@ -173,7 +174,7 @@ export const ChatItem = memo(function ChatItem({
           )}
         </View>
       </View>
-    </TouchableOpacity>
+    </Ripple>
   );
 });
 

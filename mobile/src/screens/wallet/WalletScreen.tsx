@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
+  View, Text, StyleSheet, ActivityIndicator,
   ScrollView, TextInput, Modal,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -138,17 +139,17 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
         {/* Header */}
         <View style={s.headerWrap}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 4 }}>
+            <Ripple onPress={() => navigation.goBack()} style={{ padding: 4 }}>
               <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-            </TouchableOpacity>
+            </Ripple>
             <View>
               <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Wallet</Text>
               {user.username && <Text style={[s.headerUser, { color: colors.textSecondary }]}>@{user.username}</Text>}
             </View>
           </View>
-          <TouchableOpacity onPress={() => loadWallet()} style={{ padding: 4 }}>
+          <Ripple onPress={() => loadWallet()} style={{ padding: 4 }}>
             <Ionicons name="refresh-outline" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Ripple>
         </View>
 
         {/* Balance Card */}
@@ -159,12 +160,12 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <Text style={s.balanceLabel}>{walletMode === 'live' ? 'WALLET VALUE (NGN)' : 'MOBCOINS BALANCE'}</Text>
-                  <TouchableOpacity
+                  <Ripple
                     style={[s.modeToggle, walletMode === 'live' && { backgroundColor: '#16a34a' }]}
                     onPress={() => setWalletMode(prev => prev === 'balance' ? 'live' : 'balance')}
                   >
                     <Text style={s.modeToggleText}>{walletMode === 'live' ? 'Live' : 'Wallet'}</Text>
-                  </TouchableOpacity>
+                  </Ripple>
                 </View>
                 <Text style={s.balanceAmount}>
                   {showBalance
@@ -173,9 +174,9 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                 </Text>
                 {user.fullname && <Text style={s.balanceGreeting}>Hi, {user.fullname}</Text>}
               </View>
-              <TouchableOpacity style={s.eyeBtn} onPress={() => setShowBalance(!showBalance)}>
+              <Ripple style={s.eyeBtn} onPress={() => setShowBalance(!showBalance)}>
                 <Ionicons name={showBalance ? 'eye-outline' : 'eye-off-outline'} size={18} color="rgba(255,255,255,0.7)" />
-              </TouchableOpacity>
+              </Ripple>
             </View>
           </View>
         </View>
@@ -183,7 +184,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
         {/* Tabs */}
         <View style={[s.tabBar, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]}>
           {['actions', 'redeem', 'history'].map(tab => (
-            <TouchableOpacity
+            <Ripple
               key={tab}
               style={[s.tab, activeTab === tab && { backgroundColor: colors.card, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }]}
               onPress={() => setActiveTab(tab)}
@@ -191,7 +192,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
               <Text style={[s.tabText, { color: activeTab === tab ? colors.textPrimary : colors.textSecondary }]}>
                 {tab === 'actions' ? 'Send/Earn' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </Text>
-            </TouchableOpacity>
+            </Ripple>
           ))}
         </View>
 
@@ -199,22 +200,22 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
         {activeTab === 'actions' && (
           <View style={s.actionsSection}>
             <View style={s.actionsGrid}>
-              <TouchableOpacity style={[s.actionCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => setShowSendModal(true)}>
+              <Ripple style={[s.actionCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => setShowSendModal(true)}>
                 <View style={[s.actionIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff' }]}>
                   <Ionicons name="send-outline" size={20} color="#2563eb" />
                 </View>
                 <Text style={[s.actionLabel, { color: colors.textPrimary }]}>Send</Text>
                 <Text style={[s.actionDesc, { color: colors.textSecondary }]}>Transfer coins</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.actionCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => setShowEarnModal(true)}>
+              </Ripple>
+              <Ripple style={[s.actionCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => setShowEarnModal(true)}>
                 <View style={[s.actionIcon, { backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#fffbeb' }]}>
                   <Ionicons name="cash-outline" size={20} color="#d97706" />
                 </View>
                 <Text style={[s.actionLabel, { color: colors.textPrimary }]}>Earn</Text>
                 <Text style={[s.actionDesc, { color: colors.textSecondary }]}>Get more coins</Text>
-              </TouchableOpacity>
+              </Ripple>
             </View>
-            <TouchableOpacity style={[s.learnCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => setShowLearnModal(true)}>
+            <Ripple style={[s.learnCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => setShowLearnModal(true)}>
               <View style={[s.learnIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff' }]}>
                 <Ionicons name="bulb-outline" size={20} color="#2563eb" />
               </View>
@@ -223,7 +224,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                 <Text style={[s.learnDesc, { color: colors.textSecondary }]}>Tips to grow your balance</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
         )}
 
@@ -257,7 +258,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                     <Text style={[s.infoText, { color: isDark ? '#93c5fd' : '#1e40af' }]}><Text style={{ fontWeight: '700' }}>Limit:</Text> You can only make one redemption request per week.</Text>
                   </View>
                 </View>
-                <TouchableOpacity style={[s.redeemOption, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => { setRedeemType('AIRTIME'); setMessage(''); setShowRedeemModal(true); }}>
+                <Ripple style={[s.redeemOption, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => { setRedeemType('AIRTIME'); setMessage(''); setShowRedeemModal(true); }}>
                   <View style={[s.redeemIcon, { backgroundColor: isDark ? 'rgba(22,163,74,0.15)' : '#f0fdf4' }]}>
                     <Ionicons name="phone-portrait-outline" size={22} color="#16a34a" />
                   </View>
@@ -266,8 +267,8 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                     <Text style={[s.redeemSub, { color: colors.textSecondary }]}>Instant top-up for your phone</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={[s.redeemOption, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => { setRedeemType('CASH'); setMessage(''); setShowRedeemModal(true); }}>
+                </Ripple>
+                <Ripple style={[s.redeemOption, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => { setRedeemType('CASH'); setMessage(''); setShowRedeemModal(true); }}>
                   <View style={[s.redeemIcon, { backgroundColor: isDark ? 'rgba(99,102,241,0.15)' : '#eef2ff' }]}>
                     <Ionicons name="wallet-outline" size={22} color="#6366f1" />
                   </View>
@@ -276,7 +277,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                     <Text style={[s.redeemSub, { color: colors.textSecondary }]}>Direct bank transfer to your account</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Ripple>
               </>
             )}
           </View>
@@ -340,7 +341,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
       {/* Send Modal */}
       <Modal visible={showSendModal} animationType="slide" onRequestClose={() => setShowSendModal(false)} transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowSendModal(false)} />
+          <Ripple style={s.modalOverlay} activeOpacity={1} onPress={() => setShowSendModal(false)} />
           <View style={[s.bottomSheet, { backgroundColor: colors.card }]}>
             <View style={s.sheetHandle} />
             <ScrollView>
@@ -364,7 +365,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
               {searchResults.length > 0 && (
                 <View style={[s.searchResultsWrap, { borderColor: colors.border }]}>
                   {searchResults.slice(0, 5).map(u => (
-                    <TouchableOpacity
+                    <Ripple
                       key={u.username}
                       style={[s.searchResultItem, { borderBottomColor: colors.border }]}
                       onPress={() => { toggleUser(u); setSearchQ(''); setSearchResults([]); }}
@@ -379,7 +380,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                       {selectedUsers.some(s => s.username === u.username) && (
                         <Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>Added</Text>
                       )}
-                    </TouchableOpacity>
+                    </Ripple>
                   ))}
                 </View>
               )}
@@ -388,9 +389,9 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                   {selectedUsers.map(u => (
                     <View key={u.username} style={[s.selectedChip, { backgroundColor: colors.primary }]}>
                       <Text style={s.selectedChipText}>{u.fullname || u.username}</Text>
-                      <TouchableOpacity onPress={() => toggleUser(u)}>
+                      <Ripple onPress={() => toggleUser(u)}>
                         <Ionicons name="close-circle" size={16} color="#fff" />
-                      </TouchableOpacity>
+                      </Ripple>
                     </View>
                   ))}
                 </View>
@@ -410,12 +411,12 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
               {message ? (
                 <Text style={[s.messageText, { color: message.includes('success') ? '#16a34a' : '#ef4444' }]}>{message}</Text>
               ) : null}
-              <TouchableOpacity style={[s.primaryBtn, sending && { opacity: 0.5 }]} onPress={handleSend} disabled={sending}>
+              <Ripple style={[s.primaryBtn, sending && { opacity: 0.5 }]} onPress={handleSend} disabled={sending}>
                 {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.primaryBtnText}>Send Mobcoins</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={s.cancelSheetBtn} onPress={() => { setShowSendModal(false); setMessage(''); }}>
+              </Ripple>
+              <Ripple style={s.cancelSheetBtn} onPress={() => { setShowSendModal(false); setMessage(''); }}>
                 <Text style={[s.cancelSheetText, { color: colors.textSecondary }]}>Cancel</Text>
-              </TouchableOpacity>
+              </Ripple>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -424,7 +425,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
       {/* Redeem Modal */}
       <Modal visible={showRedeemModal} animationType="slide" onRequestClose={() => setShowRedeemModal(false)} transparent>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowRedeemModal(false)} />
+          <Ripple style={s.modalOverlay} activeOpacity={1} onPress={() => setShowRedeemModal(false)} />
           <View style={[s.bottomSheet, { backgroundColor: colors.card }]}>
             <View style={s.sheetHandle} />
             <ScrollView>
@@ -432,9 +433,9 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                 <Text style={[s.sheetTitle, { color: colors.textPrimary, marginBottom: 0 }]}>
                   Redeem for {redeemType === 'CASH' ? 'Cash' : 'Airtime'}
                 </Text>
-                <TouchableOpacity onPress={() => setShowRedeemModal(false)}>
+                <Ripple onPress={() => setShowRedeemModal(false)}>
                   <Ionicons name="close" size={22} color={colors.textSecondary} />
-                </TouchableOpacity>
+                </Ripple>
               </View>
               <View style={[s.estValueBox, { backgroundColor: isDark ? 'rgba(37,99,235,0.1)' : '#eff6ff' }]}>
                 <Text style={[s.estLabel, { color: colors.primary }]}>ESTIMATED VALUE</Text>
@@ -469,11 +470,11 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                   <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>Network</Text>
                   <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
                     {['MTN', 'Airtel', 'Glo', '9mobile'].map(net => (
-                      <TouchableOpacity key={net} style={[s.netBtn, payoutDetails.network === net.toUpperCase() && { backgroundColor: colors.primary }]}
+                      <Ripple key={net} style={[s.netBtn, payoutDetails.network === net.toUpperCase() && { backgroundColor: colors.primary }]}
                         onPress={() => setPayoutDetails(p => ({ ...p, network: net.toUpperCase() }))}
                       >
                         <Text style={[s.netBtnText, { color: payoutDetails.network === net.toUpperCase() ? '#fff' : colors.textSecondary }]}>{net}</Text>
-                      </TouchableOpacity>
+                      </Ripple>
                     ))}
                   </View>
                   <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>Phone Number</Text>
@@ -486,12 +487,12 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
               {message ? (
                 <Text style={[s.messageText, { color: message.includes('fail') || message.includes('Insufficient') || message.includes('wait') ? '#ef4444' : '#16a34a' }]}>{message}</Text>
               ) : null}
-              <TouchableOpacity style={[s.primaryBtn, redeeming && { opacity: 0.5 }]} onPress={handleRedeem} disabled={redeeming}>
+              <Ripple style={[s.primaryBtn, redeeming && { opacity: 0.5 }]} onPress={handleRedeem} disabled={redeeming}>
                 {redeeming ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.primaryBtnText}>Confirm</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={s.cancelSheetBtn} onPress={() => { setShowRedeemModal(false); setMessage(''); }}>
+              </Ripple>
+              <Ripple style={s.cancelSheetBtn} onPress={() => { setShowRedeemModal(false); setMessage(''); }}>
                 <Text style={[s.cancelSheetText, { color: colors.textSecondary }]}>Cancel</Text>
-              </TouchableOpacity>
+              </Ripple>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -499,7 +500,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
 
       {/* Gift Modal */}
       <Modal visible={showGiftModal} animationType="slide" onRequestClose={() => setShowGiftModal(false)} transparent>
-        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowGiftModal(false)} />
+        <Ripple style={s.modalOverlay} activeOpacity={1} onPress={() => setShowGiftModal(false)} />
         <View style={[s.bottomSheet, { backgroundColor: colors.card, alignItems: 'center', paddingVertical: 32 }]}>
           <View style={[s.giftIconWrap, { backgroundColor: isDark ? 'rgba(236,72,153,0.15)' : '#fdf2f8' }]}>
             <Ionicons name="gift-outline" size={32} color="#ec4899" />
@@ -508,15 +509,15 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
           <Text style={[s.giftDesc, { color: colors.textSecondary }]}>
             Surprise your friends with gift boxes! This feature is being tuned. For now, please use the Send tab to transfer coins.
           </Text>
-          <TouchableOpacity style={[s.primaryBtn, { width: '100%' }]} onPress={() => setShowGiftModal(false)}>
+          <Ripple style={[s.primaryBtn, { width: '100%' }]} onPress={() => setShowGiftModal(false)}>
             <Text style={s.primaryBtnText}>Got it</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </Modal>
 
       {/* Earn Modal */}
       <Modal visible={showEarnModal} animationType="slide" onRequestClose={() => setShowEarnModal(false)} transparent>
-        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowEarnModal(false)} />
+        <Ripple style={s.modalOverlay} activeOpacity={1} onPress={() => setShowEarnModal(false)} />
         <View style={[s.bottomSheet, { backgroundColor: colors.card }]}>
           <View style={s.sheetHandle} />
           <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
@@ -527,23 +528,23 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
             <Text style={[s.giftDesc, { color: colors.textSecondary, textAlign: 'center' }]}>
               Earn +5 Mobcoins every time any of your posts hits 10, 20, 30... likes. No limit — the more likes you get, the more you earn!
             </Text>
-            <TouchableOpacity style={[s.primaryBtn, { width: '100%' }]} onPress={() => setShowEarnModal(false)}>
+            <Ripple style={[s.primaryBtn, { width: '100%' }]} onPress={() => setShowEarnModal(false)}>
               <Text style={s.primaryBtnText}>Got it</Text>
-            </TouchableOpacity>
+            </Ripple>
           </ScrollView>
         </View>
       </Modal>
 
       {/* Learn Modal */}
       <Modal visible={showLearnModal} animationType="slide" onRequestClose={() => setShowLearnModal(false)} transparent>
-        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowLearnModal(false)} />
+        <Ripple style={s.modalOverlay} activeOpacity={1} onPress={() => setShowLearnModal(false)} />
         <View style={[s.bottomSheet, { backgroundColor: colors.card }]}>
           <View style={s.sheetHandle} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <Text style={[s.sheetTitle, { color: colors.textPrimary, marginBottom: 0 }]}>How to earn Mobcoins</Text>
-            <TouchableOpacity onPress={() => setShowLearnModal(false)}>
+            <Ripple onPress={() => setShowLearnModal(false)}>
               <Ionicons name="close" size={22} color={colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
           <ScrollView>
             {[
@@ -564,25 +565,25 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
               </View>
             ))}
           </ScrollView>
-          <TouchableOpacity style={[s.primaryBtn, { marginTop: 12 }]} onPress={() => setShowLearnModal(false)}>
+          <Ripple style={[s.primaryBtn, { marginTop: 12 }]} onPress={() => setShowLearnModal(false)}>
             <Text style={s.primaryBtnText}>Got it</Text>
-          </TouchableOpacity>
+          </Ripple>
         </View>
       </Modal>
 
       {/* Alert Modal */}
       <Modal visible={alertModal.open} transparent animationType="fade" onRequestClose={() => setAlertModal({ open: false, title: '', message: '' })}>
-        <TouchableOpacity style={s.alertOverlay} activeOpacity={1} onPress={() => setAlertModal({ open: false, title: '', message: '' })}>
+        <Ripple style={s.alertOverlay} activeOpacity={1} onPress={() => setAlertModal({ open: false, title: '', message: '' })}>
           <View style={[s.alertBox, { backgroundColor: colors.card }]}>
             <Text style={[s.alertTitle, { color: colors.textPrimary }]}>{alertModal.title}</Text>
             <Text style={[s.alertMsg, { color: colors.textSecondary }]}>{alertModal.message}</Text>
-            <TouchableOpacity style={[s.alertBtn, { backgroundColor: colors.primary }]}
+            <Ripple style={[s.alertBtn, { backgroundColor: colors.primary }]}
               onPress={() => setAlertModal({ open: false, title: '', message: '' })}
             >
               <Text style={s.alertBtnText}>OK</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
     </SafeAreaView>
   );

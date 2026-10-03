@@ -70,7 +70,13 @@ export function formatDuration(seconds: number): string {
 }
 
 // ─── Translate (LoudaApp.jsx:505) ───
+// Translation + text-to-speech are on hold while being rebuilt (settings
+// shows "Work in progress"). The implementations below stay intact behind
+// this flag — flip it back to true to re-enable both.
+export const TRANSLATION_TTS_DISABLED = true;
+
 export const translateMessage = async (text: string, toLang: string): Promise<string | null> => {
+  if (TRANSLATION_TTS_DISABLED) return null;
   try {
     const res = await fetch(`${LOUDA_API_URL}/api/translate`, {
       method: 'POST',
@@ -214,6 +220,7 @@ export function loudaAlert(opts?: { title?: string; message?: string }) {
 // ─── TTS playback (LoudaApp.jsx:522-561) ───
 let ttsPlayer: import('expo-audio').AudioPlayer | null = null;
 export async function playTTS(text: string, voice?: string) {
+  if (TRANSLATION_TTS_DISABLED) return;
   const activeVoice = TTS_VOICES.includes(voice || '') ? (voice as string) : 'Zainab';
   try {
     const res = await fetch(`${LOUDA_API_URL}/api/tts`, {

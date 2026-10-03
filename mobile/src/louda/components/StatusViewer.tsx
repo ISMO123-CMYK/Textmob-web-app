@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Image,
-  TouchableOpacity,
   TextInput,
   ScrollView,
   Modal,
@@ -13,6 +12,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import {
   createVideoPlayer,
   VideoView,
@@ -105,7 +105,7 @@ export const StatusViewer = memo(function StatusViewer({
 
   // Resume at first unviewed when switching user (web 529-534).
   // Skipped on the first run when a quoted status jump (initialStatusId)
-  // selected the starting index â€” otherwise it would clobber the jump.
+  // selected the starting index — otherwise it would clobber the jump.
   const didInitRef = useRef(false);
   useEffect(() => {
     if (!didInitRef.current) {
@@ -236,7 +236,7 @@ export const StatusViewer = memo(function StatusViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStatusIndex, currentUserIndex, isPaused, showReceipts, expandedCaption, currentStatus]);
 
-  // Video ended â†’ next status (web onEnded)
+  // Video ended → next status (web onEnded)
   useEffect(() => {
     const pl = videoPlayer;
     if (!pl) return;
@@ -281,7 +281,7 @@ export const StatusViewer = memo(function StatusViewer({
       onPanResponderRelease: (evt, g) => {
         setIsPaused(false);
         if (Math.abs(g.dx) > 50) {
-          // horizontal swipe â†’ next/prev user (web touch delta>50)
+          // horizontal swipe → next/prev user (web touch delta>50)
           if (g.dx < 0) {
             if (currentUserIndex < sequence.length - 1) setCurrentUserIndex((c) => c + 1);
             else onClose();
@@ -333,9 +333,9 @@ export const StatusViewer = memo(function StatusViewer({
 
         {/* Header (web 679-688) */}
         <View style={s.header}>
-          <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
+          <Ripple onPress={onClose} style={{ padding: 4 }}>
             <Icons.arrowLeft size={22} color="#fff" />
-          </TouchableOpacity>
+          </Ripple>
           <Image source={{ uri: activeGroup?.avatar_url || DEFAULT_AVATAR }} style={s.headerAvatar} />
           <View style={{ flex: 1 }}>
             <Text style={s.headerName} numberOfLines={1}>
@@ -407,7 +407,7 @@ export const StatusViewer = memo(function StatusViewer({
           {(currentStatus.type === 'image' || currentStatus.type === 'video') &&
             !!currentStatus.content && (
               <View style={s.captionWrap} pointerEvents="box-none">
-                <TouchableOpacity
+                <Ripple
                   activeOpacity={0.9}
                   onPress={() => {
                     const next = !expandedCaption;
@@ -431,7 +431,7 @@ export const StatusViewer = memo(function StatusViewer({
                   >
                     {currentStatus.content}
                   </Text>
-                </TouchableOpacity>
+                </Ripple>
               </View>
             )}
         </View>
@@ -449,19 +449,19 @@ export const StatusViewer = memo(function StatusViewer({
               placeholderTextColor="rgba(255,255,255,0.6)"
               style={s.replyInput}
             />
-            <TouchableOpacity style={s.replySend} onPress={sendReply}>
+            <Ripple style={s.replySend} onPress={sendReply}>
               <Icons.send size={19} color="#fff" />
-            </TouchableOpacity>
+            </Ripple>
           </View>
         )}
 
         {/* Own views button (web 778-785) */}
         {isOwn && (
           <View style={s.viewsWrap} pointerEvents="box-none">
-            <TouchableOpacity style={s.viewsBtn} onPress={() => setShowReceipts(true)}>
+            <Ripple style={s.viewsBtn} onPress={() => setShowReceipts(true)}>
               <Icons.eye size={17} color="#fff" />
               <Text style={s.viewsBtnText}>{currentStatus.views?.length || 0}</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         )}
 
@@ -480,12 +480,12 @@ export const StatusViewer = memo(function StatusViewer({
                 <Text style={s.receiptsTitle}>
                   Viewed by {currentStatus.views?.length || 0}
                 </Text>
-                <TouchableOpacity
+                <Ripple
                   style={s.receiptsClose}
                   onPress={() => setShowReceipts(false)}
                 >
                   <Icons.x size={17} color="#6b7280" />
-                </TouchableOpacity>
+                </Ripple>
               </View>
               <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}>
                 {(currentStatus.views || []).map((v: any, i: number) => (

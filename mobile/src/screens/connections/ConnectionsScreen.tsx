@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
+  View, Text, FlatList, StyleSheet,
   ActivityIndicator, Image, Alert,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -62,23 +63,23 @@ export default function ConnectionsScreen({ route, navigation }: { route: any; n
   const renderUser = (user: any, showFollow = true) => {
     const isFollowing = following.some((f: any) => f.username === user.username);
     return (
-      <TouchableOpacity style={s.userRow} onPress={() => navigation.navigate('Profile', { username: user.username })}>
+      <Ripple style={s.userRow} onPress={() => navigation.navigate('Profile', { username: user.username })}>
         <Image source={{ uri: user.profile_pic || DEFAULT_PIC }} style={s.avatar} />
         <View style={{ flex: 1 }}>
           <Text style={[s.userName, { color: colors.textPrimary }]}>{user.fullname || user.username}</Text>
           <Text style={[s.userHandle, { color: colors.textSecondary }]}>@{user.username}</Text>
         </View>
         {showFollow && username !== user.username && (
-          <TouchableOpacity
+          <Ripple
             style={[s.followBtn, { backgroundColor: isFollowing ? (isDark ? '#334155' : '#f3f4f6') : '#2563eb' }]}
             onPress={() => toggleFollow(user.username!)}
           >
             <Text style={[s.followText, { color: isFollowing ? colors.textSecondary : '#fff' }]}>
               {isFollowing ? 'Following' : 'Follow'}
             </Text>
-          </TouchableOpacity>
+          </Ripple>
         )}
-      </TouchableOpacity>
+      </Ripple>
     );
   };
 
@@ -93,9 +94,9 @@ export default function ConnectionsScreen({ route, navigation }: { route: any; n
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+        <Ripple onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Connections</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -103,12 +104,12 @@ export default function ConnectionsScreen({ route, navigation }: { route: any; n
       {/* Tabs matching web centered underline design */}
       <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
         {tabs.map(t => (
-          <TouchableOpacity key={t.key} style={s.tab} onPress={() => setActiveTab(t.key)}>
+          <Ripple key={t.key} style={s.tab} onPress={() => setActiveTab(t.key)}>
             <Text style={[s.tabText, { color: activeTab === t.key ? '#2563eb' : colors.textSecondary }]}>
               {t.label} <Text style={{ fontSize: 10, opacity: 0.6 }}>{t.count}</Text>
             </Text>
             {activeTab === t.key && <View style={s.activeIndicator} />}
-          </TouchableOpacity>
+          </Ripple>
         ))}
       </View>
 

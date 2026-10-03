@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,11 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import * as ImagePicker from 'expo-image-picker';
 import { useLoudaTheme, Button, Input, Toggle, Section } from './primitives';
 import { Icons } from '../icons';
@@ -18,8 +18,9 @@ import { DEFAULT_AVATAR } from '../constants';
 import { getOptimizedMediaUrl } from '../utils';
 import { getStore, setStore } from '../../utils/storage';
 import * as api from '../api';
-import { loudaAlert } from '../utils';
+import { loudaAlert, TRANSLATION_TTS_DISABLED } from '../utils';
 import { registerForPushNotificationsAsync } from '../push';
+import { InAppCamera } from './InAppCamera';
 
 const NOTIF_KEY = 'louda:notifPrefs';
 
@@ -83,6 +84,7 @@ export function SettingsScreen({
   });
   const [hasChanges, setHasChanges] = useState(false);
   const [showAvatarOptions, setShowAvatarOptions] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
@@ -124,21 +126,27 @@ export function SettingsScreen({
 
   const pickAvatar = async (fromCamera: boolean) => {
     setShowAvatarOptions(false);
+    if (fromCamera) {
+      // Camera mounts INSIDE this RN Modal (own native window — the global
+      // overlay would render behind it).
+      setShowCamera(true);
+      return;
+    }
     try {
-      let res: ImagePicker.ImagePickerResult;
-      if (fromCamera) {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return;
-        res = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-      } else {
-        res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-      }
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
       if (res.canceled || !res.assets?.length) return;
       const asset = res.assets[0];
       onUploadAvatar(user.id, { uri: asset.uri, name: asset.fileName || 'avatar.jpg', type: asset.mimeType || 'image/jpeg' }, false);
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const onCameraCapture = (file: { uri: string; fileName: string; mimeType: string }) => {
+    setShowCamera(false);
+    Promise.resolve(
+      onUploadAvatar(user.id, { uri: file.uri, name: file.fileName, type: file.mimeType }, false),
+    ).catch((e) => console.error(e));
   };
 
   const onTogglePush = async () => {
@@ -195,18 +203,18 @@ export function SettingsScreen({
           {/* Header (web 6024-6036) */}
           <View style={[s.head, { borderBottomColor: p.borderLight, backgroundColor: p.card }]}>
             {view !== 'main' && (
-              <TouchableOpacity style={[s.headBtn, { backgroundColor: p.cardMuted }]} onPress={() => setView('main')}>
+              <Ripple style={[s.headBtn, { backgroundColor: p.cardMuted }]} onPress={() => setView('main')}>
                 <Icons.arrowLeft size={17} color={p.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
             )}
             <Text style={s.headTitle} numberOfLines={1}>
               {view === 'main'
                 ? 'Settings'
                 : view.charAt(0).toUpperCase() + view.slice(1).replace(/([A-Z])/g, ' $1')}
             </Text>
-            <TouchableOpacity style={[s.headBtn, { backgroundColor: p.cardMuted }]} onPress={onClose}>
+            <Ripple style={[s.headBtn, { backgroundColor: p.cardMuted }]} onPress={onClose}>
               <Icons.x size={17} color={p.textMuted} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 40 }}>
@@ -219,13 +227,13 @@ export function SettingsScreen({
                       source={{ uri: getOptimizedMediaUrl(user.avatar_url || DEFAULT_AVATAR) }}
                       style={s.profileAvatar}
                     />
-                    <TouchableOpacity
+                    <Ripple
                       style={s.avatarBadge}
                       onPress={() => setShowAvatarOptions(true)}
                       activeOpacity={0.85}
                     >
                       <Icons.camera size={13} color="#fff" />
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                   <Text style={[s.profileName, { color: p.text }]}>
                     {user.full_name || 'Anonymous'}
@@ -238,7 +246,7 @@ export function SettingsScreen({
                 {menuItems.map((item) => {
                   const I = item.icon;
                   return (
-                    <TouchableOpacity
+                    <Ripple
                       key={item.id}
                       activeOpacity={0.8}
                       style={[s.menuRow, { backgroundColor: p.card, borderColor: p.borderLight }]}
@@ -251,7 +259,7 @@ export function SettingsScreen({
                         <Text style={[s.menuLabel, { color: p.textSecondary }]}>{item.label}</Text>
                       </View>
                       <Icons.chevronRight size={17} color={p.textMuted} />
-                    </TouchableOpacity>
+                    </Ripple>
                   );
                 })}
               </View>
@@ -266,13 +274,13 @@ export function SettingsScreen({
                       source={{ uri: getOptimizedMediaUrl(user.avatar_url || DEFAULT_AVATAR) }}
                       style={s.bigAvatar}
                     />
-                    <TouchableOpacity
+                    <Ripple
                       style={[s.avatarBadge, s.avatarBadgeLg]}
                       onPress={() => setShowAvatarOptions(true)}
                       activeOpacity={0.85}
                     >
                       <Icons.camera size={15} color="#fff" />
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                   <Text style={[s.changePic, { color: p.textMuted }]}>Change Profile Picture</Text>
                 </View>
@@ -362,12 +370,12 @@ export function SettingsScreen({
                               </Text>
                             </View>
                           </View>
-                          <TouchableOpacity
+                          <Ripple
                             style={s.unblockBtn}
                             onPress={() => onToggleBlock(id)}
                           >
                             <Text style={s.unblockText}>Unblock</Text>
-                          </TouchableOpacity>
+                          </Ripple>
                         </View>
                       );
                     })}
@@ -384,6 +392,25 @@ export function SettingsScreen({
             {/* ─── Voice & Language (web 6147-6190) ─── */}
             {view === 'voice' && (
               <View style={{ gap: 32 }}>
+                {TRANSLATION_TTS_DISABLED && (
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(245,158,11,0.14)',
+                      borderRadius: 12,
+                      borderWidth: StyleSheet.hairlineWidth,
+                      borderColor: 'rgba(245,158,11,0.45)',
+                      padding: 12,
+                    }}
+                  >
+                    <Text style={{ color: '#f59e0b', fontSize: 12, fontWeight: '800' }}>
+                      Work in progress
+                    </Text>
+                    <Text style={{ color: '#f59e0b', fontSize: 12, marginTop: 2 }}>
+                      Translation and text-to-speech are being rebuilt and are temporarily
+                      disabled.
+                    </Text>
+                  </View>
+                )}
                 <Section title="Voice Settings">
                   <Text style={s.selectLabel}>Preferred TTS Voice</Text>
                   <View style={{ gap: 8 }}>
@@ -394,15 +421,17 @@ export function SettingsScreen({
                           {g.voices.map((o) => {
                             const active = (tempPrefs.preferred_voice || 'Zainab') === o.v;
                             return (
-                              <TouchableOpacity
+                              <Ripple
                                 key={o.v}
                                 activeOpacity={0.8}
+                                disabled={TRANSLATION_TTS_DISABLED}
                                 onPress={() => update('preferred_voice', o.v)}
                                 style={[
                                   s.chip,
                                   {
                                     backgroundColor: active ? p.accent : p.cardMuted,
                                     borderColor: active ? p.accent : p.borderLight,
+                                    opacity: TRANSLATION_TTS_DISABLED ? 0.5 : 1,
                                   },
                                 ]}
                               >
@@ -415,7 +444,7 @@ export function SettingsScreen({
                                 >
                                   {o.n}
                                 </Text>
-                              </TouchableOpacity>
+                              </Ripple>
                             );
                           })}
                         </View>
@@ -431,7 +460,7 @@ export function SettingsScreen({
                       const active =
                         (tempPrefs.language_preferences?.preferred_language || 'en') === o.v;
                       return (
-                        <TouchableOpacity
+                        <Ripple
                           key={o.v}
                           activeOpacity={0.8}
                           onPress={() => update('language_preferences.preferred_language', o.v)}
@@ -452,7 +481,7 @@ export function SettingsScreen({
                           >
                             {o.n}
                           </Text>
-                        </TouchableOpacity>
+                        </Ripple>
                       );
                     })}
                   </View>
@@ -460,6 +489,7 @@ export function SettingsScreen({
                     <Toggle
                       label="Auto Show Translated Messages"
                       checked={tempPrefs.language_preferences?.auto_translate === true}
+                      disabled={TRANSLATION_TTS_DISABLED}
                       onChange={() =>
                         update(
                           'language_preferences.auto_translate',
@@ -468,7 +498,9 @@ export function SettingsScreen({
                       }
                     />
                     <Text style={[s.hint, { color: p.textMuted }]}>
-                      Automatically displays a subtle translated version under received messages.
+                      {TRANSLATION_TTS_DISABLED
+                        ? 'Work in progress — translation is temporarily disabled.'
+                        : 'Automatically displays a subtle translated version under received messages.'}
                     </Text>
                   </View>
                 </Section>
@@ -568,7 +600,7 @@ export function SettingsScreen({
                         style={[s.pwInput, { backgroundColor: p.cardMuted, color: p.text }]}
                       />
                       <View style={{ flexDirection: 'row', gap: 8 }}>
-                        <TouchableOpacity
+                        <Ripple
                           style={[s.pwBtn, { backgroundColor: p.cardMuted }]}
                           onPress={() => {
                             setShowPasswordForm(false);
@@ -579,8 +611,8 @@ export function SettingsScreen({
                           <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSecondary }}>
                             Cancel
                           </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
+                        </Ripple>
+                        <Ripple
                           style={[s.pwBtn, { backgroundColor: '#16a34a', opacity: passwordLoading ? 0.5 : 1 }]}
                           disabled={passwordLoading}
                           onPress={async () => {
@@ -612,11 +644,11 @@ export function SettingsScreen({
                           <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>
                             {passwordLoading ? 'Saving...' : 'Save'}
                           </Text>
-                        </TouchableOpacity>
+                        </Ripple>
                       </View>
                     </View>
                   ) : (
-                    <TouchableOpacity
+                    <Ripple
                       style={[s.infoRow, { backgroundColor: p.cardMuted }]}
                       onPress={() => setShowPasswordForm(true)}
                     >
@@ -624,7 +656,7 @@ export function SettingsScreen({
                         Change Password
                       </Text>
                       <Icons.chevronRight size={16} color={p.textMuted} />
-                    </TouchableOpacity>
+                    </Ripple>
                   )}
                   <View style={[s.infoRow, { backgroundColor: p.cardMuted, marginTop: 8 }]}>
                     <Text style={{ fontSize: 14, fontWeight: '700', color: p.textSecondary }}>
@@ -736,20 +768,29 @@ export function SettingsScreen({
           <Pressable style={s.ovCenter} onPress={() => setShowAvatarOptions(false)}>
             <Pressable style={[s.sheetCard, { backgroundColor: p.card }]} onPress={(e) => e.stopPropagation()}>
               <Text style={[s.sheetTitle, { color: p.text }]}>Profile Photo</Text>
-              <TouchableOpacity style={[s.sheetRow, { backgroundColor: p.cardMuted }]} onPress={() => pickAvatar(true)}>
+              <Ripple style={[s.sheetRow, { backgroundColor: p.cardMuted }]} onPress={() => pickAvatar(true)}>
                 <Icons.camera size={19} color="#22c55e" />
                 <Text style={{ fontSize: 15, fontWeight: '700', color: p.textSecondary }}>Take Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.sheetRow, { backgroundColor: p.cardMuted }]} onPress={() => pickAvatar(false)}>
+              </Ripple>
+              <Ripple style={[s.sheetRow, { backgroundColor: p.cardMuted }]} onPress={() => pickAvatar(false)}>
                 <Icons.image size={19} color="#3b82f6" />
                 <Text style={{ fontSize: 15, fontWeight: '700', color: p.textSecondary }}>Upload Image</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={{ alignItems: 'center', paddingVertical: 10, marginTop: 4 }} onPress={() => setShowAvatarOptions(false)}>
+              </Ripple>
+              <Ripple style={{ alignItems: 'center', paddingVertical: 10, marginTop: 4 }} onPress={() => setShowAvatarOptions(false)}>
                 <Text style={{ color: p.textMuted, fontSize: 12, fontWeight: '900' }}>CANCEL</Text>
-              </TouchableOpacity>
+              </Ripple>
             </Pressable>
           </Pressable>
         </Modal>
+      )}
+      {/* In-modal camera (photo avatar) — RN Modal is its own window. */}
+      {showCamera && (
+        <InAppCamera
+          mode="photo"
+          filePrefix="avatar"
+          onCancel={() => setShowCamera(false)}
+          onCapture={onCameraCapture}
+        />
       )}
     </Modal>
   );

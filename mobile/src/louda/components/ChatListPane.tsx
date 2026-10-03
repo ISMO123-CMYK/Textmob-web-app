@@ -1,16 +1,17 @@
-import React from 'react';
+﻿import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme } from './primitives';
 import { Icons } from '../icons';
 import { useLoudaStore } from '../store';
+import { loudaAlert } from '../utils';
 import { ChatItem } from './ChatItem';
 
 // ─── ChatListSkeleton (LoudaApp.jsx:1253-1268) ───
@@ -33,6 +34,10 @@ export function ChatListSkeleton() {
     </View>
   );
 }
+
+// Stable empty array so ChatItem's userStatuses prop keeps its reference
+// (a fresh [] each render would defeat the row's React.memo).
+const EMPTY_STATUSES: any[] = [];
 
 // ─── Chat List Strip (LoudaApp.jsx:8914-9045) ───
 export function ChatListPane() {
@@ -58,32 +63,51 @@ export function ChatListPane() {
     );
   });
 
+  // One grouped map per statuses change instead of a .filter() per row per
+  // render — rows then receive a stable reference.
+  const statusesByUser = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    const now = Date.now();
+    for (const s of st.statuses || []) {
+      if (new Date(s.expires_at).getTime() <= now) continue;
+      if (!map[s.user_id]) map[s.user_id] = [];
+      map[s.user_id].push(s);
+    }
+    return map;
+  }, [st.statuses]);
+
   // Web parity (LoudaApp.jsx:7161-7174): long-press while already in
   // selection mode toggles the selection — it does not open a menu.
-  const handleSelect = (id: string, isLongPress?: boolean) => {
-    st.toggleChatSelect(id, isLongPress);
-  };
+  const handleSelect = useCallback(
+    (id: string, isLongPress?: boolean) => {
+      st.toggleChatSelect(id, isLongPress);
+    },
+    [st.toggleChatSelect],
+  );
 
   // Web right-click (LoudaApp.jsx:8567-8576) — mobile opens it from an
   // avatar long-press instead, positioned near the middle of the screen.
-  const openRowContextMenu = (chat: any) => {
-    st.handleContextMenu({ x: width / 2 - 90, y: 150 }, chat);
-  };
+  const openRowContextMenu = useCallback(
+    (chat: any) => {
+      st.handleContextMenu({ x: width / 2 - 90, y: 150 }, chat);
+    },
+    [st.handleContextMenu, width],
+  );
 
   return (
     <View style={[s.pane, { backgroundColor: p.card, borderRightColor: p.border }]}>
       {st.chatSelectionMode ? (
         <View style={s.selectionBar}>
-          <TouchableOpacity onPress={st.exitChatSelection} style={s.selectionBtn} hitSlop={8}>
+          <Ripple onPress={st.exitChatSelection} style={s.selectionBtn} hitSlop={8}>
             <Icons.x size={20} color="#fff" />
-          </TouchableOpacity>
+          </Ripple>
           <Text style={s.selectionCount}>{st.selectedChats.size} selected</Text>
-          <TouchableOpacity onPress={st.handleBulkChatArchive} style={s.selectionBtn} hitSlop={8}>
+          <Ripple onPress={st.handleBulkChatArchive} style={s.selectionBtn} hitSlop={8}>
             <Icons.archive size={20} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={st.handleBulkChatDelete} style={s.selectionBtn} hitSlop={8}>
+          </Ripple>
+          <Ripple onPress={st.handleBulkChatDelete} style={s.selectionBtn} hitSlop={8}>
             <Icons.trash size={20} color="#fca5a5" />
-          </TouchableOpacity>
+          </Ripple>
         </View>
       ) : (
         <View style={s.headerBlock}>
@@ -107,13 +131,13 @@ export function ChatListPane() {
                 </View>
               )}
             </View>
-            <TouchableOpacity
+            <Ripple
               onPress={() => st.setMobileMenuOpen(true)}
               style={[s.menuBtn, st.mobileMenuOpen ? { backgroundColor: p.cardMuted } : null]}
               hitSlop={8}
             >
               <Icons.more size={20} color="#6b7280" />
-            </TouchableOpacity>
+            </Ripple>
           </View>
 
           <View style={s.searchWrap}>
@@ -147,18 +171,11 @@ export function ChatListPane() {
             <ChatItem
               key={c.id}
               chat={c}
-              userStatuses={
-                !c.isGroup
-                  ? st.statuses.filter(
-                      (s) =>
-                        s.user_id === c.id && new Date(s.expires_at) > new Date(),
-                    )
-                  : []
-              }
+              userStatuses={!c.isGroup ? statusesByUser[c.id] || EMPTY_STATUSES : EMPTY_STATUSES}
               currentUserId={st.user?.id}
-              onAvatarClick={(id) => st.setViewerTarget(id)}
+              onAvatarClick={st.setViewerTarget}
               isActive={st.selectedChat?.id === c.id}
-              onClick={() => st.setSelectedChat(c)}
+              onClick={st.setSelectedChat}
               isGroup={c.isGroup}
               selectionMode={st.chatSelectionMode}
               isSelected={st.selectedChats.has(c.id)}
@@ -199,7 +216,7 @@ function MobileMenu() {
     color: string,
     onPress: () => void,
   ) => (
-    <TouchableOpacity
+    <Ripple
       key={label}
       activeOpacity={0.8}
       onPress={onPress}
@@ -207,16 +224,16 @@ function MobileMenu() {
     >
       <View style={{ transform: [{ scale: 1.25 }] }}>{icon}</View>
       <Text style={[s.menuItemText, { color: p.textSecondary }]}>{label}</Text>
-    </TouchableOpacity>
+    </Ripple>
   );
 
   return (
     <View style={[s.menuOverlay, { backgroundColor: p.card }]}>
       <View style={[s.menuHeader, { borderBottomColor: p.borderLight }]}>
         <Text style={[s.menuHeaderText, { color: p.textMuted }]}>Menu</Text>
-        <TouchableOpacity onPress={close} style={[s.menuClose, { backgroundColor: p.cardMuted }]}>
+        <Ripple onPress={close} style={[s.menuClose, { backgroundColor: p.cardMuted }]}>
           <Icons.x size={20} color="#6b7280" />
-        </TouchableOpacity>
+        </Ripple>
       </View>
       <ScrollView contentContainerStyle={s.menuBody}>
         {item(
@@ -265,8 +282,7 @@ function MobileMenu() {
           'rgba(59,130,246,0.08)',
           '#3b82f6',
           () => {
-            // Lexum.alert({ title: 'Calls', message: 'Voice and video calls coming soon!' })
-            require('../../utils/alertBridge').loudaAlert({
+            loudaAlert({
               title: 'Calls',
               message: 'Voice and video calls coming soon!',
             });

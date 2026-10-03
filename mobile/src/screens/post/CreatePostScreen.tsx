@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, StyleSheet,
   ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform,
   Image, Modal, Alert,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
@@ -187,17 +188,17 @@ export default function CreatePostScreen({ route }: { route: any }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         {/* Header */}
         <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.headerBtn}>
+          <Ripple onPress={() => navigation.goBack()} style={s.headerBtn}>
             <Ionicons name="close" size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
+          </Ripple>
           <Text style={[s.headerTitle, { color: colors.textPrimary }]}>New Post</Text>
-          <TouchableOpacity
+          <Ripple
             style={[s.postBtn, (!canSubmit || loading) && { opacity: 0.5 }]}
             onPress={handleSubmit}
             disabled={!canSubmit || loading}
           >
             {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.postBtnText}>Post</Text>}
-          </TouchableOpacity>
+          </Ripple>
         </View>
 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
@@ -209,16 +210,16 @@ export default function CreatePostScreen({ route }: { route: any }) {
             <View style={{ flex: 1 }}>
               {/* Mood indicator inside row header */}
               {selectedMood && (
-                <TouchableOpacity
+                <Ripple
                   style={[s.moodBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6', marginBottom: 8 }]}
                   onPress={() => setShowMoodPicker(true)}
                 >
                   <Text style={{ fontSize: 13 }}>{selectedMood.emoji}</Text>
                   <Text style={[s.moodLabel, { color: colors.textSecondary }]}>is feeling {selectedMood.label}</Text>
-                  <TouchableOpacity onPress={() => setSelectedMood(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ripple onPress={() => setSelectedMood(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="close" size={14} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
+                  </Ripple>
+                </Ripple>
               )}
 
               {/* Text input */}
@@ -242,11 +243,11 @@ export default function CreatePostScreen({ route }: { route: any }) {
           {showMentions && mentionResults.length > 0 && (
             <View style={[s.mentionSheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {mentionResults.map(user => (
-                <TouchableOpacity key={user.username} style={s.mentionRow} onPress={() => selectMention(user)}>
+                <Ripple key={user.username} style={s.mentionRow} onPress={() => selectMention(user)}>
                   <Image source={{ uri: user.profile_pic || DEFAULT_PIC }} style={{ width: 28, height: 28, borderRadius: 14 }} />
                   <Text style={[s.mentionName, { color: colors.textPrimary }]}>@{user.username}</Text>
                   <Text style={[s.mentionFull, { color: colors.textSecondary }]}>{user.fullname}</Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </View>
           )}
@@ -257,9 +258,9 @@ export default function CreatePostScreen({ route }: { route: any }) {
               {media.map((uri, i) => (
                 <View key={i} style={s.mediaItem}>
                   <Image source={{ uri }} style={s.mediaPreview} />
-                  <TouchableOpacity style={s.removeMedia} onPress={() => { setMedia(prev => prev.filter((_, idx) => idx !== i)); setMediaFiles(prev => prev.filter((_, idx) => idx !== i)); }}>
+                  <Ripple style={s.removeMedia} onPress={() => { setMedia(prev => prev.filter((_, idx) => idx !== i)); setMediaFiles(prev => prev.filter((_, idx) => idx !== i)); }}>
                     <Ionicons name="close" size={12} color="#fff" />
-                  </TouchableOpacity>
+                  </Ripple>
                 </View>
               ))}
             </View>
@@ -273,9 +274,9 @@ export default function CreatePostScreen({ route }: { route: any }) {
                 <Text style={[s.quoteName, { color: colors.textPrimary }]}>{quotedPost.fullname || quotedPost.username}</Text>
               </View>
               <Text style={[s.quoteText, { color: colors.textSecondary }]} numberOfLines={2}>{quotedPost.text}</Text>
-              <TouchableOpacity style={{ position: 'absolute', top: 4, right: 4 }} onPress={() => setQuotedPost(null)}>
+              <Ripple style={{ position: 'absolute', top: 4, right: 4 }} onPress={() => setQuotedPost(null)}>
                 <Ionicons name="close" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
             </View>
           )}
 
@@ -284,10 +285,10 @@ export default function CreatePostScreen({ route }: { route: any }) {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
               <Text style={[s.sectionLabel, { color: colors.textSecondary, width: '100%', marginBottom: 4 }]}>CATEGORIES</Text>
               {CATEGORIES.map(cat => (
-                <TouchableOpacity key={cat.id} onPress={() => setPostCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
+                <Ripple key={cat.id} onPress={() => setPostCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
                   style={[s.catChip, { backgroundColor: postCategories.includes(cat.id) ? cat.color + '30' : isDark ? '#1e293b' : '#f3f4f6' }]}>
                   <Text style={[s.catChipText, { color: postCategories.includes(cat.id) ? cat.color : colors.textSecondary }]}>{cat.name}</Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </View>
           )}
@@ -306,50 +307,50 @@ export default function CreatePostScreen({ route }: { route: any }) {
                     onChangeText={t => updatePollOption(opt.id, t)}
                   />
                   {pollOptions.length > 2 && (
-                    <TouchableOpacity onPress={() => removePollOption(opt.id)}>
+                    <Ripple onPress={() => removePollOption(opt.id)}>
                       <Ionicons name="close-circle" size={18} color="#ef4444" />
-                    </TouchableOpacity>
+                    </Ripple>
                   )}
                 </View>
               ))}
               {pollOptions.length < 6 && (
-                <TouchableOpacity style={s.addPollBtn} onPress={addPollOption}>
+                <Ripple style={s.addPollBtn} onPress={addPollOption}>
                   <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
                   <Text style={[s.addPollText, { color: colors.primary }]}>Add option</Text>
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
           )}
 
           {/* Markdown formatting toolbar */}
           <View style={[s.mdToolbar, { borderTopColor: colors.border }]}>
-            <TouchableOpacity style={s.mdBtn} onPress={() => insertMarkdown('**', '**')}>
+            <Ripple style={s.mdBtn} onPress={() => insertMarkdown('**', '**')}>
               <Text style={[s.mdBtnText, { color: colors.textPrimary }]}>B</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.mdBtn} onPress={() => insertMarkdown('*', '*')}>
+            </Ripple>
+            <Ripple style={s.mdBtn} onPress={() => insertMarkdown('*', '*')}>
               <Text style={[s.mdBtnText, { color: colors.textPrimary, fontStyle: 'italic' }]}>I</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.mdBtn} onPress={() => insertMarkdown('~~', '~~')}>
+            </Ripple>
+            <Ripple style={s.mdBtn} onPress={() => insertMarkdown('~~', '~~')}>
               <Text style={[s.mdBtnText, { color: colors.textPrimary, textDecorationLine: 'line-through' }]}>S</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.mdBtn} onPress={() => insertMarkdown('`', '`')}>
+            </Ripple>
+            <Ripple style={s.mdBtn} onPress={() => insertMarkdown('`', '`')}>
               <Text style={[s.mdBtnText, { color: colors.textPrimary, fontFamily: 'monospace' }]}>{'<>'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.mdBtn} onPress={() => insertMarkdown('\n# ', '')}>
+            </Ripple>
+            <Ripple style={s.mdBtn} onPress={() => insertMarkdown('\n# ', '')}>
               <Text style={[s.mdBtnText, { color: colors.textPrimary }]}>H</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.mdBtn} onPress={() => insertMarkdown('\n> ', '')}>
+            </Ripple>
+            <Ripple style={s.mdBtn} onPress={() => insertMarkdown('\n> ', '')}>
               <Text style={[s.mdBtnText, { color: colors.textPrimary }]}>{'">"'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.mdBtn} onPress={() => insertMarkdown('\n- ', '')}>
+            </Ripple>
+            <Ripple style={s.mdBtn} onPress={() => insertMarkdown('\n- ', '')}>
               <Text style={[s.mdBtnText, { color: colors.textPrimary }]}>{'•'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Ripple>
+            <Ripple
               style={[s.mdBtn, showPreview && { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
               onPress={() => setShowPreview(p => !p)}
             >
               <Ionicons name={showPreview ? 'eye' : 'eye-off-outline'} size={16} color={showPreview ? '#2563eb' : colors.textSecondary} />
-            </TouchableOpacity>
+            </Ripple>
           </View>
 
           {/* Markdown preview */}
@@ -362,15 +363,15 @@ export default function CreatePostScreen({ route }: { route: any }) {
 
           {/* Actions toolbar */}
           <View style={s.toolbar}>
-            <TouchableOpacity
+            <Ripple
               style={[s.toolbarItem, media.length > 0 && { backgroundColor: isDark ? 'rgba(37,99,235,0.12)' : '#eff6ff' }]}
               onPress={pickMedia}
               disabled={showPollBuilder}
             >
               <Ionicons name="image-outline" size={20} color={showPollBuilder ? colors.border : media.length > 0 ? '#2563eb' : colors.textSecondary} />
               <Text style={[s.toolbarLabel, { color: showPollBuilder ? colors.border : media.length > 0 ? '#2563eb' : colors.textSecondary }]}>Media</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Ripple>
+            <Ripple
               style={[s.toolbarItem, selectedMood && { backgroundColor: isDark ? 'rgba(37,99,235,0.12)' : '#eff6ff' }]}
               onPress={() => setShowMoodPicker(true)}
             >
@@ -380,42 +381,42 @@ export default function CreatePostScreen({ route }: { route: any }) {
                 <Ionicons name="happy-outline" size={20} color={colors.textSecondary} />
               )}
               <Text style={[s.toolbarLabel, { color: selectedMood ? '#2563eb' : colors.textSecondary }]}>{selectedMood ? selectedMood.label : 'Feeling'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Ripple>
+            <Ripple
               style={[s.toolbarItem, showPollBuilder && { backgroundColor: isDark ? 'rgba(37,99,235,0.12)' : '#eff6ff' }]}
               onPress={() => setShowPollBuilder(!showPollBuilder)}
               disabled={media.length > 0}
             >
               <Ionicons name="bar-chart-outline" size={20} color={media.length > 0 ? colors.border : showPollBuilder ? '#2563eb' : colors.textSecondary} />
               <Text style={[s.toolbarLabel, { color: media.length > 0 ? colors.border : showPollBuilder ? '#2563eb' : colors.textSecondary }]}>Poll</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Ripple>
+            <Ripple
               style={s.toolbarItem}
               onPress={() => {}}
             >
               <Ionicons name="globe-outline" size={20} color={colors.textSecondary} />
               <Text style={[s.toolbarLabel, { color: colors.textSecondary }]}>Public</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Mood picker modal */}
       <Modal visible={showMoodPicker} transparent animationType="slide" onRequestClose={() => setShowMoodPicker(false)}>
-        <TouchableOpacity style={s.moodOverlay} activeOpacity={1} onPress={() => setShowMoodPicker(false)}>
+        <Ripple style={s.moodOverlay} activeOpacity={1} onPress={() => setShowMoodPicker(false)}>
           <View style={[s.moodSheet, { backgroundColor: colors.card }]}>
             <View style={s.moodHandle} />
             <Text style={[s.moodSheetTitle, { color: colors.textSecondary }]}>How are you feeling?</Text>
             <View style={s.moodGrid}>
               {MOODS.map(m => (
-                <TouchableOpacity key={m.label} style={[s.moodItem, selectedMood?.label === m.label && { backgroundColor: colors.primary + '20' }]} onPress={() => { setSelectedMood(m); setShowMoodPicker(false); }}>
+                <Ripple key={m.label} style={[s.moodItem, selectedMood?.label === m.label && { backgroundColor: colors.primary + '20' }]} onPress={() => { setSelectedMood(m); setShowMoodPicker(false); }}>
                   <Text style={{ fontSize: 28 }}>{m.emoji}</Text>
                   <Text style={[s.moodItemLabel, { color: colors.textSecondary }]}>{m.label}</Text>
-                </TouchableOpacity>
+                </Ripple>
               ))}
             </View>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
     </SafeAreaView>
   );

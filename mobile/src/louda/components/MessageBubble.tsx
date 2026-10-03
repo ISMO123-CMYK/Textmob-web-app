@@ -1,13 +1,13 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   Image,
-  TouchableOpacity,
   StyleSheet,
   Animated,
   PanResponder,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { useLoudaTheme } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR } from '../constants';
@@ -65,7 +65,7 @@ export const MessageBubble = memo(function MessageBubble({
   message: any;
   isSentByMe?: boolean;
   isGroup?: boolean;
-  onShowReadBy?: () => void;
+  onShowReadBy?: (msg?: any) => void;
   translatedText?: string | null;
   userVoice?: string;
   onViewMedia?: (m: { src: string; type: string }) => void;
@@ -203,7 +203,17 @@ export const MessageBubble = memo(function MessageBubble({
     }
     return (
       <View style={{ paddingHorizontal: 4 }}>
-        <RichText html={parseRichText(text)} onAddContact={onAddContact} />
+        <RichText
+          html={parseRichText(text)}
+          onAddContact={onAddContact}
+          // Density must reach the rendered text: RN Views don't inherit
+          // fontSize, so without this every bubble rendered at 15px while web
+          // is 13/13.5/14 — the main reason chat felt less compact than web.
+          style={{
+            fontSize: bubblePad.fontSize,
+            lineHeight: Math.round(bubblePad.fontSize * 1.4),
+          }}
+        />
       </View>
     );
   };
@@ -245,17 +255,17 @@ export const MessageBubble = memo(function MessageBubble({
       {!isSentByMe && isGroup && (
         <View style={s.avatarCol}>
           {showSenderName ? (
-            <TouchableOpacity onPress={() => onViewProfile?.(from)} activeOpacity={0.8}>
+            <Ripple onPress={() => onViewProfile?.(from)} activeOpacity={0.8}>
               <Image
                 source={{ uri: membersMap?.[from]?.avatar_url || DEFAULT_AVATAR }}
                 style={s.groupAvatar}
               />
-            </TouchableOpacity>
+            </Ripple>
           ) : null}
         </View>
       )}
 
-      <TouchableOpacity
+      <Ripple
         activeOpacity={0.9}
         onPress={() => (selectionMode ? onSelect?.(id) : undefined)}
         onLongPress={() => onSelect?.(id, true)}
@@ -271,8 +281,8 @@ export const MessageBubble = memo(function MessageBubble({
             bubblePad,
             {
               backgroundColor: isSentByMe ? p.accent : p.card,
-              borderTopRightRadius: isSentByMe ? 4 : 16,
-              borderTopLeftRadius: isSentByMe ? 16 : 4,
+              borderTopRightRadius: isSentByMe ? 4 : 12,
+              borderTopLeftRadius: isSentByMe ? 12 : 4,
               shadowColor: '#000',
               shadowOpacity: isSentByMe ? 0.06 : 0.04,
               shadowRadius: 1,
@@ -287,13 +297,13 @@ export const MessageBubble = memo(function MessageBubble({
           ]}
         >
           {showSenderName && (
-            <TouchableOpacity onPress={() => onViewProfile?.(from)} activeOpacity={0.7}>
+            <Ripple onPress={() => onViewProfile?.(from)} activeOpacity={0.7}>
               <Text style={[s.senderName, { color: p.accent }]}>{resolvedSenderName}</Text>
-            </TouchableOpacity>
+            </Ripple>
           )}
 
           {reply_to && (
-            <TouchableOpacity
+            <Ripple
               activeOpacity={0.8}
               onPress={() => onJumpToReply?.(reply_to)}
               style={[s.replyBlock, { borderColor: p.accent, backgroundColor: 'rgba(0,0,0,0.05)' }]}
@@ -308,7 +318,7 @@ export const MessageBubble = memo(function MessageBubble({
                     : reply_to.text
                   : 'Media Message'}
               </Text>
-            </TouchableOpacity>
+            </Ripple>
           )}
 
           {mediaItems && (
@@ -340,7 +350,7 @@ export const MessageBubble = memo(function MessageBubble({
                     />
                   );
                 return (
-                  <TouchableOpacity
+                  <Ripple
                     key={i}
                     activeOpacity={0.85}
                     onPress={() => onViewMedia?.({ src: m.url, type: m.type })}
@@ -362,7 +372,7 @@ export const MessageBubble = memo(function MessageBubble({
                         contentFit="contain"
                       />
                     )}
-                  </TouchableOpacity>
+                  </Ripple>
                 );
               })}
             </View>
@@ -395,28 +405,28 @@ export const MessageBubble = memo(function MessageBubble({
                     />
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <TouchableOpacity
+                    <Ripple
                       onPress={() => playTTS(translatedText, userVoice)}
                       style={{ padding: 4 }}
                     >
                       <Icons.mic size={14} color={p.accent} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </Ripple>
+                    <Ripple
                       onPress={() => setHideTranslation(true)}
                       style={{ padding: 4 }}
                     >
                       <Text style={[s.hideBtn, { color: p.textMuted }]}>Hide</Text>
-                    </TouchableOpacity>
+                    </Ripple>
                   </View>
                 </View>
               ) : (
-                <TouchableOpacity
+                <Ripple
                   onPress={() => setHideTranslation(false)}
                   style={{ flexDirection: 'row', gap: 4, alignItems: 'center', paddingVertical: 2 }}
                 >
                   <Text style={{ fontSize: 10 }}>🌐</Text>
                   <Text style={[s.showBtn, { color: p.textMuted }]}>Show translation</Text>
-                </TouchableOpacity>
+                </Ripple>
               )}
             </View>
           )}
@@ -427,9 +437,9 @@ export const MessageBubble = memo(function MessageBubble({
               {new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
             </Text>
             {isSentByMe && (
-              <TouchableOpacity
+              <Ripple
                 onPress={() => {
-                  if (isGroup && onShowReadBy) onShowReadBy();
+                  if (isGroup && onShowReadBy) onShowReadBy(message);
                 }}
                 hitSlop={6}
               >
@@ -438,7 +448,7 @@ export const MessageBubble = memo(function MessageBubble({
                 ) : (
                   <Icons.check size={14} color="#9ca3af" />
                 )}
-              </TouchableOpacity>
+              </Ripple>
             )}
           </View>
 
@@ -474,7 +484,7 @@ export const MessageBubble = memo(function MessageBubble({
             ))}
           </View>
         )}
-      </TouchableOpacity>
+      </Ripple>
     </Animated.View>
   );
 });
@@ -501,7 +511,7 @@ function RevealButton({
             : { width: width ?? 250, height: height ?? 80 },
         ]}
     >
-      <TouchableOpacity
+      <Ripple
         onPress={(e) => {
           e.stopPropagation?.();
           onReveal();
@@ -521,7 +531,7 @@ function RevealButton({
         >
           {label}
         </Text>
-      </TouchableOpacity>
+      </Ripple>
     </View>
   );
 }
@@ -550,7 +560,7 @@ const s = StyleSheet.create({
   col: { maxWidth: '70%' },
   bubble: {
     width: '100%',
-    borderRadius: 16,
+    borderRadius: 12,
     minHeight: 30,
   },
   senderName: {

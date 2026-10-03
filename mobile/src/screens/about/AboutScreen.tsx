@@ -1,8 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, StyleSheet,
   ScrollView, Linking,
 } from 'react-native';
+import { Ripple } from '../../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,9 +18,9 @@ export default function AboutScreen({ navigation }: { navigation: any }) {
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
       <View style={[s.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+        <Ripple onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
+        </Ripple>
         <Text style={[s.headerTitle, { color: colors.textPrimary }]}>About</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -32,18 +33,18 @@ export default function AboutScreen({ navigation }: { navigation: any }) {
         </View>
 
         <Text style={[s.description, { color: colors.textSecondary }]}>
-          Textmob is a social media platform for sharing thoughts, photos, videos, starting discussions, seeing view counts, and connecting with people around the world.
+          Textmob is where Africa comes to talk — a social network built around African conversations. See what&apos;s being discussed, share your take, and find your community.
         </Text>
 
-        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.web.app/privacy.html')}>
+        <Ripple style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.web.app/privacy.html')}>
           <Text style={s.linkText}>Privacy Policy</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.web.app/terms.html')}>
+        </Ripple>
+        <Ripple style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.web.app/terms.html')}>
           <Text style={s.linkText}>Terms of Service</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob..web.app/about.html')}>
+        </Ripple>
+        <Ripple style={[s.linkRow, { borderBottomColor: colors.border }]} onPress={() => Linking.openURL('https://textmob.web.app/about.html')}>
           <Text style={s.linkText}>Contact Support</Text>
-        </TouchableOpacity>
+        </Ripple>
       </ScrollView>
     </SafeAreaView>
   );

@@ -218,6 +218,11 @@ export function RichText({
     return splitTables(wrapLists(clean));
   }, [html]);
 
+  // Flatten RN style arrays before spreading (mirrors SafeHTML.web.tsx).
+  const flatStyle: any = Array.isArray(style)
+    ? Object.assign({}, ...style.filter(Boolean))
+    : style || {};
+
   const tagsStyles = useMemo(
     () => ({
       body: {
@@ -226,7 +231,7 @@ export function RichText({
         lineHeight: 21,
         margin: 0,
         padding: 0,
-        ...style,
+        ...flatStyle,
       },
       p: { margin: 0, padding: 0 },
       strong: { fontWeight: '800' },

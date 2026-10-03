@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, StyleSheet, Text, TouchableOpacity, Modal } from 'react-native';
+import { View, StyleSheet, Text, Modal } from 'react-native';
+import { Ripple } from '../components/Ripple';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -31,7 +32,7 @@ function FloatingTabBar({ state, navigation, colors, isDark, insets, onCreate }:
         {TAB_ITEMS.map((item) => {
           const isActive = currentRoute === item.key;
           return (
-            <TouchableOpacity
+            <Ripple
               key={item.key}
               style={[floatingStyles.tabItem, isActive && floatingStyles.tabItemActive]}
               onPress={() => navigation.navigate(item.key)}
@@ -48,17 +49,17 @@ function FloatingTabBar({ state, navigation, colors, isDark, insets, onCreate }:
               ]}>
                 {item.label}
               </Text>
-            </TouchableOpacity>
+            </Ripple>
           );
         })}
 
-        <TouchableOpacity
+        <Ripple
           style={[floatingStyles.createBtn, { backgroundColor: isDark ? '#fff' : '#111' }]}
           onPress={onCreate}
           activeOpacity={0.8}
         >
           <Ionicons name="add" size={22} color={isDark ? '#111' : '#fff'} />
-        </TouchableOpacity>
+        </Ripple>
       </View>
     </View>
   );
@@ -115,7 +116,7 @@ export default function MainTabs({ navigation }: { navigation: any }) {
         animationType="slide"
         onRequestClose={() => setShowCreate(false)}
       >
-        <TouchableOpacity
+        <Ripple
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowCreate(false)}
@@ -125,7 +126,7 @@ export default function MainTabs({ navigation }: { navigation: any }) {
             <Text style={[styles.sheetTitle, { color: colors.textSecondary }]}>CREATE</Text>
 
             <View style={styles.optionsWrap}>
-              <TouchableOpacity
+              <Ripple
                 style={[styles.optionBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}
                 onPress={() => {
                   setShowCreate(false);
@@ -140,9 +141,9 @@ export default function MainTabs({ navigation }: { navigation: any }) {
                   <Text style={[styles.optionSub, { color: colors.textSecondary }]}>Share what's on your mind</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
 
-              <TouchableOpacity
+              <Ripple
                 style={[styles.optionBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}
                 onPress={() => {
                   setShowCreate(false);
@@ -157,9 +158,9 @@ export default function MainTabs({ navigation }: { navigation: any }) {
                   <Text style={[styles.optionSub, { color: colors.textSecondary }]}>Capture a moment</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
 
-              <TouchableOpacity
+              <Ripple
                 style={[styles.optionBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}
                 onPress={() => {
                   setShowCreate(false);
@@ -177,14 +178,14 @@ export default function MainTabs({ navigation }: { navigation: any }) {
                   <Text style={[styles.optionSub, { color: colors.textSecondary }]}>Broadcast to your people</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </Ripple>
             </View>
 
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
+            <Ripple style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
               <Text style={{ color: colors.textSecondary, fontSize: 14, fontWeight: '600' }}>Cancel</Text>
-            </TouchableOpacity>
+            </Ripple>
           </View>
-        </TouchableOpacity>
+        </Ripple>
       </Modal>
     </>
   );

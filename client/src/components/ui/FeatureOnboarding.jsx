@@ -34,7 +34,7 @@ function IconBadge({ feature }) {
  return (
  <div className={className}>
  <img
- src="https://res.cloudinary.com/dzvm9xe1i/image/upload/v1754309761/profile-pictures/gyyonhn4akhjp4awey0t.png"
+  src="https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png"
  className="w-12 h-12 rounded-xl object-cover"
  alt="Textmob"
  />
