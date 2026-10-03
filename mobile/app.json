@@ -48,7 +48,13 @@
       "expo-audio",
       "expo-camera",
       "expo-asset",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2563eb"
+        }
+      ],
       "expo-font",
       "expo-secure-store",
       [

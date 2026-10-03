@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
   View, Text, FlatList, StyleSheet,
   ActivityIndicator, Image, Linking, Alert,
@@ -17,6 +17,103 @@ import { timeAgo, formatNumber } from '../../utils/format';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 const POST_PAGE_LIMIT = 24;
+
+// Pages can overlap (server pagination isn't offset-stable) — React Native
+// throws "two children with the same key" when an id repeats.
+function dedupeById(list: any[]): any[] {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const it of list) {
+    const k = it == null || it.id == null ? '' : String(it.id);
+    if (k) {
+      if (seen.has(k)) continue;
+      seen.add(k);
+    }
+    out.push(it);
+  }
+  return out;
+}
+
+function dedupeStrings(list: any[]): string[] {
+  return [...new Set((list || []).filter(Boolean).map(String))];
+}
+
+const itemKey = (item: any, idx: number) =>
+  String(item?.id ?? item?.username ?? item ?? idx);
+
+type PostItemProps = { item: Post; navigation: any; s: any; colors: any };
+
+// Module-level + memo: defining these inside the screen made every state
+// change produce a brand-new component type, remounting all rows (and their
+// images) — that is what triggered the VirtualizedList slow-update warning.
+const PostGridItem = memo(function PostGridItem({ item, navigation, s, colors }: PostItemProps) {
+  const mediaUrl = Array.isArray(item.media) && item.media.length ? item.media[0] : null;
+  const isVideo = mediaUrl && /\.(mp4|webm|ogg)$/i.test(mediaUrl);
+  return (
+    <Ripple style={s.gridItem} onPress={() => navigation.navigate('PostDetail', { postId: item.id })} activeOpacity={0.8}>
+      {mediaUrl ? (
+        <Image source={{ uri: mediaUrl }} style={s.gridImage} />
+      ) : (
+        <View style={[s.gridTextFallback, { backgroundColor: colors.card }]}>
+          <Text style={[s.gridText, { color: colors.textSecondary }]} numberOfLines={4}>
+            {item.text || '\u2014'}
+          </Text>
+        </View>
+      )}
+      <View style={s.gridOverlay}>
+        <View style={s.gridOverlayRow}>
+          <Ionicons name="heart" size={12} color="#fff" />
+          <Text style={s.gridOverlayText}>{Array.isArray(item.likes) ? item.likes.length : 0}</Text>
+        </View>
+        <View style={s.gridOverlayRow}>
+          <Ionicons name="chatbubble" size={11} color="#fff" />
+          <Text style={s.gridOverlayText}>{Array.isArray(item.comments) ? item.comments.length : 0}</Text>
+        </View>
+      </View>
+      {isVideo && <Ionicons name="play" size={16} color="#fff" style={s.gridPlayIcon} />}
+    </Ripple>
+  );
+});
+
+const PostFeedItem = memo(function PostFeedItem({ item, navigation, s, colors }: PostItemProps) {
+  const mediaUrl = Array.isArray(item.media) && item.media.length ? item.media[0] : null;
+  const isVideo = mediaUrl && /\.(mp4|webm|ogg)$/i.test(mediaUrl);
+  return (
+    <Ripple
+      style={[s.feedItem, { borderBottomColor: colors.border }]}
+      onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
+      activeOpacity={0.7}
+    >
+      <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+        {mediaUrl && (
+          <View style={s.feedThumb}>
+            {isVideo && <Ionicons name="play" size={14} color="#fff" style={{ position: 'absolute', zIndex: 2, alignSelf: 'center', top: '40%' }} />}
+            <Image source={{ uri: mediaUrl }} style={s.feedThumbImg} />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={[s.feedText, { color: colors.textPrimary }]} numberOfLines={2}>{item.text || '\u2014'}</Text>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="heart-outline" size={11} color={colors.textSecondary} />
+              <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{Array.isArray(item.likes) ? item.likes.length : 0}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="chatbubble-outline" size={10} color={colors.textSecondary} />
+              <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{Array.isArray(item.comments) ? item.comments.length : 0}</Text>
+            </View>
+            {item.created_at && (
+              <Text style={[s.feedMeta, { color: colors.textSecondary, marginLeft: 'auto' }]}>
+                {timeAgo(item.created_at)}
+              </Text>
+            )}
+          </View>
+        </View>
+      </View>
+    </Ripple>
+  );
+});
+
 
 export default function ProfileScreen({ route, navigation }: { route: any; navigation: any }) {
   const { colors, isDark } = useTheme();
@@ -66,10 +163,10 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
       const p = profileRes.data;
       setProfile(p);
       const fetchedIsOrg = (p.profile_type || '').toLowerCase() === 'organisation';
-      setConnections(fetchedIsOrg ? (p.followers || []) : (p.followers || []));
-      setFollowingList(p.following || []);
+      setConnections(dedupeStrings(fetchedIsOrg ? (p.followers || []) : (p.followers || [])));
+      setFollowingList(dedupeStrings(p.following || []));
       if (postsRes.ok && postsRes.data) {
-        const list = normalizePosts(postsRes.data);
+        const list = dedupeById(normalizePosts(postsRes.data));
         setPosts(list);
         setHasMorePosts(list.length >= POST_PAGE_LIMIT);
       } else {
@@ -120,7 +217,8 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         if (batch.length === 0) {
           setHasMorePosts(false);
         } else {
-          setPosts(prev => [...prev, ...batch]);
+          // Merge + dedupe: overlapping pages otherwise produced duplicate keys.
+          setPosts(prev => dedupeById([...prev, ...batch]));
           setPostPage(nextPage);
           setHasMorePosts(batch.length >= POST_PAGE_LIMIT);
         }
@@ -149,11 +247,11 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         const p = profileRes.data;
         setProfile(p);
         const fetchedIsOrg = (p.profile_type || '').toLowerCase() === 'organisation';
-        setConnections(fetchedIsOrg ? (p.followers || []) : (p.followers || []));
-        setFollowingList(p.following || []);
+        setConnections(dedupeStrings(p.followers || []));
+        setFollowingList(dedupeStrings(p.following || []));
       }
       if (postsRes.ok && postsRes.data) {
-        const list = normalizePosts(postsRes.data);
+        const list = dedupeById(normalizePosts(postsRes.data));
         setPosts(list);
         setHasMorePosts(list.length >= POST_PAGE_LIMIT);
       } else {
@@ -171,7 +269,31 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
     { id: 'following', label: 'Following', count: followingList.length },
   ];
 
-  const s = makeStyles(colors, isDark);
+  const s = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: any; index: number }) => {
+      if (activeTab !== 'posts') {
+        const uname = item;
+        return (
+          <Ripple style={[s.userRow, { borderBottomColor: colors.border }]} onPress={() => navigation.push('Profile', { username: uname })}>
+            <View style={s.userAvatar}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{(uname || '?')[0].toUpperCase()}</Text>
+            </View>
+            <Text style={[s.userName, { color: colors.textPrimary }]}>@{uname}</Text>
+            {uname !== currentUser && (
+              <Ripple style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.primary }}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>Follow</Text>
+              </Ripple>
+            )}
+          </Ripple>
+        );
+      }
+      if (viewMode === 'grid') return <PostGridItem item={item} navigation={navigation} s={s} colors={colors} />;
+      return <PostFeedItem item={item} navigation={navigation} s={s} colors={colors} />;
+    },
+    [activeTab, viewMode, navigation, s, colors, currentUser],
+  );
 
   if (loading) {
     return (
@@ -207,74 +329,6 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
   }
 
   const displayedBio = bioExpanded || !bioLong ? bio : bio.slice(0, 120).trimEnd() + '...';
-
-  const PostGridItem = ({ item }: { item: Post }) => {
-    const mediaUrl = Array.isArray(item.media) && item.media.length ? item.media[0] : null;
-    const isVideo = mediaUrl && /\.(mp4|webm|ogg)$/i.test(mediaUrl);
-    return (
-      <Ripple style={s.gridItem} onPress={() => navigation.navigate('PostDetail', { postId: item.id })} activeOpacity={0.8}>
-        {mediaUrl ? (
-          <Image source={{ uri: mediaUrl }} style={s.gridImage} />
-        ) : (
-          <View style={[s.gridTextFallback, { backgroundColor: colors.card }]}>
-            <Text style={[s.gridText, { color: colors.textSecondary }]} numberOfLines={4}>
-              {item.text || '\u2014'}
-            </Text>
-          </View>
-        )}
-        <View style={s.gridOverlay}>
-          <View style={s.gridOverlayRow}>
-            <Ionicons name="heart" size={12} color="#fff" />
-            <Text style={s.gridOverlayText}>{Array.isArray(item.likes) ? item.likes.length : 0}</Text>
-          </View>
-          <View style={s.gridOverlayRow}>
-            <Ionicons name="chatbubble" size={11} color="#fff" />
-            <Text style={s.gridOverlayText}>{Array.isArray(item.comments) ? item.comments.length : 0}</Text>
-          </View>
-        </View>
-        {isVideo && <Ionicons name="play" size={16} color="#fff" style={s.gridPlayIcon} />}
-      </Ripple>
-    );
-  };
-
-  const PostFeedItem = ({ item }: { item: Post }) => {
-    const mediaUrl = Array.isArray(item.media) && item.media.length ? item.media[0] : null;
-    const isVideo = mediaUrl && /\.(mp4|webm|ogg)$/i.test(mediaUrl);
-    return (
-      <Ripple
-        style={[s.feedItem, { borderBottomColor: colors.border }]}
-        onPress={() => navigation.navigate('PostDetail', { postId: item.id })}
-        activeOpacity={0.7}
-      >
-        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-          {mediaUrl && (
-            <View style={s.feedThumb}>
-              {isVideo && <Ionicons name="play" size={14} color="#fff" style={{ position: 'absolute', zIndex: 2, alignSelf: 'center', top: '40%' }} />}
-              <Image source={{ uri: mediaUrl }} style={s.feedThumbImg} />
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={[s.feedText, { color: colors.textPrimary }]} numberOfLines={2}>{item.text || '\u2014'}</Text>
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Ionicons name="heart-outline" size={11} color={colors.textSecondary} />
-                <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{Array.isArray(item.likes) ? item.likes.length : 0}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Ionicons name="chatbubble-outline" size={10} color={colors.textSecondary} />
-                <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{Array.isArray(item.comments) ? item.comments.length : 0}</Text>
-              </View>
-              {item.created_at && (
-                <Text style={[s.feedMeta, { color: colors.textSecondary, marginLeft: 'auto' }]}>
-                  {timeAgo(item.created_at)}
-                </Text>
-              )}
-            </View>
-          </View>
-        </View>
-      </Ripple>
-    );
-  };
 
   const ListHeader = () => (
     <View>
@@ -429,26 +483,13 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
         key={`${activeTab}_${viewMode}`}
         data={(activeTab === 'posts' ? posts : (activeTab === 'connections' ? connections : followingList)) as any}
         numColumns={activeTab === 'posts' && viewMode === 'grid' ? 3 : 1}
-        keyExtractor={(item: any) => (activeTab === 'posts' ? String(item.id) : item)}
-        renderItem={
-          activeTab === 'posts'
-            ? viewMode === 'grid'
-              ? ({ item }) => <PostGridItem item={item} />
-              : ({ item }) => <PostFeedItem item={item} />
-            : ({ item: uname }) => (
-              <Ripple style={[s.userRow, { borderBottomColor: colors.border }]} onPress={() => navigation.push('Profile', { username: uname })}>
-                <View style={s.userAvatar}>
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{(uname || '?')[0].toUpperCase()}</Text>
-                </View>
-                <Text style={[s.userName, { color: colors.textPrimary }]}>@{uname}</Text>
-                {uname !== currentUser && (
-                  <Ripple style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 14, backgroundColor: colors.primary }}>
-                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600' }}>Follow</Text>
-                  </Ripple>
-                )}
-              </Ripple>
-            )
-        }
+        keyExtractor={itemKey}
+        renderItem={renderItem}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={9}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews
         ListHeaderComponent={ListHeader}
         columnWrapperStyle={activeTab === 'posts' && viewMode === 'grid' ? s.gridRow : undefined}
         contentContainerStyle={s.gridContent}
