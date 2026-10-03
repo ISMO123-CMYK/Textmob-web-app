@@ -334,7 +334,10 @@ export const MessageBubble = memo(function MessageBubble({
                 if (m.type === 'voice' || m.type === 'audio') {
                   if (isLazy) return <RevealButton key={i} label="Show Audio" onReveal={() => setRevealedMedia((s) => ({ ...s, [i]: true }))} />;
                   return (
-                    <View key={i} style={{ width: 250, paddingVertical: 2 }}>
+                    <View
+                      key={i}
+                      style={{ width: '100%', maxWidth: 250, minWidth: 0, flexShrink: 1, paddingVertical: 2 }}
+                    >
                       <AudioPlayer src={m.url} />
                     </View>
                   );

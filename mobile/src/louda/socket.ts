@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { createVideoPlayer } from 'expo-video';
+import { createAudioPlayer } from 'expo-audio';
 import { LOUDA_API_URL } from './constants';
 
 export type LoudaConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
@@ -49,13 +49,20 @@ function setState(next: LoudaConnectionState) {
 
 function playNotificationSound() {
   try {
+    if (typeof createAudioPlayer !== 'function') return;
     if (!notificationPlayer) {
-      notificationPlayer = createVideoPlayer(NOTIFICATION_SOUND);
-      notificationPlayer.play();
-      return;
+      notificationPlayer = createAudioPlayer({ uri: NOTIFICATION_SOUND });
     }
-    if (notificationPlayer.currentTime > 0) notificationPlayer.seekTo(0);
-    notificationPlayer.play();
+    const p = notificationPlayer;
+    if (!p) return;
+    // Guard every call: a partially-created player on Android used to throw
+    // "TypeError: undefined is not a function" and take the beep with it.
+    try {
+      if (typeof p.currentTime === 'number' && p.currentTime > 0 && typeof p.seekTo === 'function') {
+        p.seekTo(0);
+      }
+    } catch {}
+    if (typeof p.play === 'function') p.play();
   } catch (e) {
     console.warn('[LoudaSocket] sound failed', e);
   }

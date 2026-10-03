@@ -3212,13 +3212,40 @@ async function sendExpoPushMessages(messages) {
 }
 
 /**
+ * Louda has its own `preferences.push_enabled` mute flag (checked before it
+ * sends chat pushes). Keep it aligned with the single app-wide push switch so
+ * toggling from Accounts Center / Menu also works for Louda messages.
+ */
+async function syncLoudaPushPref(username, value) {
+  if (!username) return;
+  try {
+    const { data: loudaUsers } = await loudaSupabase
+      .from("users")
+      .select("id, preferences")
+      .eq("username", username);
+    for (const lu of loudaUsers || []) {
+      const prefs = lu.preferences || {};
+      if (Boolean(prefs.push_enabled) !== value) {
+        await loudaSupabase
+          .from("users")
+          .update({ preferences: { ...prefs, push_enabled: value } })
+          .eq("id", lu.id);
+      }
+    }
+  } catch (e) {
+    console.warn("syncLoudaPushPref skipped:", e && e.message);
+  }
+}
+
+/**
  * POST /register-token
- * body: { username, token, deviceId, platform }
+ * body: { username, token, deviceId, platform, enabled? }
  * Stores device info in `userType` column (stringified JSON).
+ * `enabled: false` removes the device (single off-switch for Textmob + Louda).
  */
 app.post("/register-token", async (req, res) => {
   try {
-    const { username, token, deviceId, platform } = req.body || {};
+    const { username, token, deviceId, platform, enabled } = req.body || {};
     if (!username || !token) {
       return res.status(400).json({ error: "username and token required" });
     }
@@ -3254,6 +3281,26 @@ app.post("/register-token", async (req, res) => {
     const normalizedDeviceId = String(deviceId || token).slice(0, 120);
     let updated = false;
 
+    // Unsubscribe: drop this device's token so no push is sent to it.
+    if (enabled === false) {
+      const nextDevices = devices.filter(
+        (d) => d.token !== token && d.deviceId !== normalizedDeviceId,
+      );
+      const { error: updateErr } = await supabase
+        .from("users")
+        .update({ userType: JSON.stringify(nextDevices) })
+        .eq("username", username);
+      if (updateErr) {
+        console.error("register-token remove error:", updateErr);
+        return res.status(500).json({ error: "failed to save token" });
+      }
+      if (memoryDb && memoryDb.isReady) {
+        memoryDb.updateUser(username, { userType: JSON.stringify(nextDevices) });
+      }
+      await syncLoudaPushPref(username, enabled !== false);
+      return res.json({ ok: true, removed: true });
+    }
+
     const nextDevices = devices.map((d) => {
       if (d.deviceId === normalizedDeviceId) {
         updated = true;
@@ -3283,6 +3330,11 @@ app.post("/register-token", async (req, res) => {
     if (memoryDb && memoryDb.isReady) {
       memoryDb.updateUser(username, { userType: JSON.stringify(nextDevices) });
     }
+
+    // Louda keeps its own mute flag (checked before sending chat pushes).
+    // Sync it to this switch so a toggle in Accounts Center/Menu also lifts
+    // the Louda mute — otherwise re-enabling would silently do nothing.
+    await syncLoudaPushPref(username, enabled !== false);
 
     return res.json({ ok: true });
   } catch (e) {
@@ -3932,6 +3984,7 @@ app.post("/trigger-notifications", async (req, res) => {
           allMessages.push({
             to: d.token,
             sound: "default",
+            channelId: "messages",
             title: n.title || "TextMob",
             body: n.message || n.body || "You have a notification",
             data: Object.assign({}, n.data || {}, { notificationId: n.id }),

@@ -18,6 +18,7 @@ import {
 import { migrateFriendsAPI } from '../../api/users';
 import { apiGet, apiPost, apiDelete } from '../../api/client';
 import useProfileCache, { invalidateProfileCache } from '../../hooks/useProfileCache';
+import { PushNotificationsSection } from '../../components/PushNotificationsSection';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
@@ -53,6 +54,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       case 'leaderboard': setActiveSub('leaderboard'); break;
       case 'profile': setActiveSub('profile'); break;
       case 'prefs': setActiveSub('prefs'); break;
+      case 'push': setActiveSub('push'); break;
       case 'danger': setActiveSub('danger'); break;
       case 'verification': setActiveSub('verification'); break;
     }
@@ -83,7 +85,9 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       case 'grow': return <GrowTab stats={stats} profile={profile} postsCount={postsCount} username={username} isOrg={isOrg} colors={colors} isDark={isDark} setActiveSub={setActiveSub} accent={accent} />;
       case 'leaderboard': return <LeaderboardTab colors={colors} />;
       case 'profile': return <EditProfileTab profile={profileData || profile} setProfileData={setProfileData} username={username} isOrg={isOrg} colors={colors} isDark={isDark} accent={accent} />;
-      case 'prefs': return <PrefsTab user={profileData || profile} setProfileData={setProfileData} username={username} colors={colors} isDark={isDark} accent={accent} />;
+        case 'prefs': return <PrefsTab user={profileData || profile} setProfileData={setProfileData}
+username={username} colors={colors} isDark={isDark} accent={accent} />;
+        case 'push': return <PushNotificationsTab colors={colors} isDark={isDark} accent={accent} />;
       case 'verification': return <VerificationTab colors={colors} username={username} isDark={isDark} />;
       case 'danger': return <DangerTab username={username} handleLogout={handleLogout} colors={colors} isDark={isDark} />;
       default: return null;
@@ -115,6 +119,12 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
       ],
     },
     {
+      label: 'Push Notifications',
+      items: [
+        { key: 'push', label: 'Push Notifications', icon: 'notifications-outline' as const },
+      ],
+    },
+    {
       label: 'Settings',
       items: [
         { key: 'verification', label: 'Get Verified', icon: 'checkmark-circle-outline' as const },
@@ -137,6 +147,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
     'trophy-outline': { focused: 'trophy', unfocused: 'trophy-outline' },
     'person-outline': { focused: 'person', unfocused: 'person-outline' },
     'settings-outline': { focused: 'settings', unfocused: 'settings-outline' },
+    'notifications-outline': { focused: 'notifications', unfocused: 'notifications-outline' },
     'log-out-outline': { focused: 'log-out', unfocused: 'log-out-outline' },
   };
 
@@ -202,7 +213,7 @@ function getTabLabel(key: string): string {
     home: 'Overview', monetize: 'Earnings',
     analytics: 'Analytics', composer: 'New Post', posts: 'My Posts',
     snaps: 'Snaps Studio', grow: 'Milestones', leaderboard: 'Leaderboard',
-    profile: 'Edit Profile', prefs: 'Preferences', danger: 'Account',
+    profile: 'Edit Profile', prefs: 'Preferences', push: 'Push Notifications', danger: 'Account',
   };
   return labels[key] || key.charAt(0).toUpperCase() + key.slice(1);
 }
@@ -1591,6 +1602,30 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
       </Modal>
     </ScrollView>
     </>
+  );
+}
+
+function PushNotificationsTab({ colors, isDark, accent }: any) {
+  return (
+    <ScrollView style={{ padding: 16 }}>
+      <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Push Notifications</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4, lineHeight: 18 }}>
+        One switch controls every push on this device: Textmob activity, comments,
+        and Louda chat messages. They share the same device token, so you only
+        need to allow it once.
+      </Text>
+      <PushNotificationsSection
+        colors={colors}
+        isDark={isDark}
+        accent={accent}
+        showLabel={false}
+        style={{ marginTop: 16 }}
+      />
+      <Text style={{ color: colors.textSecondary, fontSize: 11, marginTop: 12, lineHeight: 17 }}>
+        Disabling removes this device from the push list. Enabling shows the
+        system permission prompt if it has not been allowed yet.
+      </Text>
+    </ScrollView>
   );
 }
 

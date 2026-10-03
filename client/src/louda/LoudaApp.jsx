@@ -109,7 +109,6 @@ const AudioPlayer = memo(({ src }) => {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef(null);
-  const [waveform, setWaveform] = useState([...Array(30)].map(() => Math.random() * 60 + 20));
 
   useEffect(() => {
   const audio = audioRef.current;
@@ -117,10 +116,6 @@ const AudioPlayer = memo(({ src }) => {
 
   const update = () => {
   setProgress((audio.currentTime / (audio.duration || 1)) * 100);
-  if (playing) {
-  // Subtle animation for "waves following sound"
-  setWaveform(prev => prev.map(h => Math.max(15, Math.min(100, h + (Math.random() - 0.5) * 15))));
-  }
   };
   const onEnd = () => { setPlaying(false); setProgress(0); };
   const onLoad = () => {
@@ -179,7 +174,7 @@ const AudioPlayer = memo(({ src }) => {
   };
 
   return (
-  <div className="flex items-center gap-2 w-full md:min-w-[280px] max-w-full min-w-0 bg-white/40  p-2 rounded-2xl backdrop-blur-sm border border-black/5  md:shrink-0" onClick={e => e.stopPropagation()}>
+  <div className="flex items-center gap-2 w-full max-w-full min-w-0 shrink bg-white/40  p-2 rounded-2xl backdrop-blur-sm border border-black/5" onClick={e => e.stopPropagation()}>
   <audio ref={audioRef} src={getOptimizedMediaUrl(src, 'audio')} preload="metadata" />
   <button onClick={toggle} className="w-10 h-10 shrink-0 rounded-full text-white flex items-center justify-center transition-all shadow-lg active:scale-95 ring-2 ring-white/20" style={{ background: 'var(--safari-green)' }}>
   <div className="w-4 h-4 flex items-center justify-center">
@@ -190,25 +185,12 @@ const AudioPlayer = memo(({ src }) => {
   )}
   </div>
   </button>
-  <div className="flex-1 flex flex-col justify-center gap-0.5 min-w-0 overflow-hidden">
-  <div className="relative w-full h-8 flex items-center cursor-pointer group min-w-0 overflow-hidden" onClick={seek}>
-  <div className="absolute inset-0 flex items-center justify-between gap-[1px] w-full min-w-0 overflow-hidden">
-  {waveform.map((height, i) => {
-  const active = (i / 30 * 100) <= progress;
-  return (
-  <div
-  key={i}
-  className={`flex-1 rounded-full transition-all duration-300 ${active ? '' : 'bg-gray-300 '}`}
-  style={{
-  height: `${height}%`,
-  opacity: active ? 1 : 0.4,
-  transform: active ? 'scaleY(1.1)' : 'scaleY(1)',
-  background: active ? 'var(--safari-green)' : undefined
-  }}
-  />
-  );
-  })}
+  <div className="flex-1 flex flex-col justify-center gap-0.5 min-w-0 max-w-full overflow-hidden">
+  <div className="relative w-full h-7 flex items-center cursor-pointer group min-w-0 overflow-visible" onClick={seek}>
+  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-black/15 overflow-hidden">
+  <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, progress))}%`, background: 'var(--safari-green)' }} />
   </div>
+  <div className="absolute w-2.5 h-2.5 -ml-[5px] rounded-full ring-2 ring-white" style={{ left: `${Math.max(0, Math.min(100, progress))}%`, top: '50%', marginTop: -5, background: 'var(--safari-green)' }} />
   </div>
   <div className="flex justify-between items-center px-1">
   <span className="text-[10px] font-black tracking-widest tabular-nums" style={{ color: 'var(--safari-green)' }}>

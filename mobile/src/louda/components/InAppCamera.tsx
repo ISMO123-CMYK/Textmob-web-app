@@ -28,6 +28,8 @@ export type InAppCapture = {
 };
 
 const HOLD_TO_RECORD_MS = 300;
+// CameraX drops the recording entirely if we stop it before ~0.45s of frames.
+const MIN_RECORD_MS = 450;
 
 export function InAppCamera({
   mode = 'both',
@@ -51,6 +53,8 @@ export function InAppCamera({
   const [seconds, setSeconds] = useState(0);
   const [busy, setBusy] = useState(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordStartAt = useRef(0);
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordingRef = useRef(false);
   const finishedRef = useRef(false);
   const onCancelRef = useRef(onCancel);
@@ -87,6 +91,7 @@ export function InAppCamera({
     const cam = cameraRef.current;
     if (!cam || recordingRef.current || finishedRef.current) return;
     recordingRef.current = true;
+    recordStartAt.current = Date.now();
     setRecording(true);
     setSeconds(0);
     try {
@@ -112,7 +117,20 @@ export function InAppCamera({
 
   const stopRecording = useCallback(() => {
     // recordAsync's promise resolves in startRecording, which finishes the flow.
-    cameraRef.current?.stopRecording();
+    const cam = cameraRef.current;
+    if (!cam || !recordingRef.current || finishedRef.current) return;
+    // Stopping before CameraX has written a frame throws "Recording was stopped
+    // before any data could be produced" — hold the stop until a frame exists.
+    const wait = MIN_RECORD_MS - (Date.now() - recordStartAt.current);
+    if (wait > 0) {
+      if (stopTimer.current) clearTimeout(stopTimer.current);
+      stopTimer.current = setTimeout(() => {
+        stopTimer.current = null;
+        cameraRef.current?.stopRecording();
+      }, wait + 30);
+      return;
+    }
+    cam.stopRecording();
   }, []);
 
   const takePhoto = useCallback(async () => {
@@ -166,6 +184,7 @@ export function InAppCamera({
   useEffect(
     () => () => {
       if (holdTimer.current) clearTimeout(holdTimer.current);
+      if (stopTimer.current) clearTimeout(stopTimer.current);
       if (recordingRef.current) cameraRef.current?.stopRecording();
     },
     [],
@@ -284,7 +303,7 @@ export function InAppCamera({
 }
 
 const s = StyleSheet.create({
-  fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000', zIndex: 999 },
+  fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000', zIndex: 10 },
   center: { alignItems: 'center', justifyContent: 'center', padding: 32 },
   topBar: {
     position: 'absolute',
@@ -293,6 +312,8 @@ const s = StyleSheet.create({
     right: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    zIndex: 20,
+    elevation: 20,
   },
   topBtn: {
     width: 44,
@@ -313,11 +334,21 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
+    zIndex: 20,
+    elevation: 20,
   },
   recDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#ef4444' },
   recTime: { color: '#fff', fontSize: 14, fontWeight: '700' },
   recMax: { color: '#9ca3af', fontSize: 12 },
-  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: 48 },
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingBottom: 48,
+    zIndex: 20,
+    elevation: 20,
+  },
   hint: {
     color: 'rgba(255,255,255,0.85)',
     fontSize: 13,
@@ -334,7 +365,7 @@ const s = StyleSheet.create({
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
   shutterRec: { borderColor: '#ef4444' },
   shutterInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff' },

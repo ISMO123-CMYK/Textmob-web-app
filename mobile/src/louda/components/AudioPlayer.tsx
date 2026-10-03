@@ -28,9 +28,6 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [barWidth, setBarWidth] = useState(1);
   const playerRef = useRef<AudioPlayerInstance | null>(null);
-  const [waveform, setWaveform] = useState(() =>
-    [...Array(30)].map(() => Math.random() * 60 + 20),
-  );
 
   useEffect(() => {
     // Web zeroes state when src changes (LoudaApp.jsx:123-128)
@@ -72,16 +69,7 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
     };
   }, [src]);
 
-  // Subtle waveform animation while playing (LoudaApp.jsx:94-96)
-  useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => {
-      setWaveform((prev) =>
-        prev.map((h) => Math.max(15, Math.min(100, h + (Math.random() - 0.5) * 15))),
-      );
-    }, 300);
-    return () => clearInterval(id);
-  }, [playing]);
+  // Plain progress line — no waveform animation (per design decision).
 
   const toggle = () => {
     const player = playerRef.current;
@@ -133,26 +121,26 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
         )}
       </Ripple>
 
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Pressable onPress={seek} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
-          <View style={s.waveform}>
-            {waveform.map((height, i) => {
-              const active = (i / 30) * 100 <= progress;
-              return (
-                <View
-                  key={i}
-                  style={[
-                    s.waveBar,
-                    {
-                      height: `${height}%`,
-                      backgroundColor: active ? activeColor : '#d1d5db',
-                      opacity: active ? 1 : 0.4,
-                      transform: [{ scaleY: active ? 1.1 : 1 }],
-                    },
-                  ]}
-                />
-              );
-            })}
+      <View style={{ flex: 1, minWidth: 0, maxWidth: '100%' }}>
+        <Pressable
+          onPress={seek}
+          onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
+          style={s.trackHit}
+          accessibilityLabel="Seek"
+        >
+          <View style={[s.track, { backgroundColor: 'rgba(0,0,0,0.14)' }]}>
+            <View
+              style={[
+                s.trackFill,
+                { width: `${Math.max(0, Math.min(100, progress))}%`, backgroundColor: activeColor },
+              ]}
+            />
+            <View
+              style={[
+                s.trackKnob,
+                { left: `${Math.max(0, Math.min(100, progress))}%`, backgroundColor: activeColor },
+              ]}
+            />
           </View>
         </Pressable>
         <View style={s.times}>
@@ -178,7 +166,11 @@ const s = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.05)',
     width: '100%',
+    maxWidth: '100%',
     minWidth: 0,
+    flexGrow: 1,
+    flexShrink: 1,
+    overflow: 'hidden',
   },
   playBtn: {
     width: 40,
@@ -191,20 +183,30 @@ const s = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
+    flexShrink: 0,
   },
-  waveform: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 1,
-    height: 32,
-    overflow: 'hidden',
+  trackHit: { height: 26, justifyContent: 'center' },
+  track: {
+    height: 4,
+    borderRadius: 2,
     width: '100%',
+    overflow: 'visible',
+    justifyContent: 'center',
   },
-  waveBar: {
-    flex: 1,
-    borderRadius: 999,
-    marginHorizontal: 0.5,
+  trackFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 2,
+  },
+  trackKnob: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginLeft: -5,
+    top: -3,
   },
   times: {
     flexDirection: 'row',

@@ -16,19 +16,10 @@ import { useLoudaTheme, Button, Input, Toggle, Section } from './primitives';
 import { Icons } from '../icons';
 import { DEFAULT_AVATAR } from '../constants';
 import { getOptimizedMediaUrl } from '../utils';
-import { getStore, setStore } from '../../utils/storage';
 import * as api from '../api';
 import { loudaAlert, TRANSLATION_TTS_DISABLED } from '../utils';
-import { registerForPushNotificationsAsync } from '../push';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { InAppCamera } from './InAppCamera';
-
-const NOTIF_KEY = 'louda:notifPrefs';
-
-// Real OS permission prompt + Expo token registration (web had the browser
-// Notification prompt here; RN uses expo-notifications via ../push).
-async function requestPushPermission(): Promise<boolean> {
-  return registerForPushNotificationsAsync();
-}
 
 const VOICE_GROUPS = [
   { label: 'English', voices: [
@@ -85,22 +76,17 @@ export function SettingsScreen({
   const [hasChanges, setHasChanges] = useState(false);
   const [showAvatarOptions, setShowAvatarOptions] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [notifEnabled, setNotifEnabled] = useState(false);
+  // SAME source of truth as Accounts Center / Menu (Textmob + Louda together).
+  const {
+    enabled: notifEnabled,
+    loading: notifLoading,
+    busy: notifBusy,
+    setEnabled: setNotifEnabled,
+  } = usePushNotifications();
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
-
-  // hydrate notif prefs (web 6197 reads localStorage synchronously)
-  React.useEffect(() => {
-    getStore(NOTIF_KEY)
-      .then((v) => {
-        try {
-          if (v) setNotifEnabled(JSON.parse(v).enabled === true);
-        } catch {}
-      })
-      .catch(() => {});
-  }, []);
 
   const update = (path: string, value: any) => {
     const keys = path.split('.');
@@ -149,39 +135,24 @@ export function SettingsScreen({
     ).catch((e) => console.error(e));
   };
 
-  const onTogglePush = async () => {
-    const cur = (await getStore(NOTIF_KEY).catch(() => null)) || '{}';
-    let pref: any = {};
+  // Same switch as Accounts Center + Menu: request OS permission and register
+  // the shared Expo token (on), or drop it server-side (off). The server then
+  // keeps Louda's own push_enabled flag in sync for chat messages.
+  const onTogglePush = async (next: boolean) => {
     try {
-      pref = JSON.parse(cur);
-    } catch {}
-    const currentlyEnabled = pref.enabled === true;
-    if (!currentlyEnabled) {
-      const granted = await requestPushPermission();
-      if (granted) {
-        pref.enabled = true;
-        await setStore(NOTIF_KEY, JSON.stringify(pref)).catch(() => {});
-        setNotifEnabled(true);
-        setHasChanges(true);
-        loudaAlert({ title: 'Success', message: 'Push notifications enabled successfully!' });
-      } else {
-        pref.enabled = false;
-        await setStore(NOTIF_KEY, JSON.stringify(pref)).catch(() => {});
-        setNotifEnabled(false);
-        setHasChanges(true);
+      const ok = await setNotifEnabled(next);
+      if (next && !ok) {
         loudaAlert({ title: 'Notice', message: 'Push permission denied or blocked by device.' });
+        return;
       }
-    } else {
-      pref.enabled = false;
-      await setStore(NOTIF_KEY, JSON.stringify(pref)).catch(() => {});
-      setNotifEnabled(false);
-      setHasChanges(true);
-      if (user) {
-        const updatedPrefs = { ...(user.preferences || {}), push_enabled: false };
-        api
-          .savePreferences({ userId: user.id, preferences: updatedPrefs })
-          .catch((e: any) => console.error('[FCM] Disable push error:', e));
-      }
+      loudaAlert({
+        title: ok ? 'Success' : 'Push notifications',
+        message: ok
+          ? 'Push notifications enabled for messages and activity.'
+          : 'Push notifications disabled for this device.',
+      });
+    } catch (e) {
+      console.error('[Push] toggle failed', e);
     }
   };
 
@@ -515,10 +486,11 @@ export function SettingsScreen({
                     label="Enable Push Notifications"
                     checked={notifEnabled}
                     onChange={onTogglePush}
+                    disabled={notifLoading || notifBusy}
                   />
                   <Text style={[s.hint, { color: p.textMuted }]}>
-                    Enables push notifications for all activities: direct messages, group messages,
-                    and contact status updates.
+                    One switch for everything: direct messages, group messages, contact status
+                    updates, and Textmob activity — same as Accounts Center and Menu.
                   </Text>
                 </Section>
               </View>

@@ -14,7 +14,7 @@ import { SocketProvider } from './src/context/SocketContext';
 import { UploadProgressProvider } from './src/context/UploadProgressContext';
 import { UpdateProvider } from './src/context/UpdateContext';
 import { initTracking } from './src/utils/analytics';
-import { initPushNotifications } from './src/louda/push';
+import { initPushNotifications, registerForPushNotificationsAsync } from './src/louda/push';
 import AuthStack from './src/navigation/AuthStack';
 import RootNavigator from './src/navigation/RootNavigator';
 import ShareToTextmobScreen from './src/screens/share/ShareToTextmobScreen';
@@ -55,6 +55,12 @@ function AppNavigator() {
       initPushNotifications();
     }
   }, [appReady]);
+
+  // The token is keyed by Textmob username — on a fresh install the start
+  // prompt can fire before login, so register once auth resolves too.
+  useEffect(() => {
+    if (user) registerForPushNotificationsAsync().catch(() => {});
+  }, [user]);
 
   // Failsafe: never block splash longer than 3.5s on any device (Knox/StrongBox slow)
   useEffect(() => {

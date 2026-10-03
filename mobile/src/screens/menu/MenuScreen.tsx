@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { apiGet, apiPost } from '../../api/client';
 import useProfileCache from '../../hooks/useProfileCache';
 import { storage, KEYS } from '../../utils/storage';
+import { PushNotificationsSection } from '../../components/PushNotificationsSection';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
@@ -137,6 +138,14 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
             <Text style={[s.featuredBtnSecText, { color: '#2563eb' }]}>View Wallet</Text>
           </Ripple>
         </View>
+
+        {/* Push Notifications: same switch as Accounts Center + Louda */}
+        <PushNotificationsSection
+          colors={colors}
+          isDark={isDark}
+          accent={colors.primary}
+          label="Push Notifications"
+        />
 
         {sections.map((section, si) => (
           <View key={si} style={{ marginTop: 20, paddingHorizontal: 16 }}>

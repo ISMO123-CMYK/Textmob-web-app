@@ -4,6 +4,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { API_BASE_URL } from '../api/client';
+import { storage } from '../utils/storage';
 import { navigationRef } from '../navigation/navigationRef';
 import {
   getTextmobUser,
@@ -49,16 +50,66 @@ async function registerToken(): Promise<void> {
   }
 }
 
+// Turns off push on the server (drops this device's token). Needed because
+// neither OS lets an app revoke notification permission itself.
+async function unregisterToken(): Promise<void> {
+  try {
+    const resp = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
+    const token = resp && resp.data;
+    const username = getTextmobUserSync() || (await getTextmobUser());
+    if (!token || !username) return;
+    fetch(`${API_BASE_URL}/register-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, token, platform: Platform.OS, enabled: false }),
+    }).catch(() => {});
+  } catch (e) {
+    console.warn('[Push] token unregistration failed', e);
+  }
+}
+
+export async function getPushPermission(): Promise<boolean> {
+  try {
+    const res: any = await Notifications.getPermissionsAsync();
+    return res?.granted === true || res?.status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+// Single on/off switch used by Textmob AND Louda.
+export async function setPushEnabled(enabled: boolean): Promise<boolean> {
+  permissionGranted = enabled;
+  if (enabled) {
+    return registerForPushNotificationsAsync();
+  }
+  await unregisterToken();
+  return false;
+}
+
 // Prompts for permission when needed, then registers the Expo push token.
 export async function registerForPushNotificationsAsync(): Promise<boolean> {
   try {
     if (Platform.OS === 'android') {
+      // Do NOT pass sound:'default' — SDK 57 treats any string as a custom
+      // raw resource and logs "Custom sound 'default' not found in native app".
+      // Docs example omits `sound` entirely → channel uses the default sound.
+      // Channels persist forever on Android, so delete/recreate once to drop
+      // the sound we created earlier with the bad option.
+      const migrated = await storage.getStore('messagesChannelSoundV2');
+      if (!migrated) {
+        try {
+          await Notifications.deleteNotificationChannelAsync('messages');
+        } catch {
+          // channel may not exist yet
+        }
+        await storage.setStore('messagesChannelSoundV2', '1');
+      }
       await Notifications.setNotificationChannelAsync('messages', {
         name: 'Messages',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#2563eb',
-        sound: 'default',
       });
     }
     const current: any = await Notifications.getPermissionsAsync();
@@ -153,12 +204,9 @@ export function initPushNotifications() {
     })
     .catch(() => {});
 
-  // No startup prompt: register silently only if permission was granted before
-  // (first grant happens via the Settings toggle -> registerForPushNotificationsAsync).
-  Notifications.getPermissionsAsync()
-    .then((perm: any) => {
-      permissionGranted = perm?.granted === true || perm?.status === 'granted';
-      if (permissionGranted) registerToken();
-    })
-    .catch(() => {});
+  // Ask on app start: the OS dialog shows the first time (never again after
+  // grant/deny); if already granted it just re-registers the token silently.
+  // One token feeds BOTH Louda messages and Textmob activity pushes — the
+  // server keeps them in users.userType keyed by Textmob username.
+  registerForPushNotificationsAsync().catch(() => {});
 }
