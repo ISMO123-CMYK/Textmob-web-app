@@ -62,7 +62,8 @@
             "useLegacyPackaging": true,
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "enableBundleCompression": true
+            "enableBundleCompression": true,
+            "extraProguardRules": "# barcodeScannerEnabled:false makes expo-camera declare\n# com.google.mlkit / play-services-code-scanner as compileOnly\n# (expo-camera/android/build.gradle:42-45), so ML Kit is deliberately not\n# in the APK. expo-camera still compiles the analyzers, and every call site\n# is runtime-guarded by CameraUtils.isMLKitBarcodeScannerAvailable(),\n# which does Class.forName and returns false when the classes are absent.\n# Tell R8 these references are intentionally optional.\n-dontwarn com.google.mlkit.**"
           }
         }
       ],
