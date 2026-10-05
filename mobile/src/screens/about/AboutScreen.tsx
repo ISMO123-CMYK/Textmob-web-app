@@ -4,7 +4,7 @@ import {
   ScrollView, Linking,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';

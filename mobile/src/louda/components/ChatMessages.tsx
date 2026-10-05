@@ -8,7 +8,7 @@
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   StyleSheet,
   LayoutChangeEvent,
   Keyboard,
@@ -126,7 +126,7 @@ export function ChatMessages({
   const [showJump, setShowJump] = useState(false);
   const [atTop, setAtTop] = useState(false);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlatList<any>>(null);
   const positionsRef = useRef<Map<string, number>>(new Map());
   const viewportH = useRef(1);
   const contentH = useRef(1);
@@ -136,12 +136,27 @@ export function ChatMessages({
   const restoreRef = useRef<{ prevH: number; prevOffset: number } | null>(null);
   const loadingMoreRef = useRef(false);
   const unreadRef = useRef<View>(null);
+  // FlatList mounts rows in batches where the old ScrollView mounted every
+  // message at once, so the bottom keeps moving down while the first batches
+  // arrive. Follow it until the list settles (or the user takes over),
+  // otherwise a chat opens scrolled part-way up.
+  const autoFollowRef = useRef(true);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   if (chatChangedRef.current !== chatId) {
     chatChangedRef.current = chatId;
     initialDone.current = false;
+    autoFollowRef.current = true;
     positionsRef.current = new Map();
   }
+
+  useEffect(() => {
+    return () => {
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+    };
+  }, []);
 
   const toggleSelect = useCallback(
     (msgId: string, isLongPress?: boolean) => {
@@ -232,19 +247,37 @@ export function ChatMessages({
     });
   }, [messages, userId, isGroup]);
 
-  const jumpToMessage = useCallback(
-    (id: string) => {
-      const y = positionsRef.current.get(id);
-      if (y == null) return;
-      scrollRef.current?.scrollTo({
-        y: Math.max(0, y - viewportH.current / 2),
+  const jumpToMessage = useCallback((id: string) => {
+    const y = positionsRef.current.get(id);
+    let jumped = false;
+    if (y != null) {
+      scrollRef.current?.scrollToOffset({
+        offset: Math.max(0, y - viewportH.current / 2),
         animated: true,
       });
-      setHighlightId(id);
-      setTimeout(() => setHighlightId((cur) => (cur === id ? null : cur)), 2000);
-    },
-    [],
-  );
+      jumped = true;
+    } else {
+      // Row isn't mounted (list is virtualized now) — no y to scroll to, so
+      // let FlatList bring the index into view instead of silently no-oping.
+      const index = messagesRef.current.findIndex((m: any) => m?.id === id);
+      if (index >= 0) {
+        scrollRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+        jumped = true;
+      }
+    }
+    if (!jumped) return;
+    setHighlightId(id);
+    setTimeout(() => setHighlightId((cur) => (cur === id ? null : cur)), 2000);
+  }, []);
+
+  // FlatList has no getItemLayout (bubbles are variable height), so it may
+  // not know the offset of a far-away row yet. Scroll roughly, then retry.
+  const onScrollToIndexFailed = useCallback((info: any) => {
+    scrollRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+    setTimeout(() => {
+      scrollRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.5 });
+    }, 120);
+  }, []);
 
   // Expose jump for pinned banner / InChatSearch (web scrollIntoView parity)
   useEffect(() => {
@@ -274,18 +307,29 @@ export function ChatMessages({
   useEffect(() => {
     if (initialDone.current || messages.length === 0) return;
     const t = setTimeout(() => {
+      if (initialDone.current) return;
       initialDone.current = true;
       if (firstUnreadIndex !== -1) {
-        const y = positionsRef.current.get(messages[firstUnreadIndex]?.id);
+        const unreadId = messages[firstUnreadIndex]?.id;
+        const y = unreadId ? positionsRef.current.get(unreadId) : null;
         if (y != null) {
-          scrollRef.current?.scrollTo({
-            y: Math.max(0, y - viewportH.current / 2),
+          autoFollowRef.current = false;
+          scrollRef.current?.scrollToOffset({
+            offset: Math.max(0, y - viewportH.current / 2),
             animated: false,
           });
           return;
         }
+        // Unread row not mounted yet (virtualized list) — go by index.
+        autoFollowRef.current = false;
+        scrollRef.current?.scrollToIndex({
+          index: firstUnreadIndex,
+          animated: false,
+          viewPosition: 0.4,
+        });
+        return;
       }
-      scrollRef.current?.scrollTo({ y: Math.max(0, contentH.current - viewportH.current), animated: false });
+      scrollRef.current?.scrollToOffset({ offset: Math.max(0, contentH.current - viewportH.current), animated: false });
     }, 150);
     return () => clearTimeout(t);
   }, [messages, firstUnreadIndex]);
@@ -328,9 +372,27 @@ export function ChatMessages({
     if (prev && h > prev.prevH) {
       restoreRef.current = null;
       const added = h - prev.prevH;
-      scrollRef.current?.scrollTo({ y: prev.prevOffset + added, animated: false });
+      scrollRef.current?.scrollToOffset({ offset: prev.prevOffset + added, animated: false });
     }
     contentH.current = h;
+    // Rows mount in batches, so the bottom keeps moving while the first
+    // batches land. Re-pin until the height settles (or the user drags).
+    if (autoFollowRef.current) {
+      scrollRef.current?.scrollToOffset({
+        offset: Math.max(0, h - viewportH.current),
+        animated: false,
+      });
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+      settleTimer.current = setTimeout(() => {
+        autoFollowRef.current = false;
+      }, 400);
+    }
+  };
+
+  // User grabbed the list — stop auto-following for good.
+  const onScrollBeginDrag = () => {
+    autoFollowRef.current = false;
+    if (settleTimer.current) clearTimeout(settleTimer.current);
   };
 
   const handleScroll = (e: any) => {
@@ -441,6 +503,166 @@ export function ChatMessages({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [singleSelectedMessage, onViewInfo, onEdit, userVoice, userId]);
 
+  // Stable renderItem: an inline .map() handed every bubble a fresh element
+  // on each store render, and mounted ALL of them at once. FlatList now only
+  // builds the rows around the viewport; MessageBubble's React.memo does the
+  // rest.
+  const renderRow = useCallback(
+    ({ item: msg, index: i }: { item: any; index: number }) => {
+      const msgs = messagesRef.current;
+      const isUnreadStart = i === firstUnreadIndex;
+      const prevMsg = i > 0 ? msgs[i - 1] : null;
+      const nextMsg = i < msgs.length - 1 ? msgs[i + 1] : null;
+
+      let showDateSeparator = false;
+      if (i === 0) showDateSeparator = true;
+      else if (prevMsg) {
+        const currDate = new Date(msg.timestamp).toDateString();
+        const prevDate = new Date(prevMsg.timestamp).toDateString();
+        if (currDate !== prevDate) showDateSeparator = true;
+      }
+
+      const isSameSenderAsPrev =
+        prevMsg &&
+        prevMsg.from === msg.from &&
+        !showDateSeparator &&
+        !isUnreadStart;
+      const isSameSenderAsNext =
+        nextMsg &&
+        nextMsg.from === msg.from &&
+        new Date(nextMsg.timestamp).toDateString() === new Date(msg.timestamp).toDateString();
+      const isFirstInGroup = !isSameSenderAsPrev;
+      const isLastInGroup = !isSameSenderAsNext;
+
+      return (
+        <View
+          onLayout={(e: LayoutChangeEvent) => {
+            if (msg.id) positionsRef.current.set(msg.id, e.nativeEvent.layout.y);
+          }}
+          style={{ marginBottom: isLastInGroup ? 6 : 1 }}
+          ref={isUnreadStart ? unreadRef : undefined}
+          nativeID={msg.id ? `msg-${msg.id}` : undefined}
+        >
+          {showDateSeparator && (
+            <View style={s.dateRow}>
+              <Text style={[s.datePill, { backgroundColor: p.card, borderColor: p.borderLight, color: p.textMuted }]}>
+                {formatDateLabel(msg.timestamp)}
+              </Text>
+            </View>
+          )}
+
+          {isUnreadStart && (
+            <View style={s.unreadRow}>
+              <Text style={[s.unreadPill, { backgroundColor: '#dcfce7', color: '#166534' }]}>
+                {unreadCount} Unread Messages
+              </Text>
+            </View>
+          )}
+
+          <MessageBubble
+            message={msg}
+            isSentByMe={msg.from === userId}
+            onViewMedia={onViewMedia}
+            lazyLoadEnabled={lazyLoadEnabled}
+            isGroup={isGroup}
+            membersMap={membersMap}
+            onShowReadBy={showReadBy}
+            translatedText={translations?.[msg.id]}
+            userVoice={userVoice}
+            onViewProfile={onViewProfile}
+            isSelected={selectedMessages.has(msg.id)}
+            onSelect={toggleSelect}
+            selectionMode={selectionMode}
+            onReply={onReply}
+            bubbleDensity={
+              isSameSenderAsPrev
+                ? 'compact'
+                : user?.preferences?.ui?.bubbleDensity || 'comfortable'
+            }
+            showSenderName={isGroup && isFirstInGroup && msg.from !== userId}
+            onJumpToReply={handleJumpReply}
+            onAddContact={onAddContact}
+            highlighted={highlightId === msg.id}
+          />
+        </View>
+      );
+    },
+    [
+      firstUnreadIndex,
+      unreadCount,
+      highlightId,
+      selectedMessages,
+      selectionMode,
+      userId,
+      isGroup,
+      lazyLoadEnabled,
+      membersMap,
+      translations,
+      userVoice,
+      onViewProfile,
+      onViewMedia,
+      onReply,
+      onAddContact,
+      user,
+      showReadBy,
+      toggleSelect,
+      handleJumpReply,
+      p,
+    ],
+  );
+
+  const keyExtractor = useCallback((msg: any, index: number) => String(msg?.id ?? index), []);
+
+  const listHeader =
+    !!hasMore || messages.length === 0 ? (
+      <View>
+        {!!hasMore && (
+          <Text style={[s.loadingMore, { color: p.textMuted }]}>Loading history...</Text>
+        )}
+        {isLoading && messages.length === 0 && (
+          <View style={s.empty}>
+            <ActivityIndicator size="large" color={p.accent} />
+          </View>
+        )}
+        {messages.length === 0 && !hasMore && !isLoading && (
+          <View style={s.empty}>
+            <Text style={{ fontSize: 56, opacity: 0.3 }}>💬</Text>
+            <Text style={[s.emptyTitle, { color: p.textMuted }]}>No messages yet</Text>
+            <Text style={[s.emptySub, { color: p.textMuted }]}>
+              Say hello to start the conversation!
+            </Text>
+          </View>
+        )}
+      </View>
+    ) : null;
+
+  const listFooter =
+    typingUsers && typingUsers.length > 0 ? (
+      <View style={s.typingRow}>
+        <View style={[s.typingPill, { backgroundColor: p.cardMuted }]}>
+          <View style={{ flexDirection: 'row', gap: 3, marginRight: 6 }}>
+            {[0, 1, 2].map((d) => (
+              <View
+                key={d}
+                style={[
+                  s.typingDot,
+                  {
+                    backgroundColor: p.textMuted,
+                    opacity: 1 - d * 0.3,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={[s.typingText, { color: p.textMuted }]}>
+            {typingUsers.length === 1
+              ? `${typingUsers[0]} is typing...`
+              : `${typingUsers.length} people are typing...`}
+          </Text>
+        </View>
+      </View>
+    ) : null;
+
   return (
     <>
       {selectionMode && (
@@ -514,147 +736,33 @@ export function ChatMessages({
             resizeMode="cover"
           />
         )}
-        <ScrollView
+        <FlatList
           ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+          data={messages}
+          keyExtractor={keyExtractor}
+          renderItem={renderRow}
+          ListHeaderComponent={listHeader}
+          ListFooterComponent={listFooter}
           onScroll={handleScroll}
+          onScrollBeginDrag={onScrollBeginDrag}
           scrollEventThrottle={64}
           onContentSizeChange={onContentSizeChange}
+          onScrollToIndexFailed={onScrollToIndexFailed}
           keyboardShouldPersistTaps="handled"
-        >
-          {!!hasMore && (
-            <Text style={[s.loadingMore, { color: p.textMuted }]}>Loading history...</Text>
-          )}
-
-          {isLoading && messages.length === 0 && (
-            <View style={s.empty}>
-              <ActivityIndicator size="large" color={p.accent} />
-            </View>
-          )}
-
-          {messages.length === 0 && !hasMore && !isLoading && (
-            <View style={s.empty}>
-              <Text style={{ fontSize: 56, opacity: 0.3 }}>💬</Text>
-              <Text style={[s.emptyTitle, { color: p.textMuted }]}>No messages yet</Text>
-              <Text style={[s.emptySub, { color: p.textMuted }]}>
-                Say hello to start the conversation!
-              </Text>
-            </View>
-          )}
-
-          {messages.map((msg: any, i: number) => {
-            const isUnreadStart = i === firstUnreadIndex;
-            const prevMsg = i > 0 ? messages[i - 1] : null;
-            const nextMsg = i < messages.length - 1 ? messages[i + 1] : null;
-
-            let showDateSeparator = false;
-            if (i === 0) showDateSeparator = true;
-            else if (prevMsg) {
-              const currDate = new Date(msg.timestamp).toDateString();
-              const prevDate = new Date(prevMsg.timestamp).toDateString();
-              if (currDate !== prevDate) showDateSeparator = true;
-            }
-
-            const isSameSenderAsPrev =
-              prevMsg &&
-              prevMsg.from === msg.from &&
-              !showDateSeparator &&
-              !isUnreadStart;
-            const isSameSenderAsNext =
-              nextMsg &&
-              nextMsg.from === msg.from &&
-              new Date(nextMsg.timestamp).toDateString() === new Date(msg.timestamp).toDateString();
-            const isFirstInGroup = !isSameSenderAsPrev;
-            const isLastInGroup = !isSameSenderAsNext;
-
-            return (
-              <View
-                key={msg.id || i}
-                onLayout={(e: LayoutChangeEvent) => {
-                  if (msg.id) positionsRef.current.set(msg.id, e.nativeEvent.layout.y);
-                }}
-                style={{ marginBottom: isLastInGroup ? 6 : 1 }}
-                ref={isUnreadStart ? unreadRef : undefined}
-                nativeID={msg.id ? `msg-${msg.id}` : undefined}
-              >
-                {showDateSeparator && (
-                  <View style={s.dateRow}>
-                    <Text style={[s.datePill, { backgroundColor: p.card, borderColor: p.borderLight, color: p.textMuted }]}>
-                      {formatDateLabel(msg.timestamp)}
-                    </Text>
-                  </View>
-                )}
-
-                {isUnreadStart && (
-                  <View style={s.unreadRow}>
-                    <Text style={[s.unreadPill, { backgroundColor: '#dcfce7', color: '#166534' }]}>
-                      {unreadCount} Unread Messages
-                    </Text>
-                  </View>
-                )}
-
-                <MessageBubble
-                  message={msg}
-                  isSentByMe={msg.from === userId}
-                  onViewMedia={onViewMedia}
-                  lazyLoadEnabled={lazyLoadEnabled}
-                  isGroup={isGroup}
-                  membersMap={membersMap}
-                  onShowReadBy={showReadBy}
-                  translatedText={translations?.[msg.id]}
-                  userVoice={userVoice}
-                  onViewProfile={onViewProfile}
-                  isSelected={selectedMessages.has(msg.id)}
-                  onSelect={toggleSelect}
-                  selectionMode={selectionMode}
-                  onReply={onReply}
-                  bubbleDensity={
-                    isSameSenderAsPrev
-                      ? 'compact'
-                      : user?.preferences?.ui?.bubbleDensity || 'comfortable'
-                  }
-                  showSenderName={isGroup && isFirstInGroup && msg.from !== userId}
-                  onJumpToReply={handleJumpReply}
-                  onAddContact={onAddContact}
-                  highlighted={highlightId === msg.id}
-                />
-              </View>
-            );
-          })}
-
-          {typingUsers && typingUsers.length > 0 && (
-            <View style={s.typingRow}>
-              <View style={[s.typingPill, { backgroundColor: p.cardMuted }]}>
-                <View style={{ flexDirection: 'row', gap: 3, marginRight: 6 }}>
-                  {[0, 1, 2].map((d) => (
-                    <View
-                      key={d}
-                      style={[
-                        s.typingDot,
-                        {
-                          backgroundColor: p.textMuted,
-                          opacity: 1 - d * 0.3,
-                        },
-                      ]}
-                    />
-                  ))}
-                </View>
-                <Text style={[s.typingText, { color: p.textMuted }]}>
-                  {typingUsers.length === 1
-                    ? `${typingUsers[0]} is typing...`
-                    : `${typingUsers.length} people are typing...`}
-                </Text>
-              </View>
-            </View>
-          )}
-        </ScrollView>
+          initialNumToRender={24}
+          maxToRenderPerBatch={12}
+          windowSize={15}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={false}
+        />
 
         <JumpToLatest
           visible={showJump}
           onPress={() =>
-            scrollRef.current?.scrollTo({
-              y: Math.max(0, contentH.current - viewportH.current),
+            scrollRef.current?.scrollToOffset({
+              offset: Math.max(0, contentH.current - viewportH.current),
               animated: true,
             })
           }

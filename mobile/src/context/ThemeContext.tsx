@@ -24,17 +24,13 @@ const ThemeContext = createContext<ThemeContextType>({
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       const saved = await storage.getStore(KEYS.DARK_MODE);
-      if (mounted) {
-        if (saved === 'light' || saved === 'dark' || saved === 'system') {
-          setThemeModeState(saved);
-        }
-        setReady(true);
+      if (mounted && (saved === 'light' || saved === 'dark' || saved === 'system')) {
+        setThemeModeState(saved);
       }
     })();
     return () => { mounted = false; };
@@ -57,16 +53,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [systemScheme]);
 
   // Memoized: an unstable value re-renders EVERY useTheme consumer (the whole
-  // app) on each provider render. MUST sit above the `!ready` early return —
-  // hooks after a conditional return change hook order and crash React.
+  // app) on each provider render. MUST stay above any JSX return — hooks after
+  // a conditional return change hook order and crash React.
+  //
+  // This provider must ALWAYS return a <ThemeContext.Provider>. Returning
+  // `<> {children} </>` while the stored preference loads changes the root
+  // element type, so React tears down and remounts the entire subtree below
+  // (Auth/Socket/Upload/Update providers + AppNavigator) — that doubled every
+  // startup fetch and re-created the socket. Rendering with the default
+  // 'system' mode for one frame is the same first frame we always had, minus
+  // the remount.
   const value = useMemo(
     () => ({ isDark, colors, themeMode, setThemeMode, toggleTheme }),
     [isDark, colors, themeMode, setThemeMode, toggleTheme],
   );
-
-  if (!ready) {
-    return <>{children}</>;
-  }
 
   return (
     <ThemeContext.Provider value={value}>

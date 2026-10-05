@@ -56,6 +56,14 @@ export async function apiFetch<T = any>(
   options: RequestInit = {},
   retries = MAX_RETRIES,
 ): Promise<ApiResponse<T>> {
+  // Multipart uploads must never ride the short fetch timeout below: a 5-20MB
+  // image over cellular routinely blows past 15s, and retrying a POST either
+  // duplicates the resource or re-sends a body that has already streamed. Send
+  // them through the XHR helper instead (120s + progress, never retried).
+  if (options.body instanceof FormData) {
+    return uploadFile<T>(endpoint, options.body);
+  }
+
   const cacheKey = getCacheKey(endpoint, options);
   if (cacheKey) {
     const cached = getFromCache(cacheKey);
@@ -203,15 +211,39 @@ export async function uploadFile<T = any>(
     };
 
     xhr.onload = () => {
+      const status = xhr.status;
+      const ok = status >= 200 && status < 300;
+      const raw = (xhr.responseText || '').trim();
+
+      if (!raw) {
+        resolve(
+          ok
+            ? { ok: true, data: {} as T, status }
+            : { ok: false, error: `HTTP ${status}`, status },
+        );
+        return;
+      }
+
+      let data: any;
       try {
-        const data = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve({ ok: true, data, status: xhr.status });
-        } else {
-          resolve({ ok: false, error: data?.error || 'Upload failed', status: xhr.status });
-        }
+        data = JSON.parse(raw);
       } catch {
-        resolve({ ok: true, data: xhr.responseText as unknown as T, status: xhr.status });
+        // The API answers ANY unmatched route with 200 + HTML, so a non-JSON
+        // body means we hit the catch-all (or a proxy error page) — never a
+        // real success. Reporting it as ok:true made failed uploads look fine.
+        resolve({
+          ok: false,
+          error: ok ? 'Unexpected response from server' : `HTTP ${status}`,
+          status,
+          data: raw as unknown as T,
+        });
+        return;
+      }
+
+      if (ok) {
+        resolve({ ok: true, data, status });
+      } else {
+        resolve({ ok: false, error: data?.error || 'Upload failed', status });
       }
     };
 

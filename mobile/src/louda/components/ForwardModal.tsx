@@ -77,7 +77,7 @@ export function ForwardModal({
       }
     >
       <View style={s.searchWrap}>
-        <View style={{ position: 'absolute', left: 12, top: 12, zIndex: 2 }}>
+        <View style={{ position: 'absolute', left: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 }}>
           <Icons.search size={18} color="#9ca3af" />
         </View>
         <TextInput
@@ -148,6 +148,8 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     fontSize: 14,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   row: {
     flexDirection: 'row',

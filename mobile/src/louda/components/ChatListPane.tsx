@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   ScrollView,
+  FlatList,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
@@ -52,16 +53,23 @@ export function ChatListPane() {
         ? 'Archived'
         : 'Settings';
 
-  const filtered = st.memoizedChats.filter((c) => {
-    if (!st.searchQuery) return true;
-    const q = st.searchQuery.toLowerCase();
-    // Web parity (LoudaApp.jsx:9010-9013): only name + lastMessageText —
-    // the `lastMessage` preview string is intentionally NOT searched
-    return (
-      (c.name || '').toLowerCase().includes(q) ||
-      (c.lastMessageText || '').toLowerCase().includes(q)
-    );
-  });
+  // Memoized: this ran a full .filter() over every conversation on every
+  // store render, and a fresh array reference meant the FlatList below saw
+  // new data each time.
+  const filtered = useMemo(
+    () =>
+      st.memoizedChats.filter((c) => {
+        if (!st.searchQuery) return true;
+        const q = st.searchQuery.toLowerCase();
+        // Web parity (LoudaApp.jsx:9010-9013): only name + lastMessageText —
+        // the `lastMessage` preview string is intentionally NOT searched
+        return (
+          (c.name || '').toLowerCase().includes(q) ||
+          (c.lastMessageText || '').toLowerCase().includes(q)
+        );
+      }),
+    [st.memoizedChats, st.searchQuery],
+  );
 
   // One grouped map per statuses change instead of a .filter() per row per
   // render — rows then receive a stable reference.
@@ -92,6 +100,48 @@ export function ChatListPane() {
       st.handleContextMenu({ x: width / 2 - 90, y: 150 }, chat);
     },
     [st.handleContextMenu, width],
+  );
+
+  // Stable renderItem: an inline arrow would be a new function on every store
+  // render, forcing FlatList to re-render every mounted row.
+  const renderRow = useCallback(
+    ({ item: c }: { item: any }) => (
+      <ChatItem
+        chat={c}
+        userStatuses={!c.isGroup ? statusesByUser[c.id] || EMPTY_STATUSES : EMPTY_STATUSES}
+        currentUserId={st.user?.id}
+        onAvatarClick={st.setViewerTarget}
+        isActive={st.selectedChat?.id === c.id}
+        onClick={st.setSelectedChat}
+        isGroup={c.isGroup}
+        selectionMode={st.chatSelectionMode}
+        isSelected={st.selectedChats.has(c.id)}
+        onSelect={handleSelect}
+        onContextMenu={openRowContextMenu}
+        isTyping={!!st.typingRegistry[c.id]}
+        typingText={
+          st.typingRegistry[c.id]?.length === 1
+            ? c.isGroup
+              ? `${st.typingRegistry[c.id][0]} is typing...`
+              : 'Typing...'
+            : st.typingRegistry[c.id]?.length > 1
+              ? `${st.typingRegistry[c.id]?.length} people typing...`
+              : ''
+        }
+      />
+    ),
+    [
+      statusesByUser,
+      st.user?.id,
+      st.setViewerTarget,
+      st.selectedChat,
+      st.setSelectedChat,
+      st.chatSelectionMode,
+      st.selectedChats,
+      st.typingRegistry,
+      handleSelect,
+      openRowContextMenu,
+    ],
   );
 
   return (
@@ -155,46 +205,30 @@ export function ChatListPane() {
         </View>
       )}
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110 }}>
-        {st.isLoadingChats ? (
-          <ChatListSkeleton />
-        ) : filtered.length === 0 ? (
-          <View style={s.empty}>
-            <View style={[s.emptyIcon, { backgroundColor: p.cardMuted }]}>
-              <Text style={{ fontSize: 28 }}>💬</Text>
+      <FlatList
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 110 }}
+        data={filtered}
+        keyExtractor={(c) => String(c.id)}
+        renderItem={renderRow}
+        ListEmptyComponent={
+          st.isLoadingChats ? (
+            <ChatListSkeleton />
+          ) : (
+            <View style={s.empty}>
+              <View style={[s.emptyIcon, { backgroundColor: p.cardMuted }]}>
+                <Text style={{ fontSize: 28 }}>💬</Text>
+              </View>
+              <Text style={[s.emptyTitle, { color: p.textMuted }]}>No conversations found</Text>
+              <Text style={[s.emptySub, { color: p.border }]}>Try a different search term</Text>
             </View>
-            <Text style={[s.emptyTitle, { color: p.textMuted }]}>No conversations found</Text>
-            <Text style={[s.emptySub, { color: p.border }]}>Try a different search term</Text>
-          </View>
-        ) : (
-          filtered.map((c) => (
-            <ChatItem
-              key={c.id}
-              chat={c}
-              userStatuses={!c.isGroup ? statusesByUser[c.id] || EMPTY_STATUSES : EMPTY_STATUSES}
-              currentUserId={st.user?.id}
-              onAvatarClick={st.setViewerTarget}
-              isActive={st.selectedChat?.id === c.id}
-              onClick={st.setSelectedChat}
-              isGroup={c.isGroup}
-              selectionMode={st.chatSelectionMode}
-              isSelected={st.selectedChats.has(c.id)}
-              onSelect={handleSelect}
-              onContextMenu={openRowContextMenu}
-              isTyping={!!st.typingRegistry[c.id]}
-              typingText={
-                st.typingRegistry[c.id]?.length === 1
-                  ? c.isGroup
-                    ? `${st.typingRegistry[c.id][0]} is typing...`
-                    : 'Typing...'
-                  : st.typingRegistry[c.id]?.length > 1
-                    ? `${st.typingRegistry[c.id]?.length} people typing...`
-                    : ''
-              }
-            />
-          ))
-        )}
-      </ScrollView>
+          )
+        }
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={7}
+        updateCellsBatchingPeriod={50}
+      />
 
       {st.mobileMenuOpen && (
         <MobileMenu />
@@ -330,7 +364,7 @@ const s = StyleSheet.create({
   titleBadgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   menuBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   searchWrap: { position: 'relative', justifyContent: 'center' },
-  searchIcon: { position: 'absolute', left: 12, zIndex: 2 },
+  searchIcon: { position: 'absolute', left: 12, top: 0, bottom: 0, justifyContent: 'center', zIndex: 2 },
   searchInput: {
     width: '100%',
     paddingLeft: 38,
@@ -338,6 +372,8 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     fontSize: 14,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   selectionBar: {
     backgroundColor: '#5D4037',

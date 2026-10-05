@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet,
 } from 'react-native';
 import { Ripple } from './Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useIsFocused } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { storage, KEYS } from '../utils/storage';

@@ -6,9 +6,10 @@ import {
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { LIVE_STREAMING_ENABLED } from '../../config/live';
 import { useSocket } from '../../context/SocketContext';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { getFeedPostsAPI, likePostAPI, addCommentAPI, reactPostAPI, getPostReactionsAPI, votePollAPI, Post } from '../../api/posts';
@@ -210,8 +211,16 @@ export default function HomeScreen() {
     });
     // Also load from server
     apiGet(`/profile/${encodeURIComponent(username)}`).then((res: any) => {
-      if (res?.ok && res?.data?.feed_prefs) {
-        setFeedPrefs(res.data.feed_prefs);
+      const prefs = res?.ok ? res.data?.feed_prefs : null;
+      // Some accounts return a partial/legacy feed_prefs shape. An incomplete
+      // object crashes the preference maps during render, so normalize it.
+      if (prefs && typeof prefs === 'object') {
+        setFeedPrefs({
+          contentTypeWeights: prefs.contentTypeWeights || {},
+          categoryWeights: prefs.categoryWeights || {},
+          mutedCreators: Array.isArray(prefs.mutedCreators) ? prefs.mutedCreators : [],
+          exploreThreshold: typeof prefs.exploreThreshold === 'number' ? prefs.exploreThreshold : 0.3,
+        });
       }
     }).catch(() => {});
   }, [username]);
@@ -546,17 +555,18 @@ export default function HomeScreen() {
     if (sugFetched || posts.length < 5 || !username) return;
     let active = true;
     setSugFetched(true);
-    getFeedPostsAPI({ username, tab: 'foryou', page: 1, limit: 1 }).then(() => {
-      if (active) {
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 15000);
-        fetch(`${API_BASE_URL}/get-suggestions-feed?username=${encodeURIComponent(username)}`, { signal: controller.signal })
-          .then(r => r.json())
-          .then(data => { if (active) setSuggestions(Array.isArray(data) ? data : []); })
-          .catch(() => active && setSuggestions([]))
-          .finally(() => clearTimeout(t));
-      }
-    });
+    // NOTE: this used to be preceded by getFeedPostsAPI(...) "to warm the
+    // cache", but that helper is apiPost('/get-posts') and apiFetch only
+    // caches GETs — so it cached nothing and just cost an extra heavy POST
+    // (up to 1,500 seenIds) before suggestions could load. The suggestions
+    // call is a raw fetch anyway, so it never benefited from that cache.
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 15000);
+    fetch(`${API_BASE_URL}/get-suggestions-feed?username=${encodeURIComponent(username)}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(data => { if (active) setSuggestions(Array.isArray(data) ? data : []); })
+      .catch(() => active && setSuggestions([]))
+      .finally(() => clearTimeout(t));
     return () => { active = false; };
   }, [posts.length, sugFetched, username]);
 
@@ -812,22 +822,24 @@ export default function HomeScreen() {
       )}
 
       {/* FAB - toggle between feed and live streams */}
-      <Ripple
-        style={s.fab}
-        onPress={() => {
-          if (feedTab === 'posts') {
-            setFeedTab('live');
-          } else {
-            setFeedTab('posts');
-          }
-        }}
-      >
-        {feedTab === 'posts' ? (
-          <Ionicons name="radio" size={24} color="#fff" />
-        ) : (
-          <Ionicons name="close" size={24} color="#fff" />
-        )}
-      </Ripple>
+      {LIVE_STREAMING_ENABLED && (
+        <Ripple
+          style={s.fab}
+          onPress={() => {
+            if (feedTab === 'posts') {
+              setFeedTab('live');
+            } else {
+              setFeedTab('posts');
+            }
+          }}
+        >
+          {feedTab === 'posts' ? (
+            <Ionicons name="radio" size={24} color="#fff" />
+          ) : (
+            <Ionicons name="close" size={24} color="#fff" />
+          )}
+        </Ripple>
+      )}
 
       {/* Reactions Modal */}
       <Modal visible={reactionsOpenFor !== null} transparent animationType="slide" onRequestClose={() => setReactionsOpenFor(null)}>
@@ -883,13 +895,14 @@ export default function HomeScreen() {
                 <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Pick categories you want to see more of</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                   {CATEGORIES.map(cat => {
-                    const isSelected = (feedPrefs.categoryWeights[cat.id] || 1) > 1;
+                    const weights = feedPrefs.categoryWeights || {};
+                    const isSelected = (weights[cat.id] || 1) > 1;
                     return (
                       <Ripple
                         key={cat.id}
                         onPress={() => {
-                          const current = feedPrefs.categoryWeights[cat.id] ?? 1;
-                          saveFeedPrefs({ categoryWeights: { ...feedPrefs.categoryWeights, [cat.id]: current > 1 ? 1.0 : 3.0 } });
+                          const current = weights[cat.id] ?? 1;
+                          saveFeedPrefs({ categoryWeights: { ...weights, [cat.id]: current > 1 ? 1.0 : 3.0 } });
                         }}
                         style={{
                           paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
@@ -905,13 +918,14 @@ export default function HomeScreen() {
                 <Text style={[modalStyles.sectionLabel, { color: colors.textSecondary }]}>Content type</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
                   {['live', 'media', 'poll', 'text'].map(ct => {
-                    const isSelected = (feedPrefs.contentTypeWeights[ct] || 1) > 1;
+                    const weights = feedPrefs.contentTypeWeights || {};
+                    const isSelected = (weights[ct] || 1) > 1;
                     return (
                       <Ripple
                         key={ct}
                         onPress={() => {
-                          const current = feedPrefs.contentTypeWeights[ct] || 1;
-                          saveFeedPrefs({ contentTypeWeights: { ...feedPrefs.contentTypeWeights, [ct]: current > 1 ? 1.0 : 3.0 } });
+                          const current = weights[ct] || 1;
+                          saveFeedPrefs({ contentTypeWeights: { ...weights, [ct]: current > 1 ? 1.0 : 3.0 } });
                         }}
                         style={{
                           paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,

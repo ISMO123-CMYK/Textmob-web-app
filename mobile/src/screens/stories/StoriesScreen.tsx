@@ -1,10 +1,10 @@
 ﻿import React, { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, StyleSheet,
-  ActivityIndicator, Image, Modal,
+  ActivityIndicator, Image, Modal, Alert,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -12,6 +12,7 @@ import { getSparksAPI, Spark } from '../../api/snaps';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadFile } from '../../api/client';
 import { timeAgo } from '../../utils/format';
+import { withExtension } from '../../utils/media';
 
 export default function StoriesScreen({ navigation }: { navigation: any }) {
   const { colors, isDark } = useTheme();
@@ -19,6 +20,7 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
 
   const [stories, setStories] = useState<Spark[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [viewingStory, setViewingStory] = useState<Spark | null>(null);
@@ -28,32 +30,49 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
   const loadStories = async () => {
     setLoading(true);
     const res = await getSparksAPI(username || '');
-    if (res.ok && res.data) {
-      setStories(res.data);
+    if (res.ok && Array.isArray(res.data)) {
+      // server.js:4112 stores `media` as a bare string while the type (and the
+      // web client) treat it as an array — `media?.[0]` would render the first
+      // character of the URL instead of the image.
+      setStories(
+        res.data.map((s) => {
+          const raw: any = (s as any).media;
+          return { ...s, media: Array.isArray(raw) ? raw : raw ? [raw] : [] };
+        }),
+      );
+      setLoadError(null);
+    } else if (!res.ok) {
+      setLoadError(res.error || 'Could not load stories');
     }
     setLoading(false);
   };
 
   const pickMedia = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
       setShowCreate(false);
       setUploading(true);
       const formData = new FormData();
       formData.append('username', username || '');
       formData.append('caption', '');
       formData.append('media', {
-        uri: result.assets[0].uri,
-        type: result.assets[0].mimeType || 'image/jpeg',
-        name: result.assets[0].fileName || `story_${Date.now()}.jpg`,
+        uri: asset.uri,
+        type: asset.mimeType || 'image/jpeg',
+        name: withExtension(asset.fileName, asset.mimeType, asset.uri),
       } as any);
 
-      await uploadFile('/create-spark', formData);
-      setUploading(false);
+      const res = await uploadFile('/create-spark', formData);
+      if (!res.ok) throw new Error(res.error || 'Upload failed');
       loadStories();
+    } catch (err: any) {
+      Alert.alert('Story', err?.message || 'Could not upload story');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -95,8 +114,10 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
           contentContainerStyle={{ paddingBottom: 100 }}
           ListEmptyComponent={
             <View style={s.emptyState}>
-              <Ionicons name="camera" size={40} color={colors.textSecondary} />
-              <Text style={[s.emptyLabel, { color: colors.textSecondary }]}>No stories yet</Text>
+              <Ionicons name={loadError ? 'alert-circle' : 'camera'} size={40} color={colors.textSecondary} />
+              <Text style={[s.emptyLabel, { color: loadError ? '#ef4444' : colors.textSecondary }]}>
+                {loadError || 'No stories yet'}
+              </Text>
             </View>
           }
         />

@@ -2,6 +2,8 @@ import React, { lazy, Suspense } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
+import { LIVE_STREAMING_ENABLED } from '../config/live';
+import LiveComingSoon from '../screens/live/LiveComingSoon';
 
 import MainTabs from './MainTabs';
 const HomeLauncherScreen = lazy(() => import('../screens/home/HomeLauncherScreen'));
@@ -50,8 +52,10 @@ const LazyPostDetail = (props: any) => <LazyScreen Component={PostDetailScreen} 
 const LazyCreatePost = (props: any) => <LazyScreen Component={CreatePostScreen} {...props} />;
 const LazySnaps = (props: any) => <LazyScreen Component={SnapsScreen} {...props} />;
 const LazyStories = (props: any) => <LazyScreen Component={StoriesScreen} {...props} />;
-const LazyLiveView = (props: any) => <LazyScreen Component={LiveViewScreen} {...props} />;
-const LazyCreateLive = (props: any) => <LazyScreen Component={CreateLiveScreen} {...props} />;
+const LazyLiveView = (props: any) =>
+  LIVE_STREAMING_ENABLED ? <LazyScreen Component={LiveViewScreen} {...props} /> : <LiveComingSoon />;
+const LazyCreateLive = (props: any) =>
+  LIVE_STREAMING_ENABLED ? <LazyScreen Component={CreateLiveScreen} {...props} /> : <LiveComingSoon />;
 const LazyWallet = (props: any) => <LazyScreen Component={WalletScreen} {...props} />;
 const LazyConnections = (props: any) => <LazyScreen Component={ConnectionsScreen} {...props} />;
 const LazyHallOfFame = (props: any) => <LazyScreen Component={HallOfFameScreen} {...props} />;

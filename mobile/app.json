@@ -2,7 +2,7 @@
   "expo": {
     "name": "Textmob",
     "slug": "mobile",
-    "version": "1.3",
+    "version": "1.4",
     "scheme": "textmob",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,7 +19,7 @@
         "backgroundColor": "#09090b"
       },
       "package": "com.bossprogrammer20.mobile",
-      "versionCode": 4,
+      "versionCode": 5,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json"
     },
@@ -46,7 +46,26 @@
         }
       ],
       "expo-audio",
-      "expo-camera",
+      "expo-document-picker",
+      "expo-image-picker",
+      "expo-media-library",
+      [
+        "expo-camera",
+        {
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "useLegacyPackaging": true,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableBundleCompression": true
+          }
+        }
+      ],
       "expo-asset",
       [
         "expo-notifications",
@@ -60,13 +79,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash.png",
-          "resizeMode": "cover",
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
           "backgroundColor": "#09090b"
         }
       ],
       "expo-status-bar",
-      "expo-video"
+      "expo-video",
+      "./plugins/withResourceConfigs"
     ]
   }
 }

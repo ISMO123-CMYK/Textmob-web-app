@@ -1,5 +1,7 @@
 import React from 'react';
-import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import Feather from '@expo/vector-icons/build/Feather';
+import MaterialCommunityIcons from '@expo/vector-icons/build/MaterialCommunityIcons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 
 export type IconProps = {
   size?: number;

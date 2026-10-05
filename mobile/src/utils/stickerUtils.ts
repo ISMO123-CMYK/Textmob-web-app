@@ -51,6 +51,15 @@ export function makeStickerText(url: string): string {
   return `[sticker url="${url}"]`;
 }
 
+// Sticker markup lives in the payload only — the text field shows the typed
+// text, the sticker itself renders as a preview chip. Send text + markup.
+export function withSticker(text: string, stickerUrl?: string | null): string {
+  const base = (text || '').trim();
+  if (!stickerUrl) return base;
+  const markup = makeStickerText(stickerUrl);
+  return base ? `${base} ${markup}` : markup;
+}
+
 export async function searchGiphStickers(
   query: string,
   signal?: AbortSignal

@@ -5,7 +5,7 @@ import {
   Image, Modal, Alert,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,7 @@ import { apiGet } from '../../api/client';
 import { CATEGORIES, CATEGORY_IDS } from '../../data/categories';
 import type { Category } from '../../data/categories';
 import * as ImagePicker from 'expo-image-picker';
+import { withExtension } from '../../utils/media';
 import { useNavigation } from '@react-navigation/native';
 
 import useProfileCache from '../../hooks/useProfileCache';
@@ -152,20 +153,27 @@ export default function CreatePostScreen({ route }: { route: any }) {
     setLoading(true);
     const formData = new FormData();
     formData.append('username', username);
-    formData.append('text', parsed || text);
+    // The API rejects a falsy `text` (server.js:5480), so a media-only post
+    // needs a non-empty body — the same ' ' trick snaps already use.
+    formData.append('text', parsed || text || ' ');
     if (quotePostId) formData.append('quoted_post_id', quotePostId);
     if (selectedMood) formData.append('activities', selectedMood.label);
 
     for (const file of mediaFiles) {
-      const filename = file.fileName || `media_${Date.now()}.jpg`;
+      const filename = withExtension(file.fileName, file.mimeType, file.uri);
       formData.append('media', { uri: file.uri, type: file.mimeType || 'image/jpeg', name: filename } as any);
     }
 
     if (showPollBuilder) {
       const validOptions = pollOptions.filter(o => o.text.trim());
       if (validOptions.length >= 2) {
-        formData.append('type', 'poll');
-        validOptions.forEach((o, i) => formData.append(`option_${i + 1}`, o.text.trim()));
+        // server.js:5520 only recognises a JSON `options` array of
+        // {id: number, text, votes: []}. The old `type=poll` + `option_1..N`
+        // fields matched nothing and the poll was saved as a plain post.
+        formData.append(
+          'options',
+          JSON.stringify(validOptions.map((o, i) => ({ id: i + 1, text: o.text.trim(), votes: [] }))),
+        );
       }
     }
 

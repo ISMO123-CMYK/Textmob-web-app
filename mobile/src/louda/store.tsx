@@ -32,6 +32,7 @@ import {
   subscribeTyping,
 } from './socket';
 import { formatTimeAgo, loudaAlert, translateMessage } from './utils';
+import { withExtension } from '../utils/media';
 import { Icons } from './icons';
 
 // ─── dedupe helpers ───
@@ -62,6 +63,21 @@ function uniqByField(list: any[], field: string): any[] {
     seen.add(key);
     return true;
   });
+}
+// Maps with element identity preserved: returns `prev` itself when no element
+// actually changed. `prev.map(...)` always allocates a new array, which bumps
+// the contacts reference, recomputes `memoizedChats` (filter + sort + date
+// parse) and re-renders the whole chat list — all for a presence tick that
+// changed nothing.
+function mapListPreserve<T>(prev: T[], fn: (item: T) => T): T[] {
+  if (!Array.isArray(prev)) return prev;
+  let changed = false;
+  const next = prev.map((item) => {
+    const mapped = fn(item);
+    if (mapped !== item) changed = true;
+    return mapped;
+  });
+  return changed ? next : prev;
 }
 function appendUniqueMsg(prev: any[], message: any): any[] {
   if (!message) return prev;
@@ -413,17 +429,19 @@ export function LoudaStoreProvider({
   const mapContactStatus = useCallback(
     (c: any, isOnline: boolean, lastSeenVal: any) => {
       if (c.id === SUPPORT_ID || c.number === 'support') {
+        if (c.online === false && c.statusText === 'Support') return c;
         return { ...c, online: false, statusText: 'Support' };
       }
-      return {
-        ...c,
-        online: isOnline,
-        statusText: isOnline
-          ? 'Online'
-          : lastSeenVal
-            ? `Last seen ${formatTimeAgo(lastSeenVal)}`
-            : 'Offline',
-      };
+      const statusText = isOnline
+        ? 'Online'
+        : lastSeenVal
+          ? `Last seen ${formatTimeAgo(lastSeenVal)}`
+          : 'Offline';
+      // Identity bail-out: spreading an unchanged contact produces a new
+      // object every call, which cascades into a new contacts array and a
+      // full chat-list re-sort. Only allocate when something really moved.
+      if (c.online === isOnline && c.statusText === statusText) return c;
+      return { ...c, online: isOnline, statusText };
     },
     [],
   );
@@ -503,19 +521,27 @@ export function LoudaStoreProvider({
         userIdRef.current = loudaUserId;
 
         try {
-          const rawBlocked = await getStore(KEY_BLOCKED);
+          const [rawBlocked, rawBgs] = await Promise.all([
+            getStore(KEY_BLOCKED),
+            getStore(KEY_CHAT_BGS),
+          ]);
           if (rawBlocked) setBlockedUsers(JSON.parse(rawBlocked) || []);
-          const rawBgs = await getStore(KEY_CHAT_BGS);
           if (rawBgs) setChatBgs(JSON.parse(rawBgs) || {});
         } catch {}
 
-        const data = await api.getUser(loudaUserId);
-        if (cancelled) return;
-        if (!data || data.error) throw new Error(data?.error || 'Failed to load user');
-        setUser(data);
-        await loadContacts(loudaUserId);
-        await loadGroups(loudaUserId);
-        await loadStatuses();
+        // These four used to run back-to-back, so opening Messages cost four
+        // serial round-trips to the server. None of them depend on each other
+        // (every loader takes loudaUserId / userIdRef, not the `user` state),
+        // so fire them together: one round-trip instead of four.
+        await Promise.all([
+          api.getUser(loudaUserId).then((data) => {
+            if (!data || data.error) throw new Error(data?.error || 'Failed to load user');
+            if (!cancelled) setUser(data);
+          }),
+          loadContacts(loudaUserId),
+          loadGroups(loudaUserId),
+          loadStatuses(),
+        ]);
         if (cancelled) return;
         setIsLoadingChats(false);
         connectLoudaSocket(loudaUserId);
@@ -643,24 +669,24 @@ export function LoudaStoreProvider({
     const applyPresence = () => {
       const online = getOnlineFriends();
       setContacts((prev) =>
-        prev.map((c) => mapContactStatus(c, online.includes(c.id), c.lastSeen)),
+        mapListPreserve(prev, (c) => mapContactStatus(c, online.includes(c.id), c.lastSeen)),
       );
     };
 
     on('initial-online', applyPresence);
     on('sync-online-status', (syncedFriends: string[]) => {
       setContacts((prev) =>
-        prev.map((c) => {
+        mapListPreserve(prev, (c) => {
           const isOnline = (syncedFriends || []).includes(c.id);
-          const mapped = mapContactStatus(c, isOnline, c.lastSeen);
-          if (c.online === mapped.online && c.statusText === mapped.statusText) return c;
-          return mapped;
+          return mapContactStatus(c, isOnline, c.lastSeen);
         }),
       );
     });
     on('status-update', ({ friendId, online, lastSeen }: any) => {
       setContacts((prev) =>
-        prev.map((c) => (c.id === friendId ? mapContactStatus(c, online, lastSeen) : c)),
+        mapListPreserve(prev, (c) =>
+          c.id === friendId ? mapContactStatus(c, online, lastSeen) : c,
+        ),
       );
       const cur = selectedChatRef.current;
       if (cur && !cur.isGroup && cur.id === friendId) {
@@ -779,24 +805,11 @@ export function LoudaStoreProvider({
       const id = chatId || groupId;
       if (!groupId) {
         setContacts((prev) =>
-          prev.map((c) => (c.chatId === id ? { ...c, lastMessageStatus: status } : c)),
-        );
-      }
-      if (
-        currentChat &&
-        ((currentChat.isGroup && currentChat.id === id) ||
-          (!currentChat.isGroup && currentChat.chatId === id))
-      ) {
-        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, status } : m)));
-      }
-    });
-
-    on('messages-read', ({ chatId, groupId, messageIds, readBy }: any) => {
-      const currentChat = selectedChatRef.current;
-      const id = chatId || groupId;
-      if (!groupId) {
-        setContacts((prev) =>
-          prev.map((c) => (c.chatId === id ? { ...c, lastMessageStatus: 'read' } : c)),
+          mapListPreserve(prev, (c) =>
+            c.chatId === id && c.lastMessageStatus !== status
+              ? { ...c, lastMessageStatus: status }
+              : c,
+          ),
         );
       }
       if (
@@ -805,9 +818,36 @@ export function LoudaStoreProvider({
           (!currentChat.isGroup && currentChat.chatId === id))
       ) {
         setMessages((prev) =>
-          prev.map((m) => {
+          mapListPreserve(prev, (m) =>
+            m.id === messageId && m.status !== status ? { ...m, status } : m,
+          ),
+        );
+      }
+    });
+
+    on('messages-read', ({ chatId, groupId, messageIds, readBy }: any) => {
+      const currentChat = selectedChatRef.current;
+      const id = chatId || groupId;
+      if (!groupId) {
+        setContacts((prev) =>
+          mapListPreserve(prev, (c) =>
+            c.chatId === id && c.lastMessageStatus !== 'read'
+              ? { ...c, lastMessageStatus: 'read' }
+              : c,
+          ),
+        );
+      }
+      if (
+        currentChat &&
+        ((currentChat.isGroup && currentChat.id === id) ||
+          (!currentChat.isGroup && currentChat.chatId === id))
+      ) {
+        setMessages((prev) =>
+          mapListPreserve(prev, (m) => {
             if (messageIds?.includes(m.id)) {
-              if (!currentChat.isGroup) return { ...m, status: 'read' };
+              if (!currentChat.isGroup) {
+                return m.status === 'read' ? m : { ...m, status: 'read' };
+              }
               const read_by = m.read_by || [];
               const alreadyRead = read_by.find(
                 (r: any) =>
@@ -1502,12 +1542,22 @@ export function LoudaStoreProvider({
       try {
         const media: any[] = [];
         for (const f of validFiles) {
+          const kind = f.type?.startsWith('image/')
+            ? 'image'
+            : f.type?.startsWith('video/')
+              ? 'video'
+              : 'file';
           const data = await api.uploadFile({
             uri: f.uri,
-            name: f.name,
+            // Web appends a `type` field on every upload (LoudaApp.jsx:3480);
+            // without it the server has to guess the resource kind from the
+            // filename, which also has to carry an extension.
+            name: withExtension(f.name, f.type, f.uri),
             type: f.type,
+            kind,
           });
-          media.push({ type: data.type, url: data.url });
+          if (!data?.url) throw new Error('Upload failed');
+          media.push({ type: data.type || kind, url: data.url });
         }
         for (const target of resolved) {
           const message = { text: shareText, media };
@@ -1698,14 +1748,30 @@ export function LoudaStoreProvider({
   // ─── messaging (LoudaApp.jsx:8383-8447) ───
   const handleSend = useCallback((msg: any) => {
     const chat = selectedChatRef.current;
-    if (!chat) return;
-    if (chat.isGroup) {
-      emitLoudaSocket('send-group-message', { groupId: chat.id, message: msg });
-    } else {
-      emitLoudaSocket('send-message', {
-        chatId: chat.chatId,
-        toUserId: chat.id,
-        message: msg,
+    if (!chat) {
+      loudaAlert({ title: 'Not sent', message: 'Open a conversation and try again.' });
+      return;
+    }
+    const result = chat.isGroup
+      ? emitLoudaSocket('send-group-message', { groupId: chat.id, message: msg })
+      : emitLoudaSocket('send-message', {
+          chatId: chat.chatId,
+          toUserId: chat.id,
+          message: msg,
+        });
+    // A dropped emit used to look exactly like a successful send. Queued is
+    // fine (socket.io buffers until reconnect) — only a null socket is lost.
+    if (result === 'dropped') {
+      loudaAlert({
+        title: 'Not sent',
+        message: 'You are offline. Reconnect and send the message again.',
+      });
+      return;
+    }
+    if (result === 'queued') {
+      loudaAlert({
+        title: 'Sending…',
+        message: 'You are offline — the message will go out when you reconnect.',
       });
     }
     const notifyPayload = buildPushNotifyPayload(userRef.current, chat, msg);
@@ -2108,7 +2174,11 @@ export function LoudaStoreProvider({
     });
   }, []);
 
-  const value: LoudaStoreValue = {
+  // MUST be memoized: an unstable context value re-renders every consumer on
+  // every provider render. This provider owns 47 useState hooks and 26 socket
+  // handlers, so without this a single typing indicator or presence tick
+  // re-rendered LoudaHomeScreen, ChatListPane, ChatThreadPane and friends.
+  const value: LoudaStoreValue = useMemo(() => ({
     user,
     contacts,
     groups,
@@ -2240,7 +2310,7 @@ export function LoudaStoreProvider({
     openChatWithUsername,
     openGroupChatById,
     onExit,
-  };
+  }), [user, contacts, groups, statuses, messages, selectedChat, activeTab, blockedUsers, chatBgs, typingRegistry, connectionState, isLoadingChats, isLoadingMore, hasMoreMessages, searchQuery, showChatSearch, memoizedChats, totalUnreadChats, totalUnreadArchived, totalUnreadStatuses, showSettings, showAddContact, showCreateGroup, showChatInfo, tempContact, phoneInput, showAddMembers, showStatusCreator, viewerTarget, viewerStatusId, setViewerStatusId, showStatusCamera, statusCameraMedia, cameraRequest, messagesLoading, contextMenu, replyTo, translations, messageInfo, editingMessage, mediaView, viewProfile, mobileMenuOpen, forwardPayload, sharePayload, selectedChats, chatSelectionMode, tmSearchQuery, tmSearchResults, isSearchingTm, tmSearchMode, setUser, setActiveTab, setSelectedChat, setShowSettings, setShowAddContact, setShowCreateGroup, setShowChatInfo, setTempContact, setPhoneInput, setShowAddMembers, setShowStatusCreator, setViewerTarget, setShowStatusCamera, setStatusCameraMedia, setCameraRequest, setContextMenu, setReplyTo, setTranslations, setMessageInfo, setEditingMessage, setMediaView, setViewProfile, setMobileMenuOpen, setForwardPayload, setSharePayload, setSelectedChats, setChatSelectionMode, setSearchQuery, setShowChatSearch, setTmSearchQuery, setTmSearchResults, setIsSearchingTm, setTmSearchMode, setStatuses, setMessages, loadContacts, loadGroups, loadStatuses, handleLoadMore, findUserByPhone, confirmAddContact, createGroupFn, addGroupMembersFn, updateContactNameFn, updateGroupNicknameFn, deleteChat, archiveChat, unarchiveChat, handleForwardInitiate, handleConfirmForward, handleConfirmShareMedia, handleSave, handleUpdateProfile, handleUpdateField, handleSend, handleEditMessage, handleTyping, onDeleteMessage, onUploadAvatar, handleContextMenu, handleTabChange, handleProfileAction, handleViewProfile, handleRemoveMember, handlePromoteAdmin, handleDemoteAdmin, closeSettings, toggleChatSelect, exitChatSelection, handleBulkChatDelete, handleBulkChatArchive, toggleBlockUser, handleTranslate, handleViewInfo, openChatWithUsername, openGroupChatById, onExit]);
 
   return <LoudaStoreContext.Provider value={value}>{children}</LoudaStoreContext.Provider>;
 }

@@ -6,7 +6,7 @@ import { Ripple } from '../components/Ripple';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { apiGet } from '../api/client';
 import { storage } from '../utils/storage';
 import { useTheme } from './ThemeContext';

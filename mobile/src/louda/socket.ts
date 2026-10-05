@@ -12,6 +12,10 @@ const NOTIFICATION_SOUND =
 let socket: Socket | null = null;
 let currentUserId: string | null = null;
 let connectionState: LoudaConnectionState = 'disconnected';
+// Websocket-only mirrors the web app, but it is also the one transport a
+// mobile network can block outright. Flip this after the first connect error
+// and rebuild through polling, which cannot be blocked the same way.
+let allowPollingFallback = false;
 
 const eventHandlers = new Map<string, Set<Handler>>();
 const stateHandlers = new Set<(s: LoudaConnectionState) => void>();
@@ -120,6 +124,24 @@ function registerCoreHandlers(s: Socket) {
     pendingUserIds.forEach((id) => s.emit('send-message-queued', { userId: id }));
     pendingUserIds = [];
   });
+  s.on('connect_error', (err: any) => {
+    // Previously unhandled: a blocked WebSocket (carrier/proxy/hotspot) left
+    // the app stuck on "connecting" forever with every emit buffered and no
+    // log line to explain it.
+    console.warn('[LoudaSocket] connect_error', err?.message || err);
+    setState('reconnecting');
+    if (allowPollingFallback) return;
+    allowPollingFallback = true;
+    const uid = currentUserId;
+    console.warn('[LoudaSocket] websocket blocked — retrying via polling transport');
+    setTimeout(() => {
+      if (!uid || currentUserId !== uid) return;
+      try {
+        disconnectLoudaSocket();
+      } catch {}
+      connectLoudaSocket(uid);
+    }, 500);
+  });
   s.on('disconnect', () => {
     console.log('[LoudaSocket] disconnected');
     setState('disconnected');
@@ -215,8 +237,11 @@ export function connectLoudaSocket(userId: string): Socket {
   setState('connecting');
   const s = io(LOUDA_API_URL, {
     query: { userId },
-    transports: ['websocket'],
+    transports: allowPollingFallback ? ['polling', 'websocket'] : ['websocket'],
     reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelayMax: 10000,
+    timeout: 15000,
   });
   socket = s;
   registerCoreHandlers(s);
@@ -251,15 +276,18 @@ export function getLoudaSocket(): Socket | null {
   return socket;
 }
 
-export function emitLoudaSocket(event: string, payload?: any) {
+export type EmitResult = 'sent' | 'queued' | 'dropped';
+
+export function emitLoudaSocket(event: string, payload?: any): EmitResult {
   // Web parity: the web app calls s.emit() unconditionally and socket.io
   // buffers emits while disconnected, flushing them on reconnect. Emit
-  // whenever a socket exists — never silently drop payloads.
+  // whenever a socket exists — never silently drop payloads. The return value
+  // tells the caller whether anything actually went out.
   if (socket) {
     socket.emit(event, payload);
-    return socket.connected;
+    return socket.connected ? 'sent' : 'queued';
   }
-  return false;
+  return 'dropped';
 }
 
 export function onLoudaSocket(event: string, handler: Handler): () => void {

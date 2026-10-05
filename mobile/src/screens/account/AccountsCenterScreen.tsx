@@ -4,11 +4,12 @@ import {
   ScrollView, Alert, Image, Modal, TextInput, ActivityIndicator, Linking
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import { LIVE_STREAMING_ENABLED } from '../../config/live';
 import { useAuth } from '../../context/AuthContext';
 import {
   getAccountStatsAPI, getProfileAPI, updateProfileAPI,
@@ -17,6 +18,7 @@ import {
 } from '../../api/auth';
 import { migrateFriendsAPI } from '../../api/users';
 import { apiGet, apiPost, apiDelete } from '../../api/client';
+import { withExtension } from '../../utils/media';
 import useProfileCache, { invalidateProfileCache } from '../../hooks/useProfileCache';
 import { PushNotificationsSection } from '../../components/PushNotificationsSection';
 
@@ -1282,9 +1284,11 @@ function GrowTab({ stats, profile, postsCount, username, isOrg, colors, isDark, 
         <Ripple onPress={() => setActiveSub('composer')} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: accent, alignItems: 'center' }}>
           <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>New post</Text>
         </Ripple>
-        <Ripple style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
-          <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>Go live</Text>
-        </Ripple>
+        {LIVE_STREAMING_ENABLED && (
+          <Ripple style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+            <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>Go live</Text>
+          </Ripple>
+        )}
       </View>
     </ScrollView>
   );
@@ -1334,7 +1338,7 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
       setCoverSaving(true);
       try {
         const formData = new FormData();
-        formData.append('coverPhoto', { uri: asset.uri, type: asset.mimeType || 'image/jpeg', name: asset.fileName || 'cover.jpg' } as any);
+        formData.append('coverPhoto', { uri: asset.uri, type: asset.mimeType || 'image/jpeg', name: withExtension(asset.fileName, asset.mimeType, asset.uri) } as any);
         const res = await apiPost(`/profile/${encodeURIComponent(username || '')}/cover-photo`, formData) as any;
         if (res?.data?.cover_photo) {
           setCoverPreview(res.data.cover_photo);
@@ -1377,7 +1381,7 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
         formData.append('profilePicture', {
           uri: photoFile.uri,
           type: photoFile.mimeType || 'image/jpeg',
-          name: photoFile.fileName || 'photo.jpg',
+          name: withExtension(photoFile.fileName, photoFile.mimeType, photoFile.uri),
         } as any);
       }
       const res = await updateProfileAPI(username, formData);

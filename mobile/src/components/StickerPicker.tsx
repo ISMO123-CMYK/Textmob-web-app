@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, Image, ActivityIndicator, Modal, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, FlatList, Image, ActivityIndicator, Modal, Pressable, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
 import { Ripple } from './Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { searchGiphStickers, StickerResult } from '../utils/stickerUtils';
 
 interface StickerPickerProps {
@@ -66,7 +66,13 @@ export default function StickerPicker({ visible, onSelect, onClose }: StickerPic
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.overlay} onPress={handleClose}>
+      {/* Keeps the search field above the keyboard — Android's window resize
+          does not apply inside a Modal, iOS needs the padding behaviour. */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable style={styles.overlay} onPress={handleClose}>
         <Pressable style={styles.container} onPress={e => e.stopPropagation()}>
           <View style={styles.handle} />
           <View style={styles.header}>
@@ -112,8 +118,9 @@ export default function StickerPicker({ visible, onSelect, onClose }: StickerPic
               )
             }
           />
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

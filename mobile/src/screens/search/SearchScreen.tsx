@@ -4,11 +4,11 @@ import {
   TextInput, Image, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { searchUsersAPI, searchSuggestAPI, getSuggestionsFeedAPI, followAPI, friendAPI, UserProfile, SuggestedUser } from '../../api/users';
+import { searchUsersAPI, searchSuggestAPI, followAPI, friendAPI, UserProfile } from '../../api/users';
 import { Post } from '../../api/posts';
 import { apiGet } from '../../api/client';
 import { storage, KEYS } from '../../utils/storage';
@@ -56,8 +56,6 @@ export default function SearchScreen() {
   const [searched, setSearched] = useState(false);
   const [loadingResults, setLoadingResults] = useState(false);
   const [activeTab, setActiveTab] = useState<'people' | 'posts'>('people');
-  const [exploreSuggestions, setExploreSuggestions] = useState<SuggestedUser[]>([]);
-  const [loadingExplore, setLoadingExplore] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
 
   const inputRef = useRef<TextInput>(null);
@@ -92,16 +90,6 @@ export default function SearchScreen() {
     setHistory([]);
     storage.setStore(SUGGESTIONS_STORAGE_KEY, '[]');
   }, []);
-
-  // Fetch explore suggestions on mount
-  useEffect(() => {
-    if (!username) return;
-    setLoadingExplore(true);
-    getSuggestionsFeedAPI(username).then(r => {
-      if (r.ok && r.data) setExploreSuggestions(Array.isArray(r.data) ? r.data.slice(0, 4) : []);
-      setLoadingExplore(false);
-    }).catch(() => setLoadingExplore(false));
-  }, [username]);
 
   // Execute search
   const doSearch = useCallback(async (q: string) => {
@@ -171,18 +159,6 @@ export default function SearchScreen() {
       await endpoint(targetUsername, username, action);
       setSearchResults(prev => prev.map(item => {
         if (item.type === 'user' && item.username === targetUsername) {
-          let nextRelation = 'not_friended';
-          if (isOrg) {
-            nextRelation = action === 'follow' ? 'following' : 'not_following';
-          } else {
-            nextRelation = action === 'friend' ? 'friended' : 'not_friended';
-          }
-          return { ...item, relation: nextRelation };
-        }
-        return item;
-      }));
-      setExploreSuggestions(prev => prev.map(item => {
-        if (item.username === targetUsername) {
           let nextRelation = 'not_friended';
           if (isOrg) {
             nextRelation = action === 'follow' ? 'following' : 'not_following';
@@ -288,7 +264,7 @@ export default function SearchScreen() {
   );
 
   const s = makeStyles(colors, isDark);
-  const showExplore = !focused && !query.trim() && history.length === 0;
+  const showExplore = !searched && !query.trim();
 
   return (
     <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: colors.background }]}>
@@ -417,44 +393,20 @@ export default function SearchScreen() {
           </View>
         </View>
       ) : showExplore ? (
-        /* Explore / Suggested creators */
+        /* Explore — discussions promo */
         <View style={s.listContent}>
-          <Text style={[s.sectionTitle, { color: colors.textSecondary }]}>Suggested Creators</Text>
-          {loadingExplore ? (
-            <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />
-          ) : (
-            <View style={s.exploreGrid}>
-              {exploreSuggestions.map(sug => {
-                const isOrg = (sug.profile_type || '').toLowerCase() === 'organisation';
-                const isConnected = sug.relation === 'following' || sug.relation === 'friended';
-                const btnText = isOrg ? (isConnected ? 'Following' : 'Follow') : (isConnected ? 'Friends' : 'Add Friend');
-                const actName = isOrg ? (isConnected ? 'unfollow' : 'follow') : (isConnected ? 'unfriend' : 'friend');
-                return (
-                  <Ripple key={sug.username} style={[s.exploreCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb' }]} onPress={() => navigation.navigate('Profile', { username: sug.username })}>
-                    <Image source={{ uri: sug.profile_pic || DEFAULT_PIC }} style={s.exploreAvatar} />
-                    <Text style={[s.exploreName, { color: colors.textPrimary }]} numberOfLines={1}>{sug.fullname}</Text>
-                    <Text style={[s.exploreUser, { color: colors.textSecondary }]} numberOfLines={1}>@{sug.username}</Text>
-                    {sug.username !== username && (
-                      <Ripple
-                        style={[s.exploreFollow, { backgroundColor: isConnected ? (isDark ? '#334155' : '#e5e7eb') : '#2563eb' }]}
-                        onPress={() => handleRelationChange(sug.username, actName, sug.profile_type)}
-                      >
-                        <Text style={[s.exploreFollowText, { color: isConnected ? colors.textSecondary : '#fff' }]}>
-                          {btnText}
-                        </Text>
-                      </Ripple>
-                    )}
-                  </Ripple>
-                );
-              })}
+          <View style={s.promoCard}>
+            <View style={s.promoIcon}>
+              <Ionicons name="chatbubbles" size={20} color="#fff" />
             </View>
-          )}
-          {exploreSuggestions.length === 0 && !loadingExplore && (
-            <View style={s.emptyState}>
-              <Ionicons name="compass-outline" size={40} color={colors.textSecondary} />
-              <Text style={[s.emptyLabel, { color: colors.textSecondary }]}>Start searching to discover people</Text>
-            </View>
-          )}
+            <Text style={[s.promoTitle, { color: colors.textPrimary }]}>Looking for discussions?</Text>
+            <Text style={[s.promoSub, { color: colors.textSecondary }]}>
+              Jump into live rooms, community chats and topic debates.
+            </Text>
+            <Ripple style={s.promoBtn} onPress={() => navigation.navigate('Discussions')}>
+              <Text style={s.promoBtnText}>Go to Discussions</Text>
+            </Ripple>
+          </View>
         </View>
       ) : null}
     </SafeAreaView>
@@ -471,7 +423,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', borderRadius: 16,
     borderWidth: 1, paddingHorizontal: 12, height: 46, gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 14 },
+  searchInput: { flex: 1, fontSize: 14, paddingVertical: 0, includeFontPadding: false, textAlignVertical: 'center' },
   dropdown: {
     marginHorizontal: 16, borderRadius: 16, borderWidth: 1, maxHeight: 320,
     elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12,
@@ -500,14 +452,12 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   pillRemove: { paddingHorizontal: 8, paddingVertical: 8 },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   historyText: { flex: 1, fontSize: 14 },
-  sectionTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 16, marginBottom: 12 },
-  exploreGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  exploreCard: { width: '48%', borderRadius: 16, padding: 14, alignItems: 'center', gap: 4 },
-  exploreAvatar: { width: 56, height: 56, borderRadius: 28, marginBottom: 4 },
-  exploreName: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  exploreUser: { fontSize: 11, textAlign: 'center' },
-  exploreFollow: { marginTop: 6, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
-  exploreFollowText: { fontSize: 11, fontWeight: '700' },
+  promoCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: isDark ? 'rgba(37,99,235,0.08)' : '#eff6ff', padding: 20, marginTop: 8, alignItems: 'flex-start' },
+  promoIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  promoTitle: { fontSize: 15, fontWeight: '800' },
+  promoSub: { fontSize: 13, lineHeight: 19, marginTop: 6 },
+  promoBtn: { marginTop: 14, backgroundColor: '#2563eb', paddingHorizontal: 18, paddingVertical: 11, borderRadius: 14 },
+  promoBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingTop: 60 },
   emptyLabel: { fontSize: 14, marginTop: 8 },
   postRow: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },

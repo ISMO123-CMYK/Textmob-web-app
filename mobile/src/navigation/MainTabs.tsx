@@ -2,9 +2,11 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, Text, Modal } from 'react-native';
 import { Ripple } from '../components/Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
+import { LIVE_STREAMING_ENABLED } from '../config/live';
+import useNavBadges from '../hooks/useNavBadges';
 
 import HomeScreen from '../screens/home/HomeScreen';
 import HallOfFameScreen from '../screens/halloffame/HallOfFameScreen';
@@ -14,52 +16,70 @@ import MenuScreen from '../screens/menu/MenuScreen';
 const Tab = createBottomTabNavigator();
 
 const TAB_ITEMS = [
-  { key: 'Home', label: 'Home', icon: 'home' as const },
-  { key: 'Fame', label: 'Fame', icon: 'trophy' as const },
-  { key: 'Snaps', label: 'Snaps', icon: 'videocam' as const },
-  { key: 'Menu', label: 'Menu', icon: 'menu' as const },
+  { label: 'Home', icon: 'home' as const, route: 'Home' },
+  { label: 'Messages', icon: 'chatbubbles-outline' as const, route: 'Chats', badge: 'messages' as const },
+  { label: 'Snaps', icon: 'videocam' as const, route: 'Snaps' },
+  { label: 'Alerts', icon: 'notifications-outline' as const, route: 'Activity', badge: 'notifications' as const },
 ];
+const LEFT_TABS = TAB_ITEMS.slice(0, 2);
+const RIGHT_TABS = TAB_ITEMS.slice(2);
 
-function FloatingTabBar({ state, navigation, colors, isDark, insets, onCreate }: any) {
+function FloatingTabBar({ state, navigation, colors, isDark, insets, onCreate, badges }: any) {
   const activeColor = colors.primary || '#2563eb';
   const inactiveColor = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)';
   const currentRoute = state.routes[state.index]?.name;
   if (currentRoute === 'Snaps') return null;
 
+  const renderTab = (item: typeof TAB_ITEMS[number]) => {
+    const isActive = currentRoute === item.route;
+    const count = item.badge === 'messages'
+      ? badges?.loudaUnread || 0
+      : item.badge === 'notifications'
+        ? badges?.unreadNotifications || 0
+        : 0;
+    return (
+      <Ripple
+        key={item.label}
+        style={[floatingStyles.tabItem, isActive && floatingStyles.tabItemActive]}
+        onPress={() => navigation.navigate(item.route)}
+        activeOpacity={0.7}
+      >
+        <View style={floatingStyles.tabIcon}>
+          <Ionicons
+            name={item.icon}
+            size={22}
+            color={isActive ? activeColor : inactiveColor}
+          />
+          {count > 0 && (
+            <View style={floatingStyles.badge}>
+              <Text style={floatingStyles.badgeText}>{count > 99 ? '99+' : count}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[
+          floatingStyles.tabLabel,
+          { color: isActive ? activeColor : inactiveColor },
+        ]}>
+          {item.label}
+        </Text>
+      </Ripple>
+    );
+  };
+
   return (
     <View style={[floatingStyles.container, { bottom: insets.bottom + 12 }]}>
       <View style={[floatingStyles.pill, { backgroundColor: isDark ? '#1c1c1e' : '#ffffff' }]}>
-        {TAB_ITEMS.map((item) => {
-          const isActive = currentRoute === item.key;
-          return (
-            <Ripple
-              key={item.key}
-              style={[floatingStyles.tabItem, isActive && floatingStyles.tabItemActive]}
-              onPress={() => navigation.navigate(item.key)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={item.icon}
-                size={22}
-                color={isActive ? activeColor : inactiveColor}
-              />
-              <Text style={[
-                floatingStyles.tabLabel,
-                { color: isActive ? activeColor : inactiveColor },
-              ]}>
-                {item.label}
-              </Text>
-            </Ripple>
-          );
-        })}
+        {LEFT_TABS.map(renderTab)}
 
         <Ripple
           style={[floatingStyles.createBtn, { backgroundColor: isDark ? '#fff' : '#111' }]}
           onPress={onCreate}
           activeOpacity={0.8}
         >
-          <Ionicons name="add" size={22} color={isDark ? '#111' : '#fff'} />
+          <Ionicons name="add" size={24} color={isDark ? '#111' : '#fff'} />
         </Ripple>
+
+        {RIGHT_TABS.map(renderTab)}
       </View>
     </View>
   );
@@ -69,6 +89,7 @@ export default function MainTabs({ navigation }: { navigation: any }) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [showCreate, setShowCreate] = useState(false);
+  const badges = useNavBadges();
 
   return (
     <>
@@ -84,6 +105,7 @@ export default function MainTabs({ navigation }: { navigation: any }) {
             colors={colors}
             isDark={isDark}
             insets={insets}
+            badges={badges}
             onCreate={() => setShowCreate(true)}
           />
         )}
@@ -160,25 +182,27 @@ export default function MainTabs({ navigation }: { navigation: any }) {
                 <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
               </Ripple>
 
-              <Ripple
-                style={[styles.optionBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}
-                onPress={() => {
-                  setShowCreate(false);
-                  navigation.navigate('CreateLive');
-                }}
-              >
-                <View style={[styles.optionIconWrap, { backgroundColor: '#fef2f2' }]}>
-                  <Ionicons name="radio-outline" size={20} color="#dc2626" />
-                </View>
-                <View style={styles.optionTextWrap}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Go Live</Text>
-                    <Text style={styles.liveBadge}>LIVE</Text>
+              {LIVE_STREAMING_ENABLED && (
+                <Ripple
+                  style={[styles.optionBtn, { backgroundColor: isDark ? '#1e293b' : '#f8fafc' }]}
+                  onPress={() => {
+                    setShowCreate(false);
+                    navigation.navigate('CreateLive');
+                  }}
+                >
+                  <View style={[styles.optionIconWrap, { backgroundColor: '#fef2f2' }]}>
+                    <Ionicons name="radio-outline" size={20} color="#dc2626" />
                   </View>
-                  <Text style={[styles.optionSub, { color: colors.textSecondary }]}>Broadcast to your people</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-              </Ripple>
+                  <View style={styles.optionTextWrap}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>Go Live</Text>
+                      <Text style={styles.liveBadge}>LIVE</Text>
+                    </View>
+                    <Text style={[styles.optionSub, { color: colors.textSecondary }]}>Broadcast to your people</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                </Ripple>
+              )}
             </View>
 
             <Ripple style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
@@ -209,9 +233,29 @@ const floatingStyles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     gap: 3,
+  },
+  tabIcon: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -9,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '900',
   },
   tabItemActive: {
     backgroundColor: 'rgba(37, 99, 235, 0.08)',
@@ -222,12 +266,17 @@ const floatingStyles = StyleSheet.create({
     fontWeight: '700',
   },
   createBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 6,
+    marginHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 5,
   },
 });
 

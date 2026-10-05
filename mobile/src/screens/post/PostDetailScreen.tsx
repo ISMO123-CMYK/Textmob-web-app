@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/build/MaterialCommunityIcons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -15,7 +16,7 @@ import { getProfileAPI } from '../../api/auth';
 import useProfileCache from '../../hooks/useProfileCache';
 import PostCard from '../../components/PostCard';
 import StickerPicker from '../../components/StickerPicker';
-import { makeStickerText, parseStickerText } from '../../utils/stickerUtils';
+import { makeStickerText, parseStickerText, withSticker } from '../../utils/stickerUtils';
 import { timeAgo } from '../../utils/format';
 import { apiGet } from '../../api/client';
 
@@ -99,6 +100,8 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [replyToName, setReplyToName] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [stickerUrl, setStickerUrl] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -172,15 +175,18 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
   }, [commentText]);
 
   const handleComment = useCallback(async (parentId?: string) => {
-    if (!username || !commentText.trim() || !post) return;
-    const newC: Comment = { id: Date.now().toString(), username, text: commentText.trim(), created_at: new Date().toISOString(), parentId };
+    const payload = withSticker(commentText, stickerUrl);
+    if (!username || !payload || !post) return;
+    const newC: Comment = { id: Date.now().toString(), username, text: payload, created_at: new Date().toISOString(), parentId };
     setComments(prev => [...prev, newC]);
     setCommentText('');
+    setStickerUrl(null);
     setShowMentions(false);
     setReplyToId(null);
     setReplyToName(null);
-    await addCommentAPI(postId, username, commentText.trim(), parentId).catch(() => {});
-  }, [username, commentText, post, postId]);
+    setCommentModalOpen(false);
+    await addCommentAPI(postId, username, payload, parentId).catch(() => {});
+  }, [username, commentText, stickerUrl, post, postId]);
 
   const handleDeleteComment = useCallback(async (commentId: string) => {
     if (!username || !post) return;
@@ -242,13 +248,15 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
         post={post!}
         showViewButton={false}
         showCommentInput
+        commentModalOpen={commentModalOpen}
+        onCommentModalChange={setCommentModalOpen}
         reactionCounts={reactionCounts}
         onReact={handleReact}
         onVotePoll={handlePollVote}
         onLike={handleLike}
       />
     </View>
-  ), [post, reactionCounts, handleReact, handlePollVote, handleLike]);
+  ), [post, reactionCounts, handleReact, handlePollVote, handleLike, commentModalOpen]);
 
   const topLevelComments = useMemo(() => comments.filter(c => !c.parentId), [comments]);
 
@@ -354,7 +362,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     );
   }
 
-  const sendVisible = commentText.trim().length > 0;
+  const sendVisible = commentText.trim().length > 0 || !!stickerUrl;
 
   return (
     <>
@@ -380,8 +388,9 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
 
       <View style={[styles.bottomInput, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 10 }]}>
         {username ? (
+          replyToId ? (
           <View style={{ flex: 1, position: 'relative' }}>
-            {replyToId && replyToName && (
+            {replyToName && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 4, paddingBottom: 4 }}>
                 <Ionicons name="return-down-forward" size={14} color={colors.primary} />
                 <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>Replying to @{replyToName}</Text>
@@ -392,12 +401,12 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
             )}
             <View style={styles.inputRow}>
               <Ripple onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
-                <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
+                <MaterialCommunityIcons name="sticker" size={20} color={colors.textSecondary} />
               </Ripple>
               <TextInput
                 ref={inputRef}
                 style={[styles.input, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary, flex: 1 }]}
-                placeholder={replyToId ? "Write a reply..." : "Write a comment..."}
+                placeholder="Write a reply..."
                 placeholderTextColor={colors.textSecondary}
                 value={commentText}
                 onChangeText={setCommentText}
@@ -410,6 +419,14 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
                 </Ripple>
               )}
             </View>
+            {stickerUrl ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, paddingTop: 6 }}>
+                <Image source={{ uri: stickerUrl }} style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: isDark ? '#0f172a' : '#e5e7eb' }} resizeMode="cover" />
+                <Ripple onPress={() => setStickerUrl(null)}>
+                  <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                </Ripple>
+              </View>
+            ) : null}
             {showMentions && mentionResults.length > 0 && (
               <View style={[styles.mentionDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {mentionResults.slice(0, 4).map(user => (
@@ -421,6 +438,12 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
               </View>
             )}
           </View>
+          ) : (
+          <Ripple style={[styles.fakeInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]} onPress={() => setCommentModalOpen(true)}>
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.textSecondary} />
+            <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Write a comment...</Text>
+          </Ripple>
+          )
         ) : (
           <Ripple style={[styles.guestInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6' }]} onPress={() => Alert.alert('Sign in', 'Log in to comment')}>
             <Text style={{ color: colors.textSecondary, fontSize: 13 }}><Text style={{ fontWeight: '700', color: colors.primary }}>Log in</Text> to leave a comment</Text>
@@ -430,7 +453,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     </SafeAreaView>
     <StickerPicker
       visible={showStickerPicker}
-      onSelect={(url) => { setCommentText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); }}
+      onSelect={(url) => { setStickerUrl(url); setShowStickerPicker(false); }}
       onClose={() => setShowStickerPicker(false)}
     />
     </>
@@ -453,6 +476,7 @@ const styles = StyleSheet.create({
   bottomInput: { padding: 10, borderTopWidth: StyleSheet.hairlineWidth },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: { flex: 1, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14 },
+  fakeInput: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 12 },
   sendBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   mentionDropdown: { position: 'absolute', bottom: '100%', left: 0, right: 0, borderRadius: 12, borderWidth: 1, marginBottom: 4, overflow: 'hidden' },
   mentionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10 },

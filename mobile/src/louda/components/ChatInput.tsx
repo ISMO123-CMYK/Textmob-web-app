@@ -17,6 +17,8 @@ import {
   Platform,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -38,11 +40,28 @@ import {
 } from '../emojis';
 import { uploadFile, deleteUpload } from '../api';
 import { loudaAlert } from '../utils';
+import { withExtension } from '../../utils/media';
 import { getStore, setStore } from '../../utils/storage';
 import { useLoudaStore } from '../store';
 
 const FAV_KEY = 'louda:favEmojis';
 const SAVED_KEY = 'louda:savedStickers';
+
+// WhatsApp-style hold-to-record tuning.
+const HOLD_ARM_MS = 150;              // a tap this short must not start a recording
+const MIN_RECORD_MS = 1000;           // shorter than this and the take is discarded
+const MAX_RECORD_MS = 60 * 1000;      // matches InAppCamera's maxVideoSeconds
+const SLIDE_CANCEL_PX = 90;           // drag this far left to cancel
+
+function haptic(style: 'light' | 'success' | 'warning') {
+  try {
+    if (style === 'light') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    else if (style === 'success') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+  } catch {
+    /* haptics are a nicety — never break the send path */
+  }
+}
 
 // Port of ChatInput (LoudaApp.jsx:3178-3875)
 export function ChatInput({
@@ -75,6 +94,7 @@ export function ChatInput({
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [slideCancel, setSlideCancel] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<'emoji' | 'sticker'>('emoji');
@@ -97,6 +117,15 @@ export function ChatInput({
   const timerRef = useRef<any>(null);
   const isCancelledRef = useRef(false);
   const enterSendRef = useRef(false);
+
+  // Hold-to-record bookkeeping. The gesture callbacks are memoised, so they
+  // read these refs (refreshed every render) instead of closing over state.
+  const holdingRef = useRef(false);
+  const armTimerRef = useRef<any>(null);
+  const maxTimerRef = useRef<any>(null);
+  const recStartRef = useRef(0);
+  const recordingRef = useRef(false);
+  const slideCancelRef = useRef(false);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
@@ -239,35 +268,61 @@ export function ChatInput({
     setShowEmojiPicker(false);
   };
 
-  // ─── Recording (LoudaApp.jsx:3371-3420) ───
+  // ─── Hold-to-record (LoudaApp.jsx:3371-3420) ───
   const startRecording = async () => {
+    if (recordingRef.current) return;
+    // The finger may already have lifted while we waited on the permission
+    // prompt — don't start a recording nobody is holding.
+    if (!holdingRef.current) return;
     try {
       Keyboard.dismiss();
       setShowAttachMenu(false);
       setShowEmojiPicker(false);
       const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
+        holdingRef.current = false;
         loudaAlert({ title: 'Error', message: 'Microphone access denied' });
         return;
       }
+      if (!holdingRef.current) return;
       isCancelledRef.current = false;
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
       await recorder.prepareToRecordAsync();
+      if (!holdingRef.current) {
+        try { await recorder.stop(); } catch {}
+        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
+        return;
+      }
       recorder.record();
+      recordingRef.current = true;
+      recStartRef.current = Date.now();
+      slideCancelRef.current = false;
+      setSlideCancel(false);
       setIsRecording(true);
       setRecordingTime(0);
-      timerRef.current = setInterval(
-        () => setRecordingTime((t) => t + 1),
-        1000,
-      );
+      haptic('light');
+      timerRef.current = setInterval(() => {
+        setRecordingTime(Math.floor((Date.now() - recStartRef.current) / 1000));
+      }, 500);
+      maxTimerRef.current = setTimeout(() => {
+        if (recordingRef.current) void finishRecording(false);
+      }, MAX_RECORD_MS);
     } catch {
+      holdingRef.current = false;
+      recordingRef.current = false;
       loudaAlert({ title: 'Error', message: 'Microphone access denied' });
     }
   };
 
   const finishRecording = async (cancelled = false) => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    const started = recordingRef.current;
+    recordingRef.current = false;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (maxTimerRef.current) { clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
     setIsRecording(false);
+    setSlideCancel(false);
+    slideCancelRef.current = false;
+    if (!started) return;
     isCancelledRef.current = cancelled;
     try {
       await recorder.stop();
@@ -275,10 +330,18 @@ export function ChatInput({
       /* noop */
     }
     await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
-    if (cancelled || isCancelledRef.current) return;
+    if (cancelled || isCancelledRef.current) {
+      haptic('warning');
+      return;
+    }
     const uri = recorder.uri;
-    const duration = recordingTime;
-    if (!uri) return;
+    const elapsedMs = Date.now() - recStartRef.current;
+    const duration = Math.round(elapsedMs / 1000);
+    // Too short to be a real take — WhatsApp discards silently, so do too.
+    if (!uri || elapsedMs < MIN_RECORD_MS) {
+      haptic('warning');
+      return;
+    }
     setUploading(true);
     try {
       const data = await uploadFile({
@@ -287,6 +350,7 @@ export function ChatInput({
         type: 'audio/mp4',
         kind: 'voice',
       });
+      if (!data?.url) throw new Error('Upload failed');
       const payload: any = {
         text: '',
         media: [{ type: 'voice', url: data.url, duration: duration || 0 }],
@@ -298,6 +362,7 @@ export function ChatInput({
           from: replyTo.from,
           fromName: replyTo.fromName,
         };
+      haptic('success');
       onSend(payload);
       onCancelReply?.();
     } catch (err: any) {
@@ -306,6 +371,64 @@ export function ChatInput({
       setUploading(false);
     }
   };
+
+  // ─── Gesture handlers (memoised; call through handlersRef) ───
+  const beginHold = () => {
+    if (uploading || showSend || recordingRef.current || armTimerRef.current) return;
+    holdingRef.current = true;
+    slideCancelRef.current = false;
+    setSlideCancel(false);
+    armTimerRef.current = setTimeout(() => {
+      armTimerRef.current = null;
+      void startRecording();
+    }, HOLD_ARM_MS);
+  };
+
+  const endHold = () => {
+    holdingRef.current = false;
+    if (armTimerRef.current) {
+      clearTimeout(armTimerRef.current);
+      armTimerRef.current = null;
+      return;
+    }
+    if (!recordingRef.current) return;
+    void finishRecording(slideCancelRef.current);
+  };
+
+  const onSlide = (x: number) => {
+    const cancelled = x < -SLIDE_CANCEL_PX;
+    if (cancelled === slideCancelRef.current) return;
+    slideCancelRef.current = cancelled;
+    setSlideCancel(cancelled);
+    if (cancelled) haptic('light');
+  };
+
+  const holdHandlers = useRef({ beginHold, endHold, onSlide });
+  holdHandlers.current = { beginHold, endHold, onSlide };
+
+  const holdGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onBegin(() => holdHandlers.current.beginHold())
+        .onUpdate((e) => holdHandlers.current.onSlide(e.translationX))
+        .onFinalize(() => holdHandlers.current.endHold()),
+    [],
+  );
+
+  // Unmount mid-hold would otherwise leave a live interval and a recorder
+  // running with no component left to stop it.
+  useEffect(() => {
+    return () => {
+      if (armTimerRef.current) clearTimeout(armTimerRef.current);
+      if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (recordingRef.current) {
+        recordingRef.current = false;
+        try { recorder.stop(); } catch {}
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── Input handling (LoudaApp.jsx:3423-3446) ───
   const handleChange = (next: string) => {
@@ -378,11 +501,12 @@ export function ChatInput({
             : 'file';
         const data = await uploadFile({
           uri: a.uri,
-          name: a.fileName || `upload_${Date.now()}`,
+          name: withExtension(a.fileName, mime, a.uri),
           type: mime || (kind === 'image' ? 'image/jpeg' : kind === 'video' ? 'video/mp4' : 'application/octet-stream'),
           kind,
         });
-        media.push({ type: data.type, url: data.url });
+        if (!data?.url) throw new Error('Upload failed');
+        media.push({ type: data.type || kind, url: data.url });
       }
       appendUploaded(media, 6);
     } catch (err: any) {
@@ -456,11 +580,12 @@ export function ChatInput({
         try {
           const data = await uploadFile({
             uri: a.uri,
-            name: a.name,
+            name: withExtension(a.name, a.mimeType, a.uri),
             type: a.mimeType || 'application/octet-stream',
             kind,
           });
-          media.push({ type: data.type, url: data.url });
+          if (!data?.url) throw new Error('Upload failed');
+          media.push({ type: data.type || kind, url: data.url });
         } catch (err: any) {
           loudaAlert({ title: 'Error', message: err?.message || 'Upload failed' });
         }
@@ -773,12 +898,21 @@ export function ChatInput({
             ]}
           >
             <View style={[s.recDot, { backgroundColor: '#ef4444' }]} />
-            <Text style={[s.recTime, { color: p.text }]}>
+            <Text style={[s.recTime, { color: p.text, flex: 0 }]}>
               {Math.floor(recordingTime / 60)}:
               {String(recordingTime % 60).padStart(2, '0')}
             </Text>
+            <Text numberOfLines={1} style={s.recHint}>
+              {slideCancel ? 'Release to cancel' : 'Release to send'}
+            </Text>
             <Ripple onPress={() => finishRecording(true)} style={s.recCancel}>
-              <Text style={{ color: '#ef4444', fontWeight: '800', fontSize: 14 }}>
+              <Text
+                style={{
+                  color: slideCancel ? '#ef4444' : '#6b7280',
+                  fontWeight: '800',
+                  fontSize: 14,
+                }}
+              >
                 Cancel
               </Text>
             </Ripple>
@@ -892,40 +1026,43 @@ export function ChatInput({
             </View>
           </View>
         )}
-        <Ripple
-          activeOpacity={0.85}
-          disabled={uploading}
-          onPress={
-            isRecording
-              ? () => finishRecording(false)
-              : showSend
-                ? send
-                : startRecording
-          }
-          style={[
-            s.sendBtn,
-            isRecording && { backgroundColor: '#ef4444' },
-            !isRecording && {
-              backgroundColor: accent,
-              shadowColor: accent,
-              shadowOpacity: 0.3,
-            },
-          ]}
-        >
-          {uploading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : isRecording ? (
-            <Icons.mic size={20} color="#fff" />
-          ) : showSend ? (
-            editingMessage ? (
+        {showSend ? (
+          <Ripple
+            activeOpacity={0.85}
+            disabled={uploading}
+            onPress={send}
+            style={[
+              s.sendBtn,
+              { backgroundColor: accent, shadowColor: accent, shadowOpacity: 0.3 },
+            ]}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : editingMessage ? (
               <Icons.check size={20} color="#fff" />
             ) : (
               <Icons.send size={20} color="#fff" />
-            )
-          ) : (
-            <Icons.mic size={20} color="#fff" />
-          )}
-        </Ripple>
+            )}
+          </Ripple>
+        ) : (
+          /* Hold to record, slide left to cancel, release to send. The tap-to-
+             toggle mic button used to make a stray tap look like a send. */
+          <GestureDetector gesture={holdGesture}>
+            <View
+              style={[
+                s.sendBtn,
+                { backgroundColor: isRecording ? '#ef4444' : accent },
+                !isRecording && { shadowColor: accent, shadowOpacity: 0.3 },
+              ]}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Icons.mic size={20} color="#fff" />
+              )}
+            </View>
+          </GestureDetector>
+        )}
       </View>
     </View>
   );
@@ -1154,6 +1291,7 @@ const s = StyleSheet.create({
   },
   recDot: { width: 12, height: 12, borderRadius: 6 },
   recTime: { flex: 1, fontSize: 15, fontFamily: 'monospace', fontWeight: '600' },
+  recHint: { flex: 1, fontSize: 12, marginHorizontal: 8 },
   recCancel: {
     paddingHorizontal: 16,
     paddingVertical: 6,

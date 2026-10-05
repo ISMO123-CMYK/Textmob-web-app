@@ -1,9 +1,8 @@
 import 'react-native-gesture-handler';
-import 'react-native-reanimated';
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
-import { BackHandler } from 'react-native';
+import { BackHandler, Alert } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
@@ -20,6 +19,14 @@ import RootNavigator from './src/navigation/RootNavigator';
 import ShareToTextmobScreen from './src/screens/share/ShareToTextmobScreen';
 import { navigationRef, linking } from './src/navigation/navigationRef';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { setLoudaAlertImpl } from './src/louda/utils';
+
+// Louda's default alert shim only logs to the console, so every upload failure,
+// denied permission and size-limit notice was invisible to the user. Route them
+// to the native Alert once, at startup.
+setLoudaAlertImpl(({ title, message } = {}) => {
+  Alert.alert(title || '', message || '');
+});
 
 // Last line of defense: a stray fatal JS error must never white-screen the
 // app. Render errors are already caught by ErrorBoundary above; this catches

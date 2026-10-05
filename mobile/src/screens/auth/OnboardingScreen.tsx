@@ -4,10 +4,13 @@ import {
   ScrollView, StatusBar, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFonts, SpaceGrotesk_700Bold, SpaceGrotesk_600SemiBold } from '@expo-google-fonts/space-grotesk';
-import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
+import { SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk/700Bold';
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { storage, KEYS } from '../../utils/storage';
 
 const { width } = (() => { const w = Dimensions.get('window').width; return { width: w || 390 }; })();
@@ -57,7 +60,6 @@ export default function OnboardingScreen({ navigation }: { navigation: any }) {
 
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_700Bold,
-    SpaceGrotesk_600SemiBold,
     Inter_400Regular,
     Inter_600SemiBold,
     Inter_700Bold,

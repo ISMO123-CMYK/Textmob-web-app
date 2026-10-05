@@ -5,13 +5,14 @@ import {
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { File, Paths } from 'expo-file-system';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { navigationRef } from '../../navigation/navigationRef';
 import type { ShareIntent } from 'expo-share-intent';
 import { setPendingChatShare } from '../../louda/pendingShare';
+import { withExtension } from '../../utils/media';
 
 interface SharedItem {
   uri: string;
@@ -135,7 +136,7 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
       if (!uri) continue;
       const item: SharedItem = {
         uri,
-        name: f.fileName || `file_${Date.now()}_${fileIndex}`,
+        name: withExtension(f.fileName || `file_${Date.now()}_${fileIndex}`, mime, uri),
         mime: mime || 'application/octet-stream',
         size: f.size ?? (f as any).fileSize ?? null,
       };

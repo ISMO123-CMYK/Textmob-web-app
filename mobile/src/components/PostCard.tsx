@@ -4,7 +4,8 @@ import {
   FlatList, ActivityIndicator, Alert, Pressable, ScrollView, Dimensions, Share, Animated, useWindowDimensions, PanResponder,
 } from 'react-native';
 import { Ripple } from './Ripple';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/build/MaterialCommunityIcons';
 import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useTheme } from '../context/ThemeContext';
@@ -20,7 +21,7 @@ import { storage, KEYS } from '../utils/storage';
 import { getProfileAPI } from '../api/auth';
 import { timeAgo } from '../utils/format';
 import StickerPicker from './StickerPicker';
-import { makeStickerText, parseStickerText } from '../utils/stickerUtils';
+import { makeStickerText, parseStickerText, withSticker } from '../utils/stickerUtils';
 import GiftCoinsModal from './GiftCoinsModal';
 import useProfileCache from '../hooks/useProfileCache';
 import { getFollowStatusAPI, followAPI, friendAPI } from '../api/users';
@@ -645,6 +646,9 @@ interface PostCardProps {
   isActive?: boolean;
   showViewButton?: boolean;
   showCommentInput?: boolean;
+  /** Controlled comment modal (Post viewer's bottom bar opens this one). */
+  commentModalOpen?: boolean;
+  onCommentModalChange?: (open: boolean) => void;
   viewerCount?: number;
   reactionCounts?: Record<string, { counts: Record<string, number>; userReaction: string | null }>;
   onReactionToggle?: (postId: string | number) => void;
@@ -772,6 +776,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
 
 const PostCard = React.memo(function PostCard({
   post, isActive, showViewButton, showCommentInput, viewerCount = 0,
+  commentModalOpen, onCommentModalChange,
   reactionCounts: externalReactionCounts, onReactionToggle,
   onVotePoll, onComment, onLike, onReact, onNegativeSignal, onBlocked,
 }: PostCardProps) {
@@ -783,9 +788,16 @@ const PostCard = React.memo(function PostCard({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showGift, setShowGift] = useState(false);
-  const [showCommentField, setShowCommentField] = useState(false);
+  const [showCommentFieldState, setShowCommentFieldState] = useState(false);
    const [commentText, setCommentText] = useState('');
    const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [stickerUrl, setStickerUrl] = useState<string | null>(null);
+  const controlledField = typeof commentModalOpen === 'boolean';
+  const showCommentField = controlledField ? !!commentModalOpen : showCommentFieldState;
+  const setShowCommentField = (open: boolean) => {
+    if (controlledField) onCommentModalChange?.(open);
+    else setShowCommentFieldState(open);
+  };
    const [textExpanded, setTextExpanded] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [localReactionCounts, setLocalReactionCounts] = useState<{ counts: Record<string, number>; userReaction: string | null }>({ counts: {}, userReaction: null });
@@ -835,13 +847,15 @@ const PostCard = React.memo(function PostCard({
   };
 
   const handleComment = () => {
-    if (!username || !commentText.trim()) return;
-    const newC: Comment = { id: Date.now().toString(), username, text: commentText.trim(), created_at: new Date().toISOString() };
+    const payload = withSticker(commentText, stickerUrl);
+    if (!username || !payload) return;
+    const newC: Comment = { id: Date.now().toString(), username, text: payload, created_at: new Date().toISOString() };
     setLocalComments(prev => [...prev, newC]);
     setCommentText('');
+    setStickerUrl(null);
     setShowCommentField(false);
-    onComment?.(post.id, commentText.trim());
-    addCommentAPI(String(post.id), username, commentText.trim());
+    onComment?.(post.id, payload);
+    addCommentAPI(String(post.id), username, payload);
   };
 
   const handleReact = (reaction: string, etext: string) => {
@@ -1019,12 +1033,20 @@ const PostCard = React.memo(function PostCard({
               onChangeText={setCommentText}
               multiline
             />
+            {stickerUrl ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 }}>
+                <Image source={{ uri: stickerUrl }} style={{ width: 56, height: 56, borderRadius: 10, backgroundColor: isDark ? '#0f172a' : '#f3f4f6' }} resizeMode="cover" />
+                <Ripple onPress={() => setStickerUrl(null)} style={{ padding: 4 }}>
+                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                </Ripple>
+              </View>
+            ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
               <Ripple onPress={() => setShowStickerPicker(true)} style={{ padding: 4 }}>
-                <Ionicons name="image-outline" size={22} color={colors.textSecondary} />
+                <MaterialCommunityIcons name="sticker" size={22} color={colors.textSecondary} />
               </Ripple>
               <View style={{ flex: 1 }} />
-              <Ripple onPress={handleComment} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24, opacity: commentText.trim() ? 1 : 0.4 }} disabled={!commentText.trim()}>
+              <Ripple onPress={handleComment} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24, opacity: commentText.trim() || stickerUrl ? 1 : 0.4 }} disabled={!commentText.trim() && !stickerUrl}>
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Post</Text>
               </Ripple>
             </View>
@@ -1033,7 +1055,7 @@ const PostCard = React.memo(function PostCard({
       </Modal>
       <StickerPicker
         visible={showStickerPicker}
-        onSelect={(url) => { setCommentText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); }}
+        onSelect={(url) => { setStickerUrl(url); setShowStickerPicker(false); }}
         onClose={() => setShowStickerPicker(false)}
       />
       {showCommentField && !username && (
