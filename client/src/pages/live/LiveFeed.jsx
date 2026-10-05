@@ -2,6 +2,8 @@
 import { apiFetch } from '../../config/api';
 import HomeFeed from '../home/HomeFeed';
 import { PostSkeleton } from '../../components/ui/PostCard';
+import { LIVE_STREAMING_ENABLED } from '../../config/live';
+import LiveComingSoon from './LiveComingSoon';
 
 export default function LiveFeed() {
  const [streams, setStreams] = useState([]);
@@ -28,6 +30,8 @@ export default function LiveFeed() {
  const interval = setInterval(loadStreams, 60000);
  return () => clearInterval(interval);
  }, [currentUser]);
+
+ if (!LIVE_STREAMING_ENABLED) return <LiveComingSoon />;
 
  if (loading) {
  return (

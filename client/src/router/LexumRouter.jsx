@@ -202,6 +202,11 @@ const Lexum = (() => {
             },
             React.createElement(page.component, {
               ...page.params,
+              // Tells a cached (kept-mounted) page whether it is the page the user
+              // is currently looking at, so views like Discussions can stay mounted
+              // (instant back-nav, data preserved) while releasing sockets and
+              // listeners the moment the user navigates away.
+              isActive,
               routeData: page.data
             })
           )        );

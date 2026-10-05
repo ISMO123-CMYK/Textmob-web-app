@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { onLoudaUnread, refreshLoudaUnread, connectLoudaSocket, refreshLoudaPresence } from '../../bridge/connector.js';
 import { cn } from '../../utils/classNames';
 import NavIcons from '../../utils/navIcons';
+import { LIVE_STREAMING_ENABLED } from '../../config/live';
 
 export default function MobileNav() {
   const [showCreate, setShowCreate] = useState(false);
@@ -43,7 +44,7 @@ export default function MobileNav() {
   const createItems = [
     { label: 'Post', sub: "Share what's on your mind", icon: NavIcons.Edit, to: '/make-post', live: false },
     { label: 'Snap', sub: 'Capture a moment', icon: NavIcons.Snaps, to: '/snaps', live: false },
-    { label: 'Go Live', sub: 'Broadcast to your people', icon: NavIcons.Live, to: '/create-live', live: true },
+    ...(LIVE_STREAMING_ENABLED ? [{ label: 'Go Live', sub: 'Broadcast to your people', icon: NavIcons.Live, to: '/create-live', live: true }] : []),
   ];
 
   useEffect(() => {

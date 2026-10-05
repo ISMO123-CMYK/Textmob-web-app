@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../../config/api';
 import NavIcons from '../../utils/navIcons';
+import { LIVE_STREAMING_ENABLED } from '../../config/live';
 
 export default function DesktopHeader({ activeTab, setActiveTab }) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -44,7 +45,7 @@ export default function DesktopHeader({ activeTab, setActiveTab }) {
             <div className="bg-gray-100 rounded-2xl p-1 flex items-center shadow-inner space-x-1 border border-gray-200/50">
               {[
                 { key: 'posts', label: 'Feed' },
-                { key: 'live', label: 'Live' }
+                ...(LIVE_STREAMING_ENABLED ? [{ key: 'live', label: 'Live' }] : [])
               ].map(tab => (
                 <button
                   key={tab.key}

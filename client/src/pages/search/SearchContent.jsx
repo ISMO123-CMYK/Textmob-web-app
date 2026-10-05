@@ -1,8 +1,6 @@
-import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../../config/api';
 import HomeFeed from '../home/HomeFeed';
-import TrendingTopics from '../../components/layout/TrendingTopics';
 
 const HISTORY_KEY = 'textmob_search_history';
 const MAX_HISTORY = 12;
@@ -85,63 +83,10 @@ export default function SearchContent() {
   const [searched, setSearched] = useState(false);
   const [loadingResults, setLoadingResults] = useState(false);
 
-  const [exploreSuggestions, setExploreSuggestions] = useState([]);
-  const [loadingExploreSug, setLoadingExploreSug] = useState(false);
-
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
   const currentUser = localStorage.currentUser || '';
   const debouncedQuery = useDebounce(query, 260);
-
-  useEffect(() => {
-    if (searched || query.trim()) return;
-    setLoadingExploreSug(true);
-    let active = true;
-    apiFetch(`/get-suggestions-feed?username=${encodeURIComponent(currentUser)}`)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        if (active) {
-          setExploreSuggestions(Array.isArray(data) ? data.slice(0, 4) : []);
-        }
-      })
-      .catch(() => { })
-      .finally(() => {
-        if (active) setLoadingExploreSug(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [searched, query, currentUser]);
-
-  async function handleExploreRelationChange(targetUsername, action, profileType) {
-    try {
-      const isOrg = (profileType || '').toLowerCase() === 'organisation';
-      const endpoint = isOrg ? '/follow' : '/friend';
-      await apiFetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: targetUsername,
-          currentUsername: currentUser,
-          action: action
-        })
-      });
-      setExploreSuggestions(prev => prev.map(item => {
-        if (item.username === targetUsername) {
-          let nextRelation = 'not_friended';
-          if (isOrg) {
-            nextRelation = action === 'follow' ? 'following' : 'not_following';
-          } else {
-            nextRelation = action === 'friend' ? 'friended' : 'not_friended';
-          }
-          return { ...item, relation: nextRelation };
-        }
-        return item;
-      }));
-    } catch (e) {
-      console.error('Explore relation change failed', e);
-    }
-  }
 
   // Suggestions search on input change
   useEffect(() => {
@@ -509,56 +454,24 @@ export default function SearchContent() {
 
 
 
-            {/* Suggested Creators */}
-            {exploreSuggestions.length > 0 && (
-              <div className="bg-gray-50 rounded-3xl p-5">
-                <div className="flex items-center justify-between mb-4 px-0.5">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-gray-400">Creators to Follow</span>
-                  <button onClick={() => window.Lexum?.navigate('/connections')} className="text-xs font-bold text-blue-500 hover:text-blue-600 transition-colors">See all</button>
+            {/* Discussions promo banner */}
+            <div className="rounded-3xl p-5 bg-gradient-to-br from-blue-50 via-white to-gray-50 border border-blue-100/80 shadow-sm">
+              <div className="flex items-start gap-3.5">
+                <div className="w-11 h-11 shrink-0 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 12c0 4.552-3.653 8.25-8.17 8.25a9.6 9.6 0 01-2.6-.35L5.25 21l1.2-3.51a7.94 7.94 0 01-1.68-4.86C4.77 7.92 8.42 4.5 12.84 4.5c4.517 0 8.16 3.698 8.16 7.5z" /></svg>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {exploreSuggestions.map((user) => {
-                    const isOrg = (user.profile_type || '').toLowerCase() === 'organisation';
-                    const isConnected = user.relation === 'following' || user.relation === 'friended';
-                    const btnText = isOrg ? (isConnected ? 'Following' : 'Follow') : (isConnected ? 'Friends' : 'Add Friend');
-                    const actName = isOrg ? (isConnected ? 'unfollow' : 'follow') : (isConnected ? 'unfriend' : 'friend');
-
-                    return (
-                      <div
-                        key={user.username}
-                        onClick={() => window.Lexum?.navigate(`/@${user.username}`)}
-                        className="flex items-center gap-3 p-3 bg-white hover:bg-gray-100 border border-gray-100 rounded-2xl cursor-pointer transition-colors"
-                      >
-                        <img
-                          src={user.profile_pic || DEFAULT_AVATAR}
-                          alt={user.username}
-                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-900 truncate leading-snug">{user.fullname}</p>
-                          <p className="text-[10px] text-gray-400 truncate">@{user.username}</p>
-                          {user.mutuals > 0 && (
-                            <p className="text-[9px] text-blue-500 font-semibold mt-0.5">{user.mutuals} mutual friend{user.mutuals > 1 ? 's' : ''}</p>
-                          )}
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleExploreRelationChange(user.username, actName, user.profile_type);
-                          }}
-                          className={`flex-shrink-0 text-[10px] font-black px-3 py-1.5 rounded-full transition-all active:scale-95 ${isConnected
-                              ? 'bg-gray-200 text-gray-600'
-                              : 'bg-blue-600 hover:bg-blue-700 text-white'
-                            }`}
-                        >
-                          {btnText}
-                        </button>
-                      </div>
-                    );
-                  })}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-gray-900">Looking for discussions?</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">Jump into live rooms, community chats and topic debates.</p>
+                  <button
+                    onClick={() => (window.Lexum && window.Lexum.navigate ? window.Lexum.navigate('/discussions') : (window.location.hash = '/discussions'))}
+                    className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95 shadow-sm shadow-blue-500/20"
+                  >
+                    Go to Discussions
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 

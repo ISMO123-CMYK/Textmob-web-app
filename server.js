@@ -745,10 +745,19 @@ function cleanupDeadStream(state, res) {
   } catch (e) { /* ignore */ }
 }
 
+// Live streaming is temporarily offline while it's rebuilt. Every live
+// endpoint reads this one flag — flip it back to true to restore them.
+const LIVE_STREAMING_ENABLED = false;
+const LIVE_SOON_MESSAGE =
+  "Live streaming is currently in building progress. It'll be back soon.";
+
 app.post(
   "/api/live-chunk-upload/:postId",
   express.raw({ type: "*/*", limit: "100mb" }),
   (req, res) => {
+    if (!LIVE_STREAMING_ENABLED) {
+      return res.status(503).json({ error: "live_disabled", message: LIVE_SOON_MESSAGE });
+    }
     try {
       const { postId } = req.params;
       const chunk = req.body;
@@ -779,6 +788,9 @@ app.post(
 );
 
 app.get("/api/live-stream/:postId", (req, res) => {
+  if (!LIVE_STREAMING_ENABLED) {
+    return res.status(503).json({ error: "live_disabled", message: LIVE_SOON_MESSAGE });
+  }
   try {
     const { postId } = req.params;
     const state = liveSessions.get(postId) || liveChunkBuffers.get(postId);
@@ -828,6 +840,9 @@ app.get("/api/live-stream/:postId", (req, res) => {
 });
 // Optional: endpoint to check stream health / metadata
 app.get("/api/live-info/:postId", (req, res) => {
+  if (!LIVE_STREAMING_ENABLED) {
+    return res.status(503).json({ error: "live_disabled", message: LIVE_SOON_MESSAGE });
+  }
   try {
     const { postId } = req.params;
     const state = liveSessions.get(postId);
@@ -873,6 +888,9 @@ async function guardDisabled(req, res, next) {
 // --- HLS Proxy Middleware ---
 // Redirects HLS requests from Express (port 5000) to NMS (port 8000)
 app.get("/live/:postId/:file", async (req, res) => {
+  if (!LIVE_STREAMING_ENABLED) {
+    return res.status(503).json({ error: "live_disabled", message: LIVE_SOON_MESSAGE });
+  }
   try {
     const { postId, file } = req.params;
     const nmsUrl = `http://localhost:8000/live/${postId}/${file}`;
@@ -3914,7 +3932,7 @@ async function addNotification(recipientUsername, notification) {
         username: recipientUsername,
         token,
         type: "textmob",
-        title: notif.title || "TextMob",
+        title: notif.title || "Textmob",
         body: notif.message || notif.body || "You have a new notification",
         data: Object.assign({}, notif.data || {}, {
           notificationId: notif.id,
@@ -3985,7 +4003,7 @@ app.post("/trigger-notifications", async (req, res) => {
             to: d.token,
             sound: "default",
             channelId: "messages",
-            title: n.title || "TextMob",
+            title: n.title || "Textmob",
             body: n.message || n.body || "You have a notification",
             data: Object.assign({}, n.data || {}, { notificationId: n.id }),
             _contentAvailable: true,
@@ -6039,6 +6057,10 @@ io.on("connection", function (socket) {
 
   // ---- startLive ----
   socket.on("startLive", async function (payload, ack) {
+    if (!LIVE_STREAMING_ENABLED) {
+      if (ack) ack({ ok: false, error: LIVE_SOON_MESSAGE });
+      return;
+    }
     try {
       if (!payload || !payload.username) {
         if (ack) ack({ ok: false, error: "Missing username" });
@@ -8974,6 +8996,9 @@ app.post("/get-posts", express.json(), async (req, res) => {
   }
 });
 app.get("/get-live-posts", async (req, res) => {
+  if (!LIVE_STREAMING_ENABLED) {
+    return res.status(503).json({ error: "live_disabled", message: LIVE_SOON_MESSAGE });
+  }
   try {
     const { username } = req.query;
     if (!username) return res.json([]);
@@ -9039,6 +9064,14 @@ app.get("/get-live-posts", async (req, res) => {
 
 const LIVE_ROOM_CATEGORIES = ['general', 'football', 'technology', 'music', 'politics', 'religion', 'entertainment', 'gaming', 'business', 'education'];
 
+// Live viewer count from the in-memory socket registry — the DB column only
+// moves when the update round-trips, so listings would otherwise stay at 1.
+function liveParticipantCount(roomId, fallback) {
+  const viewers = globalThis.__discussionViewers;
+  if (viewers && viewers.has(roomId)) return viewers.get(roomId).size;
+  return fallback;
+}
+
 // Create a new live discussion room
 app.post("/api/discussions/create", async (req, res) => {
   try {
@@ -9098,7 +9131,7 @@ app.get("/api/discussions/active", async (req, res) => {
 
     const { data, error } = await query;
     if (error) return res.json([]);
-    return res.json(data || []);
+    return res.json((data || []).map(r => ({ ...r, participant_count: liveParticipantCount(r.id, r.participant_count) })));
   } catch (err) {
     console.error("discussions/active err:", err);
     return res.json([]);
@@ -9114,7 +9147,7 @@ app.get("/api/discussions/room/:roomId", async (req, res) => {
       .eq("id", roomId)
       .single();
     if (error || !data) return res.status(404).json({ error: "Room not found" });
-    return res.json(data);
+    return res.json({ ...data, participant_count: liveParticipantCount(data.id, data.participant_count) });
   } catch (err) {
     console.error("discussions/room err:", err);
     return res.status(500).json({ error: "internal server error" });
@@ -11480,10 +11513,14 @@ io.on('connection', function (socket) {
     const viewers = discussionViewers.get(roomId);
     const wasNew = !viewers.has(username);
     viewers.add(username);
+    const memberList = Array.from(viewers);
+    // Always tell the joiner who is in the room (Discord-style member list)
+    io.to(socket.id).emit('discussion_room_update', { participant_count: viewers.size, members: memberList });
     if (wasNew) {
-      io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size });
+      io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size, members: memberList });
       // Persist to DB so listing pages show live count
-      try { await supabase2.from('live_rooms').update({ participant_count: viewers.size }).eq('id', roomId); } catch (_) {}
+      supabase2.from('live_rooms').update({ participant_count: viewers.size }).eq('id', roomId)
+        .then(({ error }) => { if (error) console.error('live_rooms participant_count update err:', error.message); });
     }
   });
 
@@ -11492,8 +11529,10 @@ io.on('connection', function (socket) {
       const viewers = discussionViewers.get(roomId);
       if (viewers) {
         viewers.delete(socket.discussionUser);
-        io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size });
-        try { await supabase2.from('live_rooms').update({ participant_count: viewers.size }).eq('id', roomId); } catch (_) {}
+        const memberList = Array.from(viewers);
+        io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size, members: memberList });
+        supabase2.from('live_rooms').update({ participant_count: viewers.size }).eq('id', roomId)
+          .then(({ error }) => { if (error) console.error('live_rooms participant_count update err:', error.message); });
       }
     }
     socket.leave(`discussion_${roomId}`);
@@ -11572,7 +11611,9 @@ io.on('connection', function (socket) {
       const viewers = discussionViewers.get(socket.discussionRoom);
       if (viewers) {
         viewers.delete(socket.discussionUser);
-        io.to(`discussion_${socket.discussionRoom}`).emit('discussion_room_update', { participant_count: viewers.size });
+        io.to(`discussion_${socket.discussionRoom}`).emit('discussion_room_update', { participant_count: viewers.size, members: Array.from(viewers) });
+        supabase2.from('live_rooms').update({ participant_count: viewers.size }).eq('id', socket.discussionRoom)
+          .then(({ error }) => { if (error) console.error('live_rooms participant_count update err:', error.message); });
       }
     }
   });

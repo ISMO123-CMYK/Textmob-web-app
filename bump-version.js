@@ -34,6 +34,37 @@ function formatVersion(parts) {
   return p.join('.');
 }
 
+// Rewrite a single `"key": value` occurrence in place instead of running the
+// whole file through JSON.stringify. JSON.stringify would reflow hand-written
+// formatting (e.g. package.json's one-line `exclude` array) and turn a 1-line
+// version bump into a noisy multi-line diff. Returns null if the key is absent
+// or the result is not valid JSON, so callers can fall back to a re-serialise.
+function replaceField(raw, key, literal) {
+  const re = new RegExp('("' + key + '"\\s*:\\s*)("[^"]*"|-?\\d+(?:\\.\\d+)?)');
+  if (!re.test(raw)) return null;
+  const out = raw.replace(re, '$1' + literal);
+  try {
+    JSON.parse(out);
+    return out;
+  } catch (e) {
+    return null;
+  }
+}
+
+function emit(raw, fields, parsed) {
+  let out = raw;
+  for (let i = 0; i < fields.length; i++) {
+    const next = replaceField(out, fields[i][0], fields[i][1]);
+    if (next === null) {
+      out = null;
+      break;
+    }
+    out = next;
+  }
+  if (out !== null) return out;
+  return JSON.stringify(parsed, null, 2) + '\n';
+}
+
 function main() {
   const arg = (process.argv[2] || 'minor').toLowerCase();
   const appRaw = fs.readFileSync(APP_JSON, 'utf8');
@@ -82,8 +113,11 @@ function main() {
   app.expo.android.versionCode = nextCode;
   pkg.version = nextVersion;
 
-  const appOut = JSON.stringify(app, null, 2) + '\n';
-  const pkgOut = JSON.stringify(pkg, null, 2) + '\n';
+  const appOut = emit(appRaw, [
+    ['version', JSON.stringify(nextVersion)],
+    ['versionCode', String(nextCode)],
+  ], app);
+  const pkgOut = emit(pkgRaw, [['version', JSON.stringify(nextVersion)]], pkg);
   fs.writeFileSync(APP_JSON, appOut);
   fs.writeFileSync(PKG_JSON, pkgOut);
 

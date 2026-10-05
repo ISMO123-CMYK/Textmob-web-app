@@ -4,6 +4,7 @@ import { cn } from '../../utils/classNames';
 import { apiFetch } from '../../config/api';
 import { onLoudaUnread, refreshLoudaUnread, connectLoudaSocket, clearLoudaSession, provisionLoudaSession, refreshLoudaPresence } from '../../bridge/connector.js';
 import NavIcons from '../../utils/navIcons';
+import { LIVE_STREAMING_ENABLED } from '../../config/live';
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(() => {
@@ -110,7 +111,7 @@ export default function Sidebar() {
     { Icon: NavIcons.Snaps, label: 'Snaps', badge: null, to: '/snaps' },
     { Icon: NavIcons.Search, label: 'Discover', badge: null, to: '/topsearch' },
     { Icon: NavIcons.Discussions, label: 'Discussions', badge: null, to: '/discussions' },
-    { Icon: NavIcons.Live, label: 'Go Live', badge: null, to: '/create-live' },
+    ...(LIVE_STREAMING_ENABLED ? [{ Icon: NavIcons.Live, label: 'Go Live', badge: null, to: '/create-live' }] : []),
 
     { Icon: NavIcons.Messages, label: 'Messages', badge: loudaUnread || null, to: '/chats' },
     { Icon: NavIcons.Leaderboard, label: 'Hall of Fame', badge: null, to: '/halloffame' },
@@ -309,13 +310,15 @@ export default function Sidebar() {
                 <NavIcons.Edit className="w-4 h-4 text-blue-500 flex-shrink-0" />
                 <span>Create Post</span>
               </button>
-              <button
-                onClick={() => { setCreateMenuOpen(false); window.Lexum?.navigate('/create-live'); }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold border-b border-gray-100"
-              >
-                <NavIcons.Live className="w-4 h-4 text-red-500 flex-shrink-0" />
-                <span>Go Live</span>
-              </button>
+              {LIVE_STREAMING_ENABLED && (
+                <button
+                  onClick={() => { setCreateMenuOpen(false); window.Lexum?.navigate('/create-live'); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold border-b border-gray-100"
+                >
+                  <NavIcons.Live className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <span>Go Live</span>
+                </button>
+              )}
               <button
                 onClick={() => { setCreateMenuOpen(false); window.Lexum?.navigate('/snaps'); }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold border-b border-gray-100"

@@ -5,7 +5,7 @@ import { cn } from '../../utils/classNames';
 import PostCard from '../../components/ui/PostCard';
 import RichText from '../../components/ui/RichText';
 import StickerPicker from '../../components/ui/StickerPicker';
-import { makeStickerText, isStickerText, parseStickerText } from '../../utils/stickerUtils';
+import { makeStickerText, isStickerText, parseStickerText, withSticker } from '../../utils/stickerUtils';
 import useProfileCache from '../../utils/useProfileCache';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
@@ -16,6 +16,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  const [showReplyInput, setShowReplyInput] = useState(false);
  const [replyText, setReplyText] = useState('');
  const [showReplySticker, setShowReplySticker] = useState(false);
+ const [replyStickerUrl, setReplyStickerUrl] = useState(null);
  const replies = cmt.replies || [];
  const [showReplies, setShowReplies] = useState(() => replies.some(r => followingUsernames.includes(r.username)));
 
@@ -68,29 +69,39 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  </div>
  )}
  {showReplyInput && currentUser && (
- <div className="relative flex items-center gap-2 mt-2 ml-2">
+ <div className="mt-2 ml-2">
+ <div className="relative flex items-center gap-2">
  <input
  type="text"
  value={replyText}
  onChange={e => setReplyText(e.target.value)}
- onKeyDown={e => { if (e.key === 'Enter' && replyText.trim()) { onReply(cmt.id, replyText.trim()); setReplyText(''); setShowReplyInput(false); } }}
+ onKeyDown={e => { if (e.key === 'Enter') { const p = withSticker(replyText, replyStickerUrl); if (p) { onReply(cmt.id, p); setReplyText(''); setReplyStickerUrl(null); setShowReplyInput(false); } } }}
  placeholder="Write a reply..."
  className="flex-1 bg-gray-100 rounded-full px-3 py-1.5 text-xs outline-none text-gray-800 placeholder-gray-400"
  autoFocus
  />
  <button onClick={() => setShowReplySticker(!showReplySticker)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors" title="Add sticker">
- <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><path d="M8 14s1.5 2 4 2 4-2 4-2" strokeLinecap="round" /></svg>
+ <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2"><path d="M15.5 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h6l7-7V7a4 4 0 0 0-4-4Z" strokeLinejoin="round" /><path d="M13 21v-4a4 4 0 0 1 4-4h4" strokeLinejoin="round" /></svg>
  </button>
- {replyText.trim() && (
- <button onClick={() => { onReply(cmt.id, replyText.trim()); setReplyText(''); setShowReplyInput(false); }} className="text-blue-600 font-bold text-xs">
+ {(replyText.trim() || replyStickerUrl) && (
+ <button onClick={() => { const p = withSticker(replyText, replyStickerUrl); if (!p) return; onReply(cmt.id, p); setReplyText(''); setReplyStickerUrl(null); setShowReplyInput(false); }} className="text-blue-600 font-bold text-xs">
  Reply
  </button>
  )}
  {showReplySticker && (
  <StickerPicker
- onSelect={(url) => { setReplyText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowReplySticker(false); }}
+ onSelect={(url) => { setReplyStickerUrl(url); setShowReplySticker(false); }}
  onClose={() => setShowReplySticker(false)}
  />
+ )}
+ </div>
+ {replyStickerUrl && (
+ <div className="flex items-center gap-2 mt-1.5">
+ <img src={replyStickerUrl} alt="" className="w-10 h-10 rounded-lg bg-white object-contain p-0.5 border border-gray-200" />
+ <button onClick={() => setReplyStickerUrl(null)} className="text-gray-400 hover:text-gray-600" title="Remove sticker">
+ <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="m15 9-6 6M9 9l6 6" strokeLinecap="round" /></svg>
+ </button>
+ </div>
  )}
  </div>
  )}
@@ -105,6 +116,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
 function CommentInput({ onSubmit }) {
  const [text, setText] = useState('');
  const [showStickerPicker, setShowStickerPicker] = useState(false);
+ const [stickerUrl, setStickerUrl] = useState(null);
  const inputRef = useRef(null);
 
  // Auto-complete suggestions (mentions/hashtags)
@@ -167,16 +179,18 @@ function CommentInput({ onSubmit }) {
  }
 
  function submitComment() {
- let trimmed = text.trim();
- if (trimmed) {
- onSubmit(trimmed);
+ const payload = withSticker(text, stickerUrl);
+ if (payload) {
+ onSubmit(payload);
  setText('');
+ setStickerUrl(null);
  setSuggestions([]);
  }
  }
 
  return (
- <div className="flex items-center gap-2 relative">
+ <div className="relative">
+ <div className="flex items-center gap-2">
  <img
  src={localStorage.cached_profile_pic || DEFAULT_AVATAR}
  className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100 "
@@ -193,7 +207,7 @@ function CommentInput({ onSubmit }) {
  className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400 text-gray-800 "
  />
  <button onClick={() => setShowStickerPicker(!showStickerPicker)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors" title="Add sticker">
- <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" /><path d="M8 14s1.5 2 4 2 4-2 4-2" strokeLinecap="round" /></svg>
+ <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><path d="M15.5 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h6l7-7V7a4 4 0 0 0-4-4Z" strokeLinejoin="round" /><path d="M13 21v-4a4 4 0 0 1 4-4h4" strokeLinejoin="round" /></svg>
  </button>
  {suggestions.length > 0 && (
  <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
@@ -217,13 +231,22 @@ function CommentInput({ onSubmit }) {
  ))}
  </div>
  )}
- {text.trim() && (
+ {(text.trim() || stickerUrl) && (
  <button onClick={submitComment} className="text-blue-600 font-bold text-xs flex-shrink-0">Post</button>
  )}
  </div>
+ </div>
+ {stickerUrl && (
+ <div className="flex items-center gap-2 mt-1.5 pl-10">
+ <img src={stickerUrl} alt="" className="w-12 h-12 rounded-lg bg-white object-contain p-0.5 border border-gray-200" />
+ <button onClick={() => setStickerUrl(null)} className="text-gray-400 hover:text-gray-600" title="Remove sticker">
+ <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="m15 9-6 6M9 9l6 6" strokeLinecap="round" /></svg>
+ </button>
+ </div>
+ )}
  {showStickerPicker && (
  <StickerPicker
- onSelect={(url) => { setText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); inputRef.current?.focus(); }}
+ onSelect={(url) => { setStickerUrl(url); setShowStickerPicker(false); inputRef.current?.focus(); }}
  onClose={() => setShowStickerPicker(false)}
  />
  )}

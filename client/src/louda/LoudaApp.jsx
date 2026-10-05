@@ -1153,7 +1153,7 @@ const ForwardModal = ({ isOpen, onClose, chats, onForward }) => {
 
   {/* Searching Input */}
   <div className="relative mb-4 shrink-0">
-  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{Icons.search}</div>
+  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center text-gray-400">{Icons.search}</div>
   <input
   type="search"
   placeholder="Search contacts or groups..."
@@ -4855,7 +4855,7 @@ const CreateGroupModal = ({ onClose, onCreate, contacts }) => {
   <div>
   <h3 className="text-[11px] font-black text-green-600 tracking-[0.2em] uppercase opacity-70 mb-4 px-1">Select Members</h3>
   <div className="relative mb-3">
-  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{Icons.search}</div>
+  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center text-gray-400">{Icons.search}</div>
   <input
   type="search"
   placeholder="Search contacts..."
@@ -4929,7 +4929,7 @@ const AddMembersModal = ({ group, onClose, onAdd, contacts }) => {
   <div>
   <h3 className="text-[11px] font-black text-green-600 tracking-[0.2em] uppercase opacity-70 mb-4 px-1">Select Contacts to Add</h3>
   <div className="relative mb-3">
-  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{Icons.search}</div>
+  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center text-gray-400">{Icons.search}</div>
   <input
   type="search"
   placeholder="Search contacts..."
@@ -9003,7 +9003,7 @@ const MobileHome = () => {
   </div>
 
   <div className="relative">
-  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{Icons.search}</div>
+  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center text-gray-400">{Icons.search}</div>
   <input
   type="search"
   placeholder="Search or start new chat"
@@ -9256,7 +9256,7 @@ const MobileHome = () => {
   ) : (
   <>
   <div className="relative">
-  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{Icons.search}</div>
+  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center text-gray-400">{Icons.search}</div>
   <input
   type="text"
   placeholder="Search username or name..."

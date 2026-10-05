@@ -1,2 +1,4 @@
 import CreateLiveContent from './CreateLiveContent';
-export default function CreateLiveMobile() { return <CreateLiveContent />; }
+import { LIVE_STREAMING_ENABLED } from '../../config/live';
+import LiveComingSoon from './LiveComingSoon';
+export default function CreateLiveMobile() { return LIVE_STREAMING_ENABLED ? <CreateLiveContent /> : <LiveComingSoon />; }

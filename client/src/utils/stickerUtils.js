@@ -31,6 +31,15 @@ export function makeStickerText(url) {
   return `[sticker url="${url}"]`;
 }
 
+// Sticker markup goes in the payload only; the input shows typed text and the
+// sticker renders as a preview chip.
+export function withSticker(text, stickerUrl) {
+  const base = (text || '').trim();
+  if (!stickerUrl) return base;
+  const markup = makeStickerText(stickerUrl);
+  return base ? `${base} ${markup}` : markup;
+}
+
 export async function searchGiphStickers(query, signal) {
   const q = (query || '').trim();
   const endpoint = q

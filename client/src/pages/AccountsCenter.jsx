@@ -9,6 +9,7 @@ import RichText from '../components/ui/RichText';
 import AutocompleteDropdown from '../components/layout/AutocompleteDropdown';
 import NavIcons from '../utils/navIcons';
 import MakePostContent from './posts/MakePostContent';
+import { LIVE_STREAMING_ENABLED } from '../config/live';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const K = {
@@ -1925,7 +1926,9 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
 
       <div className="grid grid-cols-2 gap-3">
         <button onClick={() => setTab('composer')} className={cn('h-11 rounded-xl text-white text-sm font-medium transition-all', accent)}>New post</button>
-        <button onClick={() => window.Lexum ? window.Lexum.navigate('/create-live') : (window.location.href = '/create-live')} className="h-11 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">Go live</button>
+        {LIVE_STREAMING_ENABLED && (
+          <button onClick={() => window.Lexum ? window.Lexum.navigate('/create-live') : (window.location.href = '/create-live')} className="h-11 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">Go live</button>
+        )}
       </div>
     </div>
   );

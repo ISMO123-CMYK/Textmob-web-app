@@ -6,6 +6,7 @@ import LiveFeed from '../live/LiveFeed';
 import NotificationBanner from '../../components/layout/NotificationBanner';
 import NavIcons from '../../utils/navIcons';
 import useScrollDirection from '../../utils/useScrollDirection';
+import { LIVE_STREAMING_ENABLED } from '../../config/live';
 
 export default function HomeMobile() {
   const [activeTab, setActiveTab] = useState('posts');
@@ -59,18 +60,20 @@ export default function HomeMobile() {
       )}
 
       {/* Floating Action Button to swap Feed/Live Feed quickly */}
-      <div className="fixed bottom-24 right-4 z-40 md:hidden">
-        <button
-          onClick={() => setActiveTab(activeTab === 'posts' ? 'live' : 'posts')}
-          className="bg-blue-600 text-white rounded-full p-4 shadow-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center border-2 border-white"
-        >
-          {activeTab === 'posts' ? (
-            <NavIcons.Live className="w-6 h-6 animate-pulse" />
-          ) : (
-            <NavIcons.Home className="w-6 h-6" />
-          )}
-        </button>
-      </div>
+      {LIVE_STREAMING_ENABLED && (
+        <div className="fixed bottom-24 right-4 z-40 md:hidden">
+          <button
+            onClick={() => setActiveTab(activeTab === 'posts' ? 'live' : 'posts')}
+            className="bg-blue-600 text-white rounded-full p-4 shadow-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center border-2 border-white"
+          >
+            {activeTab === 'posts' ? (
+              <NavIcons.Live className="w-6 h-6 animate-pulse" />
+            ) : (
+              <NavIcons.Home className="w-6 h-6" />
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Navigation footer */}
       <MobileNav />

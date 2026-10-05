@@ -9,8 +9,8 @@ import RichText from './RichText';
 import { SnapPlayer } from '../../pages/snaps/SnapsContent';
 import GiftCoinsModal from './GiftCoinsModal';
 import StickerPicker from './StickerPicker';
-import { makeStickerText } from '../../utils/stickerUtils';
-import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban, Image } from 'lucide-react';
+import { makeStickerText, withSticker } from '../../utils/stickerUtils';
+import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban, Image, Sticker } from 'lucide-react';
 
 /* ─── constants ─── */
 const DEFAULT_PIC = DEFAULT_AVATAR;
@@ -583,8 +583,9 @@ function useMentions(value, inputRef) {
 function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate, reactionsOpenFor, setReactionsOpenFor, authorProfile }) {
  const [showInput, setShowInput] = useState(false);
  const [text, setText] = useState('');
- const [showStickerPicker, setShowStickerPicker] = useState(false);
- const liked = (post.likes || []).includes(currentUser);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [stickerUrl, setStickerUrl] = useState(null);
+  const liked = (post.likes || []).includes(currentUser);
  const inputRef = useRef(null);
  const { suggestions, setSuggestions, activeIndex, setActiveIndex, queryInfo, setQueryInfo } = useMentions(text, inputRef);
  const abGuest = !localStorage.currentUser;
@@ -611,15 +612,16 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
  }
  }
 
- function submitComment() {
- let trimmed = text.trim();
- if (trimmed) {
- handleComment(post.id, trimmed);
- setText('');
- setShowInput(false);
- setSuggestions([]);
- }
- }
+  function submitComment() {
+  const payload = withSticker(text, stickerUrl);
+  if (payload) {
+  handleComment(post.id, payload);
+  setText('');
+  setStickerUrl(null);
+  setShowInput(false);
+  setSuggestions([]);
+  }
+  }
 
  return (
  <div className="mt-2">
@@ -678,36 +680,46 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
  <span className="font-semibold text-blue-600 ">Log in</span> to leave a comment
  </div>
  )}
- {showCommentInput && showInput && currentUser && (
- <div className="flex items-center gap-2 mt-2">
- <img src={localStorage.cached_profile_pic || `${DEFAULT_PIC}`} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
- <div className="flex-1 flex items-center bg-gray-100 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-blue-100 transition-all relative">
- <input
- ref={inputRef}
- autoFocus
- type="text"
- value={text}
- onChange={e => setText(e.target.value)}
- onKeyDown={onKeyDown}
- placeholder="Write a comment…"
- className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400 text-gray-800 "
- />
- <SuggestionDropdown items={suggestions} onSelect={selectSuggestion} activeIndex={activeIndex} />
- <button onClick={() => setShowStickerPicker(!showStickerPicker)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors" title="Add sticker">
- <Image className="w-4 h-4" strokeWidth={2} />
- </button>
- {text.trim() && (
- <button onClick={submitComment} className="text-blue-600 font-bold text-xs flex-shrink-0">Post</button>
- )}
- </div>
- {showStickerPicker && (
- <StickerPicker
- onSelect={(url) => { setText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); inputRef.current?.focus(); }}
- onClose={() => setShowStickerPicker(false)}
- />
- )}
- </div>
- )}
+  {showCommentInput && showInput && currentUser && (
+  <div className="mt-2">
+  {stickerUrl && (
+  <div className="flex items-center gap-2 mb-1.5 pl-10">
+  <img src={stickerUrl} alt="" className="w-12 h-12 rounded-lg bg-gray-100 object-contain p-0.5" />
+  <button onClick={() => setStickerUrl(null)} className="text-gray-400 hover:text-gray-600" title="Remove sticker">
+  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="m15 9-6 6M9 9l6 6" strokeLinecap="round" /></svg>
+  </button>
+  </div>
+  )}
+  <div className="flex items-center gap-2">
+  <img src={localStorage.cached_profile_pic || `${DEFAULT_PIC}`} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
+  <div className="flex-1 flex items-center bg-gray-100 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-blue-100 transition-all relative">
+  <input
+  ref={inputRef}
+  autoFocus
+  type="text"
+  value={text}
+  onChange={e => setText(e.target.value)}
+  onKeyDown={onKeyDown}
+  placeholder="Write a comment…"
+  className="flex-1 bg-transparent text-sm outline-none placeholder-gray-400 text-gray-800 "
+  />
+  <SuggestionDropdown items={suggestions} onSelect={selectSuggestion} activeIndex={activeIndex} />
+  <button onClick={() => setShowStickerPicker(!showStickerPicker)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 transition-colors" title="Add sticker">
+  <Sticker className="w-4 h-4" strokeWidth={2} />
+  </button>
+  {(text.trim() || stickerUrl) && (
+  <button onClick={submitComment} className="text-blue-600 font-bold text-xs flex-shrink-0">Post</button>
+  )}
+  </div>
+  {showStickerPicker && (
+  <StickerPicker
+  onSelect={(url) => { setStickerUrl(url); setShowStickerPicker(false); inputRef.current?.focus(); }}
+  onClose={() => setShowStickerPicker(false)}
+  />
+  )}
+  </div>
+  </div>
+  )}
  </div>
  );
 }
