@@ -72,21 +72,23 @@ export async function apiFetch<T = any>(
     if (inflight) return inflight as Promise<ApiResponse<T>>;
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-
-  const finalOptions: RequestInit = {
-    ...options,
-    signal: controller.signal,
-  };
-
   const doFetch = async (attempt: number): Promise<ApiResponse<T>> => {
+    // Fresh controller per attempt. A reused one stays aborted forever, so a
+    // timeout retry could never actually re-send anything.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
     try {
+      const finalOptions: RequestInit = {
+        ...options,
+        signal: controller.signal,
+      };
+
       const url = endpoint.startsWith('http')
         ? endpoint
         : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
       const headers: Record<string, string> = {
+        Accept: 'application/json',
         ...(options.headers as Record<string, string>),
       };
 
@@ -100,25 +102,39 @@ export async function apiFetch<T = any>(
       });
 
       const contentType = res.headers.get('content-type') || '';
-      let data: any;
+      let data: any = null;
+      let parsed = false;
 
       if (contentType.includes('application/json')) {
         data = await res.json();
+        parsed = true;
       } else {
-        const text = await res.text();
+        const text = await res.text().catch(() => '');
         try {
           data = JSON.parse(text);
+          parsed = true;
         } catch {
-          data = text;
+          parsed = false;
         }
       }
 
       if (!res.ok) {
         return {
           ok: false,
-          error: data?.error || `HTTP ${res.status}`,
+          error: (parsed && data?.error) || `HTTP ${res.status}`,
           status: res.status,
-          data,
+          ...(parsed ? { data } : {}),
+        };
+      }
+
+      // 200 with a non-JSON body (the backend used to answer unknown API routes
+      // with a full HTML page). Handing that to callers as success meant it got
+      // cached and rendered as if it were real data.
+      if (!parsed) {
+        return {
+          ok: false,
+          error: `Non-JSON response (HTTP ${res.status}, ${contentType || 'no content-type'})`,
+          status: res.status,
         };
       }
 
@@ -128,20 +144,23 @@ export async function apiFetch<T = any>(
 
       return { ok: true, data, status: res.status };
     } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        if (attempt < retries) {
-          return doFetch(attempt + 1);
-        }
-        return { ok: false, error: 'Request timed out', status: 0 };
-      }
-      if (attempt < retries) {
+      const isTimeout = err?.name === 'AbortError';
+      const isNetwork =
+        (err instanceof TypeError || err?.name === 'TypeError') &&
+        /network request failed|failed to fetch|fetch failed/i.test(err?.message || '');
+      // Only transport failures are worth another attempt. An HTTP error or a
+      // malformed payload is deterministic — retrying just spends the same
+      // bytes twice for the same answer.
+      if ((isTimeout || isNetwork) && attempt < retries) {
         return doFetch(attempt + 1);
       }
       return {
         ok: false,
-        error: err?.message || 'Network error',
+        error: isTimeout ? 'Request timed out' : err?.message || 'Network error',
         status: 0,
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
@@ -151,7 +170,6 @@ export async function apiFetch<T = any>(
     promise.finally(() => inflightDedup.delete(cacheKey!));
   }
 
-  promise.finally(() => clearTimeout(timeoutId));
   return promise;
 }
 

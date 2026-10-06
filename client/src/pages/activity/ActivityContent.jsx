@@ -50,7 +50,7 @@ export default function ActivityContent({ onClose }) {
   function processNotifications(list) {
     return (list || []).map(item => ({
       ...item,
-      avatar: item.avatar || item.senderPic || item.sender_pic || getAvatarFallback(item.sender || item.username || 'User')
+      avatar: (item.data && item.data.actor && item.data.actor.profile_pic) || item.avatar || item.senderPic || item.sender_pic || getAvatarFallback(item.sender || item.username || 'User')
     }));
   }
 
@@ -110,6 +110,22 @@ export default function ActivityContent({ onClose }) {
     if (!item.link) return;
     if (!item.read) markAsRead(item.id);
     window.Lexum?.navigate(item.link);
+  }
+
+  // Reply straight from the notification: open the post with that comment's
+  // reply box already expanded and focused (PostContent reads ?reply=).
+  function replyAndMark(item) {
+    if (!item.link || !item.link.startsWith('/post/')) return;
+    if (!item.read) markAsRead(item.id);
+    const postId = item.link.replace('/post/', '').split('?')[0];
+    const d = item.data || {};
+    const target = d.commentId || d.parentId || '';
+    const who = d.replyToUsername || item.sender || '';
+    const qs = new URLSearchParams();
+    if (target) qs.set('reply', String(target));
+    if (who) qs.set('replyUser', String(who));
+    const suffix = qs.toString();
+    window.Lexum?.navigate(`/post/${postId}${suffix ? `?${suffix}` : ''}`);
   }
 
   // Clear all notifications (batch delete + live reload)
@@ -224,6 +240,31 @@ export default function ActivityContent({ onClose }) {
           <path d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
         </svg>
       ),
+      post: (
+        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current">
+          <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        </svg>
+      ),
+      reply: (
+        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current">
+          <path d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+        </svg>
+      ),
+      friend: (
+        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current">
+          <path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      ),
+      messages: (
+        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current">
+          <path d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.76 9.76 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+        </svg>
+      ),
+      statuses: (
+        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current">
+          <path d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+        </svg>
+      ),
       system: (
         <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current">
           <path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
@@ -250,6 +291,11 @@ export default function ActivityContent({ onClose }) {
         verification: 'bg-cyan-100 text-cyan-500',
         textmobai: 'bg-violet-100 text-violet-500',
         askify: 'bg-slate-100 text-slate-600',
+        post: 'bg-indigo-100 text-indigo-500',
+        reply: 'bg-blue-100 text-blue-500',
+        friend: 'bg-green-100 text-emerald-600',
+        messages: 'bg-green-100 text-green-600',
+        statuses: 'bg-fuchsia-100 text-fuchsia-500',
         system: 'bg-gray-100 text-gray-500',
       }[type] || 'bg-gray-100 text-gray-500';
       return (
@@ -335,6 +381,21 @@ export default function ActivityContent({ onClose }) {
                 Open
               </button>
             )}
+            {item.data?.replyable !== false && !!item.link && item.link.startsWith('/post/') && (
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 active:bg-blue-100 border-b border-gray-100 transition-colors text-left font-semibold"
+                onClick={() => {
+                  setOpenMenuId(null);
+                  replyAndMark(item);
+                }}
+              >
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 17 4 12 9 7" />
+                  <path d="M20 18v-2a4 4 0 00-4-4H4" />
+                </svg>
+                Reply
+              </button>
+            )}
             <button
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors text-left font-semibold"
               onClick={() => deleteSingleNotification(item.id)}
@@ -373,13 +434,24 @@ export default function ActivityContent({ onClose }) {
       verification: { ring: 'ring-1 ring-cyan-200', bg: 'bg-cyan-50/30', text: 'text-gray-800' },
       textmobai: { ring: 'ring-1 ring-violet-200', bg: 'bg-violet-50/30', text: 'text-gray-800' },
       askify: { ring: 'ring-1 ring-slate-200', bg: 'bg-slate-50/30', text: 'text-gray-800' },
+      post: { ring: 'ring-1 ring-indigo-200', bg: 'bg-indigo-50/30', text: 'text-gray-800' },
+      reply: { ring: 'ring-1 ring-blue-200', bg: 'bg-blue-50/30', text: 'text-gray-800' },
+      friend: { ring: 'ring-1 ring-emerald-200', bg: 'bg-emerald-50/30', text: 'text-gray-800' },
+      messages: { ring: 'ring-1 ring-green-200', bg: 'bg-green-50/30', text: 'text-gray-800' },
+      statuses: { ring: 'ring-1 ring-fuchsia-200', bg: 'bg-fuchsia-50/30', text: 'text-gray-800' },
     };
-    const info = typeInfo[type] || { ring: 'border border-gray-100', bg: '', text: 'text-gray-800' };
+    const d = item.data || {};
+    const kind = d.kind || type;
+    const info = typeInfo[kind] || typeInfo[type] || { ring: 'border border-gray-100', bg: '', text: 'text-gray-800' };
     const showChip = item.link &&
       item.link !== '/' &&
       !item.link.startsWith('/@') &&
       !item.link.startsWith('/accountscenter') &&
       !item.link.startsWith('/wallet');
+    const mediaUri = d.image || d.sticker || d.video || '';
+    const tags = Array.isArray(d.tags) ? d.tags : [];
+    const reaction = d.reaction || '';
+    const canReply = d.replyable !== false && !!item.link && item.link.startsWith('/post/');
     return (
       <li
         className={`relative flex items-start gap-3 px-4 py-3.5 border-b border-gray-100 active:bg-gray-50/50 transition-colors cursor-pointer ${
@@ -390,7 +462,7 @@ export default function ActivityContent({ onClose }) {
         <div className="relative flex-shrink-0">
           <img src={item.avatar} alt={item.sender || 'user'} className={`w-10 h-10 rounded-full object-cover ${info.ring}`} />
           <span className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-0.5 shadow-sm">
-            <TypeBadge type={item.type} />
+            <TypeBadge type={kind || type} />
           </span>
         </div>
         <div className="flex-1 min-w-0">
@@ -398,8 +470,24 @@ export default function ActivityContent({ onClose }) {
             className={`text-sm leading-snug ${info.text}`}
             dangerouslySetInnerHTML={{ __html: item.message }}
           />
-          <div className="flex items-center gap-2 mt-1.5">
+          {mediaUri && (
+            <div className="flex items-center gap-3 mt-2 p-2 rounded-xl bg-gray-50 border border-gray-100">
+              <img src={mediaUri} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-gray-100" />
+              {d.text && (
+                <p className="text-xs text-gray-500 leading-snug flex-1 min-w-0 line-clamp-3">{d.text}</p>
+              )}
+            </div>
+          )}
+          {tags.length > 0 && (
+            <p className="text-xs font-semibold text-blue-600 mt-1.5 truncate">
+              {tags.slice(0, 5).map(t => (String(t).startsWith('#') ? t : '#' + t)).join('  ')}
+            </p>
+          )}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <p className="text-xs text-gray-400 font-medium">{formatTime(item.timestamp || item.created_at)}</p>
+            {reaction && (
+              <span className="text-xs bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5">{reaction}</span>
+            )}
             {showChip && (
               <a
                 href={item.link}
@@ -408,6 +496,15 @@ export default function ActivityContent({ onClose }) {
               >
                 View post →
               </a>
+            )}
+            {canReply && (
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); replyAndMark(item); }}
+                className="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 px-2 py-0.5 rounded-full transition-colors"
+              >
+                ↩ Reply
+              </button>
             )}
           </div>
         </div>

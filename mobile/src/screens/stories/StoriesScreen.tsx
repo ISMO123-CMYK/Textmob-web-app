@@ -13,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { uploadFile } from '../../api/client';
 import { timeAgo } from '../../utils/format';
 import { withExtension } from '../../utils/media';
+import { imageUrl } from '../../utils/cloudinary';
 
 export default function StoriesScreen({ navigation }: { navigation: any }) {
   const { colors, isDark } = useTheme();
@@ -97,10 +98,14 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
           data={stories}
           keyExtractor={(_, i) => String(i)}
           numColumns={3}
+          initialNumToRender={9}
+          maxToRenderPerBatch={9}
+          windowSize={7}
+          removeClippedSubviews
           renderItem={({ item }) => (
             <Ripple style={s.storyItem} onPress={() => setViewingStory(item)}>
               {item.media?.[0] ? (
-                <Image source={{ uri: item.media[0] }} style={s.storyMedia} />
+                <Image source={{ uri: imageUrl(item.media[0], 360) }} style={s.storyMedia} />
               ) : (
                 <View style={[s.storyTextOnly, { backgroundColor: colors.border }]}>
                   <Text style={[s.storyUser, { color: colors.textPrimary }]}>{item.username}</Text>

@@ -25,6 +25,12 @@ export function getTextmobUserSync(): string {
   return cachedTextmobUsername;
 }
 
+// Logout must drop the synchronous cache too — otherwise a registration fired
+// right after switching accounts still resolves to the PREVIOUS username.
+export function clearTextmobUserCache() {
+  cachedTextmobUsername = '';
+}
+
 export async function getLoudaUserId(): Promise<string> {
   try {
     const v = await getStore(LOUDA_USER_ID_KEY);
@@ -133,9 +139,9 @@ export function drainPendingIntents(): { type: string; detail: any }[] {
   return pendingIntents.splice(0, pendingIntents.length);
 }
 
-export async function openChatWith(username: string) {
+export async function openChatWith(username: string, opts?: { focusComposer?: boolean }) {
   if (!username) return;
-  emitIntent('louda:open-chat', { username });
+  emitIntent('louda:open-chat', { username, focusComposer: !!opts?.focusComposer });
 }
 
 export async function openGroupChatWith(groupId: string) {

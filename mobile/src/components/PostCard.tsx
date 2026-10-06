@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, Image, StyleSheet, TextInput, Modal,
-  FlatList, ActivityIndicator, Alert, Pressable, ScrollView, Dimensions, Share, Animated, useWindowDimensions, PanResponder,
+  FlatList, ActivityIndicator, Alert, Pressable, ScrollView, Dimensions, Share, Animated, useWindowDimensions, PanResponder, Linking,
 } from 'react-native';
 import { Ripple } from './Ripple';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
@@ -15,11 +15,13 @@ import { useNavigation } from '@react-navigation/native';
 import {
   likePostAPI, addCommentAPI, reactPostAPI, getPostReactionsAPI,
   votePollAPI, Post, Comment, Reaction,
+  likeCount, commentCount, viewerLiked, seedLikes, seedComments,
 } from '../api/posts';
 import { apiGet, apiPost } from '../api/client';
 import { storage, KEYS } from '../utils/storage';
 import { getProfileAPI } from '../api/auth';
 import { timeAgo } from '../utils/format';
+import { imageUrl, posterUrlFor } from '../utils/cloudinary';
 import StickerPicker from './StickerPicker';
 import { makeStickerText, parseStickerText, withSticker } from '../utils/stickerUtils';
 import GiftCoinsModal from './GiftCoinsModal';
@@ -249,7 +251,7 @@ function QuotedPostView({ quotedPostId, onNavigate }: { quotedPostId: string; on
       </View>
       <RichText text={post.text || ''} style={[qStyles.text, { color: colors.textSecondary }]} />
       {post.media && post.media.length > 0 && (
-        <Image source={{ uri: post.media[0] }} style={qStyles.thumb} resizeMode="cover" />
+        <Image source={{ uri: imageUrl(post.media[0], 360) }} style={qStyles.thumb} resizeMode="cover" />
       )}
     </Ripple>
   );
@@ -267,6 +269,10 @@ const qStyles = StyleSheet.create({
 function VideoThumbnail({ uri, aspectRatio, noMargin, onPress }: { uri: string; aspectRatio: number; noMargin?: boolean; onPress: () => void }) {
   const [imgError, setImgError] = useState(false);
   const { SCREEN_HEIGHT } = getScreenDims();
+  // Cover frame uploaded alongside the video (server/media.js). Without it
+  // <Image> can't decode a video URL at all and every card fell back to the
+  // grey placeholder.
+  const cover = posterUrlFor(uri) || uri;
   return (
     <Ripple
       onPress={onPress}
@@ -278,7 +284,7 @@ function VideoThumbnail({ uri, aspectRatio, noMargin, onPress }: { uri: string; 
           <Ionicons name="videocam" size={40} color="rgba(255,255,255,0.3)" />
         </View>
       ) : (
-        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" onError={() => setImgError(true)} />
+        <Image source={{ uri: cover }} style={{ width: '100%', height: '100%' }} resizeMode="cover" onError={() => setImgError(true)} />
       )}
       <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' }}>
         <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
@@ -289,14 +295,21 @@ function VideoThumbnail({ uri, aspectRatio, noMargin, onPress }: { uri: string; 
   );
 }
 
+// The native player has to stay unmounted while the modal is closed — mounted
+// for every video card in the feed it meant N decoders alive and buffering.
 function VideoPlayerFullscreen({ uri, visible, onClose }: { uri: string; visible: boolean; onClose: () => void }) {
+  if (!visible) return null;
+  return <ActiveFullscreenPlayer uri={uri} onClose={onClose} />;
+}
+
+function ActiveFullscreenPlayer({ uri, onClose }: { uri: string; onClose: () => void }) {
   const player = useVideoPlayer(uri, p => { p.loop = false; p.muted = false; });
   useEffect(() => {
-    if (visible) player.play();
-    else player.pause();
-  }, [visible, player]);
+    player.play();
+    return () => { player.pause(); };
+  }, [player]);
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         <VideoView player={player} style={{ flex: 1 }} nativeControls contentFit="contain" />
         <Ripple onPress={onClose} style={{ position: 'absolute', top: 50, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
@@ -314,7 +327,7 @@ function MediaItem({ uri, isActive, onPress }: { uri: string; isActive?: boolean
   }
   return (
     <Ripple onPress={onPress} activeOpacity={0.9}>
-      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      <Image source={{ uri: imageUrl(uri, 1000) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
     </Ripple>
   );
 }
@@ -331,16 +344,17 @@ function VideoItem({ uri, noMargin }: { uri: string; isActive?: boolean; noMargi
 
 function SingleImage({ src, onOpenLightbox }: { src: string; onOpenLightbox?: (idx: number) => void }) {
   const [aspectRatio, setAspectRatio] = useState(1.5);
+  const displaySrc = imageUrl(src, 1000) || src;
 
   useEffect(() => {
-    Image.getSize(src, (w, h) => {
+    Image.getSize(displaySrc, (w, h) => {
       if (w && h) setAspectRatio(w / h);
     }, () => { });
-  }, [src]);
+  }, [displaySrc]);
 
   return (
     <Ripple onPress={() => onOpenLightbox?.(0)} style={{ marginBottom: 10 }}>
-      <Image source={{ uri: src }} style={{ width: '100%', aspectRatio, borderRadius: 12 }} resizeMode="contain" />
+      <Image source={{ uri: displaySrc }} style={{ width: '100%', aspectRatio, borderRadius: 12 }} resizeMode="contain" />
     </Ripple>
   );
 }
@@ -361,7 +375,7 @@ function MediaGallery({ media, isActive, onOpenLightbox }: { media: string[]; is
     const isLast = i === 5 && count > 6;
     return (
       <Ripple key={i} onPress={() => onOpenLightbox?.(i)} style={{ flex: 1, aspectRatio: 1, overflow: 'hidden' }}>
-        {isVideo(src) ? <VideoItem uri={src} /> : <Image source={{ uri: src }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />}
+        {isVideo(src) ? <VideoItem uri={src} /> : <Image source={{ uri: imageUrl(src, 360) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />}
         {isLast && <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>+{count - 6}</Text></View>}
       </Ripple>
     );
@@ -511,7 +525,7 @@ function EventCard({ post, onLike }: { post: Post; onLike: (id: string | number)
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
   const ended = new Date(post.scheduled_for || '') <= new Date();
-  const liked = post.likes?.includes(username || '');
+  const liked = viewerLiked(post, username);
   const dateStr = post.scheduled_for ? new Date(post.scheduled_for).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
@@ -538,7 +552,7 @@ function EventCard({ post, onLike }: { post: Post; onLike: (id: string | number)
           >
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={14} color={liked ? '#fff' : ended ? colors.textSecondary : colors.primary} />
             <Text style={[eStyles.interestText, { color: liked ? '#fff' : ended ? colors.textSecondary : colors.primary }]}>
-              {ended ? `${post.likes?.length || 0} attended` : liked ? `${post.likes?.length || 0} interested · tap to remove` : `${post.likes?.length || 0} interested`}
+              {ended ? `${likeCount(post)} attended` : liked ? `${likeCount(post)} interested · tap to remove` : `${likeCount(post)} interested`}
             </Text>
           </Ripple>
         </View>
@@ -562,7 +576,7 @@ function LiveEndedCard({ post }: { post: Post }) {
   return (
     <View style={{ marginBottom: 12 }}>
       <View style={{ borderRadius: 16, overflow: 'hidden', position: 'relative' }}>
-        <Image source={{ uri: post.media?.[0] || DEFAULT_PIC }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
+        <Image source={{ uri: imageUrl(post.media?.[0], 1000) || DEFAULT_PIC }} style={{ width: '100%', height: 180 }} resizeMode="cover" />
         <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 }}>
             <Ionicons name="pause-circle" size={16} color="#d1d5db" />
@@ -589,12 +603,12 @@ function LiveCard({ post, viewerCount, onLike, onWatch }: { post: Post; viewerCo
   const { colors } = useTheme();
   const { username } = useAuth();
   const authorProfile = useProfileCache(post.username);
-  const liked = post.likes?.includes(username || '');
+  const liked = viewerLiked(post, username);
 
   return (
     <View style={{ marginBottom: 12 }}>
       <View style={{ borderRadius: 16, overflow: 'hidden', position: 'relative' }}>
-        <Image source={{ uri: post.media?.[0] || authorProfile.profile_pic || DEFAULT_PIC }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
+        <Image source={{ uri: imageUrl(post.media?.[0], 1000) || imageUrl(authorProfile.profile_pic, 128) || DEFAULT_PIC }} style={{ width: '100%', height: 200 }} resizeMode="cover" />
         <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)' }} />
         <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#dc2626', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 }}>
@@ -617,7 +631,7 @@ function LiveCard({ post, viewerCount, onLike, onWatch }: { post: Post; viewerCo
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Image source={{ uri: authorProfile.profile_pic || DEFAULT_PIC }} style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#dc2626' }} />
+          <Image source={{ uri: imageUrl(authorProfile.profile_pic, 128) || DEFAULT_PIC }} style={{ width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#dc2626' }} />
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
               <Text style={[{ color: colors.textPrimary, fontSize: 13, fontWeight: '700' }]}>{authorProfile.fullname || post.username}</Text>
@@ -629,11 +643,11 @@ function LiveCard({ post, viewerCount, onLike, onWatch }: { post: Post; viewerCo
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <Ripple onPress={() => onLike(post.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={16} color={liked ? '#ef4444' : colors.textSecondary} />
-            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{post.likes?.length || 0}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{likeCount(post)}</Text>
           </Ripple>
           <Ripple style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
-            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{post.comments?.length || 0}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{commentCount(post)}</Text>
           </Ripple>
         </View>
       </View>
@@ -641,11 +655,115 @@ function LiveCard({ post, viewerCount, onLike, onWatch }: { post: Post; viewerCo
   );
 }
 
+/** Shared in-app link router (mentions, hashtags, textmob.web.app deep links). */
+function usePostNavigation() {
+  const navigation = useNavigation<any>();
+  const { username } = useAuth();
+  return useCallback((path: string) => {
+    if (!username) { Alert.alert('Sign in', 'Create an account to interact'); return; }
+    if (path.startsWith('/post/')) navigation.navigate('PostDetail', { postId: path.replace('/post/', '') });
+    else if (path.startsWith('/make-post/')) navigation.navigate('CreatePost', { quotePostId: path.replace('/make-post/', '') });
+    else if (path.startsWith('/@')) navigation.navigate('Profile', { username: path.replace('/@', '') });
+    else if (path.startsWith('/live/')) navigation.navigate('LiveView', { postId: path.replace('/live/', '') });
+    else if (path.startsWith('/tag/')) navigation.navigate('Hashtag', { tag: decodeURIComponent(path.replace('/tag/', '')).replace(/^#/, '') });
+    else if (path.startsWith('/search')) navigation.navigate('Search');
+  }, [navigation, username]);
+}
+
+/** Twitter-style post header row (avatar · name/handle/time · menu). */
+export const PostHeaderRow = React.memo(function PostHeaderRow({
+  post, onNegativeSignal, onBlocked, onNavigate,
+}: {
+  post: Post;
+  onNegativeSignal?: (postId: string, signal: string, contentType: string) => void;
+  onBlocked?: (blockedUsername: string) => void;
+  onNavigate?: (path: string) => void;
+}) {
+  const { colors } = useTheme();
+  const authorProfile = useProfileCache(post.username);
+  const go = usePostNavigation();
+  const navigate = onNavigate || go;
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <View style={s.header}>
+      <Ripple style={s.authorRow} onPress={() => navigate(`/@${post.username}`)}>
+        <Image source={{ uri: imageUrl(authorProfile.profile_pic, 128) || DEFAULT_PIC }} style={s.avatar} />
+        <View style={{ flex: 1 }}>
+          <View style={s.nameRow}>
+            <Text style={[s.authorName, { color: colors.textPrimary }]} numberOfLines={1}>{authorProfile.fullname || post.username}</Text>
+            {post.verified && <VerifiedBadge size={15} />}
+            {(post as any).boost_score > 0 && (
+              <View style={s.boosted}>
+                <Ionicons name="flash" size={10} color="#f97316" />
+                <Text style={s.boostedText}>Boosted</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[s.handleLine, { color: colors.textSecondary }]} numberOfLines={1}>
+            @{post.username} · {timeAgo(post.created_at)}{post.activities ? ` · feeling ${post.activities}` : ''}
+          </Text>
+        </View>
+      </Ripple>
+      <View style={s.headerRight}>
+        <FollowButton targetUsername={post.username} />
+        <Ripple onPress={() => setMenuOpen(true)} style={s.menuBtn} hitSlop={8}>
+          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+        </Ripple>
+      </View>
+      <PostMenu visible={menuOpen} onClose={() => setMenuOpen(false)} post={post} onNegativeSignal={onNegativeSignal} onBlocked={onBlocked} />
+    </View>
+  );
+});
+
+/** Server-fetched link preview card (low-data: single small image, 2-line desc). */
+function LinkPreview({ preview, onNavigate }: { preview: any; onNavigate: (path: string) => void }) {
+  const { colors, isDark } = useTheme();
+  if (!preview || !preview.url) return null;
+  let host = '';
+  try { host = new URL(preview.url).hostname.replace(/^www\./, ''); } catch { return null; }
+
+  const open = () => {
+    try {
+      const u = new URL(preview.url);
+      if (/(^|\.)textmob\.web\.app$/i.test(u.hostname)) {
+        const path = (u.pathname || '/') + (u.search || '');
+        if (/^\/(post\/|@|make-post|snaps|chats|wallet|events|live\/|saved|connections|discussions|tag\/|search)/.test(path)) {
+          onNavigate(path);
+          return;
+        }
+      }
+    } catch { /* fall through */ }
+    Linking.openURL(preview.url).catch(() => {});
+  };
+
+  return (
+    <Ripple onPress={open} style={[lp.card, { borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)', backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : '#fff' }]}>
+      {preview.image ? <Image source={{ uri: preview.image }} style={lp.image} resizeMode="cover" /> : null}
+      <View style={lp.body}>
+        <Text style={[lp.host, { color: colors.textSecondary }]} numberOfLines={1}>{host}</Text>
+        {preview.title ? <Text style={[lp.title, { color: colors.textPrimary }]} numberOfLines={1}>{preview.title}</Text> : null}
+        {preview.description ? <Text style={[lp.desc, { color: colors.textSecondary }]} numberOfLines={2}>{preview.description}</Text> : null}
+      </View>
+    </Ripple>
+  );
+}
+const lp = StyleSheet.create({
+  card: { marginTop: 10, borderWidth: 1, borderRadius: 14, overflow: 'hidden' },
+  image: { width: '100%', height: 150, backgroundColor: '#e5e7eb' },
+  body: { paddingHorizontal: 12, paddingVertical: 10 },
+  host: { fontSize: 12 },
+  title: { fontSize: 15, fontWeight: '700', lineHeight: 20, marginTop: 2 },
+  desc: { fontSize: 13, lineHeight: 18, marginTop: 2 },
+});
+
 interface PostCardProps {
   post: Post;
   isActive?: boolean;
   showViewButton?: boolean;
   showCommentInput?: boolean;
+  /** Post detail screen renders its own sticky header above the list. */
+  hideHeader?: boolean;
   /** Controlled comment modal (Post viewer's bottom bar opens this one). */
   commentModalOpen?: boolean;
   onCommentModalChange?: (open: boolean) => void;
@@ -684,7 +802,7 @@ export function PostSkeleton() {
   );
 }
 const skStyles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 12 },
+  card: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth },
 });
 
 function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive }: { post: Post; authorProfile: any; handleLike: () => void; liked: boolean; navigate: (path: string) => void; isActive?: boolean }) {
@@ -708,7 +826,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
       {isVid && mediaUrl ? (
         <SnapVideoPlayer mediaUrl={mediaUrl} isActive={!!isActive} isMuted={muted} />
       ) : mediaUrl ? (
-        <Image source={{ uri: mediaUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        <Image source={{ uri: imageUrl(mediaUrl, 1000) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
       ) : (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: isDark ? '#1e293b' : '#111' }}>
           <Text style={{ color: '#fff', fontSize: 16, textAlign: 'center', lineHeight: 22 }}>{post.text}</Text>
@@ -718,7 +836,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
       {/* Top Overlay Header */}
       <View style={{ position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
         <Ripple style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }} onPress={() => navigate(`/@${post.username}`)}>
-          <Image source={{ uri: authorProfile.profile_pic }} style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: '#fff' }} />
+          <Image source={{ uri: authorProfile.profile_pic ? imageUrl(authorProfile.profile_pic, 128) : undefined }} style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: '#fff' }} />
           <View>
             <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 }}>
               {authorProfile.fullname || post.username}
@@ -739,14 +857,14 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
           <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? '#ef4444' : '#fff'} />
           </View>
-          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600', marginTop: 2 }}>{post.likes?.length || 0}</Text>
+          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600', marginTop: 2 }}>{likeCount(post)}</Text>
         </Ripple>
 
         <Ripple style={{ alignItems: 'center' }} onPress={() => navigation.navigate('Snaps')}>
           <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chatbubble-outline" size={18} color="#fff" />
           </View>
-          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600', marginTop: 2 }}>{post.comments?.length || 0}</Text>
+          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600', marginTop: 2 }}>{commentCount(post)}</Text>
         </Ripple>
 
         {isVid && (
@@ -776,17 +894,16 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
 
 const PostCard = React.memo(function PostCard({
   post, isActive, showViewButton, showCommentInput, viewerCount = 0,
-  commentModalOpen, onCommentModalChange,
+  commentModalOpen, onCommentModalChange, hideHeader,
   reactionCounts: externalReactionCounts, onReactionToggle,
   onVotePoll, onComment, onLike, onReact, onNegativeSignal, onBlocked,
 }: PostCardProps) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
   const { emit } = useSocket();
-  const navigation = useNavigation<any>();
+  const navigate = usePostNavigation();
   const authorProfile = useProfileCache(post.username);
 
-  const [menuOpen, setMenuOpen] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [showCommentFieldState, setShowCommentFieldState] = useState(false);
    const [commentText, setCommentText] = useState('');
@@ -801,32 +918,33 @@ const PostCard = React.memo(function PostCard({
    const [textExpanded, setTextExpanded] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [localReactionCounts, setLocalReactionCounts] = useState<{ counts: Record<string, number>; userReaction: string | null }>({ counts: {}, userReaction: null });
-  const [localComments, setLocalComments] = useState<Comment[]>(post.comments || []);
-  const [localLikes, setLocalLikes] = useState<string[]>(post.likes || []);
+  const [localComments, setLocalComments] = useState<Comment[]>(seedComments(post));
+  const [localLikes, setLocalLikes] = useState<string[]>(seedLikes(post, username));
 
   const reactionData = externalReactionCounts?.[String(post.id)] || localReactionCounts || { counts: {}, userReaction: null };
   const { counts: reactionCounts, userReaction } = reactionData;
 
+  const likesN = likeCount(post);
+  const commentsN = commentCount(post);
   useEffect(() => {
-    setLocalLikes(post.likes || []);
-    setLocalComments(post.comments || []);
-  }, [post.id, post.likes?.length, post.comments?.length]);
+    setLocalLikes(seedLikes(post, username));
+    setLocalComments(seedComments(post));
+  }, [post.id, likesN, commentsN]);
 
+  // The feed already ships `reactions` on every post, so derive the counts
+  // from it. This used to fire one GET per card against an endpoint the backend
+  // does not implement.
   useEffect(() => {
-    if (!onReact && post.id) {
-      getPostReactionsAPI(String(post.id)).then(r => {
-        if (r.ok && r.data) {
-          const counts: Record<string, number> = {};
-          let ur: string | null = null;
-          r.data.reactions?.forEach(re => {
-            counts[re.reaction] = (counts[re.reaction] || 0) + 1;
-            if (re.username === username) ur = re.reaction;
-          });
-          setLocalReactionCounts({ counts, userReaction: ur });
-        }
-      });
-    }
-  }, [post.id, username, onReact]);
+    if (onReact || !post.id) return;
+    const counts: Record<string, number> = {};
+    let ur: string | null = null;
+    (Array.isArray(post.reactions) ? post.reactions : []).forEach(re => {
+      if (!re?.reaction) return;
+      counts[re.reaction] = (counts[re.reaction] || 0) + 1;
+      if (re.username === username) ur = re.reaction;
+    });
+    setLocalReactionCounts({ counts, userReaction: ur });
+  }, [post.id, post.reactions, username, onReact]);
 
   // Track view via socket
   useEffect(() => {
@@ -843,7 +961,7 @@ const PostCard = React.memo(function PostCard({
     if (authGuard('Log in to like posts')) return;
     setLocalLikes(prev => prev.includes(username!) ? prev.filter(u => u !== username!) : [...prev, username!]);
     onLike?.(post.id);
-    likePostAPI(String(post.id), username!).catch(() => setLocalLikes(post.likes || []));
+    likePostAPI(String(post.id), username!).catch(() => setLocalLikes(seedLikes(post, username)));
   };
 
   const handleComment = () => {
@@ -884,14 +1002,6 @@ const PostCard = React.memo(function PostCard({
     votePollAPI(String(postId), optionId, username!);
   };
 
-  const navigate = useCallback((path: string) => {
-    if (isGuest) { Alert.alert('Sign in', 'Create an account to interact'); return; }
-    if (path.startsWith('/post/')) navigation.navigate('PostDetail', { postId: path.replace('/post/', '') });
-    else if (path.startsWith('/make-post/')) navigation.navigate('CreatePost', { quotePostId: path.replace('/make-post/', '') });
-    else if (path.startsWith('/@')) navigation.navigate('Profile', { username: path.replace('/@', '') });
-    else if (path.startsWith('/live/')) navigation.navigate('LiveView', { postId: path.replace('/live/', '') });
-  }, [navigation, isGuest]);
-
   const isLongText = post.text && post.text.length > 200;
   const displayText = !textExpanded && isLongText ? post.text.slice(0, 200) + '…' : post.text;
   const totalReactions = Object.values(reactionCounts || {}).reduce((a, b) => a + b, 0);
@@ -912,34 +1022,11 @@ const PostCard = React.memo(function PostCard({
   }
 
   return (
-    <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[s.card, { backgroundColor: colors.card, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' }]}>
       {/* Header */}
-      <View style={s.header}>
-        <Ripple style={s.authorRow} onPress={() => navigate(`/@${post.username}`)}>
-          <Image source={{ uri: authorProfile.profile_pic }} style={s.avatar} />
-          <View style={{ flex: 1 }}>
-            <View style={s.nameRow}>
-              <Text style={[s.authorName, { color: colors.textPrimary }]} numberOfLines={1}>{authorProfile.fullname || post.username}</Text>
-              {post.verified && <VerifiedBadge size={14} />}
-              {(post as any).boost_score > 0 && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#fff7ed', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
-                  <Ionicons name="flash" size={10} color="#f97316" />
-                  <Text style={{ fontSize: 9, fontWeight: '800', color: '#f97316' }}>Boosted</Text>
-                </View>
-              )}
-              {post.activities && <Text style={[s.activityText, { color: colors.textSecondary }]}>· is feeling {post.activities}</Text>}
-            </View>
-            <Text style={[s.time, { color: colors.textSecondary }]}>{timeAgo(post.created_at)}</Text>
-          </View>
-        </Ripple>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <FollowButton targetUsername={post.username} />
-          <Ripple onPress={() => setMenuOpen(!menuOpen)} style={s.menuBtn}>
-            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
-          </Ripple>
-        </View>
-        <PostMenu visible={menuOpen} onClose={() => setMenuOpen(false)} post={post} onNegativeSignal={onNegativeSignal} onBlocked={onBlocked} />
-      </View>
+      {!hideHeader && (
+        <PostHeaderRow post={post} onNegativeSignal={onNegativeSignal} onBlocked={onBlocked} />
+      )}
 
       {/* Text */}
       {post.text ? (
@@ -963,13 +1050,13 @@ const PostCard = React.memo(function PostCard({
         <MediaGallery media={post.media} isActive={isActive} onOpenLightbox={setLightboxIdx} />
       )}
 
+      {/* Link preview */}
+      {post.link_preview ? <LinkPreview preview={post.link_preview} onNavigate={navigate} /> : null}
+
       {/* Quoted Post */}
       {post.quoted_post_id && (
         <QuotedPostView quotedPostId={post.quoted_post_id} onNavigate={navigate} />
       )}
-
-      {/* Divider */}
-      <View style={[s.divider, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]} />
 
       {/* Reactions bar */}
       {topReactions.length > 0 && (
@@ -1011,7 +1098,7 @@ const PostCard = React.memo(function PostCard({
 
         <View style={[s.actionBtn, { marginLeft: 'auto' }]}>
           <Ionicons name="eye-outline" size={18} color={colors.textSecondary} />
-          <Text style={[s.actionCount, { color: colors.textSecondary }]}>{Array.isArray(post.views) ? post.views.length : 0}</Text>
+          <Text style={[s.actionCount, { color: colors.textSecondary }]}>{post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0)}</Text>
         </View>
       </View>
 
@@ -1086,26 +1173,29 @@ const PostCard = React.memo(function PostCard({
 export default PostCard;
 
 const s = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, position: 'relative' },
-  authorRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, flex: 1 },
+  card: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8, position: 'relative' },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e5e7eb' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  authorName: { fontSize: 14, fontWeight: '700' },
+  authorName: { fontSize: 15, fontWeight: '700' },
+  boosted: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#fff7ed', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 },
+  boostedText: { fontSize: 9, fontWeight: '800', color: '#f97316' },
+  handleLine: { fontSize: 14, marginTop: 1 },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
   activityText: { fontSize: 12 },
   time: { fontSize: 11, marginTop: 1 },
   menuBtn: { padding: 6, marginLeft: 4 },
   menuOverlay: { position: 'absolute', top: 0, right: 0, zIndex: 100 },
   menuBg: { position: 'absolute', top: -100, right: -100, bottom: -100, left: -100 },
-  postText: { fontSize: 14, lineHeight: 20 },
-  seeMore: { fontSize: 12, fontWeight: '600', color: '#2563eb', marginTop: 2 },
-  divider: { height: 1, marginVertical: 8, marginHorizontal: -16 },
-  reactionsBar: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  postText: { fontSize: 15, lineHeight: 21 },
+  seeMore: { fontSize: 14, fontWeight: '600', color: '#2563eb', marginTop: 2 },
+  reactionsBar: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, marginBottom: 4 },
   reactionPill: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginRight: -4 },
-  reactionTotal: { fontSize: 12, fontWeight: '600', color: '#64748b' },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
-  actionBtnLiked: { backgroundColor: '#fef2f2' },
-  actionCount: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  reactionTotal: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  actionRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20 },
+  actionBtnLiked: { backgroundColor: 'transparent' },
+  actionCount: { fontSize: 13, fontWeight: '500', color: '#64748b' },
   guestComment: { marginTop: 8, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12 },
 });

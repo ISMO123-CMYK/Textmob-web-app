@@ -48,7 +48,7 @@ const STEPS: Step[] = [
 
 export default function SignupScreen({ navigation, route }: { navigation: any; route: any }) {
   const { colors, isDark } = useTheme();
-  const { signup, isLoading } = useAuth();
+  const { signup, login, isLoading } = useAuth();
   const redirect = route?.params?.redirect as string | undefined;
 
   const [step, setStep] = useState(0);
@@ -146,15 +146,19 @@ export default function SignupScreen({ navigation, route }: { navigation: any; r
   }
 
   async function loginAfterSignup() {
-    try {
-      const { login } = useAuth();
-      const result = await login(form.username, form.password);
-      if (result.success && redirect) {
+    // useAuth() must not be called inside this callback (it is a hook and can
+    // only run during render) — `login` comes from the component scope above.
+    const result = await login(form.username, form.password);
+    if (result.success) {
+      if (redirect) {
         try {
           await storage.setStore(KEYS.PENDING_REDIRECT, JSON.stringify({ name: redirect }));
         } catch (e) { /* ignore */ }
       }
-    } catch (e) { /* ignore */ }
+      return;
+    }
+    setSuccess(false);
+    setError(result.error || 'Login failed');
   }
 
   const currentStep = STEPS[step];

@@ -13,6 +13,13 @@ export interface User {
   notification_prefs?: any;
   profile_type?: string;
   mobcoins?: number;
+  // TEXT column in DB: "true" / "false" (server returns the raw row on /login).
+  disabled?: string | boolean;
+}
+
+// Mirror of the web's AppWrapper check — server returns { disabled: boolean }.
+export function isDisabledUser(u: Pick<User, 'disabled'> | null | undefined): boolean {
+  return !!u && String((u as any).disabled) === 'true';
 }
 
 export interface LoginResponse {
@@ -29,7 +36,17 @@ export async function signupAPI(formData: FormData) {
 }
 
 export async function verifyUserAPI(username: string) {
-  return apiGet<{ exists: boolean }>(`/api/verify-user?username=${encodeURIComponent(username)}`);
+  // Cache-busted: the GET cache would otherwise serve a stale answer to the
+  // 10s session poll.
+  return apiGet<{ exists: boolean }>(
+    `/api/verify-user?username=${encodeURIComponent(username)}&t=${Date.now()}`,
+  );
+}
+
+export async function checkDisabledAPI(username: string) {
+  return apiGet<{ disabled: boolean }>(
+    `/api/check-disabled?username=${encodeURIComponent(username)}&t=${Date.now()}`,
+  );
 }
 
 export async function forgotPasswordAPI(identifier: string) {

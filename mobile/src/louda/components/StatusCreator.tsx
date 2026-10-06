@@ -22,6 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Icons } from '../icons';
 import * as api from '../api';
 import { loudaAlert } from '../utils';
+import { getTextmobUser } from '../session';
 
 const BG_COLORS = [
   '#FF5722', '#673AB7', '#009688', '#1976D2', '#795548', '#455A64',
@@ -66,11 +67,15 @@ export const StatusCreator = memo(function StatusCreator({
   onClose,
   initialMedia,
   onStatusPosted,
+  recipients,
 }: {
   user: any;
   onClose: () => void;
   initialMedia?: { file?: any; type?: string; music?: any } | null;
   onStatusPosted?: () => void;
+  // People who should get an Activity row + push for this upload (phones or
+  // Textmob usernames; the server resolves them).
+  recipients?: string[];
 }) {
   const [text, setText] = useState('');
   const [bgIndex, setBgIndex] = useState(0);
@@ -206,6 +211,24 @@ export const StatusCreator = memo(function StatusCreator({
     }
   };
 
+  // Fire-and-forget: builds the Activity row + push for every invited contact.
+  const notifyContacts = async (created: any, mediaUrl?: string | null) => {
+    try {
+      if (!recipients || !recipients.length) return;
+      const sender = (await getTextmobUser()) || user?.username || '';
+      if (!sender) return;
+      api.notifyStatusUpload({
+        username: sender,
+        recipients: recipients.slice(0, 100),
+        statusId: created && created.id ? String(created.id) : undefined,
+        caption: text,
+        media: (created && created.media_url) || mediaUrl || null,
+      });
+    } catch (e) {
+      // never block the upload
+    }
+  };
+
   const postStatus = async () => {
     if (!text.trim() && !mediaFile) return;
     setUploading(true);
@@ -239,7 +262,8 @@ export const StatusCreator = memo(function StatusCreator({
         settings: { bg: BG_COLORS[bgIndex], font: FONT_CSS[fontIndex] },
       };
 
-      await api.createStatus(user.id, payload);
+      const created = await api.createStatus(user.id, payload);
+      notifyContacts(created, media_url);
       if (onStatusPosted) onStatusPosted();
       onClose();
     } catch (err) {

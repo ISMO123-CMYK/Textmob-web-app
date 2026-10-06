@@ -1,5 +1,5 @@
 import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
-﻿import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch, API_BASE_URL } from '../../config/api';
 import { cn } from '../../utils/classNames';

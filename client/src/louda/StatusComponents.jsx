@@ -1,6 +1,8 @@
 import { DEFAULT_AVATAR } from '../utils/defaultAvatar.js';
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_BASE_URL as TEXMOB_API_URL } from '../config/api';
+import { getTextmobUser } from '../bridge/connector.js';
 
 // --- Link Preview Component ---
 export const LinkPreview = memo(({ url, API_BASE_URL }) => {
@@ -217,7 +219,7 @@ export const StatusTab = memo(({ user, contacts, statuses, Icons, onOpenCreator,
 });
 
 // --- Status Creator Component ---
-export const StatusCreator = memo(({ user, API_BASE_URL, Icons, onClose, initialMedia, onStatusPosted }) => {
+export const StatusCreator = memo(({ user, API_BASE_URL, Icons, onClose, initialMedia, onStatusPosted, contacts = [] }) => {
   const [text, setText] = useState('');
   const [bgColors] = useState(['#FF5722', '#673AB7', '#009688', '#1976D2', '#795548', '#455A64', '#000000', '#E91E63', '#9C27B0', '#2E7D32', '#E64A19', '#374151']);
   const [bgIndex, setBgIndex] = useState(0);
@@ -361,11 +363,35 @@ export const StatusCreator = memo(({ user, API_BASE_URL, Icons, onClose, initial
 
   const token = localStorage.getItem('token');
   const userId = localStorage.getItem('userId');
-  await fetch(`${API_BASE_URL}/api/status`, {
+  const statusRes = await fetch(`${API_BASE_URL}/api/status`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'x-user-id': userId },
   body: JSON.stringify(payload)
   });
+
+  // The Louda back-end owns the status itself; Textmob owns the Activity row
+  // and push. Fire-and-forget so a failed notify never fails the upload.
+  try {
+  const tmUser = getTextmobUser();
+  const recipients = (Array.isArray(contacts) ? contacts : [])
+    .map(c => String((c && (c.number || c.phone || c.username)) || '').trim())
+    .filter(v => !!v && v !== 'support');
+  if (tmUser && recipients.length) {
+    let newStatusId = null;
+    try { const sData = await statusRes.clone().json(); newStatusId = sData?.id || sData?.status?.id || null; } catch { /* no id in response */ }
+    fetch(`${TEXMOB_API_URL}/api/louda/status-notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: tmUser,
+        recipients,
+        statusId: newStatusId ? String(newStatusId) : undefined,
+        caption: text || '',
+        media: media_url || undefined
+      })
+    }).catch(() => { });
+  }
+  } catch { /* notify is best-effort */ }
 
   if (onStatusPosted) onStatusPosted();
   onClose();

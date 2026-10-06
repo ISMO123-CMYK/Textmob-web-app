@@ -201,3 +201,42 @@ img {
   }
 }
 
+/* ═══ TWITTER-STYLE HOVER RIPPLE ══════════════════════════════════════
+   Pure CSS: transform + opacity only (compositor friendly), no JS,
+   no network requests, no layout thrash. Mimics the mobile app's
+   Ripple feedback on pointer hover / press. */
+.tm-ripple {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+.tm-ripple::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+  pointer-events: none;
+  z-index: -1;
+  transition: transform 0.45s var(--ease-silky), opacity 0.45s var(--ease-silky);
+  will-change: transform, opacity;
+}
+.tm-ripple:hover::after {
+  transform: translate(-50%, -50%) scale(2.6);
+  opacity: 0.07;
+}
+.tm-ripple:active::after {
+  transform: translate(-50%, -50%) scale(3);
+  opacity: 0.14;
+  transition-duration: 0.12s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm-ripple::after { transition: none; }
+}
+

@@ -1,6 +1,6 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, StyleSheet, Text, Modal } from 'react-native';
+import { View, StyleSheet, Text, Modal, ActivityIndicator } from 'react-native';
 import { Ripple } from '../components/Ripple';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,10 +8,34 @@ import { useTheme } from '../context/ThemeContext';
 import { LIVE_STREAMING_ENABLED } from '../config/live';
 import useNavBadges from '../hooks/useNavBadges';
 
-import HomeScreen from '../screens/home/HomeScreen';
-import HallOfFameScreen from '../screens/halloffame/HallOfFameScreen';
-import SnapsScreen from '../screens/snaps/SnapsScreen';
-import MenuScreen from '../screens/menu/MenuScreen';
+// Eager imports here silently undid every `lazy()` in RootNavigator and put the
+// whole app (Hall of Fame, Snaps, Menu + their data layer) in the entry bundle.
+// Only Home is on the critical path at launch.
+const HomeScreen = lazy(() => import('../screens/home/HomeScreen'));
+const HallOfFameScreen = lazy(() => import('../screens/halloffame/HallOfFameScreen'));
+const SnapsScreen = lazy(() => import('../screens/snaps/SnapsScreen'));
+const MenuScreen = lazy(() => import('../screens/menu/MenuScreen'));
+
+function TabFallback() {
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator size="small" color="#2563eb" />
+    </View>
+  );
+}
+
+function LazyTab({ Component, ...rest }: { Component: React.LazyExoticComponent<any>; [key: string]: any }) {
+  return (
+    <Suspense fallback={<TabFallback />}>
+      <Component {...rest} />
+    </Suspense>
+  );
+}
+
+const LazyHome = (props: any) => <LazyTab Component={HomeScreen} {...props} />;
+const LazyHallOfFame = (props: any) => <LazyTab Component={HallOfFameScreen} {...props} />;
+const LazySnaps = (props: any) => <LazyTab Component={SnapsScreen} {...props} />;
+const LazyMenu = (props: any) => <LazyTab Component={MenuScreen} {...props} />;
 
 const Tab = createBottomTabNavigator();
 
@@ -112,22 +136,22 @@ export default function MainTabs({ navigation }: { navigation: any }) {
       >
         <Tab.Screen
           name="Home"
-          component={HomeScreen}
+          component={LazyHome}
           options={{ tabBarIcon: () => null }}
         />
         <Tab.Screen
           name="Fame"
-          component={HallOfFameScreen}
+          component={LazyHallOfFame}
           options={{ tabBarIcon: () => null }}
         />
         <Tab.Screen
           name="Snaps"
-          component={SnapsScreen}
+          component={LazySnaps}
           options={{ tabBarIcon: () => null }}
         />
         <Tab.Screen
           name="Menu"
-          component={MenuScreen}
+          component={LazyMenu}
           options={{ tabBarIcon: () => null }}
         />
       </Tab.Navigator>

@@ -18,6 +18,7 @@ import {
 } from '../../api/auth';
 import { migrateFriendsAPI } from '../../api/users';
 import { apiGet, apiPost, apiDelete } from '../../api/client';
+import { likeCount, commentCount, viewCount } from '../../api/posts';
 import { withExtension } from '../../utils/media';
 import useProfileCache, { invalidateProfileCache } from '../../hooks/useProfileCache';
 import { PushNotificationsSection } from '../../components/PushNotificationsSection';
@@ -37,7 +38,7 @@ export default function AccountsCenterScreen({ navigation }: { navigation: any }
   useEffect(() => {
     if (username) {
       getAccountStatsAPI(username).then(r => { if (r.ok && r.data != null) setStats(r.data); });
-      apiGet(`/get-user-posts?username=${encodeURIComponent(username)}`).then(r => {
+      apiGet(`/get-user-posts?username=${encodeURIComponent(username)}&lite=1`).then(r => {
         if (r.ok && Array.isArray(r.data)) setPosts(r.data);
       });
       getProfileAPI(username).then(r => { if (r.ok && r.data != null) setProfileData(r.data); });
@@ -222,8 +223,8 @@ function getTabLabel(key: string): string {
 
 function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colors, isDark, setActiveSub, accent }: any) {
   const followers = (profile?.followers || []).length;
-  const likesCount = posts.reduce((acc: number, p: any) => acc + (p.likes?.length || 0), 0);
-  const commentsCount = posts.reduce((acc: number, p: any) => acc + (p.comments?.length || 0), 0);
+  const likesCount = posts.reduce((acc: number, p: any) => acc + likeCount(p), 0);
+  const commentsCount = posts.reduce((acc: number, p: any) => acc + commentCount(p), 0);
   const totalInteractions = likesCount + commentsCount;
   const mobcoins = stats?.mobcoins ?? 0;
   const rank = stats?.rank ?? null;
@@ -338,9 +339,9 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const totalLikes = (posts || []).reduce((acc: number, p: any) => acc + (p.likes?.length || 0), 0);
+  const totalLikes = (posts || []).reduce((acc: number, p: any) => acc + likeCount(p), 0);
   const milestoneEarnings = Math.floor(totalLikes / 10) * 5;
-  const postsWithMilestones = (posts || []).filter((p: any) => (p.likes?.length || 0) >= 10);
+  const postsWithMilestones = (posts || []).filter((p: any) => likeCount(p) >= 10);
 
   useEffect(() => {
     apiGet(`/api/user/payouts?userId=${encodeURIComponent(username)}`).then(r => {
@@ -436,7 +437,7 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
           <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: 4 }}>
             <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textSecondary, marginBottom: 6 }}>Posts with milestones</Text>
             {postsWithMilestones.slice(0, 3).map((p: any) => {
-              const likes = p.likes?.length || 0;
+              const likes = likeCount(p);
               const earned = Math.floor(likes / 10) * 5;
               return (
                 <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -660,8 +661,8 @@ function VerificationTab({ colors, username, isDark }: any) {
 }
 
 function AnalyticsTab({ posts, stats, profile, isOrg, colors }: any) {
-  const likesCount = posts.reduce((acc: number, p: any) => acc + (p.likes?.length || 0), 0);
-  const commentsCount = posts.reduce((acc: number, p: any) => acc + (p.comments?.length || 0), 0);
+  const likesCount = posts.reduce((acc: number, p: any) => acc + likeCount(p), 0);
+  const commentsCount = posts.reduce((acc: number, p: any) => acc + commentCount(p), 0);
   const totalInteractions = likesCount + commentsCount;
   const mobcoins = stats?.mobcoins ?? 0;
 
@@ -794,17 +795,17 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
     })
     .sort((a: any, b: any) => {
       if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      if (sortBy === 'liked') return (b.likes?.length || 0) - (a.likes?.length || 0);
+      if (sortBy === 'liked') return likeCount(b) - likeCount(a);
       if (sortBy === 'closest-to-payout') {
-        const aLen = a.likes?.length || 0;
-        const bLen = b.likes?.length || 0;
+        const aLen = likeCount(a);
+        const bLen = likeCount(b);
         const aNext = 10 - (aLen % 10);
         const bNext = 10 - (bLen % 10);
         return aNext - bNext;
       }
       if (sortBy === 'earned') {
-        const aEarn = Math.floor((a.likes?.length || 0) / 10) * 5;
-        const bEarn = Math.floor((b.likes?.length || 0) / 10) * 5;
+        const aEarn = Math.floor(likeCount(a) / 10) * 5;
+        const bEarn = Math.floor(likeCount(b) / 10) * 5;
         return bEarn - aEarn;
       }
       return 0;
@@ -856,7 +857,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
       const res = await apiPost('/api/boost-post', { postId: boostingPost.id, username, boostAmount });
       if (!res.ok || res.data?.error) { Alert.alert('Error', res.data?.error || 'Boost failed'); return; }
       setBalance((prev: number) => prev - cost);
-      const fresh = await apiGet(`/get-user-posts?username=${encodeURIComponent(username)}`);
+      const fresh = await apiGet(`/get-user-posts?username=${encodeURIComponent(username)}&lite=1`);
       if (fresh.ok && fresh.data) setPosts(fresh.data);
       setBoostingPost(null);
       setBoostAmount(1);
@@ -912,11 +913,11 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
       </ScrollView>
 
       {filtered.map((post: any) => {
-        const likes = post.likes?.length || 0;
+        const likes = likeCount(post);
         const earned = Math.floor(likes / 10) * 5;
         const nextPayout = 10 - (likes % 10);
         const pct = ((likes % 10) / 10) * 100;
-        const views = post.views?.length || 0;
+        const views = viewCount(post);
 
         return (
         <View key={post.id} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -948,7 +949,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
               ❤️ {likes}
             </Text>
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-              💬 {post.comments?.length || 0}
+              💬 {commentCount(post)}
             </Text>
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
               👁️ {views}
@@ -1069,11 +1070,11 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
 
   const sortedSnaps = [...snaps].sort((a: any, b: any) => {
     if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    if (sortBy === 'liked') return (b.likes?.length || 0) - (a.likes?.length || 0);
+    if (sortBy === 'liked') return likeCount(b) - likeCount(a);
     if (sortBy === 'viewed') return (b.views?.length || 0) - (a.views?.length || 0);
     if (sortBy === 'earned') {
-      const aEarn = Math.floor((a.likes?.length || 0) / 10) * 5;
-      const bEarn = Math.floor((b.likes?.length || 0) / 10) * 5;
+      const aEarn = Math.floor(likeCount(a) / 10) * 5;
+      const bEarn = Math.floor(likeCount(b) / 10) * 5;
       return bEarn - aEarn;
     }
     return 0;

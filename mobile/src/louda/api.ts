@@ -95,6 +95,26 @@ export function notifyLoudaMessage(payload: {
   }
 }
 
+// Status uploads are stored in the Louda backend, so Textmob needs an explicit
+// ping to build the Activity rows + pushes for everyone invited to see it.
+export function notifyStatusUpload(payload: {
+  username: string;
+  recipients: string[];
+  statusId?: string;
+  caption?: string;
+  media?: string | null;
+}): void {
+  try {
+    fetch(`${TEXMOB_API_URL}/api/louda/status-notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  } catch (e) {
+    // status upload must never break because of a notification
+  }
+}
+
 // ─── contacts ───
 export const getContacts = (userId: string) => req(`/api/contacts?userId=${encodeURIComponent(userId)}`).catch(() => []);
 export const createContact = (payload: any) => req('/api/contacts', jsonBody(payload));

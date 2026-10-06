@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { apiPost } from '../../api/client';
+import { imageUrl } from '../../utils/cloudinary';
 
 const SAVED_KEY = 'textmob_saved_posts';
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
@@ -52,7 +53,7 @@ export default function SavedPostsScreen() {
         setLoading(false);
         return;
       }
-      const res = await apiPost('/get-posts-by-ids', { ids: ids.map(String) });
+      const res = await apiPost('/get-posts-by-ids', { ids: ids.map(String), lite: 1 });
       if (res && res.ok && Array.isArray(res.data)) setPosts(res.data);
       else setPosts([]);
     } catch { setPosts([]); }
@@ -77,7 +78,7 @@ export default function SavedPostsScreen() {
       onPress={() => navigation.navigate('PostDetail', { postId: String(item.id) })}
     >
       <View style={styles.postHeader}>
-        <Image source={{ uri: item.profile_pic || DEFAULT_PIC }} style={styles.avatar} />
+        <Image source={{ uri: imageUrl(item.profile_pic, 128) || DEFAULT_PIC }} style={styles.avatar} />
         <View style={styles.postHeaderInfo}>
           <Text style={[styles.username, { color: colors.textPrimary }]} numberOfLines={1}>
             @{item.username}

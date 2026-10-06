@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { getProfileAPI } from '../../api/auth';
-import { getUserPostsAPI, Post } from '../../api/posts';
+import { getUserPostsAPI, Post, likeCount, commentCount } from '../../api/posts';
 import { followAPI, getFollowStatusAPI } from '../../api/users';
 import { clearApiCache } from '../../api/client';
 import { timeAgo, formatNumber } from '../../utils/format';
@@ -63,11 +63,11 @@ const PostGridItem = memo(function PostGridItem({ item, navigation, s, colors }:
       <View style={s.gridOverlay}>
         <View style={s.gridOverlayRow}>
           <Ionicons name="heart" size={12} color="#fff" />
-          <Text style={s.gridOverlayText}>{Array.isArray(item.likes) ? item.likes.length : 0}</Text>
+          <Text style={s.gridOverlayText}>{likeCount(item)}</Text>
         </View>
         <View style={s.gridOverlayRow}>
           <Ionicons name="chatbubble" size={11} color="#fff" />
-          <Text style={s.gridOverlayText}>{Array.isArray(item.comments) ? item.comments.length : 0}</Text>
+          <Text style={s.gridOverlayText}>{commentCount(item)}</Text>
         </View>
       </View>
       {isVideo && <Ionicons name="play" size={16} color="#fff" style={s.gridPlayIcon} />}
@@ -96,11 +96,11 @@ const PostFeedItem = memo(function PostFeedItem({ item, navigation, s, colors }:
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 6 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
               <Ionicons name="heart-outline" size={11} color={colors.textSecondary} />
-              <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{Array.isArray(item.likes) ? item.likes.length : 0}</Text>
+              <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{likeCount(item)}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
               <Ionicons name="chatbubble-outline" size={10} color={colors.textSecondary} />
-              <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{Array.isArray(item.comments) ? item.comments.length : 0}</Text>
+              <Text style={[s.feedMeta, { color: colors.textSecondary }]}>{commentCount(item)}</Text>
             </View>
             {item.created_at && (
               <Text style={[s.feedMeta, { color: colors.textSecondary, marginLeft: 'auto' }]}>
@@ -445,7 +445,7 @@ export default function ProfileScreen({ route, navigation }: { route: any; navig
             <Text style={[s.statLabel, { color: colors.textSecondary }]}>Posts</Text>
           </View>
           <View style={s.statItem}>
-            <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(profile?.total_likes ?? posts.reduce((s,p)=>s+(Array.isArray((p as any).likes)?(p as any).likes.length:0),0))}</Text>
+            <Text style={[s.statNumber, { color: colors.textPrimary }]}>{formatNumber(profile?.total_likes ?? posts.reduce((s,p)=>s+likeCount(p as any),0))}</Text>
             <Text style={[s.statLabel, { color: colors.textSecondary }]}>Likes</Text>
           </View>
         </View>

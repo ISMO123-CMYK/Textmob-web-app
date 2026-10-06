@@ -75,6 +75,7 @@ export function ChatInput({
   editingMessage,
   onCancelEdit,
   onEdit,
+  focusComposer,
 }: {
   onSend: (payload: any) => void;
   onTyping?: () => void;
@@ -86,10 +87,12 @@ export function ChatInput({
   editingMessage?: any;
   onCancelEdit?: () => void;
   onEdit?: (id: string, text: string) => void;
+  focusComposer?: boolean;
 }) {
   const { p, isDark } = useLoudaTheme();
   const insets = useSafeAreaInsets();
   const { setCameraRequest } = useLoudaStore();
+  const mainInputRef = useRef<TextInput | null>(null);
   const [kbOpen, setKbOpen] = useState(false);
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -126,6 +129,13 @@ export function ChatInput({
   const recStartRef = useRef(0);
   const recordingRef = useRef(false);
   const slideCancelRef = useRef(false);
+
+  // Push-tap intent: open the thread with the caret already in the composer.
+  useEffect(() => {
+    if (!focusComposer) return;
+    const t = setTimeout(() => mainInputRef.current?.focus(), 400);
+    return () => clearTimeout(t);
+  }, [focusComposer]);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
@@ -976,6 +986,7 @@ export function ChatInput({
                 />
               </Ripple>
               <TextInput
+                ref={mainInputRef}
                 value={text}
                 onChangeText={(next) => {
                   // Enter-to-send (web onKeyDown parity, LoudaApp.jsx:3801-3807):

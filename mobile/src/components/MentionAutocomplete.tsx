@@ -14,6 +14,29 @@ interface Suggestion {
   avatar?: string;
 }
 
+// /trending-hashtags scans a few hundred posts server-side, and the endpoint the
+// `#` branch used to call does not exist at all. Load the trending list once and
+// filter it locally instead of issuing a request per keystroke.
+let trendingTagsCache: { at: number; tags: string[] } | null = null;
+const TRENDING_TAGS_TTL = 5 * 60 * 1000;
+
+async function loadTrendingHashtags(): Promise<string[]> {
+  if (trendingTagsCache && Date.now() - trendingTagsCache.at < TRENDING_TAGS_TTL) {
+    return trendingTagsCache.tags;
+  }
+  try {
+    const res = await apiGet<Array<{ tag?: string }>>('/trending-hashtags');
+    const tags =
+      res.ok && Array.isArray(res.data)
+        ? res.data.map(t => (t && t.tag) || '').filter(Boolean)
+        : (trendingTagsCache?.tags || []);
+    trendingTagsCache = { at: Date.now(), tags };
+    return tags;
+  } catch {
+    return trendingTagsCache?.tags || [];
+  }
+}
+
 interface Props {
   text: string;
   cursorPosition: number;
@@ -69,14 +92,18 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
           })));
         }
       } else {
-        const res = await apiGet(`/hashtag?q=${encodeURIComponent(query)}&limit=6`);
-        if (res.ok && Array.isArray(res.data)) {
-          setSuggestions(res.data.map((h: any) => ({
-            id: h.tag || h,
-            label: `#${h.tag || h}`,
-            type: 'hashtag' as const,
-          })));
-        }
+        const tags = await loadTrendingHashtags();
+        const needle = query.toLowerCase();
+        setSuggestions(
+          tags
+            .filter(t => t.toLowerCase().includes(needle))
+            .slice(0, 6)
+            .map(t => ({
+              id: t,
+              label: `#${t}`,
+              type: 'hashtag' as const,
+            }))
+        );
       }
     } catch (e) { /* ignore */ }
   };

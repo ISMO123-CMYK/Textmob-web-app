@@ -1,5 +1,5 @@
 import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
-﻿const DEFAULT_PIC = DEFAULT_AVATAR;
+const DEFAULT_PIC = DEFAULT_AVATAR;
 
 'use client';
 

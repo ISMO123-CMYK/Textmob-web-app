@@ -313,8 +313,10 @@ export type LoudaStoreValue = {
   toggleBlockUser: (userId: string) => void;
   handleTranslate: (messageId: string, text: string) => Promise<void>;
   handleViewInfo: (message: any) => Promise<void>;
-  openChatWithUsername: (username: string) => Promise<void>;
+  openChatWithUsername: (username: string, focusComposer?: boolean) => Promise<void>;
   openGroupChatById: (groupId: string) => void;
+  pendingComposerFocus: boolean;
+  setPendingComposerFocus: (v: boolean) => void;
   onExit?: () => void;
 };
 
@@ -363,6 +365,9 @@ export function LoudaStoreProvider({
   const [typingRegistry, setTypingRegistry] = useState<Record<string, string[]>>({});
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [replyTo, setReplyTo] = useState<any>(null);
+  // Set by a push-tap intent: the next chat that opens should focus its
+  // composer so the user can reply without another tap.
+  const [pendingComposerFocus, setPendingComposerFocus] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [translations, setTranslations] = useState<Record<string, string>>({});
@@ -1076,7 +1081,7 @@ export function LoudaStoreProvider({
   useEffect(() => subscribePendingChatShare((p) => setSharePayload(p)), []);
 
   const openChatWithUsername = useCallback(
-    async (username?: string) => {
+    async (username?: string, focusComposer = false) => {
       if (!username) return;
       const digits = (p: any) => String(p || '').replace(/\D/g, '').replace(/^0/, '234');
       const phonesMatch = (a: any, b: any) => {
@@ -1123,6 +1128,7 @@ export function LoudaStoreProvider({
         }
         if (!contact) throw new Error('Could not open chat');
         setActiveTab('chats');
+        setPendingComposerFocus(!!focusComposer);
         setSelectedChat({ ...contact, isGroup: false } as any);
       } catch (e: any) {
         console.error('[Louda bridge] open-chat failed:', e);
@@ -1171,7 +1177,7 @@ export function LoudaStoreProvider({
       media: [],
     });
 
-    const onOpenChat = (e: any) => openChatWithUsername(e?.username);
+    const onOpenChat = (e: any) => openChatWithUsername(e?.username, !!e?.focusComposer);
     const onOpenGroup = (e: any) => openGroupChatByIdRef.current?.(e?.groupId);
     const onShare = (e: any) => {
       if (e) setForwardPayload({ messages: [buildShareMessage(e)] });
@@ -1182,7 +1188,8 @@ export function LoudaStoreProvider({
     const un2 = onLoudaEvent('louda:share', onShare);
     try {
       drainPendingIntents().forEach(({ type, detail }) => {
-        if (type === 'louda:open-chat' && detail?.username) openChatWithUsername(detail.username);
+        if (type === 'louda:open-chat' && detail?.username)
+          openChatWithUsername(detail.username, !!detail.focusComposer);
         else if (type === 'louda:open-group' && detail?.groupId)
           openGroupChatByIdRef.current?.(detail.groupId);
         else if (type === 'louda:share' && detail)
@@ -2309,8 +2316,10 @@ export function LoudaStoreProvider({
     handleViewInfo,
     openChatWithUsername,
     openGroupChatById,
+    pendingComposerFocus,
+    setPendingComposerFocus,
     onExit,
-  }), [user, contacts, groups, statuses, messages, selectedChat, activeTab, blockedUsers, chatBgs, typingRegistry, connectionState, isLoadingChats, isLoadingMore, hasMoreMessages, searchQuery, showChatSearch, memoizedChats, totalUnreadChats, totalUnreadArchived, totalUnreadStatuses, showSettings, showAddContact, showCreateGroup, showChatInfo, tempContact, phoneInput, showAddMembers, showStatusCreator, viewerTarget, viewerStatusId, setViewerStatusId, showStatusCamera, statusCameraMedia, cameraRequest, messagesLoading, contextMenu, replyTo, translations, messageInfo, editingMessage, mediaView, viewProfile, mobileMenuOpen, forwardPayload, sharePayload, selectedChats, chatSelectionMode, tmSearchQuery, tmSearchResults, isSearchingTm, tmSearchMode, setUser, setActiveTab, setSelectedChat, setShowSettings, setShowAddContact, setShowCreateGroup, setShowChatInfo, setTempContact, setPhoneInput, setShowAddMembers, setShowStatusCreator, setViewerTarget, setShowStatusCamera, setStatusCameraMedia, setCameraRequest, setContextMenu, setReplyTo, setTranslations, setMessageInfo, setEditingMessage, setMediaView, setViewProfile, setMobileMenuOpen, setForwardPayload, setSharePayload, setSelectedChats, setChatSelectionMode, setSearchQuery, setShowChatSearch, setTmSearchQuery, setTmSearchResults, setIsSearchingTm, setTmSearchMode, setStatuses, setMessages, loadContacts, loadGroups, loadStatuses, handleLoadMore, findUserByPhone, confirmAddContact, createGroupFn, addGroupMembersFn, updateContactNameFn, updateGroupNicknameFn, deleteChat, archiveChat, unarchiveChat, handleForwardInitiate, handleConfirmForward, handleConfirmShareMedia, handleSave, handleUpdateProfile, handleUpdateField, handleSend, handleEditMessage, handleTyping, onDeleteMessage, onUploadAvatar, handleContextMenu, handleTabChange, handleProfileAction, handleViewProfile, handleRemoveMember, handlePromoteAdmin, handleDemoteAdmin, closeSettings, toggleChatSelect, exitChatSelection, handleBulkChatDelete, handleBulkChatArchive, toggleBlockUser, handleTranslate, handleViewInfo, openChatWithUsername, openGroupChatById, onExit]);
+  }), [user, contacts, groups, statuses, messages, selectedChat, activeTab, blockedUsers, chatBgs, typingRegistry, connectionState, isLoadingChats, isLoadingMore, hasMoreMessages, searchQuery, showChatSearch, memoizedChats, totalUnreadChats, totalUnreadArchived, totalUnreadStatuses, showSettings, showAddContact, showCreateGroup, showChatInfo, tempContact, phoneInput, showAddMembers, showStatusCreator, viewerTarget, viewerStatusId, setViewerStatusId, showStatusCamera, statusCameraMedia, cameraRequest, messagesLoading, contextMenu, replyTo, translations, messageInfo, editingMessage, mediaView, viewProfile, mobileMenuOpen, forwardPayload, sharePayload, selectedChats, chatSelectionMode, tmSearchQuery, tmSearchResults, isSearchingTm, tmSearchMode, setUser, setActiveTab, setSelectedChat, setShowSettings, setShowAddContact, setShowCreateGroup, setShowChatInfo, setTempContact, setPhoneInput, setShowAddMembers, setShowStatusCreator, setViewerTarget, setShowStatusCamera, setStatusCameraMedia, setCameraRequest, setContextMenu, setReplyTo, setTranslations, setMessageInfo, setEditingMessage, setMediaView, setViewProfile, setMobileMenuOpen, setForwardPayload, setSharePayload, setSelectedChats, setChatSelectionMode, setSearchQuery, setShowChatSearch, setTmSearchQuery, setTmSearchResults, setIsSearchingTm, setTmSearchMode, setStatuses, setMessages, loadContacts, loadGroups, loadStatuses, handleLoadMore, findUserByPhone, confirmAddContact, createGroupFn, addGroupMembersFn, updateContactNameFn, updateGroupNicknameFn, deleteChat, archiveChat, unarchiveChat, handleForwardInitiate, handleConfirmForward, handleConfirmShareMedia, handleSave, handleUpdateProfile, handleUpdateField, handleSend, handleEditMessage, handleTyping, onDeleteMessage, onUploadAvatar, handleContextMenu, handleTabChange, handleProfileAction, handleViewProfile, handleRemoveMember, handlePromoteAdmin, handleDemoteAdmin, closeSettings, toggleChatSelect, exitChatSelection, handleBulkChatDelete, handleBulkChatArchive, toggleBlockUser, handleTranslate, handleViewInfo, openChatWithUsername, openGroupChatById, pendingComposerFocus, setPendingComposerFocus, onExit]);
 
   return <LoudaStoreContext.Provider value={value}>{children}</LoudaStoreContext.Provider>;
 }

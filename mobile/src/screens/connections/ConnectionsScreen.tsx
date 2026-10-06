@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { getFollowersAPI, getFollowingAPI, followAPI, friendAPI, getFollowStatusAPI, getSuggestionsFeedAPI } from '../../api/users';
+import { imageUrl } from '../../utils/cloudinary';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
@@ -64,7 +65,7 @@ export default function ConnectionsScreen({ route, navigation }: { route: any; n
     const isFollowing = following.some((f: any) => f.username === user.username);
     return (
       <Ripple style={s.userRow} onPress={() => navigation.navigate('Profile', { username: user.username })}>
-        <Image source={{ uri: user.profile_pic || DEFAULT_PIC }} style={s.avatar} />
+        <Image source={{ uri: imageUrl(user.profile_pic, 128) || DEFAULT_PIC }} style={s.avatar} />
         <View style={{ flex: 1 }}>
           <Text style={[s.userName, { color: colors.textPrimary }]}>{user.fullname || user.username}</Text>
           <Text style={[s.userHandle, { color: colors.textSecondary }]}>@{user.username}</Text>

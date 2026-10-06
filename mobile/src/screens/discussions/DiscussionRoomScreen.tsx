@@ -29,7 +29,6 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
   const [showMenu, setShowMenu] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [sheetTab, setSheetTab] = useState<'about' | 'members'>('members');
-  const [globalOnline, setGlobalOnline] = useState<Set<string>>(new Set());
   const [showGiphy, setShowGiphy] = useState(false);
   const [giphyQuery, setGiphyQuery] = useState('');
   const [giphyResults, setGiphyResults] = useState<any[]>([]);
@@ -186,31 +185,8 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
     socket.on('discussion_delete_message', onDeleteMsg);
     socket.on('discussion_room_update', onRoomUpdate);
 
-    /* global presence (the app-wide active-now list) — drives the member dots */
-    let alive = true;
-    const toSet = (list: any): Set<string> => {
-      if (Array.isArray(list)) return new Set(list as string[]);
-      if (list && Array.isArray(list.users)) return new Set(list.users as string[]);
-      return new Set<string>();
-    };
-    const onOnlineUsers = (list: any) => { if (alive) setGlobalOnline(toSet(list)); };
-    const onUserStatus = ({ username, status }: { username?: string; status?: string }) => {
-      if (!alive || !username) return;
-      setGlobalOnline(prev => {
-        const next = new Set(prev);
-        if (status === 'online') next.add(username); else next.delete(username);
-        return next;
-      });
-    };
-    socket.on('online-users', onOnlineUsers);
-    socket.on('user-status', onUserStatus);
-    apiGet<{ users?: string[] }>('/online-users')
-      .then(r => { if (alive && Array.isArray(r.data?.users)) setGlobalOnline(new Set(r.data?.users as string[])); })
-      .catch(() => { /* presence is best-effort */ });
-
     apiPost(`/api/discussions/room/${roomId}/join`, { username: currentUser }).catch(() => {});
     return () => {
-      alive = false;
       socket.emit('leave_discussion', { roomId });
       apiPost(`/api/discussions/room/${roomId}/leave`, { username: currentUser }).catch(() => {});
       socket.disconnect();
@@ -459,7 +435,7 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
           <View style={styles.paywallCard}>
             <View style={styles.paywallIcon}><Ionicons name="lock-closed-outline" size={28} color="#9ca3af" /></View>
             <Text style={styles.paywallTitle}>{room.title}</Text>
-            <Text style={styles.paywallHost}>by @{room.host_username} · {room.message_count || 0} messages</Text>
+            <Text style={styles.paywallHost}>by @{room.host_username}</Text>
             <View style={styles.paywallBanner}>
               <Text style={styles.paywallBannerTitle}>Unlock this archive</Text>
               <Text style={styles.paywallBannerSub}>500 mobcoins · Host gets 50 (10%)</Text>
@@ -509,11 +485,7 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
     );
   };
 
-  const presenceReady = globalOnline.size > 0;
   const roomNames = Array.from(new Set<string>([room.host_username, ...(members.length ? members : speakers), ...speakers]));
-  const onlineSet = presenceReady ? globalOnline : new Set<string>(members.length ? members : speakers);
-  const onlineList = roomNames.filter(u => onlineSet.has(u));
-  const offlineList = roomNames.filter(u => !onlineSet.has(u));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -594,12 +566,8 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
                     <View style={styles.aboutChip}><Text style={styles.aboutChipText}>{room.participant_count || 0} here</Text></View>
                   </View>
                   <Text style={styles.sheetSection}>HOST</Text>
-                  <MemberRow username={room.host_username} isHost online={presenceReady ? globalOnline.has(room.host_username) : true} pic={profilePics[room.host_username]} verified={!!userVerified[room.host_username]} onPress={openProfile} />
+                  <MemberRow username={room.host_username} isHost pic={profilePics[room.host_username]} verified={!!userVerified[room.host_username]} onPress={openProfile} />
                   <Text style={styles.sheetSection}>DETAILS</Text>
-                  <View style={styles.aboutRow}>
-                    <Ionicons name="chatbubbles-outline" size={14} color="#9ca3af" />
-                    <Text style={styles.aboutRowText}>{room.message_count || 0} messages</Text>
-                  </View>
                   <View style={styles.aboutRow}>
                     <Ionicons name="time-outline" size={14} color="#9ca3af" />
                     <Text style={styles.aboutRowText}>
@@ -613,23 +581,10 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
                 </View>
               ) : (
                 <>
-                  <Text style={styles.sheetSection}>HOST — 1</Text>
-                  <MemberRow username={room.host_username} isHost online pic={profilePics[room.host_username]} verified={!!userVerified[room.host_username]} onPress={openProfile} />
-                  <Text style={styles.sheetSection}>ONLINE — {onlineList.filter(u => u !== room.host_username).length}</Text>
-                  {onlineList.filter(u => u !== room.host_username).map(u => (
-                    <MemberRow key={u} username={u} online pic={profilePics[u]} verified={!!userVerified[u]} onPress={openProfile} />
+                  <Text style={styles.sheetSection}>MEMBERS — {roomNames.length}</Text>
+                  {roomNames.map(u => (
+                    <MemberRow key={u} username={u} isHost={u === room.host_username} pic={profilePics[u]} verified={!!userVerified[u]} onPress={openProfile} />
                   ))}
-                  {onlineList.filter(u => u !== room.host_username).length === 0 && <Text style={styles.sheetEmpty}>No one else here yet</Text>}
-                  {offlineList.length > 0 && (
-                    <>
-                      <Text style={styles.sheetSection}>OFFLINE — {offlineList.length}</Text>
-                      <View style={{ opacity: 0.6 }}>
-                        {offlineList.map(u => (
-                          <MemberRow key={u} username={u} online={false} pic={profilePics[u]} verified={!!userVerified[u]} onPress={openProfile} />
-                        ))}
-                      </View>
-                    </>
-                  )}
                 </>
               )}
             </ScrollView>
@@ -640,7 +595,7 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
       {!isLive && (
         <View style={styles.endedBanner}>
           <Text style={styles.endedBannerTitle}>DISCUSSION ENDED</Text>
-          <Text style={styles.endedBannerSub}>{room.message_count || 0} messages · {formatDuration(room.duration_seconds || 0)}</Text>
+          <Text style={styles.endedBannerSub}>{formatDuration(room.duration_seconds || 0)}</Text>
         </View>
       )}
 
@@ -955,15 +910,12 @@ const MessageRow = React.memo(function MessageRow({
   );
 });
 
-function MemberRow({ username, isHost, online, pic, verified, onPress }: {
-  username: string; isHost?: boolean; online: boolean; pic?: string; verified?: boolean; onPress: (u: string) => void;
+function MemberRow({ username, isHost, pic, verified, onPress }: {
+  username: string; isHost?: boolean; pic?: string; verified?: boolean; onPress: (u: string) => void;
 }) {
   return (
     <Ripple onPress={() => onPress(username)} style={styles.memberRow}>
-      <View>
-        <Image source={{ uri: pic || DEFAULT_PIC }} style={styles.memberPic} />
-        <View style={[styles.memberDot, !online && styles.memberDotOff]} />
-      </View>
+      <Image source={{ uri: pic || DEFAULT_PIC }} style={styles.memberPic} />
       <Text numberOfLines={1} style={[styles.memberName, isHost && { color: '#2563eb' }]}>{username}</Text>
       {isHost && <View style={styles.hostBadge}><Text style={styles.hostBadgeText}>HOST</Text></View>}
       {verified && <Ionicons name="checkmark-circle" size={13} color="#2563eb" />}
@@ -1021,11 +973,8 @@ const styles = StyleSheet.create({
   aboutRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
   aboutRowText: { fontSize: 13, color: '#4b5563' },
   sheetSection: { fontSize: 10, fontWeight: 'bold', color: '#9ca3af', letterSpacing: 0.8, marginTop: 14, marginBottom: 6 },
-  sheetEmpty: { fontSize: 12, color: '#9ca3af', paddingHorizontal: 4 },
   memberRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingHorizontal: 4 },
   memberPic: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#f3f4f6' },
-  memberDot: { position: 'absolute', right: -1, bottom: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: '#22c55e', borderWidth: 2, borderColor: '#fff' },
-  memberDotOff: { backgroundColor: '#d1d5db' },
   memberName: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1f2937' },
   // Ended + pinned
   endedBanner: { paddingVertical: 10, backgroundColor: '#f3f4f6', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', alignItems: 'center' },

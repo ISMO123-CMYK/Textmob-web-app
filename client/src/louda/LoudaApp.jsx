@@ -9503,6 +9503,7 @@ const MobileHome = () => {
   onClose={() => { setShowStatusCreator(false); setStatusCameraMedia(null); }}
   getOptimizedMediaUrl={getOptimizedMediaUrl}
   initialMedia={statusCameraMedia}
+  contacts={contacts}
   onStatusPosted={loadStatuses}
   />
   )}

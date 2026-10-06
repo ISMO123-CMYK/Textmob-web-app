@@ -34,17 +34,60 @@ export function pushSoundEnabled(): boolean {
   return permissionGranted;
 }
 
-async function registerToken(): Promise<void> {
+async function getDeviceToken(): Promise<string> {
   try {
     const resp = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
-    const token = resp && resp.data;
-    const username = getTextmobUserSync() || (await getTextmobUser());
-    if (!token || !username) return;
-    fetch(`${API_BASE_URL}/register-token`, {
+    return (resp && resp.data) || '';
+  } catch (e) {
+    console.warn('[Push] could not read Expo push token', e);
+    return '';
+  }
+}
+
+// Stable per-install id. The server dedupes devices by it, so two devices can
+// coexist on one account while a single device can only hold one entry.
+const DEVICE_ID_KEY = 'pushDeviceId';
+let deviceIdCache = '';
+
+async function getDeviceId(): Promise<string> {
+  if (deviceIdCache) return deviceIdCache;
+  try {
+    let id = await storage.getStore(DEVICE_ID_KEY);
+    if (!id) {
+      id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+      await storage.setStore(DEVICE_ID_KEY, id);
+    }
+    deviceIdCache = id;
+    return id;
+  } catch {
+    return '';
+  }
+}
+
+// Bounded request: registration/logout must never hang the UI on a stalled
+// network (login/logout both await this).
+async function postToken(body: Record<string, unknown>, timeoutMs = 6000): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    await fetch(`${API_BASE_URL}/register-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, token, platform: Platform.OS }),
-    }).catch(() => {});
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function registerToken(usernameOverride?: string): Promise<void> {
+  try {
+    const token = await getDeviceToken();
+    const username = usernameOverride || getTextmobUserSync() || (await getTextmobUser());
+    if (!token || !username) return;
+    const deviceId = await getDeviceId();
+    await postToken({ username, token, deviceId, platform: Platform.OS });
   } catch (e) {
     console.warn('[Push] token registration failed', e);
   }
@@ -53,16 +96,27 @@ async function registerToken(): Promise<void> {
 // Turns off push on the server (drops this device's token). Needed because
 // neither OS lets an app revoke notification permission itself.
 async function unregisterToken(): Promise<void> {
+  const username = getTextmobUserSync() || (await getTextmobUser());
+  if (!username) return;
+  await unregisterTokenFor(username);
+}
+
+// Logout path: the username must be passed in explicitly, because the auth
+// state (and the synchronous cache in session.ts) may already be cleared by the
+// time this runs — and the token belongs to whoever is signed in right now.
+export async function unregisterTokenFor(username: string): Promise<void> {
+  if (!username) return;
   try {
-    const resp = await Notifications.getExpoPushTokenAsync({ projectId: PROJECT_ID });
-    const token = resp && resp.data;
-    const username = getTextmobUserSync() || (await getTextmobUser());
-    if (!token || !username) return;
-    fetch(`${API_BASE_URL}/register-token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, token, platform: Platform.OS, enabled: false }),
-    }).catch(() => {});
+    const token = await getDeviceToken();
+    if (!token) return;
+    const deviceId = await getDeviceId();
+    await postToken({
+      username,
+      token,
+      deviceId,
+      platform: Platform.OS,
+      enabled: false,
+    });
   } catch (e) {
     console.warn('[Push] token unregistration failed', e);
   }
@@ -75,6 +129,19 @@ export async function getPushPermission(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// One opt-in flag + one OS permission check drive EVERY toggle in the app
+// (Accounts Center, Menu, Louda Settings). They are device state, not account
+// state — logout wipes them so the next account doesn't inherit them.
+export const PUSH_OPT_IN_KEY = 'textmobPushOptIn';
+export const PUSH_LEGACY_PREF_KEY = 'louda:notifPrefs';
+
+export async function clearPushPreferences(): Promise<void> {
+  try {
+    await storage.removeStore(PUSH_OPT_IN_KEY);
+    await storage.removeStore(PUSH_LEGACY_PREF_KEY);
+  } catch { /* storage unavailable */ }
 }
 
 // Single on/off switch used by Textmob AND Louda.
@@ -152,10 +219,31 @@ function whenNavigationReady(cb: () => void) {
 }
 
 // Mirrors ActivityScreen.handleNavigate — link paths land on the same screens.
+// Structured `data` (see server NOTIF_DATA_KEYS) wins over the link when both
+// are present, so a tap can land on the exact comment and pre-seed a reply.
 function routeTextmobNotification(data: any) {
   const path = String(data.link || '');
-  if (path.startsWith('/post/')) navigationRef.navigate('PostDetail', { postId: path.replace('/post/', '') });
-  else if (path.startsWith('/@')) navigationRef.navigate('Profile', { username: path.replace('/@', '') });
+  const kind = String(data.kind || data.notifType || '');
+  const postFromLink = path.startsWith('/post/') ? path.replace('/post/', '') : '';
+  const postId = String(data.postId || postFromLink || '');
+
+  if (postId) {
+    const replyable = data.replyable === true || data.replyable === 'true';
+    const wantsReply = replyable && ['comment', 'reply', 'mention'].includes(kind);
+    navigationRef.navigate('PostDetail', {
+      postId,
+      ...(wantsReply
+        ? {
+            focusReply: true,
+            replyToCommentId: data.commentId || data.parentId || undefined,
+            replyToUser: data.replyToUsername || data.sender || undefined,
+          }
+        : {}),
+    });
+    return;
+  }
+
+  if (path.startsWith('/@')) navigationRef.navigate('Profile', { username: path.replace('/@', '') });
   else if (path.startsWith('/snaps')) navigationRef.navigate('Snaps');
   else if (path.startsWith('/chats')) navigationRef.navigate('Chats');
   else if (path.startsWith('/halloffame')) navigationRef.navigate('HallOfFame');
@@ -179,7 +267,7 @@ function handlePushOpen(raw: any) {
       whenNavigationReady(() => {
         navigationRef.navigate('Chats');
         if (data.isGroup && data.peerId) openGroupChatWith(String(data.peerId));
-        else if (data.peerUsername) openChatWith(String(data.peerUsername));
+        else if (data.peerUsername) openChatWith(String(data.peerUsername), { focusComposer: true });
       });
       return;
     }

@@ -55,10 +55,20 @@ export function ChatThreadPane() {
     setMediaView,
     setViewerStatusId,
     messagesLoading,
+    pendingComposerFocus,
+    setPendingComposerFocus,
   } = useLoudaStore();
   const { isDark, p } = useLoudaTheme();
 
   const chat = selectedChat;
+
+  // Consume the push-tap focus intent: ChatInput focuses on the true edge, so
+  // flip it back to false once the caret is in place.
+  useEffect(() => {
+    if (!pendingComposerFocus) return;
+    const t = setTimeout(() => setPendingComposerFocus(false), 2000);
+    return () => clearTimeout(t);
+  }, [pendingComposerFocus, setPendingComposerFocus]);
   const chatKey = useMemo(() => {
     if (!chat) return undefined;
     return chat.isGroup ? chat.id : (chat.chatId ?? chat.id);
@@ -298,6 +308,7 @@ export function ChatThreadPane() {
           editingMessage={editingMessage}
           onCancelEdit={() => setEditingMessage(null)}
           onEdit={handleEditMessage}
+          focusComposer={pendingComposerFocus}
         />
       )}
       </KeyboardAvoidingView>

@@ -237,6 +237,10 @@ export function MediaGalleryTab({
         data={filteredItems}
         numColumns={numColumns}
         keyExtractor={(_, i) => String(i)}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={{ padding: 2, gap: 2 }}
         columnWrapperStyle={{ gap: 2 }}
         style={{ flex: 1, backgroundColor: p.cardMuted }}

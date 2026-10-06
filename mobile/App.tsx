@@ -19,6 +19,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import ShareToTextmobScreen from './src/screens/share/ShareToTextmobScreen';
 import { navigationRef, linking } from './src/navigation/navigationRef';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import DisabledScreen from './src/components/DisabledScreen';
 import { setLoudaAlertImpl } from './src/louda/utils';
 
 // Louda's default alert shim only logs to the console, so every upload failure,
@@ -44,7 +45,7 @@ if (errorUtils && typeof errorUtils.setGlobalHandler === 'function') {
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppNavigator() {
-  const { user, isChecking } = useAuth();
+  const { user, isChecking, isDisabled } = useAuth();
   const { isDark } = useTheme();
   const [appReady, setAppReady] = useState(false);
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
@@ -65,9 +66,11 @@ function AppNavigator() {
 
   // The token is keyed by Textmob username — on a fresh install the start
   // prompt can fire before login, so register once auth resolves too.
+  // Disabled accounts must never hold a device token (server also skips push
+  // for them, this just stops the token being attached in the first place).
   useEffect(() => {
-    if (user) registerForPushNotificationsAsync().catch(() => {});
-  }, [user]);
+    if (user && !isDisabled) registerForPushNotificationsAsync().catch(() => {});
+  }, [user, isDisabled]);
 
   // Failsafe: never block splash longer than 3.5s on any device (Knox/StrongBox slow)
   useEffect(() => {
@@ -90,8 +93,8 @@ function AppNavigator() {
     <ErrorBoundary>
       <NavigationContainer ref={navigationRef} linking={linking}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        {user ? <RootNavigator /> : <AuthStack />}
-        {hasShareIntent && (
+        {isDisabled ? <DisabledScreen /> : user ? <RootNavigator /> : <AuthStack />}
+        {!isDisabled && hasShareIntent && (
           <ShareToTextmobScreen intent={shareIntent} onDone={resetShareIntent} />
         )}
       </NavigationContainer>

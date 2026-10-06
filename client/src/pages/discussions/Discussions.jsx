@@ -33,7 +33,7 @@ const RoomCard = memo(function RoomCard({ room, variant, currentUser, unlocking,
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-gray-900 text-sm truncate">{room.title}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">@{room.host_username} · {room.message_count || 0} messages</p>
+            <p className="text-xs text-gray-400 mt-0.5">@{room.host_username}</p>
           </div>
           {room.unlocked ? (
             <a href={`/discussions/${room.id}`} data-lexum className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-full hover:bg-blue-700 transition-all active:scale-[0.98]">View</a>
@@ -67,13 +67,9 @@ const RoomCard = memo(function RoomCard({ room, variant, currentUser, unlocking,
           {room.description && <p className="text-xs text-gray-400 mt-1 line-clamp-1">{room.description}</p>}
           <div className="flex items-center gap-3 mt-2">
             <span className="text-[10px] font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">{room.category || 'general'}</span>
-            <span className="flex items-center gap-1 text-[10px] text-gray-400">
-              <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span className="flex items-center gap-1 text-[10px] text-gray-400" title="Members">
+              <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>
               {room.participant_count || 0}
-            </span>
-            <span className="flex items-center gap-1 text-[10px] text-gray-400">
-              <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 011.037-.443 48.282 48.282 0 005.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
-              {room.message_count || 0}
             </span>
           </div>
         </div>

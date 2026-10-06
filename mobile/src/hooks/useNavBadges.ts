@@ -26,7 +26,13 @@ export default function useNavBadges() {
   useEffect(() => {
     if (!username) return;
     fetchUnreadCount();
-    intervalRef.current = setInterval(fetchUnreadCount, 30000);
+    // 60s, and stopped entirely while the app is in the background: socket
+    // events + the foreground listener below cover the cases that matter, and
+    // polling a backgrounded app just burns the radio for nothing.
+    intervalRef.current = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
+      fetchUnreadCount();
+    }, 60000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

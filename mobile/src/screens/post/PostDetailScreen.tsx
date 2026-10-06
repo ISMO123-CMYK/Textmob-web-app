@@ -14,10 +14,12 @@ import { getPostAPI, addCommentAPI, deleteCommentAPI, likePostAPI, getPostReacti
 import { searchUsersAPI, UserProfile } from '../../api/users';
 import { getProfileAPI } from '../../api/auth';
 import useProfileCache from '../../hooks/useProfileCache';
-import PostCard from '../../components/PostCard';
+import PostCard, { PostHeaderRow } from '../../components/PostCard';
+import SafeHTML from '../../components/SafeHTML';
 import StickerPicker from '../../components/StickerPicker';
 import { makeStickerText, parseStickerText, withSticker } from '../../utils/stickerUtils';
 import { timeAgo } from '../../utils/format';
+import { imageUrl } from '../../utils/cloudinary';
 import { apiGet } from '../../api/client';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
@@ -35,13 +37,13 @@ function CommentRow({ item, colors, borderColor, onPress, onReply, onDelete, rep
   return (
     <View>
       <Ripple style={[styles.commentRow, { borderBottomColor: borderColor }]} onPress={() => onPress(item.username)}>
-        <Image source={{ uri: profile?.profile_pic || DEFAULT_PIC }} style={[styles.commentAvatar, { backgroundColor: colors.border }]} />
+        <Image source={{ uri: imageUrl(profile?.profile_pic, 128) || DEFAULT_PIC }} style={[styles.commentAvatar, { backgroundColor: colors.border }]} />
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={[styles.commentUser, { color: colors.textPrimary }]}>{profile?.fullname || item.username}</Text>
             <Text style={[styles.commentTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at || '')}</Text>
           </View>
-          {(() => { const s = parseStickerText(item.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <Text style={[styles.commentText, { color: colors.textSecondary }]}>{item.text}</Text>; })()}
+          {(() => { const s = parseStickerText(item.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <SafeHTML text={item.text} style={[styles.commentText, { color: colors.textSecondary }]} />; })()}
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
             <Ripple onPress={() => onReply(item.id, item.username)}>
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>Reply</Text>
@@ -103,6 +105,16 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [stickerUrl, setStickerUrl] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const p = route.params || {};
+    if (!p.focusReply) return;
+    if (p.replyToCommentId) setReplyToId(String(p.replyToCommentId));
+    if (p.replyToUser) setReplyToName(String(p.replyToUser));
+    const t = setTimeout(() => inputRef.current?.focus(), 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params?.focusReply]);
 
   useEffect(() => {
     if (!postId) return;
@@ -243,19 +255,18 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
   }, [navigation]);
 
   const renderHeader = useCallback(() => (
-    <View style={{ padding: 8 }}>
-      <PostCard
-        post={post!}
-        showViewButton={false}
-        showCommentInput
-        commentModalOpen={commentModalOpen}
-        onCommentModalChange={setCommentModalOpen}
-        reactionCounts={reactionCounts}
-        onReact={handleReact}
-        onVotePoll={handlePollVote}
-        onLike={handleLike}
-      />
-    </View>
+    <PostCard
+      post={post!}
+      hideHeader
+      showViewButton={false}
+      showCommentInput
+      commentModalOpen={commentModalOpen}
+      onCommentModalChange={setCommentModalOpen}
+      reactionCounts={reactionCounts}
+      onReact={handleReact}
+      onVotePoll={handlePollVote}
+      onLike={handleLike}
+    />
   ), [post, reactionCounts, handleReact, handlePollVote, handleLike, commentModalOpen]);
 
   const topLevelComments = useMemo(() => comments.filter(c => !c.parentId), [comments]);
@@ -375,6 +386,11 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
         <View style={{ width: 40 }} />
       </View>
 
+      {/* Sticky post header — stays pinned directly under the app header */}
+      <View style={[styles.stickyPostHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <PostHeaderRow post={post} />
+      </View>
+
       <FlatList
         data={topLevelComments}
         keyExtractor={keyExtractor}
@@ -383,6 +399,10 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={isEmpty}
         keyboardShouldPersistTaps="handled"
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={7}
+        removeClippedSubviews
         extraData={replyToId}
       />
 
@@ -431,7 +451,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
               <View style={[styles.mentionDropdown, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 {mentionResults.slice(0, 4).map(user => (
                   <Ripple key={user.username} style={styles.mentionRow} onPress={() => selectMention(user)}>
-                    <Image source={{ uri: user.profile_pic || DEFAULT_PIC }} style={{ width: 24, height: 24, borderRadius: 12 }} />
+                    <Image source={{ uri: imageUrl(user.profile_pic, 128) || DEFAULT_PIC }} style={{ width: 24, height: 24, borderRadius: 12 }} />
                     <Text style={[styles.mentionName, { color: colors.textPrimary }]}>@{user.username}</Text>
                   </Ripple>
                 ))}
@@ -463,6 +483,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', height: 52, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  stickyPostHeader: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },

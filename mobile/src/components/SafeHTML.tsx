@@ -110,6 +110,58 @@ function convertMarkdown(html: string): string {
   return s;
 }
 
+const URL_RX = /(?:https?:\/\/[^\s<>"']*[^\s<>"',.!?;:])|(?:textmob\.web\.app\/[^\s<>"']*[^\s<>"',.!?;:])/g;
+
+function anchorForUrl(raw: string): string {
+  // textmob.web.app links open inside the app instead of the browser
+  const m = raw.match(/^(?:https?:\/\/)?(?:www\.)?textmob\.web\.app(\/\S*)?/i);
+  if (m) {
+    const path = m[1] && m[1].length > 1 ? m[1] : '/';
+    return `<a href="${path.replace(/"/g, '&quot;')}">${raw}</a>`;
+  }
+  return `<a href="${raw}">${raw}</a>`;
+}
+
+function linkifyText(t: string, legacyList: string[]): string {
+  if (!t) return t;
+  // Pull URLs out first so mentions/hashtags inside an href stay untouched.
+  const urls: string[] = [];
+  let s = t.replace(URL_RX, (m: string) => {
+    urls.push(m);
+    return `\u0000${urls.length - 1}\u0000`;
+  });
+  s = s.replace(
+    /(^|[^\w#])(#[\w-]+)/g,
+    (_m, pre: string, tag: string) => `${pre}<a href="app://search/${tag}">${tag}</a>`
+  );
+  const mentionRx = legacyList.length
+    ? new RegExp(`@(?:${legacyList.map(escapeRegExp).join('|')}|([\\w.-]+))`, 'g')
+    : /@([\w.-]+)/g;
+  s = s.replace(
+    mentionRx,
+    (match: string, genericMatch?: string) =>
+      genericMatch !== undefined
+        ? `<a href="app://profile/${genericMatch}">@${genericMatch}</a>`
+        : `<a href="app://profile/${match.slice(1)}">${match}</a>`
+  );
+  return s.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => anchorForUrl(urls[Number(i)]));
+}
+
+function linkifyOutsideAnchors(html: string, legacyList: string[]): string {
+  const parts = html.split(/(<[^>]*>)/g);
+  let anchorDepth = 0;
+  return parts
+    .map(part => {
+      if (part.startsWith('<')) {
+        if (/^<a[\s>]/i.test(part)) anchorDepth++;
+        else if (/^<\/a\s*>/i.test(part)) anchorDepth = Math.max(0, anchorDepth - 1);
+        return part;
+      }
+      return anchorDepth > 0 ? part : linkifyText(part, legacyList);
+    })
+    .join('');
+}
+
 export default React.memo(function SafeHTML({ text, style }: { text: string; style?: any }) {
   const { width } = useWindowDimensions();
   const { colors, isDark } = useTheme();
@@ -125,9 +177,11 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
   if (!text) return null;
 
   const processed = useMemo(() => {
+    const hasMarkup = /<\/?[a-z][^>]*>/i.test(text);
     let p = text;
 
-    if (!text.includes('<a') && !text.includes('<p>') && !text.includes('<div')) {
+    // Plain (markdown) posts: decode entities + convert markup first.
+    if (!hasMarkup) {
       p = p
         .replace(/&amp;/g, '&')
         .replace(/&lt;/g, '<')
@@ -137,26 +191,14 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
         .replace(/&nbsp;/g, ' ');
 
       p = convertMarkdown(p);
-
-      // Single combined pass: legacy special-character usernames first in the
-      // alternation so a name like "Peace 🕊️" is matched whole instead of being
-      // clobbered by the generic @[\w.-]+ branch.
-      const mentionRx = legacyList.length
-        ? new RegExp(`@(?:${legacyList.map(escapeRegExp).join('|')}|([\\w.-]+))`, 'g')
-        : /@([\w.-]+)/g;
-
       p = p
-        .replace(mentionRx, (match: string, genericMatch: string) =>
-          genericMatch !== undefined
-            ? `<a href="app://profile/${genericMatch}">@${genericMatch}</a>`
-            : `<a href="app://profile/${match.slice(1)}">${match}</a>`
-        )
-        .replace(/(#[\w-]+)/g, '<a href="app://search/$1">$1</a>')
-        .replace(/(https?:\/\/[^\s<>"']+[^\s<>"',.!?;:])/g, '<a href="$1">$1</a>')
         .replace(/[ \t]+$/gm, '')
         .replace(/(?:\r\n|\r|\n)/g, '<br />');
     }
-    return p;
+
+    // Linkify mentions/hashtags/URLs in every text node — including posts the
+    // composer already saved as HTML (which previously stayed plain text).
+    return linkifyOutsideAnchors(p, legacyList);
   }, [text, legacyList]);
 
   // Callers pass RN style arrays ([a, b]) — flatten before spreading so the
@@ -223,6 +265,10 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
     else if (path.startsWith('/wallet')) navigation.navigate('Wallet');
     else if (path.startsWith('/accountscenter')) navigation.navigate('AccountsCenter');
     else if (path.startsWith('/search')) navigation.navigate('Search');
+    else if (path.startsWith('/tag/')) {
+      const tag = decodeURIComponent(path.replace('/tag/', ''));
+      navigation.navigate('Hashtag', { tag: tag.replace(/^#/, '') });
+    }
     else if (path.startsWith('/events')) navigation.navigate('Events');
     else if (path.startsWith('/live')) navigation.navigate('LiveView');
     else if (path.startsWith('/saved')) navigation.navigate('SavedPosts');
@@ -241,7 +287,9 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
       return;
     }
     if (href.startsWith('app://search/')) {
-      navigation.navigate('Search');
+      const tag = href.replace('app://search/', '').replace(/^#/, '');
+      if (tag) navigation.navigate('Hashtag', { tag });
+      else navigation.navigate('Search');
       return;
     }
     if (href.startsWith('/')) {

@@ -2,14 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getPushPermission,
   setPushEnabled as setPushEnabledRaw,
+  PUSH_OPT_IN_KEY,
+  PUSH_LEGACY_PREF_KEY,
 } from '../louda/push';
 import { getStore, setStore } from '../utils/storage';
 
-// One opt-in flag + one OS permission check drive EVERY toggle in the app
-// (Accounts Center, Menu, Louda Settings). Turning off drops this device's
-// token server-side, which stops BOTH Textmob activity and Louda messages.
-const OPT_IN_KEY = 'textmobPushOptIn';
-const LEGACY_KEY = 'louda:notifPrefs';
+// Read/write helpers for the shared opt-in flags (logout clears them via
+// clearPushPreferences in louda/push).
+const OPT_IN_KEY = PUSH_OPT_IN_KEY;
+const LEGACY_KEY = PUSH_LEGACY_PREF_KEY;
 
 export function usePushNotifications() {
   const [enabled, setEnabled] = useState(false);

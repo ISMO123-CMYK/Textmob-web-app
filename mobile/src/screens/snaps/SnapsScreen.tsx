@@ -19,6 +19,7 @@ import { CATEGORIES } from '../../data/categories';
 import * as ImagePicker from 'expo-image-picker';
 import { apiGet, apiPost, uploadFile, API_BASE_URL } from '../../api/client';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
+import SafeHTML from '../../components/SafeHTML';
 import StickerPicker from '../../components/StickerPicker';
 import { makeStickerText, parseStickerText } from '../../utils/stickerUtils';
 import { InAppCamera } from '../../louda/components/InAppCamera';
@@ -27,6 +28,17 @@ import useProfileCache from '../../hooks/useProfileCache';
 import { ParticleBurst } from '../../utils/animations';
 import { timeAgo } from '../../utils/format';
 import { getSeenParam, markSeen } from '../../utils/seen';
+import { imageUrl, posterUrlFor } from '../../utils/cloudinary';
+
+const VIDEO_RE = /\.(mp4|webm|mov|ogg)$/i;
+
+// Grid/thumbnail source: the cover frame for a video, otherwise the smallest
+// stored JPEG variant that still covers a half-width cell.
+function snapThumb(uri: string | undefined): string {
+  if (!uri) return '';
+  if (VIDEO_RE.test(uri)) return posterUrlFor(uri) || uri;
+  return imageUrl(uri, 360);
+}
 
 const SCREEN_WIDTH = Dimensions.get('window').width || 390;
 const SCREEN_HEIGHT = Dimensions.get('window').height || 800;
@@ -259,7 +271,10 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
       {isActive && isVideo ? (
         <SnapVideoPlayer mediaUrl={mediaUrl} isActive={isActive} isMuted={muted} onDoubleTap={() => { onLike(item.id); setLikeAnim(true); setTimeout(() => setLikeAnim(false), 600); }} />
       ) : mediaUrl ? (
-        <Image source={{ uri: mediaUrl }} style={styles.snapVideo} />
+        <Image
+          source={{ uri: (isVideo ? posterUrlFor(mediaUrl) : null) || imageUrl(mediaUrl, 1000) || mediaUrl }}
+          style={styles.snapVideo}
+        />
       ) : (
         <View style={[styles.snapTextFallback, { backgroundColor: '#111' }]}>
           <Text style={styles.snapFallbackText}>{item.text}</Text>
@@ -331,7 +346,7 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
       <View style={styles.bottomInfo}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           {profile?.profile_pic ? (
-            <Image source={{ uri: profile.profile_pic }} style={styles.miniAvatarImgBorder} />
+            <Image source={{ uri: imageUrl(profile.profile_pic, 128) || undefined }} style={styles.miniAvatarImgBorder} />
           ) : (
             <View style={[styles.miniAvatar, { backgroundColor: avatarColor(item.username) }]}>
               <Text style={styles.miniAvatarText}>{initials}</Text>
@@ -373,7 +388,7 @@ function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUser
   return (
     <Ripple style={styles.commentRow} onPress={() => onPress(comment.username)} activeOpacity={0.7}>
       {profile?.profile_pic ? (
-        <Image source={{ uri: profile.profile_pic }} style={styles.commentAvatarImg} />
+        <Image source={{ uri: imageUrl(profile.profile_pic, 128) || undefined }} style={styles.commentAvatarImg} />
       ) : (
         <View style={[styles.commentAvatar, { backgroundColor: avatarColor(comment.username) }]}>
           <Text style={styles.commentAvatarText}>{initials}</Text>
@@ -396,7 +411,7 @@ function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUser
             <Text style={styles.commentTime}>{timeAgo(comment.createdAt)}</Text>
           )}
         </View>
-        {(() => { const s = parseStickerText(comment.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <Text style={styles.commentText}>{comment.text}</Text>; })()}
+        {(() => { const s = parseStickerText(comment.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <SafeHTML text={comment.text} style={styles.commentText} />; })()}
       </View>
     </Ripple>
   );
@@ -787,6 +802,12 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
         onViewableItemsChanged={viewabilityConfigCallbackRef.current}
         viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
         getItemLayout={(_, index) => ({ length: containerHeight, offset: containerHeight * index, index })}
+        // Full-screen snap cells: the default window mounts ~10 of them, each
+        // with a full-resolution decode. Keep the window tight around the one
+        // the user is actually on.
+        initialNumToRender={2}
+        maxToRenderPerBatch={2}
+        windowSize={3}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => loadSnaps(1)} tintColor="#fff" />}
         onEndReached={loadMoreSnaps}
         onEndReachedThreshold={2}
@@ -832,6 +853,10 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
               data={searchSnapResults}
               keyExtractor={(item, i) => String(item.id || i)}
               numColumns={2}
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={7}
+              removeClippedSubviews
               contentContainerStyle={{ padding: 4 }}
               columnWrapperStyle={{ gap: 4 }}
               renderItem={({ item }) => (
@@ -842,7 +867,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
                 >
                   {item.media?.[0] ? (
                     <View>
-                      <Image source={{ uri: item.media[0] }} style={{ width: '100%', aspectRatio: 9/16, backgroundColor: '#111' }} resizeMode="cover" />
+                      <Image source={{ uri: snapThumb(item.media[0]) }} style={{ width: '100%', aspectRatio: 9/16, backgroundColor: '#111' }} resizeMode="cover" />
                       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingTop: 30, paddingBottom: 8, paddingHorizontal: 8, backgroundColor: 'rgba(0,0,0,0.6)' }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                           <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', flexShrink: 1 }} numberOfLines={1}>@{item.username}</Text>

@@ -8,7 +8,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import {
   getNotificationsAPI, markNotificationReadAPI, deleteNotificationAPI,
   deleteAllNotificationsAPI, AppNotification,
@@ -18,24 +18,55 @@ import SafeHTML from '../../components/SafeHTML';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
+// Keyed by both the server `type` and the structured `data.kind` (they overlap).
 const TYPE_COLORS: Record<string, string> = {
   like: '#ef4444',
+  likes: '#ef4444',
   comment: '#2563eb',
+  comments: '#2563eb',
+  reply: '#2563eb',
   follow: '#10b981',
+  followers: '#10b981',
+  friend: '#10b981',
   mention: '#8b5cf6',
+  mentions: '#8b5cf6',
   react: '#f59e0b',
   gift: '#d97706',
   system: '#6b7280',
+  post: '#0ea5e9',
+  newPost: '#0ea5e9',
+  group: '#14b8a6',
+  mobcoins: '#f59e0b',
+  events: '#a855f7',
+  verification: '#3b82f6',
+  messages: '#22c55e',
+  textmobai: '#8b5cf6',
+  askify: '#8b5cf6',
 };
 
 const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   like: 'heart',
+  likes: 'heart',
   comment: 'chatbubble',
+  comments: 'chatbubble',
+  reply: 'return-down-forward',
   follow: 'person-add',
+  followers: 'person-add',
+  friend: 'happy',
   mention: 'at',
+  mentions: 'at',
   react: 'happy',
   gift: 'gift',
   system: 'information-circle',
+  post: 'images',
+  newPost: 'images',
+  group: 'people',
+  mobcoins: 'cash',
+  events: 'calendar',
+  verification: 'shield-checkmark',
+  messages: 'chatbubbles',
+  textmobai: 'sparkles',
+  askify: 'sparkles',
 };
 
 export default function ActivityScreen() {
@@ -67,12 +98,15 @@ export default function ActivityScreen() {
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
-  // Auto-poll every 30 seconds
+  // Poll only while this screen is actually visible — it used to keep hitting
+  // /get-notifications every 30s in the background too, alongside the global
+  // badge poll, for a payload that no one was looking at.
+  const isFocused = useIsFocused();
   useEffect(() => {
-    if (!username) return;
-    const interval = setInterval(fetchNotifications, 30000);
+    if (!username || !isFocused) return;
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
-  }, [username, fetchNotifications]);
+  }, [username, isFocused, fetchNotifications]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -96,12 +130,15 @@ export default function ActivityScreen() {
     setClearing(false);
   };
 
+  const markRead = (notif: AppNotification) => {
+    if (!username || notif.read) return;
+    markNotificationReadAPI(username, notif.id).catch(() => {});
+    setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+  };
+
   const handleNavigate = (notif: AppNotification) => {
     if (!username || !notif.link) return;
-    if (!notif.read) {
-      markNotificationReadAPI(username, notif.id).catch(() => {});
-      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
-    }
+    markRead(notif);
     const path = notif.link;
     if (path.startsWith('/post/')) navigation.navigate('PostDetail', { postId: path.replace('/post/', '') });
     else if (path.startsWith('/@')) navigation.navigate('Profile', { username: path.replace('/@', '') });
@@ -117,16 +154,36 @@ export default function ActivityScreen() {
     }
   };
 
+  // Open the post with the comment composer focused and (when the notification
+  // knows which comment) primed as a reply to it.
+  const openReply = (notif: AppNotification) => {
+    if (!notif.link?.startsWith('/post/')) return;
+    markRead(notif);
+    navigation.navigate('PostDetail', {
+      postId: notif.link.replace('/post/', ''),
+      focusReply: true,
+      replyToCommentId: notif.data?.commentId || notif.data?.parentId || undefined,
+      replyToUser: notif.data?.replyToUsername || notif.sender || undefined,
+    });
+  };
+
   const renderNotif = ({ item }: { item: AppNotification }) => {
     const isUnread = !item.read;
-    const color = TYPE_COLORS[item.type] || TYPE_COLORS.system;
-    const iconName = TYPE_ICONS[item.type] || TYPE_ICONS.system;
+    const d = item.data;
+    const kind = d?.kind || item.type;
+    const color = TYPE_COLORS[kind] || TYPE_COLORS[item.type] || TYPE_COLORS.system;
+    const iconName = TYPE_ICONS[kind] || TYPE_ICONS[item.type] || TYPE_ICONS.system;
 
     const showChip = item.link &&
       item.link !== '/' &&
       !item.link.startsWith('/@') &&
       !item.link.startsWith('/accountscenter') &&
       !item.link.startsWith('/wallet');
+
+    const mediaUri = d?.image || d?.sticker || d?.video || '';
+    const tags = Array.isArray(d?.tags) ? d.tags : [];
+    const canReply = d?.replyable !== false && !!item.link && item.link.startsWith('/post/');
+    const avatarUri = d?.actor?.profile_pic || item.senderPic || DEFAULT_PIC;
 
     return (
       <Ripple
@@ -135,18 +192,63 @@ export default function ActivityScreen() {
         onLongPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
       >
         <View style={s.avatarContainer}>
-          <Image source={{ uri: item.senderPic || DEFAULT_PIC }} style={[s.notifAvatar, { borderColor: color, borderWidth: 1 }]} />
+          <Image source={{ uri: avatarUri }} style={[s.notifAvatar, { borderColor: color, borderWidth: 1 }]} />
           <View style={[s.typeIndicatorBadge, { backgroundColor: color }]}>
             <Ionicons name={iconName} size={8} color="#fff" />
           </View>
         </View>
         <View style={{ flex: 1 }}>
           <SafeHTML text={item.message} style={{ fontSize: 13, lineHeight: 18, color: colors.textPrimary }} />
-          <Text style={[s.notifTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>
-          {showChip && (
-            <Ripple onPress={() => handleNavigate(item)} style={[s.viewPostChip, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
-              <Text style={{ fontSize: 10, fontWeight: '700', color: '#2563eb' }}>View post →</Text>
-            </Ripple>
+
+          {(mediaUri || d?.reaction || (d?.text && d.text !== item.message)) ? (
+            <View style={s.metaRow}>
+              {!!d?.reaction && (
+                <View style={[s.reactionPill, { backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#fef3c7' }]}>
+                  <Text style={{ fontSize: 11 }}>{d.reaction}</Text>
+                </View>
+              )}
+              <Text style={[s.notifTime, { color: colors.textSecondary, marginTop: 0 }]}>{timeAgo(item.created_at)}</Text>
+            </View>
+          ) : (
+            <Text style={s.notifTime}>{timeAgo(item.created_at)}</Text>
+          )}
+
+          {mediaUri ? (
+            <View style={s.mediaRow}>
+              <Image source={{ uri: mediaUri }} style={[s.mediaThumb, { borderColor: colors.border }]} resizeMode="cover" />
+              {!!d?.text && (
+                <Text numberOfLines={3} style={[s.mediaCaption, { color: colors.textSecondary }]}>
+                  {d.text}
+                </Text>
+              )}
+              {!!d?.video && !d?.image && (
+                <View style={s.playBadge}>
+                  <Ionicons name="play" size={12} color="#fff" />
+                </View>
+              )}
+            </View>
+          ) : null}
+
+          {tags.length > 0 && (
+            <Text numberOfLines={1} style={[s.tagsRow, { color: colors.primary }]}>
+              {tags.slice(0, 5).map(t => (t.startsWith('#') ? t : '#' + t)).join('  ')}
+            </Text>
+          )}
+
+          {(showChip || canReply) && (
+            <View style={s.actionsRow}>
+              {showChip && (
+                <Ripple onPress={() => handleNavigate(item)} style={[s.viewPostChip, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#2563eb' }}>View post →</Text>
+                </Ripple>
+              )}
+              {canReply && (
+                <Ripple onPress={() => openReply(item)} style={[s.replyBtn, { borderColor: colors.border }]}>
+                  <Ionicons name="return-down-forward" size={11} color={colors.primary} />
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>Reply</Text>
+                </Ripple>
+              )}
+            </View>
           )}
         </View>
         <Ripple style={s.menuBtn} onPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}>
@@ -162,6 +264,12 @@ export default function ActivityScreen() {
                 <Ionicons name="open-outline" size={14} color={colors.textSecondary} />
                 <Text style={[s.dropdownText, { color: colors.textPrimary }]}>Open</Text>
               </Ripple>
+              {canReply && (
+                <Ripple style={s.dropdownItem} onPress={() => { setOpenMenuId(null); openReply(item); }}>
+                  <Ionicons name="return-down-forward" size={14} color={colors.primary} />
+                  <Text style={[s.dropdownText, { color: colors.primary }]}>Reply</Text>
+                </Ripple>
+              )}
               <Ripple style={s.dropdownItem} onPress={() => handleDelete(item.id)}>
                 <Ionicons name="trash-outline" size={14} color="#ef4444" />
                 <Text style={{ fontSize: 13, color: '#ef4444', fontWeight: '600' }}>Delete</Text>
@@ -215,6 +323,10 @@ export default function ActivityScreen() {
           data={notifications}
           keyExtractor={(item) => item.id}
           renderItem={renderNotif}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           contentContainerStyle={s.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
           ListEmptyComponent={
@@ -248,6 +360,24 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   typeIndicatorBadge: { position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#fff' },
   notifMessage: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
   notifTime: { fontSize: 11, marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
+  reactionPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
+  mediaRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8,
+    backgroundColor: 'rgba(127,127,127,0.06)', borderRadius: 10, padding: 8,
+  },
+  mediaThumb: { width: 48, height: 48, borderRadius: 8, backgroundColor: 'rgba(127,127,127,0.15)' },
+  mediaCaption: { flex: 1, fontSize: 12, lineHeight: 16 },
+  playBadge: {
+    position: 'absolute', left: 8, top: 8, width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+  },
+  tagsRow: { fontSize: 11, fontWeight: '700', marginTop: 6 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
+  replyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10,
+    paddingVertical: 4, borderRadius: 12, borderWidth: 1,
+  },
   viewPostChip: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   menuBtn: { padding: 4, alignSelf: 'flex-start' },
   menuBg: { position: 'absolute', inset: -100, zIndex: 9 },

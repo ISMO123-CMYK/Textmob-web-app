@@ -243,6 +243,9 @@ function LoudaHome({ initialWithUsername }: { initialWithUsername?: string }) {
           }}
           initialMedia={st.statusCameraMedia}
           onStatusPosted={st.loadStatuses}
+          recipients={(st.contacts || [])
+            .map((c: any) => String(c?.number || c?.phone || c?.username || '').trim())
+            .filter((v: string) => !!v && v !== 'support')}
         />
       )}
       {st.viewerTarget && (

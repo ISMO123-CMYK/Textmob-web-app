@@ -5,7 +5,7 @@ import NavIcons from '../../utils/navIcons';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import {
   REACTION_EMOJIS, timeAgo, clockTime, dayLabel, formatDuration,
-  useMediaQuery, renderMarkdown, playMessageSound, useUserMeta, useGlobalOnline,
+  useMediaQuery, renderMarkdown, playMessageSound, useUserMeta,
 } from './discussionsShared';
 import { DiscussionsShell } from './ChannelRail';
 
@@ -150,13 +150,10 @@ const MessageRow = memo(function MessageRow({
 });
 
 /* ══════════════════════ MEMBERS PANEL ══════════════════════ */
-const MemberRow = memo(function MemberRow({ username, isHost, online, pic, verified }) {
+const MemberRow = memo(function MemberRow({ username, isHost, pic, verified }) {
   return (
     <div className="flex items-center gap-3 px-4 py-1.5 rounded-xl hover:bg-gray-100/70 transition-colors">
-      <div className="relative shrink-0">
-        <img src={pic || DEFAULT_PIC} alt="" loading="lazy" className="w-8 h-8 rounded-full object-cover bg-gray-200" />
-        {online && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-gray-50 rounded-full" />}
-      </div>
+      <img src={pic || DEFAULT_PIC} alt="" loading="lazy" className="w-8 h-8 rounded-full object-cover bg-gray-200 shrink-0" />
       <span className={`text-sm font-medium truncate ${isHost ? 'text-blue-600' : 'text-gray-700'}`}>{username}</span>
       {verified && <VerifiedBadge className="w-3.5 h-3.5" />}
       {isHost && <span className="ml-auto text-[9px] font-bold bg-blue-100 text-blue-600 px-1.5 py-[1px] rounded shrink-0">HOST</span>}
@@ -164,14 +161,10 @@ const MemberRow = memo(function MemberRow({ username, isHost, online, pic, verif
   );
 });
 
-function MembersContent({ room, members, speakers, meta, onlineNow }) {
+function MembersContent({ room, members, speakers, meta }) {
   const host = room.host_username;
-  const onlineSet = onlineNow instanceof Set ? onlineNow : new Set(onlineNow || []);
   const metaMap = meta || {};
   const names = Array.from(new Set([host, ...(members || []), ...speakers]));
-  const online = names.filter(u => onlineSet.has(u));
-  const offline = names.filter(u => !onlineSet.has(u));
-  const onlineWithoutHost = online.filter(u => u !== host);
 
   return (
     <div>
@@ -185,37 +178,20 @@ function MembersContent({ room, members, speakers, meta, onlineNow }) {
         </div>
       </div>
 
-      <div className="px-4 pt-4 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Host — 1</div>
-      <div className="px-2">
-        <MemberRow username={host} isHost online={onlineSet.has(host)} pic={metaMap[host]?.pic} verified={metaMap[host]?.verified} />
-      </div>
-
-      <div className="px-4 pt-4 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Online — {onlineWithoutHost.length}</div>
-      <div className="px-2 pb-3 space-y-0.5">
-        {onlineWithoutHost.length === 0 && <p className="px-2 py-1 text-xs text-gray-400">No one else here yet</p>}
-        {onlineWithoutHost.map(u => (
-          <MemberRow key={u} username={u} online pic={metaMap[u]?.pic} verified={metaMap[u]?.verified} />
+      <div className="px-4 pt-4 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Members — {names.length}</div>
+      <div className="px-2 pb-6 space-y-0.5">
+        {names.map(u => (
+          <MemberRow key={u} username={u} isHost={u === host} pic={metaMap[u]?.pic} verified={metaMap[u]?.verified} />
         ))}
       </div>
-
-      {offline.length > 0 && (
-        <>
-          <div className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Offline — {offline.length}</div>
-          <div className="px-2 pb-6 space-y-0.5 opacity-60">
-            {offline.map(u => (
-              <MemberRow key={u} username={u} online={false} pic={metaMap[u]?.pic} verified={metaMap[u]?.verified} />
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }
 
-function MembersPanel({ room, members, speakers, meta, onlineNow }) {
+function MembersPanel({ room, members, speakers, meta }) {
   return (
     <aside className="hidden xl:flex w-72 flex-col shrink-0 border-l border-gray-200/60 bg-gray-50/70 overflow-y-auto scrollbar-thin">
-      <MembersContent room={room} members={members} speakers={speakers} meta={meta} onlineNow={onlineNow} />
+      <MembersContent room={room} members={members} speakers={speakers} meta={meta} />
     </aside>
   );
 }
@@ -225,7 +201,6 @@ export default function DiscussionRoom({ roomId, active = true }) {
   const currentUser = localStorage.getItem('currentUser');
   const desktop = useMediaQuery('(min-width: 768px)');
   const wide = useMediaQuery('(min-width: 1280px)');
-  const onlineNow = useGlobalOnline();
 
   const [room, setRoom] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -664,7 +639,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
             <svg viewBox="0 0 24 24" className="w-7 h-7 fill-none stroke-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
           </div>
           <h2 className="text-base font-bold text-gray-900 mb-1">{room.title}</h2>
-          <p className="text-xs text-gray-400 mb-4">by @{room.host_username} · {room.message_count || 0} messages</p>
+          <p className="text-xs text-gray-400 mb-4">by @{room.host_username}</p>
           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
             <p className="text-xs font-bold text-yellow-700">Unlock this archive</p>
             <p className="text-xs text-yellow-600 mt-0.5">500 mobcoins · Host gets 50 (10%)</p>
@@ -747,7 +722,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
           {!isLive && (
             <div className="flex-shrink-0 px-4 py-2.5 bg-gray-50 border-b border-gray-200/70 text-center">
               <p className="text-[11px] font-bold text-gray-400 tracking-wide">DISCUSSION ENDED</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">{room.message_count || 0} messages · {formatDuration(room.duration_seconds || 0)}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">{formatDuration(room.duration_seconds || 0)}</p>
             </div>
           )}
 
@@ -964,13 +939,13 @@ export default function DiscussionRoom({ roomId, active = true }) {
                 <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <MembersContent room={room} members={members} speakers={speakers} meta={meta} onlineNow={onlineNow} />
+            <MembersContent room={room} members={members} speakers={speakers} meta={meta} />
           </div>
         </div>
       )}
     </div>,
     showMembers && wide
-      ? <MembersPanel room={room} members={members} speakers={speakers} meta={meta} onlineNow={onlineNow} />
+      ? <MembersPanel room={room} members={members} speakers={speakers} meta={meta} />
       : null
   );
 }

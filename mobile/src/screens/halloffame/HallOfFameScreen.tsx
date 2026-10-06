@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { apiGet } from '../../api/client';
+import { imageUrl } from '../../utils/cloudinary';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
 
 const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
@@ -112,7 +113,7 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
           {/* Avatar */}
           <View style={[s.avatarWrap, medal && { borderColor: medal.ring, borderWidth: 2 }]}>
             {(item.avatar || item.profile_pic) ? (
-              <Image source={{ uri: item.avatar || item.profile_pic }} style={s.avatar} />
+              <Image source={{ uri: imageUrl(item.avatar || item.profile_pic, 128) || undefined }} style={s.avatar} />
             ) : (
               <View style={[s.avatar, { backgroundColor: avatarColor(item.username), alignItems: 'center', justifyContent: 'center' }]}>
                 <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>{getInitials(item.fullname, item.username)}</Text>

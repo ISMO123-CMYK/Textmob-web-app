@@ -7,6 +7,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import useProfileCache from '../hooks/useProfileCache';
+import { imageUrl } from '../utils/cloudinary';
 
 interface MobileHeaderProps {
   navigation: any;
@@ -34,7 +35,7 @@ export default function MobileHeader({
         onPress={() => navigation.navigate('Profile', { username })}
         style={s.profileBtn}
       >
-        <Image source={{ uri: profile.profile_pic }} style={s.avatar} />
+        <Image source={{ uri: imageUrl(profile.profile_pic, 128) || undefined }} style={s.avatar} />
       </Ripple>
 
       {/* Center: Branding Logo */}

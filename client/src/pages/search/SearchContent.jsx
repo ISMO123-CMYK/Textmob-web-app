@@ -192,6 +192,9 @@ export default function SearchContent() {
         }
         const data = await res.json();
         setSearchResults(data);
+        const hasUsers = Array.isArray(data) && data.some(i => i.type === 'user');
+        const hasDiscussions = Array.isArray(data) && data.some(i => i.type === 'discussion');
+        setActiveTab(hasUsers ? 'users' : hasDiscussions ? 'discussions' : 'posts');
       } catch (err) {
         setError(err.message);
       } finally {
@@ -252,6 +255,7 @@ export default function SearchContent() {
 
   const usersResults = searchResults.filter(e => e.type === 'user');
   const postsResults = searchResults.filter(e => e.type === 'post' || e.type === 'snap' || e.type === 'event' || e.type === 'live' || e.type === 'live_ended');
+  const discussionsResults = searchResults.filter(e => e.type === 'discussion');
   const suggestionItems = query.trim() ? suggestions : history;
   const isDropdownVisible = focused && ((query.trim() && (suggestions.length > 0 || loadingSuggestions)) || (!query.trim() && history.length > 0));
 
@@ -504,7 +508,8 @@ export default function SearchContent() {
           <div className="flex gap-1 mb-5">
             {[
               { key: 'users', label: 'People', count: usersResults.length },
-              { key: 'posts', label: 'Posts', count: postsResults.length }
+              { key: 'posts', label: 'Posts', count: postsResults.length },
+              { key: 'discussions', label: 'Discussions', count: discussionsResults.length }
             ].map(tab => (
               <button
                 onClick={() => setActiveTab(tab.key)}
@@ -558,6 +563,7 @@ export default function SearchContent() {
                       {isOrg && <span className="text-[9px] font-bold text-blue-500 border border-blue-200 px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">ORG</span>}
                     </div>
                     <p className="text-xs text-gray-400 truncate">@{<HighlightMatch text={t.username} query={query} />}</p>
+                    {t.biography && <p className="text-xs text-gray-400 truncate">{t.biography}</p>}
                   </div>
                   <button
                     onClick={e => {
@@ -580,6 +586,41 @@ export default function SearchContent() {
             <HomeFeed propPosts={postsResults} />
           </div>
         )}
+
+        {/* Discussions Results list tab */}
+        {!loadingResults && activeTab === 'discussions' && discussionsResults.length > 0 && (
+          <div className="rounded-2xl overflow-hidden bg-gray-50">
+            {discussionsResults.map(d => (
+              <a
+                href={`/discussions/${d.id}`}
+                data-lexum
+                className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition-colors"
+                key={d.id}
+              >
+                <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 text-base font-bold text-gray-400">#</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate leading-snug">
+                    <HighlightMatch text={d.title || 'Untitled discussion'} query={query} />
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">@{d.host_username} · {d.participant_count || 0} members</p>
+                </div>
+                {d.status === 'live' ? (
+                  <span className="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full flex-shrink-0">LIVE</span>
+                ) : (
+                  <span className="text-[10px] text-gray-300 flex-shrink-0">{d.category || 'discussion'}</span>
+                )}
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Active tab has no results */}
+        {searched && !loadingResults && !error && searchResults.length > 0 &&
+          ((activeTab === 'users' && usersResults.length === 0) ||
+           (activeTab === 'posts' && postsResults.length === 0) ||
+           (activeTab === 'discussions' && discussionsResults.length === 0)) && (
+            <p className="text-sm text-gray-400 text-center py-10">No results in this tab</p>
+          )}
       </div>
     </div>
   );

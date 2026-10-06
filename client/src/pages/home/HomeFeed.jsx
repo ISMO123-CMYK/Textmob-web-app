@@ -1,5 +1,5 @@
-import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
-﻿import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+﻿import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { apiFetch, isDataSaver } from '../../config/api';
 import { getMediaUrl } from '../../utils/cloudinary';
 import { isOfflineMode as getOfflineMode, setOfflineMode, isOnline, getCachedFiltered } from '../../utils/cache';
@@ -13,7 +13,7 @@ const allCategories = CATEGORIES.map(c => c.id);
 
 const DEFAULT_PIC = DEFAULT_AVATAR;
 
-/* ─── blocked users localStorage helpers ─── */
+/* â”€â”€â”€ blocked users localStorage helpers â”€â”€â”€ */
 const BLOCKED_KEY = 'textmobBlockedUsers';
 function getBlockedUsers() {
  try { return JSON.parse(localStorage.getItem(BLOCKED_KEY) || '[]'); } catch { return []; }
@@ -28,7 +28,7 @@ function removeBlocked(username) {
  return arr;
 }
 
-/* ─── seen-posts tracking (rr/ir/ar/or) ─── */
+/* â”€â”€â”€ seen-posts tracking (rr/ir/ar/or) â”€â”€â”€ */
 const SEEN_KEY = '__tmob_viewed_ids';
 function getSeenIds() {
  try { let e = localStorage.getItem(SEEN_KEY); return new Set(e ? JSON.parse(e) : []); } catch { return new Set(); }
@@ -40,13 +40,13 @@ function getSeenParam() {
  try { return Array.from(getSeenIds()).join(','); } catch { return ''; }
 }
 
-/* ─── sr – group post filter ─── */
+/* â”€â”€â”€ sr â€“ group post filter â”€â”€â”€ */
 function isGroupPost(p) {
  if (!p || !p.type) return false;
  return p.type.toLowerCase().startsWith('group');
 }
 
-/* ─── $n – suggestion card ─── */
+/* â”€â”€â”€ $n â€“ suggestion card â”€â”€â”€ */
 function SuggestionCard({ sug }) {
  const currentUser = localStorage.currentUser;
  const navigate = path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path);
@@ -63,7 +63,7 @@ function SuggestionCard({ sug }) {
  );
 }
 
-/* ─── _Component24 – suggestion slot between posts ─── */
+/* â”€â”€â”€ _Component24 â€“ suggestion slot between posts â”€â”€â”€ */
 function SuggestionSlot({ suggestions, slotIndex }) {
  const ref = useRef(null);
  const [visible, setVisible] = useState(false);
@@ -102,7 +102,7 @@ function SuggestionSlot({ suggestions, slotIndex }) {
  );
 }
 
-/* ─── reaction helpers ─── */
+/* â”€â”€â”€ reaction helpers â”€â”€â”€ */
 function computeReactionData(reactions, currentUser) {
  let counts = {};
  let userReaction = null;
@@ -118,7 +118,7 @@ function computeReactionData(reactions, currentUser) {
  return { counts: {}, userReaction: null };
 }
 
-/* ─── _Component28 – HomeFeed ─── */
+/* â”€â”€â”€ _Component28 â€“ HomeFeed â”€â”€â”€ */
 export default function HomeFeed({ propPosts }) {
  const [user] = useState({ username: localStorage.currentUser });
  const [activeTab, setActiveTab] = useState((window.__feedState?.activeTab === 'following' && !localStorage.currentUser) ? 'foryou' : (window.__feedState?.activeTab || 'foryou'));
@@ -303,7 +303,7 @@ export default function HomeFeed({ propPosts }) {
  'z-[45] border-b border-gray-100 flex transition-all duration-300',
  isMobile
  ? `block md:hidden sticky bg-white ${tabHidden ? 'top-0' : 'top-[56px]'}`
- : 'hidden md:flex sticky top-[52px] bg-white md:rounded-t-2xl backdrop-blur-md'
+  : 'hidden md:flex sticky top-[52px] bg-white backdrop-blur-md'
  )}>
  {tabs.map(tab => (
  <button
@@ -588,7 +588,7 @@ export default function HomeFeed({ propPosts }) {
  }).catch(() => {});
  }
 
- // Like handler — uses keepalive fetch so like survives page navigation
+ // Like handler â€” uses keepalive fetch so like survives page navigation
  function handleLike(postId) {
  if (!user.username) { window.showAuthPrompt?.('Log in to like posts'); return; }
  let username = user.username;
@@ -812,7 +812,7 @@ export default function HomeFeed({ propPosts }) {
  setPullStart(0);
  }
 
- // Error state — show cached content underneath if available
+ // Error state â€” show cached content underneath if available
  if (error) {
  const isOffline = !isOnline();
  const cachedPosts = isOffline ? getCachedFiltered('_get-posts') : null;
@@ -859,8 +859,8 @@ export default function HomeFeed({ propPosts }) {
  </div>
  )}
  {isOffline && cachedPosts && cachedPosts.length > 0 && (
- <div className="flex flex-col w-full max-w-2xl mx-auto md:mt-4">
- <p className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">Showing cached content</p>
+  <div className="flex flex-col w-full bg-white">
+  <p className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">Showing cached content</p>
  {cachedPosts.slice(0, 20).map((post, idx) => (
  <PostCard key={post.id} post={post} index={idx} />
  ))}
@@ -873,10 +873,10 @@ export default function HomeFeed({ propPosts }) {
  // Initial loading
  if (loading && page === 1) {
  return (
- <div className="flex flex-col w-full max-w-2xl mx-auto md:mt-4 bg-white md:rounded-2xl md:border border-gray-100 overflow-visible pb-20">
- <TabBar isMobile={false} />
- {[0, 1, 2, 3].map(i => <PostSkeleton key={i} />)}
- </div>
+  <div className="flex flex-col w-full bg-white overflow-visible pb-20">
+  <TabBar isMobile={false} />
+  {[0, 1, 2, 3].map(i => <PostSkeleton key={i} />)}
+  </div>
  );
  }
 
@@ -897,7 +897,7 @@ export default function HomeFeed({ propPosts }) {
  {/* Mobile tab bar */}
  <TabBar isMobile={true} />
 
- {/* Floating discussions pill — mobile only */}
+ {/* Floating discussions pill â€” mobile only */}
  <div className="md:hidden fixed top-12 left-1/2 -translate-x-1/2 z-50">
    <a href="/discussions" data-lexum className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 active:scale-95 transition-all">
      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
@@ -906,9 +906,9 @@ export default function HomeFeed({ propPosts }) {
    </a>
  </div>
 
- <div className="flex flex-col w-full max-w-2xl mx-auto md:mt-4 bg-white md:rounded-2xl md:border border-gray-100 overflow-visible pb-20">
- {/* Desktop tab bar */}
- <TabBar isMobile={false} />
+  <div className="flex flex-col w-full bg-white overflow-visible pb-20">
+  {/* Desktop tab bar */}
+  <TabBar isMobile={false} />
 
  {/* New posts banner */}
  {newPosts.length > 0 && !propPosts && (

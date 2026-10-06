@@ -19,6 +19,9 @@ const streamifier = require("streamifier");
 const { Resend } = require("resend");
 const DevPay = require("./utilities/devpay");
 const crypto = require("crypto");
+const compression = require("compression");
+const sharp = require("sharp");
+const { uploadMedia, destroyMedia } = require("./server/media");
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -164,6 +167,9 @@ async function verifyPhoneWithAPI(phone) {
 // ffmpeg-static exports the path string directly in recent versions
 ffmpeg.setFfmpegPath(ffmpegPath);
 const app = express();
+// gzip every JSON response — this is the single largest bytes-on-the-wire win
+// (compression was never installed before, so every API payload went out raw).
+app.use(compression());
 app.use(cors()); // Allow all origins
 const server = http.createServer(app); // attach raw HTTP server
 const io = socketIo(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
@@ -865,24 +871,92 @@ app.get("/api/live-info/:postId", (req, res) => {
 const authorMobcoinsCache = new Map();
 
 // ── Disabled User Guard ──────────────────────────────────────────────────────
+// Small TTL cache so the guard can sit in front of every write without adding
+// a Supabase round-trip to each one. Unknown users are never cached (a signup
+// must not inherit a stale "disabled" verdict).
+const DISABLED_CACHE_TTL = 15 * 1000;
+const disabledUserCache = new Map();
+
 async function isUserDisabled(username) {
   if (!username) return true;
+  const key = String(username);
+  const cached = disabledUserCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
   const { data: user } = await supabase
     .from("users")
     .select("disabled")
     .eq("username", username)
     .maybeSingle();
   // disabled is TEXT in DB: "true" or "false"
-  return user ? String(user.disabled) === "true" : true;
+  if (!user) return true;
+  const value = String(user.disabled) === "true";
+  disabledUserCache.set(key, { value, expires: Date.now() + DISABLED_CACHE_TTL });
+  return value;
+}
+
+// Called whenever the admin toggle flips the flag so the guard reacts at once.
+function invalidateDisabledCache(username) {
+  if (username) disabledUserCache.delete(String(username));
 }
 
 // ── Disabled Guard Middleware ────────────────────────────────────────────────
-async function guardDisabled(req, res, next) {
-  const username = req.body?.username || req.body?.currentUsername || req.query?.username;
-  if (username && await isUserDisabled(username)) {
-    return res.status(403).json({ error: "Account disabled. Cannot perform actions." });
+// Enforces the ban server-side instead of trusting the client (web AppWrapper
+// and the mobile DisabledScreen both poll /api/check-disabled, but a modified
+// client could ignore it). Only WRITE verbs are blocked: reads stay open, and
+// a small allowlist keeps auth, admin and payment flows working.
+const GUARD_ALLOWLIST = [
+  /^\/login$/i,
+  /^\/signup$/i,
+  /^\/forgot-password$/i,
+  /^\/verify-reset-code$/i,
+  /^\/reset-password$/i,
+  /^\/api\/check-disabled/i,
+  /^\/api\/verify-user/i,
+  /^\/api\/admin\b/i,
+  /^\/asilfcismail/i,
+  // Unsubscribe (enabled:false) must keep working for everyone.
+  /^\/register-token/i,
+  /^\/api\/push-opened/i,
+  // Louda callbacks carry louda ids, never a Textmob username.
+  /^\/api\/louda\//i,
+  /^\/api\/devpay\b/i,
+  /webhook/i,
+];
+
+function guardDisabled(req, res, next) {
+  try {
+    const method = (req.method || "GET").toUpperCase();
+    if (method === "GET" || method === "HEAD" || method === "OPTIONS") return next();
+
+    const path = req.path || req.url || "";
+    if (GUARD_ALLOWLIST.some((re) => re.test(path))) return next();
+
+    const b = req.body || {};
+    const username =
+      b.username ||
+      b.currentUsername ||
+      b.commenterUsername ||
+      b.senderUsername ||
+      b.fromId ||
+      b.sender ||
+      req.query?.username ||
+      req.params?.username;
+    // Multipart bodies are still empty here (multer runs inside the route) —
+    // those routes carry their own isUserDisabled() check.
+    if (!username) return next();
+
+    isUserDisabled(username)
+      .then((disabled) => {
+        if (disabled) {
+          return res.status(403).json({ error: "Account disabled. Cannot perform actions." });
+        }
+        next();
+      })
+      .catch(() => next()); // a failed check must never break the request
+  } catch (e) {
+    next();
   }
-  next();
 }
 
 // --- HLS Proxy Middleware ---
@@ -989,11 +1063,90 @@ const DEFAULT_NOTIFICATION_PREFS = {
   events: { inApp: true, email: true }
 };
 
+// ---------------------------------------------------------------------------
+// Structured notification payload (`notif.data`).
+//
+// Every notification carries the pieces a renderer (Activity screen, push
+// toast, web Activity feed) needs to draw media, hashtags and avatars without
+// a second fetch, plus the ids needed to route a tap and to reply in place.
+//
+//   kind        'post' | 'comment' | 'reply' | 'mention' | 'like' | 'follow'
+//               | 'group' | 'status' | 'message' | 'gift' | 'mobcoins' | ...
+//   text        plain body (comment text / post snippet)
+//   image       media url (post photo, replied message image)
+//   sticker     sticker url
+//   video       video url
+//   tags        hashtags seen in the content
+//   mentions    @usernames seen in the content
+//   postId, commentId, parentId   routing targets
+//   replyToUsername               the author of the message being replied to
+//   replyable     true when an inline Reply affordance should be offered
+//   actor       { username, fullname, profile_pic }
+//   reaction / amount / groupId / groupName / statusId    event specifics
+// ---------------------------------------------------------------------------
+const NOTIF_DATA_KEYS = [
+  "kind", "text", "image", "sticker", "video",
+  "tags", "mentions",
+  "postId", "commentId", "parentId", "replyToUsername", "replyable",
+  "reaction", "amount", "groupId", "groupName", "statusId",
+];
+
+function buildNotifData(data) {
+  if (!data || typeof data !== "object") return undefined;
+  const out = {};
+  for (const key of NOTIF_DATA_KEYS) {
+    const v = data[key];
+    if (v === undefined || v === null) continue;
+    if (typeof v === "string") {
+      if (v) out[key] = v.slice(0, 500);
+    } else if (typeof v === "number" || typeof v === "boolean") {
+      out[key] = v;
+    } else if (Array.isArray(v)) {
+      const arr = v.filter((x) => x !== undefined && x !== null && x !== "")
+        .slice(0, 12).map((x) => String(x).slice(0, 80));
+      if (arr.length) out[key] = arr;
+    }
+  }
+  const a = data.actor;
+  if (a && typeof a === "object") {
+    out.actor = {
+      username: a.username ? String(a.username).slice(0, 60) : "",
+      fullname: a.fullname ? String(a.fullname).slice(0, 80) : "",
+      profile_pic: a.profile_pic ? String(a.profile_pic).slice(0, 400) : "",
+    };
+  }
+  if (!out.kind && typeof data.kind === "string") out.kind = data.kind;
+  return Object.keys(out).length ? out : undefined;
+}
+
+// Structured payload for anything attached to a post: pulls the first media
+// (split into image/video), the text snippet and hashtags so the Activity row
+// can render a real preview instead of a generic sentence.
+function postNotifData(post, extra = {}) {
+  if (!post) return extra || {};
+  const media0 = (Array.isArray(post.media) && post.media[0]) || post.image || "";
+  const isVideo = post.type === "video" || /\.(mp4|mov|webm|m4v|m3u8)(\?|$)/i.test(media0);
+  const tags = Array.isArray(post.hashtags) ? post.hashtags
+    : (Array.isArray(post.tags) ? post.tags : []);
+  return Object.assign({
+    kind: "post",
+    postId: post.id,
+    text: String(post.text || post.title || "").slice(0, 300),
+    image: media0 && !isVideo ? media0 : "",
+    video: media0 && isVideo ? media0 : "",
+    tags,
+    replyable: true,
+  }, extra);
+}
+
 /**
  * Universal notification trigger that respects user preferences.
  * @param {string} recipient - target username
  * @param {string} type - 'likes', 'comments', 'newPost', etc.
- * @param {object} options - { msg, link, subject, html }
+ * @param {object} options - { msg, title, link, subject, html, sender,
+ *                            senderPic, data }
+ *   options.title overrides the default push/toast title.
+ *   options.data  is the structured payload documented above.
  */
 async function triggerNotification(recipient, type, options = {}) {
   try {
@@ -1010,8 +1163,10 @@ async function triggerNotification(recipient, type, options = {}) {
 
     // 1. In-App Notification
     if (typePrefs.inApp && options.msg) {
+      const data = buildNotifData(options.data);
       await addNotification(recipient, {
         id: Date.now() + Math.random(),
+        title: options.title || "",
         message: options.msg,
         read: false,
         link: options.link || "/",
@@ -1019,6 +1174,7 @@ async function triggerNotification(recipient, type, options = {}) {
         type: type,
         sender: options.sender,
         senderPic: options.senderPic,
+        data: data || { kind: type },
       });
     }
 
@@ -1127,6 +1283,83 @@ const devpay = new DevPay({
 });
 
 app.use(express.json());
+// Must run before every route below it (Express resolves the stack in order).
+app.use(guardDisabled);
+
+// ---------------------------------------------------------------------------
+// POST /api/louda/status-notify
+// Louda status uploads live in the Louda backend, so the client tells us who
+// was invited. Recipients may be Textmob usernames or raw phone numbers (Louda
+// contacts only carry phones) — phones are resolved here in one query.
+// Emits the same in-app row + push as every other Activity notification.
+// body: { username, recipients: string[], statusId?, caption?, media? }
+// ---------------------------------------------------------------------------
+const PHONEISH = /^\+?[\d][\d\s\-()]{5,}$/;
+
+app.post('/api/louda/status-notify', async (req, res) => {
+  try {
+    const { username, recipients, statusId, caption, media } = req.body || {};
+    if (!username) return res.status(400).json({ error: 'username required' });
+    if (await isUserDisabled(username)) return res.status(403).json({ error: 'Account disabled' });
+
+    const list = (Array.isArray(recipients) ? recipients : [])
+      .map((r) => String(r || '').trim())
+      .filter(Boolean)
+      .slice(0, 200);
+    if (!list.length) return res.json({ ok: true, sent: 0 });
+
+    const usernames = new Set(list.filter((r) => !PHONEISH.test(r)));
+    const phones = new Set();
+    for (const p of list.filter((r) => PHONEISH.test(r))) {
+      const raw = p.replace(/[\s\-()]/g, '');
+      phones.add(p);
+      phones.add(raw);
+      if (raw.startsWith('234')) phones.add('0' + raw.slice(3));
+      if (raw.startsWith('0')) phones.add('+234' + raw.slice(1));
+      if (raw.startsWith('234')) phones.add('+234' + raw.slice(3));
+    }
+
+    if (phones.size) {
+      const { data: byPhone } = await supabase
+        .from('users')
+        .select('username, phone')
+        .in('phone', Array.from(phones));
+      (byPhone || []).forEach((u) => { if (u.username) usernames.add(u.username); });
+    }
+
+    const trimmedCaption = caption ? String(caption).slice(0, 160) : '';
+    let sent = 0;
+    for (const recipient of usernames) {
+      if (recipient === username) continue;
+      try {
+        await triggerNotification(recipient, 'statuses', {
+          title: 'New status',
+          msg: trimmedCaption
+            ? `${username} posted a status: "${trimmedCaption}"`
+            : `${username} posted a new status`,
+          link: '/chats',
+          sender: username,
+          data: {
+            kind: 'status',
+            statusId: statusId ? String(statusId) : undefined,
+            image: media ? String(media) : undefined,
+            text: trimmedCaption,
+            replyable: true,
+            actor: { username },
+          },
+        });
+        sent++;
+      } catch (e) {
+        console.error('[status-notify] failed for', recipient, e && e.message);
+      }
+    }
+
+    res.json({ ok: true, sent });
+  } catch (err) {
+    console.error('[status-notify] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin update", link = "/wallet", extraMsg = "") {
   const { data: user, error: userErr } = await supabase
     .from("users")
@@ -1153,6 +1386,8 @@ async function updateMobcoins(userId, amount, notify = true, reason = "Mobcoin u
 
     triggerNotification(userId, 'mobcoins', {
       msg: extraMsg || `${message} (${reason})`,
+      title: 'Mobcoin update',
+      data: { kind: 'mobcoins', amount },
       link: link,
       subject: "Mobcoin Activity",
       html: `
@@ -2100,8 +2335,10 @@ app.post("/follow", async (req, res) => {
     if (normAction === "follow") {
       triggerNotification(username, 'followers', {
         msg: `${currentUsername} started following you`,
+        title: 'New follower',
         link: `/@${currentUsername}`,
         sender: currentUsername,
+        data: { kind: 'follow', actor: { username: currentUsername } },
         subject: "New Follower on Textmob",
         html: `
             <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${username},</p>
@@ -2185,8 +2422,10 @@ app.post("/friend", async (req, res) => {
     if (normAction === "friend") {
       triggerNotification(username, 'followers', {
         msg: `${currentUsername} added you as a friend`,
+        title: 'New friend',
         link: `/@${currentUsername}`,
         sender: currentUsername,
+        data: { kind: 'friend', actor: { username: currentUsername } },
         subject: "New Friend on Textmob",
         html: `
             <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${username},</p>
@@ -2320,13 +2559,7 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
     let profilePicUrl = null;
 
     if (req.file) {
-      const uploadResult = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          { folder: "profile-pictures", resource_type: "auto" },
-          (error, result) => (error ? reject(error) : resolve(result))
-        );
-        streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
-      });
+      const uploadResult = await uploadMedia(req.file.buffer, { folder: "profile-pictures" });
       profilePicUrl = uploadResult.secure_url;
     }
 
@@ -2586,6 +2819,12 @@ setInterval(() => {
   console.log("[SearchEngine] Re-indexed users and posts");
 }, 10 * 60 * 1000);
 
+// Sanitize a free-text query before it is embedded in PostgREST `.or()` filters
+// so commas/parentheses in the query can't break (or inject into) the filter.
+function searchIl(value) {
+  return String(value || "").replace(/[(),]/g, " ").trim().slice(0, 80);
+}
+
 // ─── /search – user-only search (SmartSearchEngine + DB ILIKE) ───
 app.get("/search", async (req, res) => {
   try {
@@ -2607,12 +2846,13 @@ app.get("/search", async (req, res) => {
     const yourFriends = new Set(you.friends || []);
     const yourFollowing = new Set(you.following || []);
     const q = query.trim().toLowerCase();
+    const qSafe = searchIl(q);
 
-    // Fetch users with DB-level ILIKE filter
+    // Fetch users with DB-level ILIKE filter (name + bio)
     const { data: users, error } = await supabase
       .from("users")
-      .select("username, fullname, profile_pic, profile_type, friends, followers, verified")
-      .or(`username.ilike.%${q}%,fullname.ilike.%${q}%`)
+      .select("username, fullname, profile_pic, profile_type, friends, followers, verified, biography")
+      .or(`username.ilike.%${qSafe}%,fullname.ilike.%${qSafe}%,biography.ilike.%${qSafe}%`)
       .limit(50);
 
     if (error) {
@@ -2644,6 +2884,7 @@ app.get("/search", async (req, res) => {
         username: u.username,
         fullname: u.fullname,
         profile_pic: u.profile_pic,
+        biography: u.biography || null,
         profile_type: isOrg ? "organisation" : "individual",
         relation: isOrg
           ? (yourFollowing.has(u.username) ? "following" : "not_following")
@@ -2671,6 +2912,7 @@ app.get("/search", async (req, res) => {
         username: u.username,
         fullname: u.fullname,
         profile_pic: u.profile_pic,
+        biography: u.biography || null,
         profile_type: isOrg ? "organisation" : "individual",
         relation: isOrg
           ? (yourFollowing.has(u.username) ? "following" : "not_following")
@@ -2711,10 +2953,10 @@ app.get("/general/search", async (req, res) => {
     const yourFriends = new Set(you.friends || []);
     const yourFollowing = new Set(you.following || []);
     const q = query.trim().toLowerCase();
+    const qSafe = searchIl(q);
     const now = Date.now();
 
-    // Fetch users with DB-level ILIKE filter
-    const postsTokens = q.split(/\s+/).filter(Boolean);
+    const postsTokens = qSafe.split(/\s+/).filter(Boolean);
     let postsPromise;
     if (postsTokens.length > 1) {
       const orConds = postsTokens.map(t => `text.ilike.%${t}%`).join(',');
@@ -2727,17 +2969,26 @@ app.get("/general/search", async (req, res) => {
       postsPromise = supabase2
         .from("Posts")
         .select("id, username, text, media, likes, comments, created_at, type")
-        .ilike("text", `%${q}%`)
+        .ilike("text", `%${qSafe}%`)
         .limit(limit + offset);
     }
 
-    const [{ data: users }, { data: posts }] = await Promise.all([
+    // Discussions — matched on title, description, host or category
+    const discussionsPromise = supabase2
+      .from("live_rooms")
+      .select("id, title, description, host_username, category, status, room_mode, participant_count, created_at, ended_at")
+      .or(`title.ilike.%${qSafe}%,description.ilike.%${qSafe}%,host_username.ilike.%${qSafe}%,category.ilike.%${qSafe}%`)
+      .order("created_at", { ascending: false })
+      .limit(limit + offset);
+
+    const [{ data: users }, { data: posts }, { data: discussions }] = await Promise.all([
       supabase
         .from("users")
-        .select("username, fullname, profile_pic, profile_type, verified")
-        .or(`username.ilike.%${q}%,fullname.ilike.%${q}%`)
+        .select("username, fullname, profile_pic, profile_type, verified, biography")
+        .or(`username.ilike.%${qSafe}%,fullname.ilike.%${qSafe}%,biography.ilike.%${qSafe}%`)
         .limit(limit + offset),
-      postsPromise
+      postsPromise,
+      discussionsPromise
     ]);
 
     const userMap = {};
@@ -2778,6 +3029,7 @@ app.get("/general/search", async (req, res) => {
         username: u.username,
         fullname: u.fullname,
         profile_pic: u.profile_pic,
+        biography: u.biography || null,
         profile_type: isOrg ? "organisation" : "individual",
         relation: isOrg
           ? (yourFollowing.has(u.username) ? "following" : "not_following")
@@ -2805,6 +3057,7 @@ app.get("/general/search", async (req, res) => {
         username: u.username,
         fullname: u.fullname,
         profile_pic: u.profile_pic,
+        biography: u.biography || null,
         profile_type: isOrg ? "organisation" : "individual",
         relation: isOrg
           ? (yourFollowing.has(u.username) ? "following" : "not_following")
@@ -2845,6 +3098,49 @@ app.get("/general/search", async (req, res) => {
         comments: Array.isArray(p.comments) ? p.comments : [],
         created_at: p.created_at,
         post_type: p.type,
+        score: Math.round(score)
+      });
+    });
+
+    // Score discussions
+    (discussions || []).forEach(d => {
+      if (seen.has(`room:${d.id}`)) return;
+      seen.add(`room:${d.id}`);
+
+      let score = 50;
+      const title = (d.title || "").toLowerCase();
+      const host = (d.host_username || "").toLowerCase();
+      const category = (d.category || "").toLowerCase();
+
+      if (title === q) score *= 3;
+      else if (title.includes(q)) score *= 1.6;
+      if (host.includes(q)) score *= 1.4;
+      if (category && category.includes(q)) score *= 1.2;
+
+      if (d.status === "live") score *= 1.3;
+
+      // Participation boost
+      score *= (1 + Math.log(1 + (d.participant_count || 0)) * 0.05);
+
+      // Recency boost
+      if (d.created_at) {
+        const ageDays = (now - new Date(d.created_at).getTime()) / 86400000;
+        if (ageDays < 2) score *= 1.3;
+        else if (ageDays < 7) score *= 1.1;
+      }
+
+      finalResults.push({
+        type: "discussion",
+        id: d.id,
+        title: d.title,
+        description: d.description,
+        host_username: d.host_username,
+        category: d.category,
+        status: d.status,
+        room_mode: d.room_mode,
+        participant_count: d.participant_count || 0,
+        created_at: d.created_at,
+        ended_at: d.ended_at,
         score: Math.round(score)
       });
     });
@@ -2931,7 +3227,11 @@ app.get("/profile/:username", async (req, res) => {
     const [userRes, countRes] = await Promise.all([
       supabase
         .from("users")
-        .select("fullname, username,following, followers, friends, email, phone, userType, profile_pic, biography, notifications, profile_type, notification_prefs, feed_prefs, verified, cover_photo")
+        // `notifications` is the full, ever-growing history on the user row and
+        // no client reads it from here (the Activity screen uses
+        // /get-notifications). Dropping it takes this response from potentially
+        // hundreds of KB down to a few hundred bytes.
+        .select("fullname, username,following, followers, friends, email, phone, userType, profile_pic, biography, profile_type, notification_prefs, feed_prefs, verified, cover_photo")
         .eq("username", username)
         .single(),
       supabase2
@@ -3032,16 +3332,10 @@ app.post(
       if (req.file) {
         // delete old if exists
         if (user.profile_pic_public_id) {
-          await cloudinary.uploader.destroy(user.profile_pic_public_id);
+          await destroyMedia(user.profile_pic_public_id);
         }
         // upload new
-        const uploadResult = await new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            { folder: "profile-pictures", resource_type: "auto" },
-            (error, result) => error ? reject(error) : resolve(result)
-          );
-          streamifier.createReadStream(req.file.buffer).pipe(stream);
-        });
+        const uploadResult = await uploadMedia(req.file.buffer, { folder: "profile-pictures" });
         newProfilePicUrl = uploadResult.secure_url;
         newProfilePicPublicId = uploadResult.public_id;
       }
@@ -3102,13 +3396,7 @@ app.post(
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const uploadResult = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: "cover-photos", resource_type: "auto" },
-          (error, result) => error ? reject(error) : resolve(result)
-        );
-        streamifier.createReadStream(req.file.buffer).pipe(stream);
-      });
+      const uploadResult = await uploadMedia(req.file.buffer, { folder: "cover-photos" });
 
       const coverPhotoUrl = uploadResult.secure_url;
 
@@ -3256,6 +3544,63 @@ async function syncLoudaPushPref(username, value) {
 }
 
 /**
+ * A device token belongs to exactly ONE account. Registration only ever wrote
+ * the caller's own row, so switching accounts on a phone left the token behind
+ * in the previous user's list too — and both accounts then pushed to the same
+ * device. Drop the token from every other row before saving it here.
+ *
+ * The scan is an ILIKE over users.userType, so it is throttled per
+ * (token, username) pair — an account switch is a different pair and always
+ * runs, while the several registrations a single session triggers collapse
+ * into one scan.
+ */
+const TOKEN_EVICTION_TTL = 60 * 1000;
+const tokenEvictionSeen = new Map();
+
+async function evictTokenFromOtherUsers(token, keepUsername) {
+  try {
+    const now = Date.now();
+    const key = `${token}\n${keepUsername}`;
+    if (now - (tokenEvictionSeen.get(key) || 0) < TOKEN_EVICTION_TTL) return 0;
+    if (tokenEvictionSeen.size > 2000) {
+      for (const [k, v] of tokenEvictionSeen) if (now - v > TOKEN_EVICTION_TTL) tokenEvictionSeen.delete(k);
+    }
+    tokenEvictionSeen.set(key, now);
+
+    // `_`/`%` inside the token behave as LIKE wildcards here; the exact token
+    // is re-checked against every parsed device below before any write, so a
+    // wider match is harmless.
+    const { data: rows, error } = await supabase
+      .from("users")
+      .select("username, userType")
+      .ilike("userType", `%${token}%`)
+      .neq("username", keepUsername)
+      .limit(50);
+    if (error || !rows || !rows.length) return 0;
+
+    let cleaned = 0;
+    for (const row of rows) {
+      const devices = parseDevices(row.userType);
+      const next = devices.filter((d) => d && d.token !== token);
+      if (next.length === devices.length) continue;
+      const userType = JSON.stringify(next);
+      const { error: updErr } = await supabase
+        .from("users")
+        .update({ userType })
+        .eq("username", row.username);
+      if (updErr) continue;
+      cleaned++;
+      if (memoryDb && memoryDb.isReady) memoryDb.updateUser(row.username, { userType });
+    }
+    if (cleaned) console.log(`[PUSH] evicted a shared device token from ${cleaned} other account(s)`);
+    return cleaned;
+  } catch (e) {
+    console.warn("[PUSH] token eviction failed:", e);
+    return 0;
+  }
+}
+
+/**
  * POST /register-token
  * body: { username, token, deviceId, platform, enabled? }
  * Stores device info in `userType` column (stringified JSON).
@@ -3318,6 +3663,15 @@ app.post("/register-token", async (req, res) => {
       await syncLoudaPushPref(username, enabled !== false);
       return res.json({ ok: true, removed: true });
     }
+
+    // Disabled accounts must not gain a device token (existing ones stop
+    // receiving pushes in addNotification, which checks the same flag).
+    if (await isUserDisabled(username)) {
+      return res.status(403).json({ error: "Account disabled" });
+    }
+
+    // One token -> one account: drop it from anybody else's row first.
+    await evictTokenFromOtherUsers(token, username);
 
     const nextDevices = devices.map((d) => {
       if (d.deviceId === normalizedDeviceId) {
@@ -3473,7 +3827,7 @@ async function resolvePushRecipients(loudaIds) {
       if (lu.username) {
         const { data } = await supabase
           .from("users")
-          .select("username, userType")
+          .select("username, userType, disabled")
           .eq("username", lu.username)
           .maybeSingle();
         tm = data;
@@ -3482,12 +3836,14 @@ async function resolvePushRecipients(loudaIds) {
         const formats = phoneVariants(lu.phone);
         const { data } = await supabase
           .from("users")
-          .select("username, userType")
+          .select("username, userType, disabled")
           .or(`phone.in.(${formats.map((f) => `"${f}"`).join(",")})`)
           .limit(1);
         tm = data && data.length ? data[0] : null;
       }
       if (!tm) continue;
+      // Disabled Textmob accounts receive no push at all.
+      if (String(tm.disabled) === "true") continue;
 
       const tokens = parseDevices(tm.userType).map(pushTokenOf).filter(Boolean);
       if (tokens.length) resolved.push({ username: tm.username, tokens });
@@ -3814,7 +4170,11 @@ app.get("/get-notifications", async (req, res) => {
       return res.status(500).json({ error: "Failed to fetch notifications" });
     }
 
-    return res.json(user && user.notifications ? user.notifications : []);
+    // Notifications are stored as an ever-growing array on the user row; without
+    // a cap every poll shipped the whole history (tens of KB each time).
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 150, 1), 500);
+    const all = user && Array.isArray(user.notifications) ? user.notifications : [];
+    return res.json(all.slice(0, limit));
   } catch (err) {
     console.error("get-notifications err:", err);
     return res.status(500).json({ error: "internal server error" });
@@ -3827,6 +4187,7 @@ app.get("/get-notifications", async (req, res) => {
  * Returns full post objects for the given IDs.
  */
 app.post("/get-posts-by-ids", async (req, res) => {
+  enableLitePosts(res, undefined, !!(req.body && req.body.lite));
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) return res.json([]);
@@ -3837,7 +4198,7 @@ app.post("/get-posts-by-ids", async (req, res) => {
       .in("id", ids.map(String));
 
     if (error || !posts) return res.json([]);
-    return res.json(posts);
+    return res.json(attachLinkPreviews(posts));
   } catch (err) {
     console.error("get-posts-by-ids err:", err);
     return res.json([]);
@@ -3849,8 +4210,13 @@ app.post("/get-posts-by-ids", async (req, res) => {
  * - Appends the notification into user's notifications.
  * - Attempts to send a push to every device stored in userType (stringified).
  *
- * Expected notification object: { id, title, message, data, read, created_at }
- * If id missing, one will be generated.
+ * Expected notification object:
+ *   { id, title, message, type, sender, senderPic, link, data, read,
+ *     created_at, timestamp }
+ *
+ * `data` is the structured payload (see NOTIF_DATA_KEYS) — it is stored as-is
+ * on the row and merged into the push payload so a tap can render/reply
+ * without a fetch. If id missing, one will be generated.
  */
 async function addNotification(recipientUsername, notification) {
   try {
@@ -3868,7 +4234,7 @@ async function addNotification(recipientUsername, notification) {
     // fetch current notifications and userType
     const { data: user, error: fetchError } = await supabase
       .from("users")
-      .select("notifications, userType")
+      .select("notifications, userType, disabled")
       .eq("username", recipientUsername)
       .single();
 
@@ -3916,6 +4282,13 @@ async function addNotification(recipientUsername, notification) {
     }
 
 
+    // Disabled accounts keep the in-app notification (so nothing is lost if
+    // the ban is lifted) but must not receive pushes — the stored device token
+    // may belong to a phone that has since logged in as somebody else.
+    if (String(user.disabled) === "true") {
+      return;
+    }
+
     if (devices.length === 0) {
       // nothing to push to
       return;
@@ -3940,6 +4313,10 @@ async function addNotification(recipientUsername, notification) {
           link: notif.link || "",
           notifType: notif.type || "",
           sender: notif.sender || "",
+          senderPic: notif.senderPic || "",
+          title: notif.title || "",
+          message: notif.message || "",
+          replyable: notif.data && notif.data.replyable ? true : false,
         }),
         status: "pending",
         attempts: 0,
@@ -3972,7 +4349,7 @@ app.post("/trigger-notifications", async (req, res) => {
   try {
     const { data: users, error } = await supabase
       .from("users")
-      .select("username, notifications, userType");
+      .select("username, notifications, userType, disabled");
 
     if (error) {
       console.error("trigger-notifications fetch users error:", error);
@@ -3982,6 +4359,7 @@ app.post("/trigger-notifications", async (req, res) => {
     const allMessages = [];
 
     for (const u of users || []) {
+      if (String(u.disabled) === "true") continue;
       const notifs = Array.isArray(u.notifications) ? u.notifications : [];
       const devices = (() => {
         try {
@@ -4063,7 +4441,7 @@ setInterval(async () => {
     // delete media from Cloudinary
     for (const s of expired) {
       if (s.media_public_id) {
-        await cloudinary.uploader.destroy(s.media_public_id);
+          await destroyMedia(s.media_public_id);
       }
     }
 
@@ -4091,13 +4469,7 @@ app.post("/create-spark", upload.single("media"), async (req, res) => {
       return res.status(400).json({ error: "Username and media are required" });
     }
 
-    const uploadResult = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        { folder: "sparks", resource_type: "auto" },
-        (error, result) => (error ? reject(error) : resolve(result))
-      );
-      streamifier.createReadStream(req.file.buffer).pipe(uploadStream);
-    });
+    const uploadResult = await uploadMedia(req.file.buffer, { folder: "sparks" });
 
     const mediaUrl = uploadResult.secure_url;
     const createdAt = new Date().toISOString();
@@ -4274,6 +4646,18 @@ async function notifyConnectionsOnPost(username, postText, postId) {
 
   const displayName = user && user.fullname ? user.fullname : username;
 
+  // Structured payload shared by every connection's notification (media +
+  // hashtags + ids), fetched once instead of once per connection.
+  const { data: postData } = await supabase2
+    .from('Posts')
+    .select('id, text, media, hashtags, type, title')
+    .eq('id', postId)
+    .single();
+  const baseData = postNotifData(postData || { id: postId, text: postText }, {
+    kind: 'post',
+    actor: { username, fullname: displayName },
+  });
+
   for (const connection of connections) {
     try {
       // Get email + notification prefs for connection
@@ -4290,12 +4674,14 @@ async function notifyConnectionsOnPost(username, postText, postId) {
       if (typePrefs.inApp) {
         await addNotification(connection, {
           id: Date.now() + Math.random(),
+          title: 'New post',
           message: `${displayName} just created a new post: "${postText.slice(0, 80)}..."`,
           read: false,
           link: `/post/${postId}`,
           timestamp: new Date().toISOString(),
           type: 'newPost',
           sender: username,
+          data: baseData,
         });
 
         // Real-time (Socket.io)
@@ -4338,6 +4724,8 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
     if (!username || !text) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+    // Multipart body reaches us only after multer, so the global guard skips it.
+    if (await isUserDisabled(username)) return res.status(403).json({ error: "Account disabled" });
 
     // Validate media size before upload
     for (const file of req.files) {
@@ -4349,13 +4737,9 @@ app.post("/create-snap", upload.array("media", 6), async (req, res) => {
     // Upload media to Cloudinary
     const mediaUrls = await Promise.all(
       (req.files || []).map((file) =>
-        new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            { folder: "snaps", resource_type: "video" }, // or "auto" if mixed media
-            (error, result) => (error ? reject(error) : resolve(result.secure_url))
-          );
-          streamifier.createReadStream(file.buffer).pipe(uploadStream);
-        })
+        uploadMedia(file.buffer, { folder: "snaps", resource_type: "video" }).then(
+          (result) => result.secure_url
+        )
       )
     );
 
@@ -5190,12 +5574,21 @@ ${new Date().toLocaleString("en-US", {
     if (parentUser) {
       var notification = {
         id: Date.now(),
+        title: "@textmobai replied",
         message: "@textmobai replied to you: \"" + replyText + "\"",
         read: false,
         link: "/post/" + postId,
         timestamp: new Date().toISOString(),
         type: 'textmobai',
         sender: 'textmobai',
+        data: {
+          kind: 'reply',
+          postId: postId,
+          text: replyText,
+          replyToUsername: parentUser,
+          replyable: true,
+          actor: { username: 'textmobai' },
+        },
       };
 
       // addNotification may throw or return rejected promise; wrap in try/catch
@@ -5411,12 +5804,21 @@ async function triggerAskifyReply(content, postId, parentType, parentUser) {
     if (parentUser) {
       const notification = {
         id: Date.now(),
+        title: "@askify replied",
         message: `@askify replied to you: "${replyText}"`,
         read: false,
         link: `/post/${postId}`,
         timestamp: new Date().toISOString(),
         type: 'askify',
         sender: 'askify',
+        data: {
+          kind: 'reply',
+          postId: postId,
+          text: replyText,
+          replyToUsername: parentUser,
+          replyable: true,
+          actor: { username: 'askify' },
+        },
       };
 
       try {
@@ -5552,16 +5954,9 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
     try {
       mediaUrls = await Promise.all(
         filesArray.map(function (file) {
-          return new Promise(function (resolve, reject) {
-            var uploadStream = cloudinary.uploader.upload_stream(
-              { folder: "post-media", resource_type: "auto" },
-              function (error, result) {
-                if (error) return reject(error);
-                if (result && result.secure_url) return resolve(result.secure_url);
-                return reject(new Error("Cloudinary returned unexpected result"));
-              }
-            );
-            streamifier.createReadStream(file.buffer).pipe(uploadStream);
+          return uploadMedia(file.buffer, { folder: "post-media" }).then(function (result) {
+            if (result && result.secure_url) return result.secure_url;
+            return Promise.reject(new Error("Cloudinary returned unexpected result"));
           });
         })
       );
@@ -5611,11 +6006,37 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
         console.log("[create-post] starting backgroundWork for postId:", data.id);
         try { tatuEvents.push({ username: username, event: "post_create", metadata: { postId: data.id, type: data.type }, timestamp: new Date().toISOString() }); if (tatuEvents.length > TATU_MAX_EVENTS) tatuEvents.splice(0, tatuEvents.length - Math.floor(TATU_MAX_EVENTS / 2)); } catch (_) { }
 
+        // Link preview: fetched server-side (raced against a short deadline so
+        // realtime delivery of the post is not held up), then stored in memory
+        // and best-effort persisted so later fetches return it.
+        var linkPreview = null;
+        try {
+          const previewUrl = extractFirstUrl(text);
+          if (previewUrl) {
+            linkPreview = await Promise.race([
+              buildLinkPreview(previewUrl),
+              new Promise(function (r) { setTimeout(function () { r(null); }, 3000); }),
+            ]);
+            if (linkPreview) {
+              rememberLinkPreview(data.id, linkPreview);
+              if (memoryDb && memoryDb.isReady) {
+                const cp = memoryDb.findPost(data.id);
+                if (cp) cp.link_preview = linkPreview;
+              }
+              persistLinkPreview(data.id, linkPreview);
+            }
+          }
+        } catch (pvErr) {
+          console.error("[create-post] link preview failed:", pvErr && pvErr.message);
+          linkPreview = null;
+        }
+
         // EMIT REAL-TIME NEW POST TO ALL CONNECTED CLIENTS
         try {
           // get full authored post so clients can render without fetching
           const { data: authorData } = await supabase.from('users').select('fullname, profile_pic').eq('username', username).single();
           const realtimePost = { ...data };
+          if (linkPreview) realtimePost.link_preview = linkPreview;
 
           if (authorData) {
             // attach author data (optional depending on frontend layout but helpful)
@@ -5650,8 +6071,14 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
           if (mentionedUser && mentionedUser !== username) {
             triggerNotification(mentionedUser, 'mentions', {
               msg: `@${username} mentioned you in a post`,
+              title: 'New mention',
               link: "/post/" + data.id,
               sender: username,
+              data: postNotifData(data, {
+                kind: 'mention',
+                mentions,
+                actor: { username },
+              }),
               subject: `@${username} mentioned you on Textmob`,
               html: `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${mentionedUser},</p><p style="margin:0;font-size:15px;line-height:1.6;color:#0f172a;"><strong>@${username}</strong> just mentioned you in a post on Textmob.</p>`
             });
@@ -5751,8 +6178,14 @@ async function createLivePostInDB(opts) {
         for (var i = 0; i < mentions.length; i++) {
           await triggerNotification(mentions[i], 'mentions', {
             msg: username + " mentioned you in a live post",
+            title: 'New mention',
             link: "/post/" + createdRow.id,
             sender: username,
+            data: postNotifData(createdRow, {
+              kind: 'mention',
+              mentions,
+              actor: { username },
+            }),
           });
         }
       } catch (e) {
@@ -6437,7 +6870,7 @@ app.post("/like-post", async (req, res) => {
     // Fetch the post owner and type for notifications
     const { data: post, error: fetchError } = await supabase2
       .from("Posts")
-      .select("likes, username, type, title")
+      .select("id, likes, username, type, title, text, media, hashtags")
       .eq("id", postId)
       .single();
 
@@ -6498,8 +6931,13 @@ app.post("/like-post", async (req, res) => {
 
       triggerNotification(post.username, type, {
         msg,
+        title: (post.type === 'event') ? 'New interest' : 'New like',
         link: `/post/${postId}`,
         sender: username,
+        data: postNotifData(post, {
+          kind: 'like',
+          actor: { username },
+        }),
         subject: (post.type === 'event')
           ? `${username} is interested in your event`
           : `New like from ${username}`,
@@ -6593,7 +7031,7 @@ app.post("/react-post", async (req, res) => {
 
     const { data: post, error: fetchError } = await supabase2
       .from("Posts")
-      .select("reactions, username, title, type")
+      .select("id, reactions, username, title, type, text, media, hashtags")
       .eq("id", postId)
       .single();
 
@@ -6648,8 +7086,14 @@ app.post("/react-post", async (req, res) => {
     if (username !== post.username && action === "added") {
       triggerNotification(post.username, 'likes', {
         msg: `${username} reacted to your post with ${reaction}`,
+        title: 'New reaction',
         link: `/post/${postId}`,
         sender: username,
+        data: postNotifData(post, {
+          kind: 'like',
+          reaction,
+          actor: { username },
+        }),
         subject: `New reaction from ${username}`,
         html: `
           <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${post.username},</p>
@@ -6697,6 +7141,8 @@ app.get("/get-post", async (req, res) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
+    attachLinkPreview(post);
+
     // Optionally, fetch user profile info for the post owner if not included already
     const { data: user, error: userError } = await supabase
       .from("users")
@@ -6718,7 +7164,51 @@ app.get("/get-post", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+// Feed responses used to ship every post row verbatim. `views` holds one entry
+// per viewer, `comments` the whole thread and `likes` every liker — a popular
+// post dragged thousands of strings into every page load while clients only
+// ever read the lengths (and, for likes, whether the viewer is one of them).
+// Swap them for counts on the way out. `/get-post` (detail) still ships the raw
+// arrays, and clients fall back to them, so nothing else has to know.
+//
+// `likes` is only dropped when the viewer is known, because `liked_by_me`
+// cannot be derived otherwise; profile/saved feeds keep the raw array.
+//
+// Runs only for clients that send `lite=1` (the mobile app) — the web feed
+// renders `post.comments` inline, so it has to keep receiving the raw arrays.
+function litePostRows(payload, viewer, lite) {
+  if (!lite || !Array.isArray(payload)) return payload;
+  return payload.map((p) => {
+    if (!p || typeof p !== 'object') return p;
+    const out = { ...p };
+    let changed = false;
+    if (Array.isArray(out.views)) {
+      out.view_count = out.views.length;
+      delete out.views;
+      changed = true;
+    }
+    if (Array.isArray(out.comments)) {
+      out.comment_count = out.comments.length;
+      delete out.comments;
+      changed = true;
+    }
+    if (viewer && Array.isArray(out.likes)) {
+      out.like_count = out.likes.length;
+      out.liked_by_me = out.likes.includes(viewer);
+      delete out.likes;
+      changed = true;
+    }
+    return changed ? out : p;
+  });
+}
+
+function enableLitePosts(res, viewer, lite) {
+  const json = res.json.bind(res);
+  res.json = (payload) => json(litePostRows(payload, viewer, lite));
+}
+
 app.get("/get-user-posts", async (req, res) => {
+  enableLitePosts(res, undefined, req.query.lite === '1' || req.query.lite === 'true');
   try {
     const { username } = req.query;
     const page = Math.max(parseInt(req.query.page || "0", 10) || 0, 0);
@@ -6750,6 +7240,7 @@ app.get("/get-user-posts", async (req, res) => {
       return res.status(500).json({ error: "Failed to fetch posts" });
     }
 
+    attachLinkPreviews(posts);
     res.json(posts);
 
   } catch (error) {
@@ -6819,7 +7310,7 @@ app.delete("/delete-post", async (req, res) => {
 
     // delete each from Cloudinary
     (post.media_public_ids || []).forEach(async publicId => {
-      await cloudinary.uploader.destroy(publicId, { resource_type: "auto" });
+      await destroyMedia(publicId);
     });
 
     // delete row
@@ -6861,7 +7352,7 @@ app.post("/add-comment", async (req, res) => {
     // Fetch current comments + post owner's username
     const { data: post, error: fetchError } = await supabase2
       .from("Posts")
-      .select("comments, username")
+      .select("id, comments, username, title, type, text, media, hashtags")
       .eq("id", postId)
       .single();
 
@@ -6943,8 +7434,17 @@ app.post("/add-comment", async (req, res) => {
     if (parentId && repliedUsername && repliedUsername !== commenterUsername && repliedUsername !== ownerUsername) {
       triggerNotification(repliedUsername, "comments", {
         msg: `${commenterUsername} replied to your comment: "${comment}"`,
+        title: "New reply",
         link: postLink,
         sender: commenterUsername,
+        data: postNotifData(post, {
+          kind: 'reply',
+          commentId: parentId,
+          parentId,
+          replyToUsername: repliedUsername,
+          replyable: true,
+          actor: { username: commenterUsername },
+        }),
         subject: `${commenterUsername} replied to your comment`,
         html: `
           <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${repliedUsername},</p>
@@ -6967,8 +7467,17 @@ app.post("/add-comment", async (req, res) => {
     if (!isSelfComment && (!parentId || repliedUsername !== ownerUsername)) {
       triggerNotification(ownerUsername, "comments", {
         msg: `${commenterUsername} commented on your post: "${comment}"`,
+        title: "New comment",
         link: postLink,
         sender: commenterUsername,
+        data: postNotifData(post, {
+          kind: 'comment',
+          commentId: parentId || undefined,
+          parentId: parentId || undefined,
+          replyToUsername: parentId ? ownerUsername : undefined,
+          replyable: true,
+          actor: { username: commenterUsername },
+        }),
         subject: `New comment from ${commenterUsername}`,
         html: `
           <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${ownerUsername},</p>
@@ -7005,8 +7514,14 @@ app.post("/add-comment", async (req, res) => {
       ) {
         triggerNotification(mentionedUser, "mentions", {
           msg: `${commenterUsername} mentioned you in a comment`,
+          title: "New mention",
           link: postLink,
           sender: commenterUsername,
+          data: postNotifData(post, {
+            kind: 'mention',
+            replyable: true,
+            actor: { username: commenterUsername },
+          }),
           subject: `@${commenterUsername} mentioned you in a comment`,
           html: `
             <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#0f172a;">Hi ${mentionedUser},</p>
@@ -7280,6 +7795,8 @@ app.post("/api/redeem", async (req, res) => {
 
     // Send notification to user
     await triggerNotification(user.username, 'mobcoins', {
+      title: 'Redemption queued',
+      data: { kind: 'mobcoins', amount: coinAmount },
       msg: `Your redemption request for ${coinAmount} Mobcoins (₦${nairaValue}) has been queued successfully! Payouts are every Saturday.`,
       subject: "Redemption Request Received! 💰",
       html: `Hi @${user.username},<br><br>We've received your redemption request for <b>${coinAmount} Mobcoins (₦${nairaValue})</b>. Your request has been queued and will be processed manually this coming Saturday.<br><br>If today is Saturday, your request will be processed next Saturday.<br><br>Thank you for using Textmob!`,
@@ -7928,12 +8445,9 @@ app.post('/send-message', upload.single('file'), async (req, res) => {
       ({ sender, receiver } = req.body);
       message = req.body.message || '';
       if (!sender || !receiver) return res.status(400).json({ error: 'Missing sender or receiver' });
-      const uploadResult = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { folder: 'messages', resource_type: 'auto', public_id: `user_${Date.now()}` },
-          (err, result) => (err ? reject(err) : resolve(result))
-        );
-        stream.end(req.file.buffer);
+      const uploadResult = await uploadMedia(req.file.buffer, {
+        folder: 'messages',
+        public_id: `user_${Date.now()}`,
       });
       userMediaUrl = uploadResult.secure_url;
       userMediaType = uploadResult.resource_type === 'image' ? 'image' : 'video';
@@ -7945,6 +8459,8 @@ app.post('/send-message', upload.single('file'), async (req, res) => {
       if (!sender || !receiver) return res.status(400).json({ error: 'Missing sender or receiver' });
     }
     if (!message && !userMediaUrl) return res.status(400).json({ error: 'Missing message or media' });
+    // Multipart body reaches us only after multer, so the global guard skips it.
+    if (await isUserDisabled(sender)) return res.status(403).json({ error: 'Account disabled' });
     const imagePromptRegex = /\b(?:create\s+(?:an?\s+)?image\s+of|imagine|draw(?:\s+(?:me|a))?|sketch(?:\s+(?:me|a))?|design(?:\s+(?:a|an))?|make(?:\s+me)?(?:\s+a)?\s?(?:picture|image|drawing)\s+of|generate(?:\s+(?:an?\s+)?(?:image|art|picture))|i\s+need\s+(?:a|an)?\s*(?:picture|image|drawing)\s+of|render(?:\s+(?:a|an))?)\b/i;
     const wantsAiImage = (receiver === 'textmobai') && (typeof message === 'string') && (imagePromptRegex.test(message)) && !req.file && !req.body.media_url;
     const userTs = new Date().toISOString();
@@ -7985,12 +8501,10 @@ app.post('/send-message', upload.single('file'), async (req, res) => {
           const imageResp = await fetch(pollinationsUrl);
           if (!imageResp.ok) throw new Error(`Pollinations fetch failed: ${imageResp.status} ${imageResp.statusText}`);
           const buffer = await imageResp.arrayBuffer ? Buffer.from(await imageResp.arrayBuffer()) : await imageResp.buffer();
-          const cloudResult = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { folder: 'messages', resource_type: 'image', public_id: `ai_${Date.now()}` },
-              (err, result) => (err ? reject(err) : resolve(result))
-            );
-            stream.end(buffer);
+          const cloudResult = await uploadMedia(buffer, {
+            folder: 'messages',
+            resource_type: 'image',
+            public_id: `ai_${Date.now()}`,
           });
           generatedImageUrl = cloudResult.secure_url;
           const aiTs = new Date().toISOString();
@@ -8299,6 +8813,175 @@ function extractMeta(html, href) {
   };
 }
 
+// --- URL link previews -------------------------------------------------------
+// Metadata is fetched server-side so mobile clients only receive a small JSON
+// blob (never the remote HTML, and only the single og:image URL).
+const URL_PREVIEW_TTL = 15 * 60 * 1000;
+const URL_PREVIEW_MAX_HTML = 150 * 1024;
+const urlPreviewCache = new Map(); // url -> { value, expires }
+
+function extractFirstUrl(text) {
+  if (!text || typeof text !== "string") return null;
+  const m = text.match(
+    /(?:https?:\/\/[^\s<>"']*[^\s<>"',.!?;:])|(?:textmob\.web\.app\/[^\s<>"']*[^\s<>"',.!?;:])/i
+  );
+  if (!m) return null;
+  let url = m[0];
+  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+  try {
+    const u = new URL(url);
+    if (/(^|\.)textmob\.web\.app$/i.test(u.hostname)) return null; // internal route
+    return u.toString();
+  } catch (_) {
+    return null;
+  }
+}
+
+function decodePreviewEntities(str) {
+  return String(str || "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&#(\d+);/g, function (_, n) {
+      const c = Number(n);
+      return Number.isFinite(c) && c > 31 && c < 0x10ffff ? String.fromCodePoint(c) : "";
+    })
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function readLimitedHtml(stream, limit) {
+  return new Promise(function (resolve, reject) {
+    const chunks = [];
+    let size = 0;
+    let settled = false;
+    const done = function (err, value) {
+      if (settled) return;
+      settled = true;
+      try { stream.destroy(); } catch (_) { }
+      if (err) reject(err);
+      else resolve(value);
+    };
+    stream.on("data", function (chunk) {
+      size += chunk.length;
+      chunks.push(chunk);
+      if (size >= limit) done(null, Buffer.concat(chunks).toString("utf8"));
+    });
+    stream.on("end", function () { done(null, Buffer.concat(chunks).toString("utf8")); });
+    stream.on("error", function (err) { done(err); });
+  });
+}
+
+async function buildLinkPreview(url) {
+  const cached = urlPreviewCache.get(url);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
+  try {
+    const resp = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      timeout: 6000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; TextmobPreview/1.0)",
+        "Accept": "text/html,application/xhtml+xml",
+      },
+    });
+    if (!resp || !resp.ok) return null;
+
+    const ctype = String((resp.headers && resp.headers.get && resp.headers.get("content-type")) || "");
+    if (ctype && ctype.indexOf("html") === -1 && ctype.indexOf("xml") === -1) return null;
+
+    let html = "";
+    if (resp.body && typeof resp.body.on === "function") {
+      html = await readLimitedHtml(resp.body, URL_PREVIEW_MAX_HTML);
+    } else {
+      const raw = await resp.text();
+      html = raw.length > URL_PREVIEW_MAX_HTML ? raw.slice(0, URL_PREVIEW_MAX_HTML) : raw;
+    }
+
+    const meta = extractMeta(html, url) || {};
+    let image = String(meta.image || "").trim();
+    if (/^data:/i.test(image)) image = "";
+    try { if (image) image = new URL(image, url).toString(); } catch (_) { image = ""; }
+
+    const u = new URL(url);
+    const rawTitle = String(meta.title || "").trim();
+    const preview = {
+      url,
+      title: (rawTitle && rawTitle !== url ? decodePreviewEntities(rawTitle) : "").slice(0, 200),
+      description: decodePreviewEntities(meta.desc).slice(0, 300),
+      image: image.slice(0, 2000),
+      site_name: u.hostname.replace(/^www\./, ""),
+      favicon: String(meta.favicon || "").slice(0, 500),
+    };
+
+    if (!preview.title && !preview.description && !preview.image) return null;
+
+    urlPreviewCache.set(url, { value: preview, expires: Date.now() + URL_PREVIEW_TTL });
+    if (urlPreviewCache.size > 500) {
+      const oldest = urlPreviewCache.keys().next().value;
+      urlPreviewCache.delete(oldest);
+    }
+    return preview;
+  } catch (err) {
+    console.error("[url-preview]", url, err && err.message);
+    return null;
+  }
+}
+
+app.get("/url-preview", async (req, res) => {
+  try {
+    const url = extractFirstUrl(String(req.query.url || ""));
+    if (!url) return res.status(400).json({ error: "Valid URL required" });
+    const preview = await buildLinkPreview(url);
+    if (!preview) return res.status(204).end();
+    res.json(preview);
+  } catch (err) {
+    console.error("[url-preview] endpoint error:", err && err.message);
+    res.status(500).json({ error: "Failed to fetch preview" });
+  }
+});
+
+// Post-id -> preview. Primary store, so previews keep working even when the
+// link_preview column is missing or the DB write fails (migration is optional).
+const postLinkPreviewStore = new Map();
+
+function rememberLinkPreview(postId, preview) {
+  if (!postId || !preview) return;
+  postLinkPreviewStore.set(String(postId), preview);
+  if (postLinkPreviewStore.size > 5000) {
+    const oldest = postLinkPreviewStore.keys().next().value;
+    postLinkPreviewStore.delete(oldest);
+  }
+}
+
+async function persistLinkPreview(postId, preview) {
+  try {
+    const { error } = await supabase2
+      .from("Posts")
+      .update({ link_preview: preview })
+      .eq("id", postId);
+    if (error) console.log("[link-preview] db persist skipped:", error.message);
+  } catch (err) {
+    console.log("[link-preview] db persist skipped:", err && err.message);
+  }
+}
+
+function attachLinkPreview(post) {
+  if (!post || post.link_preview) return post;
+  const pv = postLinkPreviewStore.get(String(post.id));
+  if (pv) post.link_preview = pv;
+  return post;
+}
+
+function attachLinkPreviews(posts) {
+  if (Array.isArray(posts)) posts.forEach(attachLinkPreview);
+  return posts;
+}
+
 async function checkAndDeliverPendingMessages(username) {
   try {
     const { data: pending, error } = await supabase
@@ -8460,6 +9143,8 @@ app.get("/tag/:hashtag", async (req, res) => {
 // GET/POST /get-posts
 // -------------------------------------------------------------
 app.post("/get-posts", express.json(), async (req, res) => {
+  const reqBody = req.body || {};
+  enableLitePosts(res, reqBody.username, !!reqBody.lite);
   try {
     const params = req.body;
     const { username, tab = "foryou", page = 1, seenIds = "" } = params;
@@ -8795,6 +9480,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const unames = [...new Set(final.map(p => p.username))];
       const vMap = memoryDb.getVerifiedMap(unames);
       final.forEach(p => p.verified = vMap[p.username] || false);
+      final.forEach(attachLinkPreview);
 
       return res.json(final);
     }
@@ -8836,7 +9522,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
           const iter = clientSeenIds.keys();
           for (let i = 0; i < 500; i++) clientSeenIds.delete(iter.next().value);
         }
-        return res.json(sliced);
+        return res.json(attachLinkPreviews(sliced));
       }
       const followingsAndFriends = [...new Set([...userFollowing, ...userFriends])].filter(u => !blockedUsers.has(u));
       if (followingsAndFriends.length === 0) return res.json([]);
@@ -8869,6 +9555,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
         const iter = clientSeenIds.keys();
         for (let i = 0; i < 500; i++) clientSeenIds.delete(iter.next().value);
       }
+      final.forEach(attachLinkPreview);
       return res.json(final);
     }
 
@@ -8988,6 +9675,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
       for (let i = 0; i < 500; i++) clientSeenIds.delete(iter.next().value);
     }
 
+    finalFeed.forEach(attachLinkPreview);
     res.json(finalFeed);
 
   } catch (err) {
@@ -9205,13 +9893,7 @@ app.post("/api/discussions/upload", upload.single("media"), async (req, res) => 
     if (!username) return res.status(400).json({ error: "username required" });
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: "discussion-media", resource_type: "auto" },
-        (err, result) => err ? reject(err) : resolve(result)
-      );
-      stream.end(req.file.buffer);
-    });
+    const result = await uploadMedia(req.file.buffer, { folder: "discussion-media" });
 
     return res.json({ url: result.secure_url, type: result.resource_type });
   } catch (err) {
@@ -9767,7 +10449,7 @@ app.post("/api/discussions/room/:roomId/delete", async (req, res) => {
           if (!url || !url.includes('cloudinary.com')) continue;
           try {
             const publicId = url.split('/image/upload/')[1]?.split(/\?/)[0]?.replace(/\.[^.]+$/, '');
-            if (publicId) await cloudinary.uploader.destroy(publicId, { resource_type: 'auto' });
+            if (publicId) await destroyMedia(publicId);
           } catch {}
         }
       }
@@ -10183,14 +10865,16 @@ app.post('/groups', async (req, res) => {
 
     // notify members for private/secret groups (if any were added on creation)
     if ((type === 'private_visible' || type === 'secret') && members.length > 0) {
-      const notification = {
-        id: Date.now(),
-        message: `You were added to the ${type} group "${name}" by ${username}.`,
-        read: false,
-        created_at: new Date().toISOString(),
-        type: 'group',
-        sender: username,
-      };
+        const notification = {
+          id: Date.now(),
+          title: 'Group invite',
+          message: `You were added to the ${type} group "${name}" by ${username}.`,
+          read: false,
+          created_at: new Date().toISOString(),
+          type: 'group',
+          sender: username,
+          data: { kind: 'group', groupId: data.id, groupName: name, actor: { username } },
+        };
       for (var i = 0; i < members.length; i++) {
         const member = members[i];
         await addNotification(member, notification);
@@ -10273,11 +10957,13 @@ app.post('/groups/:groupId/join', async (req, res) => {
     const admins = updated.users.filter(function (u) { return u.role === 'admin'; }).map(function (u) { return u.user_id; });
     const notif = {
       id: Date.now(),
+      title: 'New group member',
       message: `${username} joined the group.`,
       read: false,
       created_at: new Date().toISOString(),
       type: 'group',
       sender: username,
+      data: { kind: 'group', groupId, groupName: grp.name, actor: { username } },
     };
 
     for (var j = 0; j < admins.length; j++) {
@@ -10633,14 +11319,16 @@ app.post('/groups/:groupId/members', async (req, res) => {
 
     if (updErr) throw updErr;
 
-    const notification = {
-      id: Date.now(),
-      message: `You were added to the ${grp.type} group "${grp.name}" by ${username} as ${role}.`,
-      read: false,
-      created_at: new Date().toISOString(),
-      type: 'group',
-      sender: username,
-    };
+      const notification = {
+        id: Date.now(),
+        title: 'Group invite',
+        message: `You were added to the ${grp.type} group "${grp.name}" by ${username} as ${role}.`,
+        read: false,
+        created_at: new Date().toISOString(),
+        type: 'group',
+        sender: username,
+        data: { kind: 'group', groupId, groupName: grp.name, actor: { username } },
+      };
     await addNotification(newMember, notification);
 
     const { data: user } = await supabase
@@ -10688,7 +11376,7 @@ app.post('/groups/:groupId/roles', async (req, res) => {
 
     const { data: grp, error } = await supabase2
       .from('groups')
-      .select('payload')
+      .select('payload, name')
       .eq('id', groupId)
       .single();
 
@@ -10720,11 +11408,13 @@ app.post('/groups/:groupId/roles', async (req, res) => {
 
     const notif = {
       id: Date.now(),
+      title: 'Group role updated',
       message: `${username} assigned you ${role} role in the group.`,
       read: false,
       created_at: new Date().toISOString(),
       type: 'group',
       sender: username,
+      data: { kind: 'group', groupId, groupName: grp.name, actor: { username } },
     };
     await addNotification(targetUser, notif);
     io.to(`user_${targetUser}`).emit('notification', notif);
@@ -10752,15 +11442,7 @@ app.post(
       let media_url = null, media_public_id = null;
       if (req.file) {
         try {
-          const up = await new Promise(function (resolve, reject) {
-            cloudinary.uploader.upload_stream(
-              { resource_type: 'auto', folder: 'textmob/groups' },
-              function (error, result) {
-                if (error) reject(error);
-                else resolve(result);
-              }
-            ).end(req.file.buffer);
-          });
+          const up = await uploadMedia(req.file.buffer, { resource_type: 'auto', folder: 'textmob/groups' });
           media_url = up.secure_url;
           media_public_id = up.public_id;
         } catch (uploadError) {
@@ -10953,18 +11635,10 @@ app.post(
       }
 
       if (grp.profile_public_id) {
-        await cloudinary.uploader.destroy(grp.profile_public_id);
+        await destroyMedia(grp.profile_public_id);
       }
 
-      const up = await new Promise(function (resolve, reject) {
-        cloudinary.uploader.upload_stream(
-          { folder: 'textmob/group_profiles' },
-          function (error, result) {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        ).end(req.file.buffer);
-      });
+      const up = await uploadMedia(req.file.buffer, { folder: 'textmob/group_profiles' });
 
       const { data, error: updateErr } = await supabase2
         .from('groups')
@@ -11016,7 +11690,7 @@ app.delete('/groups/:groupId/messages/:msgId', async (req, res) => {
     }
 
     if (msg.media_public_id) {
-      await cloudinary.uploader.destroy(msg.media_public_id, { resource_type: 'image' });
+      await destroyMedia(msg.media_public_id);
     }
 
     const { error: updErr } = await supabase2
@@ -11061,7 +11735,7 @@ app.delete('/groups/:groupId', async (req, res) => {
     }
 
     if (grp.profile_public_id) {
-      await cloudinary.uploader.destroy(grp.profile_public_id);
+      await destroyMedia(grp.profile_public_id);
     }
 
     const { error: delErr } = await supabase2
@@ -11303,16 +11977,9 @@ app.post(
         var filesArray = req.files ? req.files : [];
         mediaUrls = await Promise.all(
           filesArray.map(function (file) {
-            return new Promise(function (resolve, reject) {
-              var uploadStream = cloudinary.uploader.upload_stream(
-                { folder: "post-media", resource_type: "auto" },
-                function (error, result) {
-                  if (error) return reject(error);
-                  if (result && result.secure_url) return resolve(result.secure_url);
-                  return reject(new Error("Cloudinary returned unexpected result"));
-                }
-              );
-              streamifier.createReadStream(file.buffer).pipe(uploadStream);
+            return uploadMedia(file.buffer, { folder: "post-media" }).then(function (result) {
+              if (result && result.secure_url) return result.secure_url;
+              return Promise.reject(new Error("Cloudinary returned unexpected result"));
             });
           })
         );
@@ -11376,12 +12043,19 @@ app.post(
             var member = groupMembers[m];
             var notif = {
               id: Date.now(),
+              title: 'New group post',
               message: username + " posted in " + grp.name,
               read: false,
               link: "/post/" + data.id,
               timestamp: new Date().toISOString(),
               type: 'group',
               sender: username,
+              data: postNotifData(data, {
+                kind: 'group',
+                groupId,
+                groupName: grp.name,
+                actor: { username },
+              }),
             };
             try {
               await addNotification(member, notif);
@@ -11444,8 +12118,16 @@ app.post(
             try {
               triggerNotification(mentions[j], 'mentions', {
                 msg: username + " mentioned you in a post",
+                title: 'New mention',
                 link: "/post/" + data.id,
                 sender: username,
+                data: postNotifData(data, {
+                  kind: 'mention',
+                  mentions,
+                  groupId,
+                  groupName: grp.name,
+                  actor: { username },
+                }),
               }).catch(function () { });
             } catch (addNotifErr2) {
               console.error("[group-post] addNotification failed for", mentions[j], addNotifErr2);
@@ -12425,7 +13107,8 @@ app.post("/api/admin/payout/update", async (req, res) => {
         ? `Your redemption of ${payout.coin_amount} Mobcoins was processed!`
         : `Your redemption request has been rejected.`;
       const subject = status === 'COMPLETED' ? "Redemption Successful" : "Redemption Update";
-      await triggerNotification(user.username, 'mobcoins', { msg, subject, html: msg, link: "/wallet" });
+      const title = status === 'COMPLETED' ? "Redemption complete" : "Redemption update";
+      await triggerNotification(user.username, 'mobcoins', { msg, title, subject, html: msg, link: "/wallet" });
     }
     res.json({ success: true });
   } catch (err) {
@@ -12464,9 +13147,9 @@ app.post("/api/admin/verification-update", async (req, res) => {
       .single();
     if (updateError) throw updateError;
     if (status === 'ACCEPTED') {
-      await triggerNotification(request.users.username, 'verification', { msg: "You have been verified!", subject: "Verification Accepted!", html: `Hi @${request.users.username},<br><br>You are now verified!`, link: "/accountscenter" });
+        await triggerNotification(request.users.username, 'verification', { msg: "You have been verified!", title: "Verification accepted", data: { kind: 'system' }, subject: "Verification Accepted!", html: `Hi @${request.users.username},<br><br>You are now verified!`, link: "/accountscenter" });
     } else {
-      await triggerNotification(request.users.username, 'verification', { msg: "Your verification was rejected.", subject: "Verification Update", html: `Hi @${request.users.username},<br><br>Please ensure you meet all criteria.`, link: "/accountscenter" });
+        await triggerNotification(request.users.username, 'verification', { msg: "Your verification was rejected.", title: "Verification update", data: { kind: 'system' }, subject: "Verification Update", html: `Hi @${request.users.username},<br><br>Please ensure you meet all criteria.`, link: "/accountscenter" });
     }
     res.json({ success: true });
   } catch (err) {
@@ -12489,6 +13172,7 @@ app.post("/api/admin/user/toggle-status", async (req, res) => {
     const disabledStr = String(!!disabled);
     const { error } = await supabase.from('users').update({ disabled: disabledStr }).eq('id', userId);
     if (error) throw error;
+    invalidateDisabledCache(user && user.username);
 
     // Update MemoryDB in real-time
     if (memoryDb && memoryDb.isReady && user) {
@@ -12686,12 +13370,14 @@ app.post("/api/admin/notify-user", express.json(), async (req, res) => {
     if (doInApp) {
       await addNotification(targetUsername, {
         id: Date.now() + Math.random(),
+        title: subject || "Textmob",
         message: message,
         read: false,
         link: notifLink,
         timestamp: new Date().toISOString(),
         type: notifType,
         sender: "admin",
+        data: { kind: notifType },
       });
       inAppOk = true;
     }
@@ -12747,7 +13433,7 @@ app.post("/api/admin/delete-post", async (req, res) => {
     if (fetchErr) throw fetchErr;
 
     (post.media_public_ids || []).forEach(async publicId => {
-      await cloudinary.uploader.destroy(publicId, { resource_type: "auto" });
+      await destroyMedia(publicId);
     });
 
     const { error: deleteErr } = await supabase2
@@ -13072,6 +13758,8 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
     // Send notification
     await triggerNotification(username, "verification", {
       msg: `Congratulations! You are now verified on Textmob. Your verification is active until ${verifiedUntil.toLocaleDateString()}.`,
+      title: 'You are verified',
+      data: { kind: 'system' },
       subject: "You're Verified!",
       html: `<p>Hi <strong>@${username}</strong>,</p>
              <p>Congratulations! Your Textmob account is now <strong>verified</strong>.</p>
@@ -13126,9 +13814,20 @@ app.get("/api/devpay/verification-status", async (req, res) => {
 // Serve the distributable APK (drop thetextmobapp.apk into public/apk/)
 app.use("/apk", express.static(path.join(__dirname, "public", "apk")));
 
-// Fallback catch-all route for SPA routing
+// Fallback catch-all route for SPA routing.
+// API-shaped requests must NOT get the 54KB admin HTML back with a 200 — the
+// mobile client treats 200 + non-JSON as success and caches it, which was
+// downloading tens of KB of garbage per phantom endpoint per feed load.
+const API_PATH_RE = /^\/(api|get-|create-|send-|update-|delete-|add-|remove-|like-|unlike-|follow|unfollow|search|profile|users|user|posts|post|tatu|balance|hashtag|notifications|chats|chat|messages|message|comments|comment|stories|sparks|snaps|leaderboard|trending-|ms-|suggestions|suggestion|hall-of-fame|transactions|wallet|events|discussions|check-|reset-|verify-|resend-|signup|login|logout|auth|me|status)/i;
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'asilfcismail.html'));
+  const p = req.path || '';
+  const accept = String(req.headers.accept || '');
+  const wantsJson = accept.includes('application/json') || API_PATH_RE.test(p);
+  if (wantsJson) {
+    res.status(404);
+    return res.json({ ok: false, error: `Not found: ${req.method} ${p}`, status: 404 });
+  }
+  return res.sendFile(path.join(__dirname, 'asilfcismail.html'));
 });
 
 // Periodically persist seen maps to disk (every 5 minutes)

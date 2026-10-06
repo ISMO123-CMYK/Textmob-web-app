@@ -48,7 +48,10 @@ function scheduleFlush() {
 export function getSeenParam(): string {
   ensureCache();
   const arr = Array.from(seenIdsCache!);
-  const recent = arr.slice(Math.max(0, arr.length - 1500));
+  // Every feed request shipped up to 1500 ids (~20KB) as a POST body. The
+  // server keeps its own per-user seen map on top of this, so a few hundred of
+  // the most recent ids is plenty to keep repeat posts out of the next pages.
+  const recent = arr.slice(Math.max(0, arr.length - 400));
   return recent.join(',');
 }
 

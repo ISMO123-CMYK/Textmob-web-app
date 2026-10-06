@@ -8,12 +8,13 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { searchUsersAPI, searchSuggestAPI, followAPI, friendAPI, UserProfile } from '../../api/users';
+import { searchUsersAPI, searchAPI, followAPI, friendAPI, UserProfile } from '../../api/users';
 import { Post } from '../../api/posts';
 import { apiGet } from '../../api/client';
 import { storage, KEYS } from '../../utils/storage';
 import { useNavigation } from '@react-navigation/native';
 import PostCard from '../../components/PostCard';
+import { imageUrl } from '../../utils/cloudinary';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 const SUGGESTIONS_STORAGE_KEY = 'search_history';
@@ -40,7 +41,7 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
   );
 }
 
-export default function SearchScreen() {
+export default function SearchScreen({ route }: { route?: { params?: { initialQuery?: string } } }) {
   const { colors, isDark } = useTheme();
   const { username } = useAuth();
   const navigation = useNavigation<any>();
@@ -49,13 +50,14 @@ export default function SearchScreen() {
   const [focused, setFocused] = useState(false);
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [postsResults, setPostsResults] = useState<Post[]>([]);
+  const [discussionsResults, setDiscussionsResults] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searched, setSearched] = useState(false);
   const [loadingResults, setLoadingResults] = useState(false);
-  const [activeTab, setActiveTab] = useState<'people' | 'posts'>('people');
+  const [activeTab, setActiveTab] = useState<'people' | 'posts' | 'discussions'>('people');
   const [history, setHistory] = useState<string[]>([]);
 
   const inputRef = useRef<TextInput>(null);
@@ -104,12 +106,25 @@ export default function SearchScreen() {
       const res = await apiGet(`/general/search?query=${encodeURIComponent(trimmed)}&currentUsername=${encodeURIComponent(username || '')}`);
       if (res.ok && res.data) {
         const data = Array.isArray(res.data) ? res.data : [];
-        setSearchResults(data.filter((r: any) => r.type === 'user'));
-        setPostsResults(data.filter((r: any) => r.type === 'post' || r.type === 'snap' || r.type === 'event' || r.type === 'live' || r.type === 'live_ended'));
+        const users = data.filter((r: any) => r.type === 'user');
+        const posts = data.filter((r: any) => r.type === 'post' || r.type === 'snap' || r.type === 'event' || r.type === 'live' || r.type === 'live_ended');
+        const discussions = data.filter((r: any) => r.type === 'discussion');
+        setSearchResults(users);
+        setPostsResults(posts);
+        setDiscussionsResults(discussions);
+        setActiveTab(users.length ? 'people' : discussions.length ? 'discussions' : 'posts');
       }
     } catch (e) { /* ignore */ }
     setLoadingResults(false);
   }, [username, saveHistory]);
+
+  // Hashtag / mention taps deep-link here with an initial query
+  const initialQuery = route?.params?.initialQuery;
+  useEffect(() => {
+    if (!initialQuery) return;
+    setQuery(initialQuery);
+    doSearch(initialQuery);
+  }, [route?.params]);
 
   // Keyboard navigation for dropdown
   const handleKeyDown = useCallback((key: string) => {
@@ -141,7 +156,7 @@ export default function SearchScreen() {
       return;
     }
     setLoadingSuggestions(true);
-    searchSuggestAPI(debouncedQuery, username || undefined).then(r => {
+    searchAPI(debouncedQuery, username || undefined).then(r => {
       if (r.ok && r.data) {
         const arr = Array.isArray(r.data) ? r.data : [];
         setSuggestions(arr);
@@ -200,7 +215,7 @@ export default function SearchScreen() {
         }}
       >
         {isUser && item.profile_pic ? (
-          <Image source={{ uri: item.profile_pic }} style={s.suggestAvatar} />
+          <Image source={{ uri: imageUrl(item.profile_pic, 128) }} style={s.suggestAvatar} />
         ) : (
           <View style={[s.suggestIconWrap, { backgroundColor: iconColor + '20' }]}>
             <Ionicons name={iconName} size={16} color={iconColor} />
@@ -233,7 +248,7 @@ export default function SearchScreen() {
     const actionName = isOrg ? (isConnected ? 'unfollow' : 'follow') : (isConnected ? 'unfriend' : 'friend');
     return (
       <Ripple style={s.userRow} onPress={() => navigation.navigate('Profile', { username: item.username })}>
-        <Image source={{ uri: item.profile_pic || DEFAULT_PIC }} style={s.userAvatar} />
+        <Image source={{ uri: imageUrl(item.profile_pic, 128) || DEFAULT_PIC }} style={s.userAvatar} />
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Text style={[s.userName, { color: colors.textPrimary }]} numberOfLines={1}>
@@ -244,6 +259,9 @@ export default function SearchScreen() {
           <Text style={[s.userHandle, { color: colors.textSecondary }]}>
             <HighlightMatch text={`@${item.username}`} query={query} />
           </Text>
+          {item.biography ? (
+            <Text style={[s.userBio, { color: colors.textSecondary }]} numberOfLines={1}>{item.biography}</Text>
+          ) : null}
         </View>
         {!isOwn && (
           <Ripple
@@ -258,6 +276,27 @@ export default function SearchScreen() {
       </Ripple>
     );
   };
+
+  const renderDiscussion = ({ item }: { item: any }) => (
+    <Ripple style={s.userRow} onPress={() => navigation.navigate('Discussions', { roomId: item.id })}>
+      <View style={s.discussionHash}>
+        <Text style={s.discussionHashText}>#</Text>
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={[s.userName, { color: colors.textPrimary }]} numberOfLines={1}>
+          <HighlightMatch text={item.title || 'Untitled discussion'} query={query} />
+        </Text>
+        <Text style={[s.userHandle, { color: colors.textSecondary }]} numberOfLines={1}>
+          @{item.host_username} · {item.participant_count || 0} members
+        </Text>
+      </View>
+      {item.status === 'live' ? (
+        <View style={s.liveTag}><Text style={s.liveTagText}>LIVE</Text></View>
+      ) : (
+        <Text style={[s.discussionCat, { color: colors.textSecondary }]}>{item.category || 'discussion'}</Text>
+      )}
+    </Ripple>
+  );
 
   const renderPost = ({ item }: { item: Post }) => (
     <PostCard post={item} />
@@ -295,7 +334,7 @@ export default function SearchScreen() {
             onKeyPress={({ nativeEvent }) => handleKeyDown(nativeEvent.key)}
           />
           {query.length > 0 && (
-            <Ripple onPress={() => { setQuery(''); setSearchResults([]); setSearched(false); setShowDropdown(false); }}>
+            <Ripple onPress={() => { setQuery(''); setSearchResults([]); setPostsResults([]); setDiscussionsResults([]); setSearched(false); setShowDropdown(false); }}>
               <Ionicons name="close" size={18} color={colors.textSecondary} />
             </Ripple>
           )}
@@ -320,6 +359,9 @@ export default function SearchScreen() {
               renderItem={renderSuggestion}
               keyExtractor={(_: any, i: number) => String(i)}
               keyboardShouldPersistTaps="handled"
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={5}
             />
           )}
         </View>
@@ -336,6 +378,9 @@ export default function SearchScreen() {
             <Ripple style={[s.tab, activeTab === 'posts' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('posts')}>
               <Text style={[s.tabText, { color: activeTab === 'posts' ? '#2563eb' : colors.textSecondary }]}>Posts ({postsResults.length})</Text>
             </Ripple>
+            <Ripple style={[s.tab, activeTab === 'discussions' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('discussions')}>
+              <Text style={[s.tabText, { color: activeTab === 'discussions' ? '#2563eb' : colors.textSecondary }]}>Discussions ({discussionsResults.length})</Text>
+            </Ripple>
           </View>
           {loadingResults ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
@@ -346,10 +391,32 @@ export default function SearchScreen() {
               keyExtractor={(item) => item.username}
               contentContainerStyle={s.listContent}
               keyboardShouldPersistTaps="handled"
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={7}
+              removeClippedSubviews
               ListEmptyComponent={
                 <View style={s.emptyState}>
                   <Ionicons name="search-outline" size={40} color={colors.textSecondary} />
                   <Text style={[s.emptyLabel, { color: colors.textSecondary }]}>No users found</Text>
+                </View>
+              }
+            />
+          ) : activeTab === 'discussions' ? (
+            <FlatList
+              data={discussionsResults}
+              renderItem={renderDiscussion}
+              keyExtractor={(item: any) => String(item.id)}
+              contentContainerStyle={s.listContent}
+              keyboardShouldPersistTaps="handled"
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={7}
+              removeClippedSubviews
+              ListEmptyComponent={
+                <View style={s.emptyState}>
+                  <Ionicons name="chatbubbles-outline" size={40} color={colors.textSecondary} />
+                  <Text style={[s.emptyLabel, { color: colors.textSecondary }]}>No discussions found</Text>
                 </View>
               }
             />
@@ -360,6 +427,10 @@ export default function SearchScreen() {
               keyExtractor={(item) => String(item.id)}
               contentContainerStyle={s.listContent}
               keyboardShouldPersistTaps="handled"
+              initialNumToRender={6}
+              maxToRenderPerBatch={6}
+              windowSize={7}
+              removeClippedSubviews
               ListEmptyComponent={
                 <View style={s.emptyState}>
                   <Ionicons name="document-text-outline" size={40} color={colors.textSecondary} />
@@ -441,6 +512,12 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   userAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.border },
   userName: { fontSize: 15, fontWeight: '700' },
   userHandle: { fontSize: 13, marginTop: 1 },
+  userBio: { fontSize: 12, marginTop: 2 },
+  discussionHash: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  discussionHashText: { fontSize: 18, fontWeight: '800', color: colors.textSecondary },
+  discussionCat: { fontSize: 10, fontWeight: '600' },
+  liveTag: { backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
+  liveTagText: { fontSize: 10, fontWeight: '800', color: '#2563eb' },
   followBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   followText: { fontSize: 12, fontWeight: '700' },
   historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 },

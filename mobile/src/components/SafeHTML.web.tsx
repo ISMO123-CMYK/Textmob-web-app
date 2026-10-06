@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import { useTheme } from '../context/ThemeContext';
+import { useNavigation } from '@react-navigation/native';
 import { apiGet } from '../api/client';
 
 let legacyListCache: string[] | null = null;
@@ -90,6 +91,57 @@ function convertMarkdown(text: string): string {
   return s;
 }
 
+const URL_RX = /(?:https?:\/\/[^\s<>"']*[^\s<>"',.!?;:])|(?:textmob\.web\.app\/[^\s<>"']*[^\s<>"',.!?;:])/g;
+
+function anchorForUrlWeb(raw: string): string {
+  const m = raw.match(/^(?:https?:\/\/)?(?:www\.)?textmob\.web\.app(\/\S*)?/i);
+  if (m) {
+    // Same-site links stay in the SPA (handled by the wrapper's onClick)
+    const path = m[1] && m[1].length > 1 ? m[1] : '/';
+    return `<a href="${path.replace(/"/g, '&quot;')}">${raw}</a>`;
+  }
+  return `<a href="${raw}" target="_blank" rel="noopener noreferrer">${raw}</a>`;
+}
+
+function linkifyTextWeb(t: string, legacyList: string[]): string {
+  if (!t) return t;
+  const urls: string[] = [];
+  let s = t.replace(URL_RX, (m: string) => {
+    urls.push(m);
+    return `\u0000${urls.length - 1}\u0000`;
+  });
+  s = s.replace(
+    /(^|[^\w#])(#[\w-]+)/g,
+    (_m, pre: string, tag: string) => `${pre}<a href="hashtag://${tag}">${tag}</a>`
+  );
+  const mentionRx = legacyList.length
+    ? new RegExp(`(^|\\s)@(?:${legacyList.map(escapeRegExp).join('|')}|([\\w.-]+))`, 'gm')
+    : /(^|\s)(@[\w.-]+)/gm;
+  s = s.replace(
+    mentionRx,
+    (match: string, boundary: string, legacyOrGeneric?: string) =>
+      legacyOrGeneric !== undefined
+        ? `${boundary}<a href="mention://@${legacyOrGeneric}">@${legacyOrGeneric}</a>`
+        : `${boundary}<a href="mention://${match.trim()}">${match.trim()}</a>`
+  );
+  return s.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => anchorForUrlWeb(urls[Number(i)]));
+}
+
+function linkifyOutsideAnchorsWeb(html: string, legacyList: string[]): string {
+  const parts = html.split(/(<[^>]*>)/g);
+  let anchorDepth = 0;
+  return parts
+    .map(part => {
+      if (part.startsWith('<')) {
+        if (/^<a[\s>]/i.test(part)) anchorDepth++;
+        else if (/^<\/a\s*>/i.test(part)) anchorDepth = Math.max(0, anchorDepth - 1);
+        return part;
+      }
+      return anchorDepth > 0 ? part : linkifyTextWeb(part, legacyList);
+    })
+    .join('');
+}
+
 export default function SafeHTML({
   text,
   style,
@@ -98,6 +150,7 @@ export default function SafeHTML({
   style?: React.CSSProperties;
 }) {
   const { colors } = useTheme();
+  const navigation = useNavigation<any>();
   const [legacyList, setLegacyList] = useState<string[]>([]);
 
   useEffect(() => {
@@ -113,33 +166,16 @@ export default function SafeHTML({
   let processed = text;
 
   if (!isHTML) {
-    // Legacy special-character usernames first in the alternation so a name like
-    // "Peace 🕊️" is matched whole instead of being clobbered by @[\w.-]+.
-    const mentionRx = legacyList.length
-      ? new RegExp(`(^|\\s)@(?:${legacyList.map(escapeRegExp).join('|')}|([\\w.-]+))`, 'gm')
-      : /(^|\s)(@[\w.-]+)/gm;
-
     processed = convertMarkdown(processed);
     processed = processed
       .replace(/[ \t]+$/gm, '')
       .replace(/\n{3,}/g, '\n\n')
-      .replace(/(?:\r\n|\r|\n)/g, '<br />')
-      .replace(
-        mentionRx,
-        (match: string, boundary: string, legacyOrGeneric: string) =>
-          legacyOrGeneric !== undefined
-            ? `${boundary}<a href="mention://@${legacyOrGeneric}" style="color:#2563eb;font-weight:700;text-decoration:none;">@${legacyOrGeneric}</a>`
-            : `${boundary}<a href="mention://${match.trim()}" style="color:#2563eb;font-weight:700;text-decoration:none;">${match.trim()}</a>`
-      )
-      .replace(
-        /(^|\s)(#[\w-]+)/g,
-        '$1<a href="hashtag://$2" style="color:#3b82f6;font-weight:600;text-decoration:none;">$2</a>'
-      )
-      .replace(
-        /(https?:\/\/[^\s<>"']+)/g,
-        '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;">$1</a>'
-      );
+      .replace(/(?:\r\n|\r|\n)/g, '<br />');
   }
+
+  // Linkify every text node — including HTML saved by the composer, which
+  // previously rendered as inert text with no mention/hashtag/URL links.
+  processed = linkifyOutsideAnchorsWeb(processed, legacyList);
 
   processed = sanitizeHtml(processed, {
     allowedTags: [
@@ -184,9 +220,49 @@ export default function SafeHTML({
     ? Object.assign({}, ...style.filter(Boolean))
     : style || {};
 
+  const navigateTo = (path: string) => {
+    if (path.startsWith('/post/')) navigation.navigate('PostDetail', { postId: path.replace('/post/', '') });
+    else if (path.startsWith('/@')) navigation.navigate('Profile', { username: path.replace('/@', '') });
+    else if (path.startsWith('/tag/')) {
+      const tag = decodeURIComponent(path.replace('/tag/', ''));
+      navigation.navigate('Hashtag', { tag: tag.replace(/^#/, '') });
+    } else if (path.startsWith('/search')) navigation.navigate('Search');
+    else if (path.startsWith('/snaps')) navigation.navigate('Snaps');
+    else if (path.startsWith('/chats')) navigation.navigate('Chats');
+    else if (path.startsWith('/halloffame')) navigation.navigate('HallOfFame');
+    else if (path.startsWith('/wallet')) navigation.navigate('Wallet');
+    else if (path.startsWith('/events')) navigation.navigate('Events');
+    else if (path.startsWith('/live')) navigation.navigate('LiveView');
+    else if (path.startsWith('/saved')) navigation.navigate('SavedPosts');
+    else if (path.startsWith('/connections')) navigation.navigate('Connections');
+    else if (path.startsWith('/discussions')) navigation.navigate('Discussions');
+  };
+
+  // Intercept link clicks: internal routes + mention/hashtag schemes navigate
+  // in-app, external links open in a new tab.
+  const onLinkClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const anchor = (e.target as HTMLElement | null)?.closest?.('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href') || '';
+    if (!href) return;
+    e.preventDefault();
+    if (href.startsWith('mention://')) {
+      const u = href.replace('mention://', '').replace(/^@/, '');
+      if (u) navigation.navigate('Profile', { username: u });
+    } else if (href.startsWith('hashtag://')) {
+      const tag = href.replace('hashtag://', '').replace(/^#/, '');
+      if (tag) navigation.navigate('Hashtag', { tag });
+    } else if (href.startsWith('/')) {
+      navigateTo(href);
+    } else {
+      window.open(href, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
     <div
       style={flattenedStyle}
+      onClick={onLinkClick}
       dangerouslySetInnerHTML={{ __html: processed }}
     />
   );

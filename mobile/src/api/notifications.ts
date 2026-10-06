@@ -1,8 +1,39 @@
 import { apiGet, apiPost } from './client';
 
+/**
+ * Structured payload stored on each notification (`notif.data`, mirrored into
+ * the push `data`). Lets the Activity row draw media/hashtags/avatars and lets
+ * a tap route + reply without a second fetch.
+ */
+export interface NotificationData {
+  kind?: string;
+  text?: string;
+  image?: string;
+  video?: string;
+  sticker?: string;
+  tags?: string[];
+  mentions?: string[];
+  postId?: string;
+  commentId?: string;
+  parentId?: string;
+  replyToUsername?: string;
+  replyable?: boolean;
+  reaction?: string;
+  amount?: number;
+  groupId?: string;
+  groupName?: string;
+  statusId?: string;
+  actor?: {
+    username?: string;
+    fullname?: string;
+    profile_pic?: string;
+  };
+}
+
 export interface AppNotification {
   id: string;
   type: string;
+  title?: string;
   username: string;
   sender: string;
   senderPic?: string;
@@ -11,6 +42,7 @@ export interface AppNotification {
   read: boolean;
   timestamp: string;
   created_at: string;
+  data?: NotificationData;
 }
 
 export async function getNotificationsAPI(username: string) {

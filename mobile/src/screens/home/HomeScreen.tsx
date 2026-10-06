@@ -18,6 +18,8 @@ import PostCard, { PostSkeleton } from '../../components/PostCard';
 import { apiPost, apiGet, API_BASE_URL } from '../../api/client';
 import { storage, KEYS } from '../../utils/storage';
 import { getSeenParam, markSeen } from '../../utils/seen';
+import { imageUrl } from '../../utils/cloudinary';
+import { toggleViewerLike } from '../../api/posts';
 import MobileHeader from '../../components/MobileHeader';
 import SaveCredentialsBanner from '../../components/SaveCredentialsBanner';
 
@@ -42,7 +44,7 @@ function SuggestionCard({ sug, onNavigate }: { sug: any; onNavigate: (path: stri
   const { colors, isDark } = useTheme();
   return (
     <Ripple style={[sugStyles.card, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb' }]} onPress={() => onNavigate(`/@${sug.username}`)}>
-      <Image source={{ uri: sug.profile_pic || DEFAULT_PIC }} style={sugStyles.avatar} />
+      <Image source={{ uri: imageUrl(sug.profile_pic, 128) || DEFAULT_PIC }} style={sugStyles.avatar} />
       <View style={{ flex: 1 }}>
         <Text style={[sugStyles.name, { color: colors.textPrimary }]} numberOfLines={1}>{sug.fullname}</Text>
         <Text style={[sugStyles.user, { color: colors.textSecondary }]}>@{sug.username}</Text>
@@ -100,6 +102,22 @@ function computeReactionData(reactions: any[], currentUser: string | null) {
     });
   }
   return { counts, userReaction };
+}
+
+// Keeping the cache object identity stable across renders is what lets the
+// memoized feed rows skip re-rendering; a fresh-but-equal map every time the
+// feed touched anything defeats that.
+function sameReactionData(
+  a?: { counts: Record<string, number>; userReaction: string | null } | null,
+  b?: { counts: Record<string, number>; userReaction: string | null } | null,
+) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.userReaction !== b.userReaction) return false;
+  const aKeys = Object.keys(a.counts);
+  const bKeys = Object.keys(b.counts);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every(k => a.counts[k] === b.counts[k]);
 }
 
 export default function HomeScreen() {
@@ -320,7 +338,14 @@ export default function HomeScreen() {
   useEffect(() => {
     const handler = (e: any) => {
       if (e?.postId) {
-        setPosts(prev => prev.map(p => p.id !== e.postId || p.comments?.some(c => c.id === e.id) ? p : { ...p, comments: [...(p.comments || []), e] }));
+        setPosts(prev => prev.map(p => {
+          if (p.id !== e.postId || p.comments?.some(c => c.id === e.id)) return p;
+          const next = { ...p, comments: [...(p.comments || []), e] };
+          // Lite feed rows carry `comment_count` instead of the thread; keep it
+          // in step so the card's counter (which prefers it) goes up too.
+          if (typeof p.comment_count === 'number') next.comment_count = p.comment_count + 1;
+          return next;
+        }));
       }
     };
     on('new-comment', handler);
@@ -374,23 +399,25 @@ export default function HomeScreen() {
     } catch (e) { /* ignore */ }
   }
 
-  // Process reactions from post data
+  // Derive reaction counts from the post payload itself. A null/missing
+  // reactions column means "nobody has reacted yet" — it is not a signal to go
+  // ask the server, which used to fire one GET per feed row per page load.
   useEffect(() => {
-    const pendingFetch = new Set<string | number>();
     setReactionCountsCache(prev => {
-      const next = { ...prev };
+      const next: typeof prev = { ...prev };
+      let changed = false;
       posts.forEach(p => {
         if (!p) return;
         const id = String(p.id);
-        if (Array.isArray(p.reactions)) {
-          next[id] = computeReactionData(p.reactions, username);
-        } else if (!prev[id]) {
-          pendingFetch.add(p.id);
+        const value = computeReactionData(p.reactions || [], username);
+        const existing = prev[id];
+        if (!sameReactionData(existing, value)) {
+          next[id] = value;
+          changed = true;
         }
       });
-      return next;
+      return changed ? next : prev;
     });
-    pendingFetch.forEach(id => fetchReactions(id));
   }, [posts, username]);
 
   // Poll vote
@@ -410,7 +437,7 @@ export default function HomeScreen() {
   // Like
   const handleLike = useCallback((postId: string | number) => {
     if (!username) return;
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes: p.likes?.includes(username) ? p.likes.filter(u => u !== username) : [...(p.likes || []), username] } : p));
+    setPosts(prev => prev.map(p => p.id === postId ? toggleViewerLike(p, username || '') : p));
     likePostAPI(String(postId), username).catch(() => {});
   }, [username]);
 
@@ -449,7 +476,12 @@ export default function HomeScreen() {
   // Comment
   const handleComment = useCallback(async (postId: string | number, text: string) => {
     if (!username || !text.trim()) return;
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: [...(p.comments || []), { id: Date.now().toString(), username, text: text.trim(), created_at: new Date().toISOString() }] } : p));
+    setPosts(prev => prev.map(p => {
+      if (p.id !== postId) return p;
+      const next = { ...p, comments: [...(p.comments || []), { id: Date.now().toString(), username, text: text.trim(), created_at: new Date().toISOString() }] };
+      if (typeof p.comment_count === 'number') next.comment_count = p.comment_count + 1;
+      return next;
+    }));
     await addCommentAPI(String(postId), username, text.trim()).catch(() => {});
   }, [username]);
 
@@ -945,7 +977,7 @@ export default function HomeScreen() {
                 ) : blockedList.map((u: any) => (
                   <View key={u.username} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                      <Image source={{ uri: u.profile_pic || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b' }} style={{ width: 32, height: 32, borderRadius: 16 }} />
+                      <Image source={{ uri: imageUrl(u.profile_pic, 128) || 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b' }} style={{ width: 32, height: 32, borderRadius: 16 }} />
                       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }} numberOfLines={1}>@{u.username}</Text>
                     </View>
                     <Ripple onPress={() => {

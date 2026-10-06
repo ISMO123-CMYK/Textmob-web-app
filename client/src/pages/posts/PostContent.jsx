@@ -1,5 +1,5 @@
 import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiFetch } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import PostCard from '../../components/ui/PostCard';
@@ -9,16 +9,19 @@ import { makeStickerText, isStickerText, parseStickerText, withSticker } from '.
 import useProfileCache from '../../utils/useProfileCache';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 
-function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, followingUsernames = [], postRead = true }) {
+function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, followingUsernames = [], postRead = true, autoReply = '' }) {
  const profile = useProfileCache(cmt.username);
  const ciGuest = !localStorage.currentUser;
  const currentUser = localStorage.currentUser;
- const [showReplyInput, setShowReplyInput] = useState(false);
+ const [showReplyInput, setShowReplyInput] = useState(() => !!autoReply && String(cmt.id) === String(autoReply));
  const [replyText, setReplyText] = useState('');
  const [showReplySticker, setShowReplySticker] = useState(false);
  const [replyStickerUrl, setReplyStickerUrl] = useState(null);
  const replies = cmt.replies || [];
- const [showReplies, setShowReplies] = useState(() => replies.some(r => followingUsernames.includes(r.username)));
+ const [showReplies, setShowReplies] = useState(() =>
+  replies.some(r => followingUsernames.includes(r.username)) ||
+  (!!autoReply && replies.some(r => String(r.id) === String(autoReply))));
+
 
  if (cmt.deleted && replies.length === 0) return null;
 
@@ -106,7 +109,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  </div>
  )}
  {showReplies && replies.map((r, i) => (
-  <CommentItem key={r.id || i} cmt={r} postId={postId} postOwner={postOwner} onReply={onReply} onDelete={onDelete} depth={depth + 1} followingUsernames={followingUsernames} postRead={postRead} />
+  <CommentItem key={r.id || i} cmt={r} postId={postId} postOwner={postOwner} onReply={onReply} onDelete={onDelete} depth={depth + 1} followingUsernames={followingUsernames} postRead={postRead} autoReply={autoReply} />
   ))}
  </div>
  </div>
@@ -280,6 +283,24 @@ export default function PostContent() {
  const [followingUsernames, setFollowingUsernames] = useState([]);
  const [postRead, setPostRead] = useState(false);
  const commentsRef = useRef(null);
+
+ // Activity "Reply" deep link: /post/<id>?reply=<commentId>&replyUser=<name>
+ // Read once on mount (lazy state init) so no setState-in-effect is needed.
+ const [autoReplyId] = useState(() => {
+  try {
+   const qs = window.location.search ||
+    (window.location.hash && window.location.hash.includes('?') ? '?' + window.location.hash.split('?')[1] : '');
+   return new URLSearchParams(qs).get('reply') || '';
+  } catch { return ''; }
+ });
+
+ useEffect(() => {
+  if (!autoReplyId || loading || !post) return;
+  const t = setTimeout(() => {
+   try { commentsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { /* noop */ }
+  }, 400);
+  return () => clearTimeout(t);
+ }, [autoReplyId, loading, post]);
 
  useEffect(() => {
   const cu = localStorage.currentUser;
@@ -557,7 +578,16 @@ export default function PostContent() {
  }
 
  return (
- <div className="bg-white border-b border-gray-100 ">
+ <div className="min-h-screen bg-white">
+ {/* Desktop sticky page bar (mobile web uses MobilePageLayout's fixed header) */}
+ <div className="hidden md:flex sticky top-0 z-30 h-12 items-center gap-6 px-4 bg-white/95 backdrop-blur-md border-b border-gray-100 ">
+ <button onClick={() => window.history.back()} className="tm-ripple -ml-2 p-2 rounded-full text-gray-700 hover:bg-gray-100 " aria-label="Back">
+ <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+ <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+ </svg>
+ </button>
+ <h1 className="text-xl font-bold text-gray-900">Post</h1>
+ </div>
  <PostCard
  post={post}
  groupProfiles={group ? { [group.id]: group } : {}}
@@ -571,26 +601,29 @@ export default function PostContent() {
  handleReact={handleReact}
  showCommentInput={false}
  showViewButton={false}
+ stickyHeader
  />
  {localStorage.currentUser ? (
- <div className="px-4 py-3 border-t border-gray-100 ">
+ <div className="px-4 py-3 border-b border-gray-100 ">
  <CommentInput onSubmit={text => handleComment(post.id, text)} />
  </div>
  ) : (
- <div className="px-4 py-3 border-t border-gray-100 ">
- <button onClick={() => window.showAuthPrompt?.('Log in to comment')} className="w-full text-left text-sm text-gray-400 bg-gray-50 rounded-full px-4 py-2 cursor-pointer">
+ <div className="px-4 py-3 border-b border-gray-100 ">
+ <button onClick={() => window.showAuthPrompt?.('Log in to comment')} className="tm-ripple w-full text-left text-sm text-gray-400 bg-gray-50 rounded-full px-4 py-2 cursor-pointer">
  Log in to comment
  </button>
  </div>
  )}
  {post.comments && post.comments.length > 0 && (
-  <div ref={commentsRef} className="px-4 pb-6 space-y-4">
-  <p className="text-xs font-bold uppercase tracking-widest text-gray-400 pt-2">Comments</p>
+  <div ref={commentsRef} className="px-4 pb-6">
+  <p className="text-[13px] font-bold text-gray-500 py-2 border-b border-gray-100 ">Comments</p>
+  <div className="space-y-1">
   {[...post.comments].reverse().map((c, i) => (
-  <CommentItem key={c.id || i} cmt={c} postId={post.id} postOwner={post.username} onReply={handleReply} onDelete={handleDeleteComment} followingUsernames={followingUsernames} postRead={postRead} />
+   <CommentItem key={c.id || i} cmt={c} postId={post.id} postOwner={post.username} onReply={handleReply} onDelete={handleDeleteComment} followingUsernames={followingUsernames} postRead={postRead} autoReply={autoReplyId} />
   ))}
   </div>
-  )}
+  </div>
+ )}
  </div>
  );
 }

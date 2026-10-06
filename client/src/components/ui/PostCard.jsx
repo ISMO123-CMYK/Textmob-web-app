@@ -1,5 +1,5 @@
 import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
-﻿import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { apiFetch } from '../../config/api';
 import { sharePostToLouda } from '../../bridge/connector.js';
 import { cn } from '../../utils/classNames';
@@ -162,7 +162,7 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal, onGift, onD
   return (
  <div className="relative flex-shrink-0">
  <FollowButtonInline targetUsername={post.username} currentUsername={localStorage.currentUser} onUpdate={() => { }} />
- <button onClick={() => setOpen(!open)} className="p-2 -mr-2 rounded-full hover:bg-gray-100 transition text-gray-400 " aria-label="Post options">
+ <button onClick={() => setOpen(!open)} className="tm-ripple p-2 -mr-2 rounded-full hover:bg-gray-100 transition text-gray-400 " aria-label="Post options">
  <DotsIcon />
  </button>
  {/* Mobile: bottom sheet */}
@@ -333,17 +333,17 @@ function FollowButtonInline({ targetUsername, currentUsername, onUpdate }) {
  );
 }
 
-/* ─── Wn – post header ─── */
-function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen, navigate, onNegativeSignal, onGift, onDownloadImage }) {
+/* ─── Wn – post header (Twitter layout) ─── */
+function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen, navigate, onNegativeSignal, onGift, onDownloadImage, showAvatar = true, sticky = false }) {
  let groupId = post.type?.startsWith('group-post-') ? post.type.replace('group-post-', '') : null;
  let groupInfo = groupId ? groupProfiles[groupId] : null;
  const phGuest = !localStorage.currentUser;
  const phNavigate = (path, msg) => { if (phGuest) { window.showAuthPrompt?.(msg || 'Create an account'); return; } navigate(path); };
 
- return (
- <div className="flex items-start justify-between mb-3">
- <div className="flex items-center gap-2 min-w-0 flex-1">
- {/* Avatar */}
+ const row = (
+ <div className="flex items-start justify-between gap-2">
+ <div className={cn("flex items-center gap-2.5 min-w-0 flex-1", !showAvatar && "min-w-0")}>
+ {showAvatar && (
  <div className="relative flex-shrink-0">
  <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/@${post.username}`, 'Create an account to view profiles'); }}>
  <img src={authorProfile.profile_pic || `${DEFAULT_PIC}`} alt={authorProfile.fullname || post.username} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
@@ -354,10 +354,10 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
  </a>
  )}
  </div>
- {/* Name and meta */}
+ )}
  <div className="min-w-0 flex-1">
- <div className="flex flex-wrap items-center gap-x-1 leading-snug">
- <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/@${post.username}`, 'Create an account to view profiles'); }} className="text-sm font-bold text-gray-900 hover:underline truncate">
+ <div className="flex flex-wrap items-center gap-x-1 text-[15px] leading-5">
+ <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/@${post.username}`, 'Create an account to view profiles'); }} className="font-bold text-gray-900 hover:underline truncate max-w-[14rem]">
  {authorProfile.fullname || post.username}
  </a>
  { (post.verified === true) && <VerifiedBadge /> }
@@ -369,20 +369,31 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
  )}
  {groupInfo && (
  <Fragment>
- <span className="text-xs text-gray-400 ">in</span>
- <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/group/${groupId}`, 'Create an account to view groups'); }} className="text-xs font-semibold text-blue-600 hover:underline">
+ <span className="text-[14px] text-gray-500">in</span>
+ <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/group/${groupId}`, 'Create an account to view groups'); }} className="text-[14px] font-semibold text-blue-600 hover:underline truncate">
  {groupInfo.name}
  </a>
  </Fragment>
  )}
  {post.activities && (
- <span className="text-xs text-gray-500 ">· is feeling {post.activities}</span>
+ <span className="text-[14px] text-gray-500 ">· feeling {post.activities}</span>
  )}
  </div>
- <span className="text-[11px] text-gray-400 leading-none">{timeAgo(post.created_at)}</span>
+ <div className="flex items-center gap-1 text-[14px] leading-4 text-gray-500 truncate">
+ <span className="truncate">@{post.username}</span>
+ <span>·</span>
+ <span className="whitespace-nowrap hover:underline">{timeAgo(post.created_at)}</span>
+ </div>
  </div>
  </div>
  <PostMenu post={post} open={menuOpen} setOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} onGift={onGift} onDownloadImage={onDownloadImage} />
+ </div>
+ );
+
+ if (!sticky) return row;
+ return (
+ <div className="sticky top-14 md:top-12 z-20 -mx-4 -mt-3 px-4 py-2.5 bg-white/95 backdrop-blur-md border-b border-gray-100 ">
+ {row}
  </div>
  );
 }
@@ -428,18 +439,18 @@ function PostText({ text }) {
  var LIMIT = 200;
  var isLong = text && text.length > LIMIT;
  var display = !expanded && isLong ? text.slice(0, LIMIT) + '…' : text;
- return (
- <div className="mb-3">
- <div className="text-sm leading-relaxed text-gray-800 whitespace-pre-wrap">
- <RichText html={display} />
- </div>
- {isLong && (
- <button onClick={function (e) { e.stopPropagation(); setExpanded(!expanded); }} className="text-xs font-semibold text-blue-600 hover:underline mt-0.5">
- {expanded ? 'Show less' : 'See more'}
- </button>
- )}
- </div>
- );
+  return (
+  <div className="mt-1 mb-3">
+  <div className="text-[15px] leading-[21px] text-gray-900 whitespace-pre-wrap break-words">
+  <RichText html={display} />
+  </div>
+  {isLong && (
+  <button onClick={function (e) { e.stopPropagation(); setExpanded(!expanded); }} className="mt-0.5 text-[15px] font-normal text-blue-600 hover:underline">
+  {expanded ? 'Show less' : 'Show more'}
+  </button>
+  )}
+  </div>
+  );
 }
 
 /* ─── Gn – reactions bar ─── */
@@ -624,53 +635,53 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
   }
 
  return (
- <div className="mt-2">
- <div className="flex items-center gap-1 -ml-3">
+ <div className="mt-1.5">
+ <div className="flex items-center -ml-1.5">
  {/* Like */}
  <button
  onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to like posts'); return; } handleLike(post.id); }}
  className={cn(
- 'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors',
- liked ? 'text-red-500 bg-red-50 ' : 'text-gray-500 hover:bg-gray-100 '
+ 'tm-ripple flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] font-medium transition-colors',
+ liked ? 'text-red-500' : 'text-gray-500 hover:text-red-500 hover:bg-red-50 '
  )}
  >
- <Heart className={cn('w-4 h-4', liked ? 'fill-red-500 stroke-red-500' : 'stroke-current')} strokeWidth={2} />
+ <Heart className={cn('w-[18px] h-[18px]', liked ? 'fill-red-500 stroke-red-500' : 'stroke-current')} strokeWidth={2} />
  <span>{post.likes.length}</span>
  </button>
 
  {/* Comment */}
  <button
  onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to comment'); return; } showCommentInput ? setShowInput(s => !s) : navigate(`/post/${post.id}`); }}
- className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+ className="tm-ripple flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] font-medium text-gray-500 hover:text-blue-500 hover:bg-blue-50  transition-colors"
  >
- <MessageCircle className="w-4 h-4 stroke-current" strokeWidth={2} />
+ <MessageCircle className="w-[18px] h-[18px] stroke-current" strokeWidth={2} />
  <span>{(post.comments || []).length}</span>
  </button>
 
  {/* Quote */}
  <button
  onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to quote posts'); return; } navigate(`/make-post/${post.id}`); }}
- className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+ className="tm-ripple flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] font-medium text-gray-500 hover:text-green-600 hover:bg-green-50  transition-colors"
  >
- <Repeat2 className="w-4 h-4 stroke-current" strokeWidth={2} />
+ <Repeat2 className="w-[18px] h-[18px] stroke-current" strokeWidth={2} />
  </button>
 
  {/* Reaction */}
  <button
  onClick={(e) => { e.stopPropagation(); if (!currentUser) { window.showAuthPrompt?.('Log in to react'); return; } setReactionsOpenFor(reactionsOpenFor === post.id ? null : post.id); }}
- className="p-2 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+ className="tm-ripple p-2 rounded-full text-gray-500 hover:text-yellow-500 hover:bg-yellow-50  transition-colors"
  aria-label="React"
  >
- <SmilePlus className="w-4 h-4 stroke-current" strokeWidth={2} />
+ <SmilePlus className="w-[18px] h-[18px] stroke-current" strokeWidth={2} />
  </button>
 
  {/* View count — clickable */}
  <button
  onClick={() => navigate(`/post/${post.id}`)}
- className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-400 hover:bg-gray-100 transition-colors"
+ className="tm-ripple ml-auto flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] font-medium text-gray-500 hover:text-blue-500 hover:bg-blue-50  transition-colors"
  >
- <Eye className="w-4 h-4 stroke-current" strokeWidth={1.5} />
- <span>{(() => { const v = Array.isArray(post.views) ? post.views.length : 0; return v >= 1000 ? (v / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : v; })()}</span>
+ <Eye className="w-[18px] h-[18px] stroke-current" strokeWidth={1.8} />
+ <span>{(() => { const v = post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0); return v >= 1000 ? (v / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : v; })()}</span>
  </button>
  </div>
 
@@ -1108,7 +1119,7 @@ function MediaGallery({ media, poster }) {
 }
 
 /* ─── Jn – event card ─── */
-function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, navigate }) {
+function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, navigate, onNegativeSignal }) {
  const currentUser = localStorage.currentUser;
  const ended = new Date(post.scheduled_for) <= new Date();
  const liked = (post.likes || []).includes(currentUser);
@@ -1299,6 +1310,47 @@ export function PostSkeleton() {
  );
 }
 
+/* ─── LinkPreview – server-fetched page metadata (low-data) ─── */
+function LinkPreview({ preview, navigate }) {
+ if (!preview || !preview.url) return null;
+  let host, pathname = '/', search = '';
+ try {
+ const u = new URL(preview.url);
+ host = u.hostname.replace(/^www\./, '');
+ pathname = u.pathname;
+ search = u.search;
+ } catch { return null; }
+ const isInternal = /(^|\.)textmob\.web\.app$/i.test(host);
+ const open = (e) => {
+   e.preventDefault();
+   e.stopPropagation();
+   if (isInternal) navigate((pathname || '/') + (search || ''));
+   else window.open(preview.url, '_blank', 'noopener,noreferrer');
+ };
+ return (
+ <a
+   href={preview.url}
+   onClick={open}
+   target={isInternal ? undefined : '_blank'}
+   rel="noopener noreferrer"
+   data-no-nav
+   className="tm-ripple mt-3 mb-1 block rounded-2xl border border-gray-200 overflow-hidden hover:bg-gray-50 transition-colors group/lp"
+ >
+   {preview.image && (
+   <div className="h-44 sm:h-52 bg-gray-100 overflow-hidden border-b border-gray-200 ">
+     <img src={preview.image} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+   </div>
+   )}
+   <div className="px-3.5 py-2.5">
+   <p className="text-[13px] text-gray-500 truncate">{host}</p>
+   {preview.title && <p className="mt-0.5 text-[15px] font-bold text-gray-900 leading-snug truncate group-hover/lp:underline">{preview.title}</p>}
+   {preview.description && <p className="mt-0.5 text-[14px] leading-[18px] text-gray-500 line-clamp-2">{preview.description}</p>}
+   {isInternal && <span className="mt-1 inline-block text-[12px] font-semibold text-blue-600 ">Open in Textmob</span>}
+   </div>
+ </a>
+ );
+}
+
 /* ─── Zn – main PostCard component ─── */
 const PostCard = ({
  post,
@@ -1313,6 +1365,7 @@ const PostCard = ({
  handleReact,
  showCommentInput = true,
  showViewButton = true,
+ stickyHeader = false,
  onNavigate,
  onNegativeSignal
 }) => {
@@ -1481,7 +1534,7 @@ const PostCard = ({
  }
  // Event type
  if (post.type === 'event') {
- return <EventCard post={post} authorProfile={authorProfile} handleLike={handleLike} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} />;
+  return <EventCard post={post} authorProfile={authorProfile} handleLike={handleLike} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} />;
  }
  // Live ended
  if (post.type === 'live_ended') {
@@ -1493,26 +1546,83 @@ const PostCard = ({
  }
 
  // Default post (text, poll, media)
+ const groupId = post.type?.startsWith('group-post-') ? post.type.replace('group-post-', '') : null;
+ const gInfo = groupId ? groupProfiles[groupId] : null;
+ const openFromCard = (e) => {
+   if (e.button !== 0) return;
+   if (e.target.closest('button, a, input, textarea, select, [data-no-nav]')) return;
+   navigate(`/post/${post.id}`);
+ };
+
+ const mediaBlock = (
+ <div className={cn('mt-3 mb-2.5 overflow-hidden rounded-2xl border border-gray-200/70 ', stickyHeader && '-mx-4 md:mx-0')}>
+   <MediaGallery media={post.media} poster={authorProfile.profile_pic} />
+ </div>
+ );
+
+ const headerProps = { post, authorProfile, groupProfiles, menuOpen, setMenuOpen, navigate, onNegativeSignal, onGift: () => currentUser && setShowGiftModal(true), onDownloadImage: handleDownloadImage };
+
  return (
- <div className="bg-white px-4 pt-4 pb-4">
- <PostHeader post={post} authorProfile={authorProfile} groupProfiles={groupProfiles} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} onGift={() => currentUser && setShowGiftModal(true)} onDownloadImage={handleDownloadImage} />
- {post.text && <PostText text={post.text} />}
- {post.type === 'poll' && post.options && <PollContent post={post} handlePollVote={handlePollVote} />}
- {post.media?.length > 0 && (
- <div className="mb-3 -mx-4 md:mx-0 md:rounded-xl overflow-hidden">
- <MediaGallery media={post.media} poster={authorProfile.profile_pic} />
- </div>
- )}
- {post.quoted_post_id && (
- <div className="mb-3">
- <QuotedPost postId={post.quoted_post_id} navigate={navigate} />
- </div>
- )}
- <ReactionsBar postId={post.id} reactionCountsCache={reactionCountsCache} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} handleReact={handleReact} />
- <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} authorProfile={authorProfile} />
- <div className="h-2 bg-gray-50 -mx-4 mt-4" />
- <GiftCoinsModal open={showGiftModal} onClose={() => setShowGiftModal(false)} recipientUsername={post.username} recipientAvatar={authorProfile?.profile_pic} recipientFullname={authorProfile?.fullname} postId={post.id} />
- </div>
+ <article
+   onClick={stickyHeader ? undefined : openFromCard}
+   className={cn(
+     'tm-post bg-white border-b border-gray-200/70  transition-colors',
+     stickyHeader ? 'px-4 pt-3 pb-3' : 'px-4 pt-3 pb-2 hover:bg-gray-50/50 cursor-pointer'
+   )}
+ >
+   {stickyHeader ? (
+   <Fragment>
+     <PostHeader {...headerProps} sticky />
+     {post.text && <PostText text={post.text} />}
+     {post.type === 'poll' && post.options && <PollContent post={post} handlePollVote={handlePollVote} />}
+     {post.media?.length > 0 && mediaBlock}
+     {post.link_preview && <LinkPreview preview={post.link_preview} navigate={navigate} />}
+     {post.quoted_post_id && (
+     <div className="mt-3">
+       <QuotedPost postId={post.quoted_post_id} navigate={navigate} />
+     </div>
+     )}
+     <div className="mt-2 mb-1 flex items-center gap-1 border-b border-gray-200  pb-2 text-[15px] text-gray-500">
+     <span className="hover:underline">{timeAgo(post.created_at)}</span>
+     <span>·</span>
+      <span>{(() => { const v = post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0); return v >= 1000 ? (v / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : v; })()} Views</span>
+     </div>
+     <ReactionsBar postId={post.id} reactionCountsCache={reactionCountsCache} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} handleReact={handleReact} />
+     <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} authorProfile={authorProfile} />
+   </Fragment>
+   ) : (
+   <div className="flex gap-3">
+     {/* Avatar column */}
+     <div className="w-10 shrink-0">
+     <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); e.stopPropagation(); authNavigate(`/@${post.username}`, 'Create an account to view profiles'); }}>
+       <img src={authorProfile.profile_pic || `${DEFAULT_PIC}`} alt={authorProfile.fullname || post.username} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
+     </a>
+     {gInfo && (
+       <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); e.stopPropagation(); authNavigate(`/group/${groupId}`, 'Create an account to view groups'); }} className="relative -bottom-2 left-5 block w-5 h-5">
+       <img src={gInfo.profile_pic} alt={gInfo.name} className="w-5 h-5 rounded-full object-cover border-2 border-white " loading="lazy" />
+       </a>
+     )}
+     </div>
+
+     {/* Content column */}
+     <div className="min-w-0 flex-1">
+     <PostHeader {...headerProps} showAvatar={false} />
+     {post.text && <PostText text={post.text} />}
+     {post.type === 'poll' && post.options && <PollContent post={post} handlePollVote={handlePollVote} />}
+     {post.media?.length > 0 && mediaBlock}
+     {post.link_preview && <LinkPreview preview={post.link_preview} navigate={navigate} />}
+     {post.quoted_post_id && (
+       <div className="mt-3">
+       <QuotedPost postId={post.quoted_post_id} navigate={navigate} />
+       </div>
+     )}
+     <ReactionsBar postId={post.id} reactionCountsCache={reactionCountsCache} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} handleReact={handleReact} />
+     <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} authorProfile={authorProfile} />
+     </div>
+   </div>
+   )}
+   <GiftCoinsModal open={showGiftModal} onClose={() => setShowGiftModal(false)} recipientUsername={post.username} recipientAvatar={authorProfile?.profile_pic} recipientFullname={authorProfile?.fullname} postId={post.id} />
+ </article>
  );
 };
 
