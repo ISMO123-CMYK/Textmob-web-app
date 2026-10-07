@@ -353,7 +353,7 @@ function DiscussionsList({ active }) {
       onNew={() => setShowCreate(true)}
       onHome={() => window.Lexum?.navigate('/discussions')}
       rightPanel={desktop && wide ? (
-        <aside className="w-80 shrink-0 bg-white border-l border-gray-200/60 overflow-y-auto scrollbar-thin">
+        <aside className="w-[333px] shrink-0 bg-white border-l border-gray-200/60 overflow-y-auto scrollbar-thin">
           <RightSidebar />
         </aside>
       ) : null}

@@ -11,6 +11,7 @@ export default function ActivityContent({ onClose }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [tab, setTab] = useState('all');
   
   const originalListRef = useRef([]);
   const dropdownRefs = useRef({});
@@ -155,8 +156,9 @@ export default function ActivityContent({ onClose }) {
     return `${Math.floor(hours / 24)}d ago`;
   }
 
-  // Type badge
-  function TypeBadge({ type }) {
+  // Type badge — `variant="glyph"` is the bare X-style coloured icon used in
+  // the list rows; the default chip keeps the small tinted circle.
+  function TypeBadge({ type, variant }) {
     const icon = {
       mobcoins: (
         <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current">
@@ -298,6 +300,15 @@ export default function ActivityContent({ onClose }) {
         statuses: 'bg-fuchsia-100 text-fuchsia-500',
         system: 'bg-gray-100 text-gray-500',
       }[type] || 'bg-gray-100 text-gray-500';
+
+      if (variant === 'glyph') {
+        return (
+          <span className={`${color.split(' ')[1] || 'text-gray-500'} [&>svg]:w-6 [&>svg]:h-6`}>
+            {icon}
+          </span>
+        );
+      }
+
       return (
         <span className={`w-4 h-4 rounded-full ${color} flex items-center justify-center`}>
           {icon}
@@ -414,139 +425,126 @@ export default function ActivityContent({ onClose }) {
     );
   }
 
-  // Individual Notification Row
+  // Individual Notification Row — X layout: bare coloured type glyph, message,
+  // timestamp, post thumbnail on the right, overflow menu.
   function NotificationRow({ item }) {
     const type = item.type || '';
-    const typeInfo = {
-      mobcoins: { ring: 'ring-2 ring-amber-200', bg: 'bg-amber-50/30', text: 'text-amber-900' },
-      likes: { ring: 'ring-1 ring-red-200', bg: 'bg-red-50/30', text: 'text-gray-800' },
-      like: { ring: 'ring-1 ring-red-200', bg: 'bg-red-50/30', text: 'text-gray-800' },
-      comments: { ring: 'ring-1 ring-blue-200', bg: 'bg-blue-50/30', text: 'text-gray-800' },
-      comment: { ring: 'ring-1 ring-blue-200', bg: 'bg-blue-50/30', text: 'text-gray-800' },
-      mentions: { ring: 'ring-1 ring-purple-200', bg: 'bg-purple-50/30', text: 'text-gray-800' },
-      mention: { ring: 'ring-1 ring-purple-200', bg: 'bg-purple-50/30', text: 'text-gray-800' },
-      followers: { ring: 'ring-1 ring-green-200', bg: 'bg-green-50/30', text: 'text-gray-800' },
-      follow: { ring: 'ring-1 ring-green-200', bg: 'bg-green-50/30', text: 'text-gray-800' },
-      connection: { ring: 'ring-1 ring-orange-200', bg: 'bg-orange-50/30', text: 'text-gray-800' },
-      newPost: { ring: 'ring-1 ring-indigo-200', bg: 'bg-indigo-50/30', text: 'text-gray-800' },
-      group: { ring: 'ring-1 ring-teal-200', bg: 'bg-teal-50/30', text: 'text-gray-800' },
-      events: { ring: 'ring-1 ring-pink-200', bg: 'bg-pink-50/30', text: 'text-gray-800' },
-      verification: { ring: 'ring-1 ring-cyan-200', bg: 'bg-cyan-50/30', text: 'text-gray-800' },
-      textmobai: { ring: 'ring-1 ring-violet-200', bg: 'bg-violet-50/30', text: 'text-gray-800' },
-      askify: { ring: 'ring-1 ring-slate-200', bg: 'bg-slate-50/30', text: 'text-gray-800' },
-      post: { ring: 'ring-1 ring-indigo-200', bg: 'bg-indigo-50/30', text: 'text-gray-800' },
-      reply: { ring: 'ring-1 ring-blue-200', bg: 'bg-blue-50/30', text: 'text-gray-800' },
-      friend: { ring: 'ring-1 ring-emerald-200', bg: 'bg-emerald-50/30', text: 'text-gray-800' },
-      messages: { ring: 'ring-1 ring-green-200', bg: 'bg-green-50/30', text: 'text-gray-800' },
-      statuses: { ring: 'ring-1 ring-fuchsia-200', bg: 'bg-fuchsia-50/30', text: 'text-gray-800' },
-    };
     const d = item.data || {};
     const kind = d.kind || type;
-    const info = typeInfo[kind] || typeInfo[type] || { ring: 'border border-gray-100', bg: '', text: 'text-gray-800' };
-    const showChip = item.link &&
-      item.link !== '/' &&
-      !item.link.startsWith('/@') &&
-      !item.link.startsWith('/accountscenter') &&
-      !item.link.startsWith('/wallet');
     const mediaUri = d.image || d.sticker || d.video || '';
     const tags = Array.isArray(d.tags) ? d.tags : [];
     const reaction = d.reaction || '';
-    const canReply = d.replyable !== false && !!item.link && item.link.startsWith('/post/');
+    const unread = !item.read;
     return (
       <li
-        className={`relative flex items-start gap-3 px-4 py-3.5 border-b border-gray-100 active:bg-gray-50/50 transition-colors cursor-pointer ${
-          item.read ? '' : 'border-l-2 border-l-blue-500 pl-3.5'
-        } ${!item.read && info.bg ? info.bg : ''}`}
+        className={`group relative flex gap-3 px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors ${
+          unread ? 'bg-sky-50/70 hover:bg-sky-100/60' : 'hover:bg-gray-50'
+        }`}
         onClick={() => navigateAndMark(item)}
       >
-        <div className="relative flex-shrink-0">
-          <img src={item.avatar} alt={item.sender || 'user'} className={`w-10 h-10 rounded-full object-cover ${info.ring}`} />
-          <span className="absolute -bottom-0.5 -right-0.5 bg-white rounded-full p-0.5 shadow-sm">
-            <TypeBadge type={kind || type} />
-          </span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p
-            className={`text-sm leading-snug ${info.text}`}
-            dangerouslySetInnerHTML={{ __html: item.message }}
-          />
-          {mediaUri && (
-            <div className="flex items-center gap-3 mt-2 p-2 rounded-xl bg-gray-50 border border-gray-100">
-              <img src={mediaUri} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-gray-100" />
-              {d.text && (
-                <p className="text-xs text-gray-500 leading-snug flex-1 min-w-0 line-clamp-3">{d.text}</p>
+        <span className="w-6 flex-shrink-0 flex justify-center pt-0.5">
+          <TypeBadge type={kind || type} variant="glyph" />
+        </span>
+
+        <div className="flex-1 min-w-0 flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p
+              className={`text-[15px] leading-5 ${unread ? 'font-bold text-gray-900' : 'text-gray-800'}`}
+              dangerouslySetInnerHTML={{ __html: item.message }}
+            />
+            <p className={`text-[13px] mt-0.5 ${unread ? 'text-gray-600' : 'text-gray-500'}`}>
+              {formatTime(item.timestamp || item.created_at)}
+              {reaction && (
+                <span className="ml-2 inline-block rounded-full bg-amber-50 px-2 py-px text-amber-700">{reaction}</span>
               )}
-            </div>
-          )}
-          {tags.length > 0 && (
-            <p className="text-xs font-semibold text-blue-600 mt-1.5 truncate">
-              {tags.slice(0, 5).map(t => (String(t).startsWith('#') ? t : '#' + t)).join('  ')}
             </p>
-          )}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            <p className="text-xs text-gray-400 font-medium">{formatTime(item.timestamp || item.created_at)}</p>
-            {reaction && (
-              <span className="text-xs bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5">{reaction}</span>
-            )}
-            {showChip && (
-              <a
-                href={item.link}
-                onClick={e => { e.stopPropagation(); navigateAndMark(item); }}
-                className="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 px-2 py-0.5 rounded-full transition-colors"
-              >
-                View post →
-              </a>
-            )}
-            {canReply && (
-              <button
-                type="button"
-                onClick={e => { e.stopPropagation(); replyAndMark(item); }}
-                className="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 px-2 py-0.5 rounded-full transition-colors"
-              >
-                ↩ Reply
-              </button>
+            {tags.length > 0 && (
+              <p className="text-[13px] font-semibold text-sky-500 mt-1 truncate">
+                {tags.slice(0, 5).map(t => (String(t).startsWith('#') ? t : '#' + t)).join('  ')}
+              </p>
             )}
           </div>
+
+          {mediaUri && (
+            <img
+              src={mediaUri}
+              alt=""
+              className="w-12 h-12 rounded-xl object-cover flex-shrink-0 bg-gray-100 border border-gray-100"
+            />
+          )}
         </div>
-        {!item.read && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />}
+
         <OptionsDropdown item={item} />
       </li>
     );
   }
 
+  const TABS = [
+    { id: 'all', label: 'All' },
+    { id: 'mentions', label: 'Mentions' },
+    { id: 'replies', label: 'Replies' },
+    { id: 'follows', label: 'Follows' },
+  ];
+
+  function matchTab(item, activeTab) {
+    if (activeTab === 'all') return true;
+    const k = (item.data && item.data.kind) || item.type || '';
+    if (activeTab === 'mentions') return k === 'mention' || k === 'mentions';
+    if (activeTab === 'replies') return k === 'reply';
+    if (activeTab === 'follows') return k === 'follow' || k === 'followers' || k === 'friend' || k === 'connection';
+    return true;
+  }
+
   const unreadCount = notifications.filter(e => !e.read).length;
+  const visible = notifications.filter(n => matchTab(n, tab));
 
   return (
     <div className="w-full max-w-2xl mx-auto bg-white min-h-screen flex flex-col font-sans antialiased">
-      {/* Header Sticky section */}
-      <div className="sticky top-14 md:top-0 bg-white z-10 border-b border-gray-100 shadow-sm shadow-black/[0.01]">
-        <div className="flex items-center justify-between px-4 pt-4 pb-3">
-          <div className="hidden md:block">
-            <h1 className="text-base font-extrabold text-gray-900 leading-tight">Notifications</h1>
-            <p className="text-xs text-gray-400 mt-0.5 font-medium">
-              {loading
-                ? 'Loading…'
-                : notifications.length === 0
-                ? 'All caught up'
-                : `${notifications.length} notification${notifications.length === 1 ? '' : 's'}${
-                    unreadCount > 0 ? ` · ${unreadCount} unread` : ''
-                  }`}
-            </p>
+      {/* X-style sticky header + filter tabs */}
+      <div className="sticky top-14 md:top-0 bg-white/85 backdrop-blur-xl z-10 border-b border-gray-200/70">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <h1 className="text-[20px] leading-6 font-extrabold text-gray-900 tracking-tight">Notifications</h1>
+            {unreadCount > 0 && (
+              <span className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-sky-500 text-white text-[11px] font-bold flex items-center justify-center">
+                {unreadCount}
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-1.5 ml-auto">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {notifications.length > 0 && !clearing && (
               <button
                 onClick={() => setShowConfirm(true)}
-                className="h-8 px-3 rounded-full text-xs font-bold text-red-500 hover:bg-red-50 active:scale-95 transition-all"
+                className="h-8 px-3 rounded-full text-[13px] font-bold text-sky-500 hover:bg-sky-50 active:scale-95 transition-all"
               >
                 Clear all
               </button>
             )}
-            {clearing && <span className="text-xs text-gray-400 px-2 font-semibold">Clearing…</span>}
+            {clearing && <span className="text-[13px] text-gray-400 px-2 font-semibold">Clearing…</span>}
             {onClose && <CloseButton onClick={onClose} />}
           </div>
         </div>
-        
+
+        <div className="flex border-t border-gray-100">
+          {TABS.map(t => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`relative flex-1 h-11 text-[14px] transition-colors ${
+                  active ? 'font-bold text-gray-900' : 'font-semibold text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                {t.label}
+                {active && (
+                  <span className="absolute inset-x-4 bottom-0 h-1 rounded-full bg-sky-500" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Confirm Clear Banner */}
         {showConfirm && (
           <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 border-t border-red-100 animate-slide-in">
@@ -596,7 +594,7 @@ export default function ActivityContent({ onClose }) {
               Retry
             </button>
           </div>
-        ) : notifications.length === 0 ? (
+        ) : visible.length === 0 ? (
           <div className="px-4 py-24 flex flex-col items-center gap-3 text-center max-w-sm mx-auto">
             <div className="w-16 h-16 rounded-3xl bg-gray-50 flex items-center justify-center mb-1">
               <svg viewBox="0 0 24 24" className="w-8 h-8 text-gray-300 fill-none stroke-current" strokeWidth="1.5">
@@ -604,12 +602,18 @@ export default function ActivityContent({ onClose }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.73 21a2 2 0 01-3.46 0" />
               </svg>
             </div>
-            <h2 className="text-sm font-bold text-gray-700">You're all caught up</h2>
-            <p className="text-xs text-gray-400 max-w-[200px] leading-relaxed">New activity and interactions will show up here.</p>
+            <h2 className="text-sm font-bold text-gray-700">
+              {notifications.length === 0 ? "You're all caught up" : 'Nothing here yet'}
+            </h2>
+            <p className="text-xs text-gray-400 max-w-[200px] leading-relaxed">
+              {notifications.length === 0
+                ? 'New activity and interactions will show up here.'
+                : `No ${TABS.find(t => t.id === tab)?.label.toLowerCase()} notifications.`}
+            </p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-50 list-none m-0 p-0">
-            {notifications.map(item => (
+            {visible.map(item => (
               <NotificationRow item={item} key={item.id} />
             ))}
           </ul>

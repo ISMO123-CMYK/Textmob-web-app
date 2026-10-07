@@ -5,9 +5,11 @@ import { apiFetch, API_BASE_URL } from '../../config/api';
 import { cn } from '../../utils/classNames';
 import Lexum from '../../router/LexumRouter';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
+import RichText from '../../components/ui/RichText';
 import GiftCoinsModal from '../../components/ui/GiftCoinsModal';
 import StickerPicker from '../../components/ui/StickerPicker';
 import { makeStickerText, parseStickerText } from '../../utils/stickerUtils';
+import { replaceTokenAt } from '../../utils/autocomplete';
 import { useSnapUpload } from '../../utils/SnapUploadContext';
 import { CATEGORIES } from '../../data/categories';
 
@@ -427,15 +429,13 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  setQueryInfo
  } = useMentions(caption, captionRef);
 
- let handleSelectSuggestion = suggestion => {
- let inserted = suggestion.type === 'user' ? `@${suggestion.username}` : suggestion.query;
- let before = caption.slice(0, queryInfo.start);
- let after = caption.slice(queryInfo.end);
- setCaption(`${before}${inserted} ${after}`);
- setSuggestions([]);
- setQueryInfo(null);
- setTimeout(() => captionRef.current?.focus(), 10);
- };
+  let handleSelectSuggestion = suggestion => {
+  let inserted = suggestion.type === 'user' ? `@${suggestion.username}` : suggestion.query;
+  setCaption(replaceTokenAt(caption, queryInfo.start, inserted));
+  setSuggestions([]);
+  setQueryInfo(null);
+  setTimeout(() => captionRef.current?.focus(), 10);
+  };
 
  let handleKeyDown = e => {
  if (suggestions.length > 0) {
@@ -829,16 +829,18 @@ function CommentRow({ comment, snapUsername }) {
  {fi(comment.createdAt)}
  </span>
  </div>
- <p
- style={{
- color: 'rgba(255,255,255,.85)',
- fontSize: 13,
- marginTop: 3,
- lineHeight: 1.45
- }}
- >
- {(() => { const s = parseStickerText(comment.text); return s.isSticker ? <img src={s.url} alt="sticker" style={{ maxHeight: 128, borderRadius: 8, objectFit: 'contain' }} loading="lazy" /> : comment.text; })()}
- </p>
+  {(() => {
+  const s = parseStickerText(comment.text);
+  if (s.isSticker) {
+  return <img src={s.url} alt="sticker" style={{ maxHeight: 128, borderRadius: 8, objectFit: 'contain', marginTop: 3 }} loading="lazy" />;
+  }
+  // Raw text skipped the parser, so @mentions/#hashtags/links stayed inert.
+  return (
+  <div style={{ color: 'rgba(255,255,255,.85)', fontSize: 13, marginTop: 3, lineHeight: 1.45 }}>
+  <RichText html={comment.text} />
+  </div>
+  );
+  })()}
  </div>
  </div>
  );
@@ -859,15 +861,13 @@ function CommentsPanel({ snap, username, onClose, onAddComment }) {
  setQueryInfo
  } = useMentions(commentText, commentInputRef);
 
- let handleSelectSuggestion = suggestion => {
- let inserted = suggestion.type === 'user' ? `@${suggestion.username}` : suggestion.query;
- let before = commentText.slice(0, queryInfo.start);
- let after = commentText.slice(queryInfo.end);
- setCommentText(`${before}${inserted} ${after}`);
- setSuggestions([]);
- setQueryInfo(null);
- setTimeout(() => commentInputRef.current?.focus(), 10);
- };
+  let handleSelectSuggestion = suggestion => {
+  let inserted = suggestion.type === 'user' ? `@${suggestion.username}` : suggestion.query;
+  setCommentText(replaceTokenAt(commentText, queryInfo.start, inserted));
+  setSuggestions([]);
+  setQueryInfo(null);
+  setTimeout(() => commentInputRef.current?.focus(), 10);
+  };
 
  let handleKeyDown = e => {
  if (suggestions.length > 0) {

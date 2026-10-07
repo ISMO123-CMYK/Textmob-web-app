@@ -8,6 +8,7 @@ import StickerPicker from '../../components/ui/StickerPicker';
 import { makeStickerText, isStickerText, parseStickerText, withSticker } from '../../utils/stickerUtils';
 import useProfileCache from '../../utils/useProfileCache';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
+import { replaceTokenAt } from '../../utils/autocomplete';
 
 function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, followingUsernames = [], postRead = true, autoReply = '' }) {
  const profile = useProfileCache(cmt.username);
@@ -162,9 +163,7 @@ function CommentInput({ onSubmit }) {
 
  function selectSuggestion(item) {
  let replacement = item.type === 'user' ? `@${item.username}` : item.query;
- let before = text.slice(0, queryInfo.start);
- let after = text.slice(queryInfo.end);
- setText(`${before + replacement} ${after}`);
+ setText(replaceTokenAt(text, queryInfo.start, replacement));
  setSuggestions([]);
  setQueryInfo(null);
  setTimeout(() => inputRef.current?.focus(), 10);

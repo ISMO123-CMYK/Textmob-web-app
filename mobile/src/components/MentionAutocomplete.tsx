@@ -50,8 +50,22 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [trigger, setTrigger] = useState<{ type: '@' | '#'; query: string; start: number } | null>(null);
   const timerRef = useRef<any>(null);
+  const lastInsertRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    // Selecting a suggestion rewrites the whole string while the parent still
+    // reports the pre-insert caret, so `before` would match a token in the
+    // middle of the replacement and immediately reopen the sheet on it. Stay
+    // closed until the user actually types again.
+    if (lastInsertRef.current !== null) {
+      if (lastInsertRef.current === text) {
+        setSuggestions([]);
+        setTrigger(null);
+        return;
+      }
+      lastInsertRef.current = null;
+    }
     if (cursorPosition < 0 || !text) {
       setSuggestions([]);
       setTrigger(null);
@@ -110,10 +124,20 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
 
   const handleSelect = (s: Suggestion) => {
     if (!trigger) return;
+    // `cursorPosition` comes from onSelectionChange, which can lag a keystroke
+    // (and is unreliable on Android). Re-derive the token's end from the text
+    // itself so the typed fragment is always fully replaced — otherwise its
+    // tail survives and you get "#football #foo".
+    const rest = text.slice(trigger.start);
+    const m = rest.match(/^[@#][a-zA-Z0-9_]*/);
+    const end = trigger.start + (m ? m[0].length : rest.charAt(0) === trigger.type ? 1 : 0);
     const before = text.slice(0, trigger.start);
-    const after = text.slice(cursorPosition);
+    const after = text.slice(end);
     const insertion = s.type === 'user' ? `@${s.username} ` : `${s.label} `;
     const newText = before + insertion + after;
+    // Block the effect below from re-opening the sheet against a cursor that
+    // has not moved yet — that was a second insert of the same token.
+    lastInsertRef.current = newText;
     onChangeText(newText);
     setSuggestions([]);
     setTrigger(null);

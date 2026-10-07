@@ -1495,12 +1495,18 @@ export function LoudaStoreProvider({
           message: `Message(s) forwarded to ${resolved.length} chat(s)`,
         });
         setForwardPayload(null);
+        // bulk-forward writes straight to the DB and does not echo a socket
+        // event back to the sender, so the rows keep their stale lastMessage
+        // and the chat never re-sorts to the top. Re-read both lists — same
+        // path every other flow uses to pick up a new last message.
+        loadContacts(userIdRef.current);
+        loadGroups(userIdRef.current);
       } catch (e) {
         console.error('[Louda] forward failed', e);
         loudaAlert({ title: 'Error', message: 'Forwarding failed' });
       }
     },
-    [forwardPayload, fetchChatId],
+    [forwardPayload, fetchChatId, loadContacts, loadGroups],
   );
 
   const handleConfirmShareMedia = useCallback(

@@ -694,7 +694,7 @@ export default function HomeScreen() {
           </Ripple>
           {username && (
             <Ripple style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
-              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
+              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Following</Text>
             </Ripple>
           )}
           <Ripple style={s.tab} onPress={() => (navigation.getParent() || navigation).navigate('Discussions')}>
@@ -731,7 +731,7 @@ export default function HomeScreen() {
         </Ripple>
         {username && (
           <Ripple style={[s.tab, tab === 'following' && s.tabActive]} onPress={() => switchTab('following')}>
-              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Friends</Text>
+              <Text style={[s.tabText, tab === 'following' && s.tabTextActive]}>Following</Text>
               {tab === 'following' && <View style={s.tabIndicator} />}
             </Ripple>
           )}

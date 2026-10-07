@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { apiFetch, API_BASE_URL } from '../../config/api';
 import GiftIcon, { giftsList, injectLiveStyles } from '../../components/ui/GiftIcon';
+import RichText from '../../components/ui/RichText';
 
 function ConfettiPart({ x, y, color, size, delay, duration, shape }) {
   return (
@@ -931,7 +932,7 @@ export default function CreateLiveContent() {
                   comments.map((c, i) => (
                     <div key={c.id || i} className="text-xs leading-normal">
                       <span className="font-bold text-white/80 mr-1.5">@{c.username}:</span>
-                      <span className="text-white/60">{c.text}</span>
+                      <RichText html={c.text} className="inline text-white/60" />
                     </div>
                   ))
                 )}
@@ -1023,7 +1024,7 @@ export default function CreateLiveContent() {
                 {comments.slice(-8).map((c, i) => (
                   <div key={c.id || i} className="text-[11px] leading-normal bg-black/35 px-2.5 py-1 rounded-xl w-max max-w-full">
                     <span className="font-bold text-white/90 mr-1.5">@{c.username}:</span>
-                    <span className="text-white/70">{c.text}</span>
+                    <RichText html={c.text} className="inline text-white/70" />
                   </div>
                 ))}
               </div>

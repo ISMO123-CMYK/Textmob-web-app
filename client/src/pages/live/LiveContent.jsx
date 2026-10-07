@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiFetch, API_BASE_URL } from '../../config/api';
 import GiftIcon, { giftsList, injectLiveStyles } from '../../components/ui/GiftIcon';
+import RichText from '../../components/ui/RichText';
 
 // Banner elements for animations (matches compiled code animations)
 function ConfettiPart({ x, y, color, size, delay, duration, shape }) {
@@ -211,15 +212,10 @@ function LiveCommentMessage({ msg }) {
             >
               {msg.username}
             </span>
-            <span
-              style={{
-                fontSize: 11,
-                color: 'rgba(255,255,255,.65)',
-                wordBreak: 'break-word'
-              }}
-            >
-              {msg.text}
-            </span>
+            <RichText
+              html={msg.text}
+              className="inline text-[11px] text-white/[.65]"
+            />
           </>
         )}
       </div>

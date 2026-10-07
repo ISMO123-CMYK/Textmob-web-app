@@ -4857,10 +4857,12 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
       if (!userSnapSeenMap.has(username)) userSnapSeenMap.set(username, new Set());
       userSnapSeenMap.get(username).forEach(id => seen.add(id));
       try {
-        const { data: me } = await supabase.from("users").select("following, feed_prefs, blocked_users").eq("username", username).single();
+        // `blocked_users` is not a column on `users` — including it made the
+        // whole select fail and `me` come back null, dropping `following` too.
+        // Blocking is client-side (localStorage → blockedUsers param).
+        const { data: me } = await supabase.from("users").select("following, feed_prefs").eq("username", username).single();
         userFollowing = new Set(me?.following || []);
-        blockedUsers = new Set((me?.blocked_users || []).map(u => String(u).toLowerCase()));
-        clientBlockedUsers.forEach(u => blockedUsers.add(u));
+        blockedUsers = new Set(clientBlockedUsers);
         if (me?.feed_prefs?.categoryWeights) {
           userCategoryWeights = me.feed_prefs.categoryWeights;
         }
@@ -6023,7 +6025,6 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
                 const cp = memoryDb.findPost(data.id);
                 if (cp) cp.link_preview = linkPreview;
               }
-              persistLinkPreview(data.id, linkPreview);
             }
           }
         } catch (pvErr) {
@@ -8945,8 +8946,8 @@ app.get("/url-preview", async (req, res) => {
   }
 });
 
-// Post-id -> preview. Primary store, so previews keep working even when the
-// link_preview column is missing or the DB write fails (migration is optional).
+// Post-id -> preview. Previews live here (and on the in-memory post copy) —
+// deliberately NOT in the database, so there is no link_preview column.
 const postLinkPreviewStore = new Map();
 
 function rememberLinkPreview(postId, preview) {
@@ -8955,18 +8956,6 @@ function rememberLinkPreview(postId, preview) {
   if (postLinkPreviewStore.size > 5000) {
     const oldest = postLinkPreviewStore.keys().next().value;
     postLinkPreviewStore.delete(oldest);
-  }
-}
-
-async function persistLinkPreview(postId, preview) {
-  try {
-    const { error } = await supabase2
-      .from("Posts")
-      .update({ link_preview: preview })
-      .eq("id", postId);
-    if (error) console.log("[link-preview] db persist skipped:", error.message);
-  } catch (err) {
-    console.log("[link-preview] db persist skipped:", err && err.message);
   }
 }
 
@@ -9163,14 +9152,16 @@ app.post("/get-posts", express.json(), async (req, res) => {
     let blockedUsers = new Set();
     if (!isPublic) {
       try {
+        // No `blocked_users` column — selecting it failed the whole query and
+        // left following/friends empty (false cold start). Blocklist is
+        // client-supplied via `clientBlockedUsers`.
         const { data: me } = await supabase
           .from("users")
-          .select("following, friends, blocked_users")
+          .select("following, friends")
           .eq("username", username)
           .single();
         userFollowing = new Set(me?.following || []);
         userFriends = new Set(me?.friends || []);
-        blockedUsers = new Set((me?.blocked_users || []).map(u => String(u).toLowerCase()));
       } catch { /* non-fatal */ }
     }
     clientBlockedUsers.forEach(u => blockedUsers.add(u));
@@ -9563,15 +9554,14 @@ app.post("/get-posts", express.json(), async (req, res) => {
     let fetchedPosts = [];
     try {
       const [meResult, postsResult] = await Promise.all([
-        !isPublic ? supabase.from('users').select('following, friends, blocked_users').eq('username', username).single() : Promise.resolve({ data: null }),
+        !isPublic ? supabase.from('users').select('following, friends').eq('username', username).single() : Promise.resolve({ data: null }),
         supabase2.from('Posts').select('*').order('created_at', { ascending: false }).limit(POST_POOL_LIMIT)
       ]);
       if (meResult?.data) {
         userFollowing = new Set(meResult.data.following || []);
         userFriends = new Set(meResult.data.friends || []);
-        blockedUsers = new Set((meResult.data.blocked_users || []).map(u => String(u).toLowerCase()));
-        clientBlockedUsers.forEach(u => blockedUsers.add(u));
       }
+      clientBlockedUsers.forEach(u => blockedUsers.add(u));
       fetchedPosts = postsResult.data || [];
     } catch {
       const { data } = await supabase2.from('Posts').select('*').order('created_at', { ascending: false }).limit(POST_POOL_LIMIT);
@@ -9702,16 +9692,9 @@ app.get("/get-live-posts", async (req, res) => {
       return res.json([]);
     }
 
-    // Filter out posts from blocked users if the blocklist is available
+    // Filter out posts from blocked users. There is no `blocked_users` column
+    // on `users`, so this list only ever exists client-side.
     let blockedUsers = new Set();
-    try {
-      const { data: me } = await supabase
-        .from("users")
-        .select("blocked_users")
-        .eq("username", username)
-        .single();
-      blockedUsers = new Set(me?.blocked_users || []);
-    } catch { /* non-fatal */ }
 
     const eligible = livePosts.filter(p => p && p.username && !blockedUsers.has(p.username) && !(p.disabled === true) && !(p.disabled_for_now === true));
 
@@ -10473,7 +10456,9 @@ app.get("/get-suggestions-feed", async (req, res) => {
       return res.status(400).json({ error: "Username is required" });
     }
 
-    // Fetch user's connections
+    // Fetch user's connections. No `blocked_users` column exists on `users`
+    // (the block list lives client-side, see /get-posts) — selecting it made
+    // Postgres return 42703 and the whole route 500.
     const { data: you, error } = await supabase
       .from("users")
       .select("friends, following")
@@ -10488,42 +10473,65 @@ app.get("/get-suggestions-feed", async (req, res) => {
 
     const friends = you.friends || [];
     const following = you.following || [];
-    const connected = new Set(friends.concat(following).concat(username));
+
+    // "Connected" = anyone the viewer already added, plus self. A follower the
+    // viewer never added back is NOT connected — that is exactly who we want to
+    // suggest.
+    const connected = new Set([...friends, ...following, username]);
+    const friendSet = new Set(friends);
+    const followingSet = new Set(following);
 
     // Fetch non-connected users with limit for performance
     const { data: users, error: userErr } = await supabase
       .from("users")
-      .select("username, fullname, profile_pic, friends, followers")
-      .limit(200);
+      .select("username, fullname, profile_pic, friends, followers, following")
+      .limit(400);
     if (userErr) throw userErr;
+
+    // FNV-1a over viewer|candidate. Math.random() reshuffled the whole list on
+    // every reload, so the same person could be #1 one second and gone the next.
+    function jitter(key) {
+      let h = 2166136261;
+      for (let i = 0; i < key.length; i++) {
+        h ^= key.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return ((h >>> 0) % 1000) / 1000;
+    }
 
     const scored = users
       .filter(function (u) {
-        return !connected.has(u.username);
+        return u && u.username && !connected.has(u.username);
       })
       .map(function (u) {
-        var score = 0;
-
         var uFriends = u.friends || [];
         var uFollowers = u.followers || [];
+        var uFollowing = u.following || [];
 
-        // Mutual friends
-        var mutuals = uFriends.filter(function (f) {
-          return friends.indexOf(f) !== -1;
-        }).length;
-        score += mutuals * 5;
+        var mutuals = 0;
+        for (var i = 0; i < uFriends.length; i++) {
+          if (friendSet.has(uFriends[i])) mutuals++;
+        }
 
-        // Shared followings
-        var sharedFollowings = uFriends.filter(function (f) {
-          return following.indexOf(f) !== -1;
-        }).length;
-        score += sharedFollowings * 2;
+        var friendsWhoFollowThem = 0;
+        for (var j = 0; j < uFollowers.length; j++) {
+          if (friendSet.has(uFollowers[j])) friendsWhoFollowThem++;
+        }
 
-        // Popularity
-        score += uFollowers.length * 0.5;
+        var sharedFollows = 0;
+        for (var k = 0; k < uFollowing.length; k++) {
+          if (followingSet.has(uFollowing[k])) sharedFollows++;
+        }
 
-        // Randomness (TikTok-style injection)
-        score += Math.random() * 2;
+        var score = 0;
+        score += mutuals * 8;                 // strongest signal by far
+        score += friendsWhoFollowThem * 4;    // your friends already follow them
+        score += sharedFollows * 2;
+        if (uFollowers.indexOf(username) !== -1) score += 6; // they follow you back
+        // log-damped so a mega-account's raw follower count can't drown out a
+        // genuine mutual friend
+        score += Math.log10(uFollowers.length + 1) * 2;
+        score += jitter(username + '|' + u.username) * 1.5;
 
         return {
           username: u.username,
@@ -11822,17 +11830,10 @@ app.get('/feed', async (req, res) => {
 
     const allPosts = [].concat(personalPosts || [], groupPosts);
 
-    // Hide posts from users the viewer has blocked
+    // Hide posts from users the viewer has blocked (client-supplied; there is
+    // no `blocked_users` column on `users` to read server-side).
     let blockedUsernames = new Set();
     const clientBlocked = (req.query.blocked || '').toString().split(',').filter(Boolean).map(u => String(u).toLowerCase());
-    if (username) {
-      const { data: me } = await supabase
-        .from("users")
-        .select("blocked_users")
-        .eq("username", username)
-        .single();
-      blockedUsernames = new Set((me?.blocked_users || []).map(u => String(u).toLowerCase()));
-    }
     clientBlocked.forEach(u => blockedUsernames.add(u));
 
     const ranked = allPosts.filter(p => p && !blockedUsernames.has(p.username)).sort(function (a, b) {

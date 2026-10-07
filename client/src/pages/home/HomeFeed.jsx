@@ -311,7 +311,7 @@ export default function HomeFeed({ propPosts }) {
  className={cn('flex-1 py-3.5 text-sm font-bold text-center relative', activeTab === tab ? 'text-blue-600 ' : 'text-gray-400 ')}
  key={tab}
  >
- {tab === 'foryou' ? (isLoggedIn ? 'For you' : 'Trending') : 'Friends'}
+  {tab === 'foryou' ? (isLoggedIn ? 'For you' : 'Trending') : 'Following'}
  {activeTab === tab && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-blue-600 rounded-full block" />}
  </button>
  ))}

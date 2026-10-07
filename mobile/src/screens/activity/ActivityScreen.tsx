@@ -18,6 +18,29 @@ import SafeHTML from '../../components/SafeHTML';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
+// X uses its own accent for the active tab / unread tint.
+const X_BLUE = '#1d9bf0';
+
+const TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'mentions', label: 'Mentions' },
+  { id: 'replies', label: 'Replies' },
+  { id: 'follows', label: 'Follows' },
+];
+
+function notifKind(n: AppNotification) {
+  return (n.data?.kind as string) || n.type || '';
+}
+
+function matchTab(n: AppNotification, tab: string) {
+  if (tab === 'all') return true;
+  const k = notifKind(n);
+  if (tab === 'mentions') return k === 'mention' || k === 'mentions';
+  if (tab === 'replies') return k === 'reply';
+  if (tab === 'follows') return ['follow', 'followers', 'friend', 'connection'].includes(k);
+  return true;
+}
+
 // Keyed by both the server `type` and the structured `data.kind` (they overlap).
 const TYPE_COLORS: Record<string, string> = {
   like: '#ef4444',
@@ -81,6 +104,7 @@ export default function ActivityScreen() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [tab, setTab] = useState('all');
 
   const fetchNotifications = useCallback(async () => {
     if (!username) { setLoading(false); return; }
@@ -170,20 +194,16 @@ export default function ActivityScreen() {
   const renderNotif = ({ item }: { item: AppNotification }) => {
     const isUnread = !item.read;
     const d = item.data;
-    const kind = d?.kind || item.type;
+    const kind = notifKind(item);
     const color = TYPE_COLORS[kind] || TYPE_COLORS[item.type] || TYPE_COLORS.system;
     const iconName = TYPE_ICONS[kind] || TYPE_ICONS[item.type] || TYPE_ICONS.system;
 
-    const showChip = item.link &&
-      item.link !== '/' &&
-      !item.link.startsWith('/@') &&
-      !item.link.startsWith('/accountscenter') &&
-      !item.link.startsWith('/wallet');
-
     const mediaUri = d?.image || d?.sticker || d?.video || '';
     const tags = Array.isArray(d?.tags) ? d.tags : [];
-    const canReply = d?.replyable !== false && !!item.link && item.link.startsWith('/post/');
     const avatarUri = d?.actor?.profile_pic || item.senderPic || DEFAULT_PIC;
+    // X shows the person's avatar for "X followed you" but a bare coloured
+    // icon for "X liked your post".
+    const showsAvatar = ['follow', 'followers', 'friend', 'connection'].includes(kind);
 
     return (
       <Ripple
@@ -191,66 +211,47 @@ export default function ActivityScreen() {
         onPress={() => handleNavigate(item)}
         onLongPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
       >
-        <View style={s.avatarContainer}>
-          <Image source={{ uri: avatarUri }} style={[s.notifAvatar, { borderColor: color, borderWidth: 1 }]} />
-          <View style={[s.typeIndicatorBadge, { backgroundColor: color }]}>
-            <Ionicons name={iconName} size={8} color="#fff" />
-          </View>
-        </View>
-        <View style={{ flex: 1 }}>
-          <SafeHTML text={item.message} style={{ fontSize: 13, lineHeight: 18, color: colors.textPrimary }} />
-
-          {(mediaUri || d?.reaction || (d?.text && d.text !== item.message)) ? (
-            <View style={s.metaRow}>
-              {!!d?.reaction && (
-                <View style={[s.reactionPill, { backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#fef3c7' }]}>
-                  <Text style={{ fontSize: 11 }}>{d.reaction}</Text>
-                </View>
-              )}
-              <Text style={[s.notifTime, { color: colors.textSecondary, marginTop: 0 }]}>{timeAgo(item.created_at)}</Text>
-            </View>
+        <View style={s.glyphBox}>
+          {showsAvatar ? (
+            <Image source={{ uri: avatarUri }} style={s.notifAvatar} />
           ) : (
-            <Text style={s.notifTime}>{timeAgo(item.created_at)}</Text>
+            <Ionicons name={iconName} size={22} color={color} />
           )}
+        </View>
 
-          {mediaUri ? (
-            <View style={s.mediaRow}>
-              <Image source={{ uri: mediaUri }} style={[s.mediaThumb, { borderColor: colors.border }]} resizeMode="cover" />
-              {!!d?.text && (
-                <Text numberOfLines={3} style={[s.mediaCaption, { color: colors.textSecondary }]}>
-                  {d.text}
-                </Text>
-              )}
-              {!!d?.video && !d?.image && (
-                <View style={s.playBadge}>
-                  <Ionicons name="play" size={12} color="#fff" />
-                </View>
-              )}
-            </View>
-          ) : null}
+        <View style={{ flex: 1 }}>
+          <SafeHTML
+            text={item.message}
+            style={{ fontSize: 15, lineHeight: 20, color: colors.textPrimary, fontWeight: isUnread ? '700' : '400' }}
+          />
+
+          <View style={s.metaRow}>
+            <Text style={[s.notifTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at)}</Text>
+            {!!d?.reaction && (
+              <View style={[s.reactionPill, { backgroundColor: isDark ? 'rgba(245,158,11,0.15)' : '#fef3c7' }]}>
+                <Text style={{ fontSize: 11 }}>{d.reaction}</Text>
+              </View>
+            )}
+          </View>
 
           {tags.length > 0 && (
-            <Text numberOfLines={1} style={[s.tagsRow, { color: colors.primary }]}>
+            <Text numberOfLines={1} style={[s.tagsRow, { color: X_BLUE }]}>
               {tags.slice(0, 5).map(t => (t.startsWith('#') ? t : '#' + t)).join('  ')}
             </Text>
           )}
-
-          {(showChip || canReply) && (
-            <View style={s.actionsRow}>
-              {showChip && (
-                <Ripple onPress={() => handleNavigate(item)} style={[s.viewPostChip, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: '#2563eb' }}>View post →</Text>
-                </Ripple>
-              )}
-              {canReply && (
-                <Ripple onPress={() => openReply(item)} style={[s.replyBtn, { borderColor: colors.border }]}>
-                  <Ionicons name="return-down-forward" size={11} color={colors.primary} />
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: colors.primary }}>Reply</Text>
-                </Ripple>
-              )}
-            </View>
-          )}
         </View>
+
+        {mediaUri ? (
+          <View style={{ position: 'relative' }}>
+            <Image source={{ uri: mediaUri }} style={s.mediaThumb} resizeMode="cover" />
+            {!!d?.video && !d?.image && (
+              <View style={s.playBadge}>
+                <Ionicons name="play" size={12} color="#fff" />
+              </View>
+            )}
+          </View>
+        ) : null}
+
         <Ripple style={s.menuBtn} onPress={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}>
           <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
         </Ripple>
@@ -264,10 +265,10 @@ export default function ActivityScreen() {
                 <Ionicons name="open-outline" size={14} color={colors.textSecondary} />
                 <Text style={[s.dropdownText, { color: colors.textPrimary }]}>Open</Text>
               </Ripple>
-              {canReply && (
+              {d?.replyable !== false && !!item.link && item.link.startsWith('/post/') && (
                 <Ripple style={s.dropdownItem} onPress={() => { setOpenMenuId(null); openReply(item); }}>
-                  <Ionicons name="return-down-forward" size={14} color={colors.primary} />
-                  <Text style={[s.dropdownText, { color: colors.primary }]}>Reply</Text>
+                  <Ionicons name="return-down-forward" size={14} color={X_BLUE} />
+                  <Text style={[s.dropdownText, { color: X_BLUE }]}>Reply</Text>
                 </Ripple>
               )}
               <Ripple style={s.dropdownItem} onPress={() => handleDelete(item.id)}>
@@ -282,6 +283,7 @@ export default function ActivityScreen() {
   };
 
   const s = makeStyles(colors, isDark);
+  const visible = notifications.filter(n => matchTab(n, tab));
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
@@ -289,15 +291,32 @@ export default function ActivityScreen() {
         <Ripple onPress={() => navigation.goBack()} style={s.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </Ripple>
-        <View style={{ flex: 1 }}>
-          <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Activity</Text>
-          <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>Who noticed you today</Text>
-        </View>
+        <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Notifications</Text>
+        <View style={{ flex: 1 }} />
         {notifications.length > 0 && (
           <Ripple onPress={() => setShowConfirm(true)} style={s.clearBtn}>
             <Ionicons name="trash-outline" size={18} color="#ef4444" />
           </Ripple>
         )}
+      </View>
+
+      <View style={[s.tabs, { borderBottomColor: colors.border }]}>
+        {TABS.map(t => {
+          const active = tab === t.id;
+          return (
+            <Ripple key={t.id} style={s.tab} onPress={() => setTab(t.id)}>
+              <Text
+                style={[
+                  s.tabLabel,
+                  { color: active ? colors.textPrimary : colors.textSecondary, fontWeight: active ? '800' : '600' },
+                ]}
+              >
+                {t.label}
+              </Text>
+              {active && <View style={s.tabUnderline} />}
+            </Ripple>
+          );
+        })}
       </View>
 
       {showConfirm && (
@@ -320,7 +339,7 @@ export default function ActivityScreen() {
         </View>
       ) : (
         <FlatList
-          data={notifications}
+          data={visible}
           keyExtractor={(item) => item.id}
           renderItem={renderNotif}
           initialNumToRender={10}
@@ -334,7 +353,14 @@ export default function ActivityScreen() {
               <View style={[s.emptyIconContainer, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]}>
                 <Ionicons name="notifications-off-outline" size={32} color={colors.textSecondary} />
               </View>
-              <Text style={[s.emptyLabel, { color: colors.textSecondary }]}>You're all caught up</Text>
+              <Text style={[s.emptyLabel, { color: colors.textSecondary }]}>
+                {notifications.length === 0 ? "You're all caught up" : 'Nothing here yet'}
+              </Text>
+              {notifications.length > 0 && (
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>
+                  No {TABS.find(t => t.id === tab)?.label.toLowerCase()} notifications.
+                </Text>
+              )}
             </View>
           }
         />
@@ -347,38 +373,32 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safe: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', height: 56, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+  headerTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
   clearBtn: { padding: 8, borderRadius: 20 },
+  tabs: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth },
+  tab: { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center' },
+  tabLabel: { fontSize: 14 },
+  tabUnderline: { position: 'absolute', bottom: 0, height: 3, width: 36, borderRadius: 2, backgroundColor: X_BLUE },
   confirmBanner: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1 },
   bannerBtn: { backgroundColor: '#ef4444', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   bannerBtnSec: { paddingHorizontal: 12, paddingVertical: 6 },
   listContent: { paddingBottom: 100 },
-  notifRow: { flexDirection: 'row', gap: 12, padding: 14, borderBottomWidth: StyleSheet.hairlineWidth, position: 'relative' },
-  notifUnread: { borderLeftWidth: 3, borderLeftColor: '#2563eb' },
-  avatarContainer: { position: 'relative', width: 40, height: 40 },
-  notifAvatar: { width: 40, height: 40, borderRadius: 20 },
-  typeIndicatorBadge: { position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#fff' },
-  notifMessage: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  notifTime: { fontSize: 11, marginTop: 2 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
-  reactionPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
-  mediaRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8,
-    backgroundColor: 'rgba(127,127,127,0.06)', borderRadius: 10, padding: 8,
+  notifRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth, position: 'relative',
   },
-  mediaThumb: { width: 48, height: 48, borderRadius: 8, backgroundColor: 'rgba(127,127,127,0.15)' },
-  mediaCaption: { flex: 1, fontSize: 12, lineHeight: 16 },
+  notifUnread: { backgroundColor: isDark ? 'rgba(29,155,240,0.12)' : 'rgba(29,155,240,0.07)' },
+  glyphBox: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  notifAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(127,127,127,0.15)' },
+  notifTime: { fontSize: 13, marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  reactionPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
+  mediaThumb: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(127,127,127,0.15)' },
   playBadge: {
-    position: 'absolute', left: 8, top: 8, width: 20, height: 20, borderRadius: 10,
+    position: 'absolute', left: 14, top: 14, width: 20, height: 20, borderRadius: 10,
     backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
   },
-  tagsRow: { fontSize: 11, fontWeight: '700', marginTop: 6 },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' },
-  replyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10,
-    paddingVertical: 4, borderRadius: 12, borderWidth: 1,
-  },
-  viewPostChip: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  tagsRow: { fontSize: 13, fontWeight: '700', marginTop: 3 },
   menuBtn: { padding: 4, alignSelf: 'flex-start' },
   menuBg: { position: 'absolute', inset: -100, zIndex: 9 },
   dropdown: { position: 'absolute', top: 38, right: 14, zIndex: 10, borderRadius: 12, borderWidth: 1, overflow: 'hidden', minWidth: 120, elevation: 6 },

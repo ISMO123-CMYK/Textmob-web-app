@@ -117,7 +117,7 @@ function renderStickers(text) {
 }
 
 // Rn – RichText component: parses @mentions, #hashtags, URLs and stickers
-export default function RichText({ html }) {
+export default function RichText({ html, className }) {
   const [parsed, setParsed] = useState('');
 
   const stickerParts = renderStickers(html);
@@ -190,7 +190,7 @@ export default function RichText({ html }) {
 
   if (stickerParts) {
     return (
-      <div className="flex flex-wrap items-end gap-1">
+      <div className={`flex flex-wrap items-end gap-1 ${className || ''}`}>
         {stickerParts.map((part, i) =>
           part.type === 'sticker'
             ? <img key={i} src={part.url} alt="sticker" className="max-h-32 rounded-lg object-contain" loading="lazy" />
@@ -200,5 +200,5 @@ export default function RichText({ html }) {
     );
   }
 
-  return <div className="prose markdown max-w-none" dangerouslySetInnerHTML={{ __html: parsed }} />;
+  return <div className={`prose markdown max-w-none ${className || ''}`} dangerouslySetInnerHTML={{ __html: parsed }} />;
 }

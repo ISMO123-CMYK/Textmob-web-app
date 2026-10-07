@@ -10,6 +10,7 @@ import NavIcons from '../../utils/navIcons';
 import Ye from '../../components/ui/BottomSheet';
 import AutocompleteDropdown from '../../components/layout/AutocompleteDropdown';
 import { CATEGORIES as CATEGORY_LIST, CATEGORY_IDS } from '../../data/categories';
+import { replaceTokenAt } from '../../utils/autocomplete';
 
 // Import fabric.js from CDN or global fabric variable
 
@@ -140,14 +141,19 @@ export default function MakePostContent(props) {
  return;
  }
 
- let t = e.type === `user` ? `@${e.username}` : e.query;
- let { start: i, end: a } = we;
+ let t = e.type === `user` ? `@${e.username}` : String(e.query || ``);
+ if (we.symbol === `#` && t.charAt(0) !== `#`) t = `#` + t;
+ if (we.symbol === `@` && t.charAt(0) !== `@`) t = `@` + t;
+ let i = we.start;
  let el = ge.current;
  if (!el) return;
 
  let sel = window.getSelection();
  let fullText = el.textContent || ``;
- let newText = `${fullText.slice(0, i)}${t} ${fullText.slice(a)}`;
+ // `we.end` was captured on the last input event and can lag the click, which
+ // left the typed fragment behind the replacement ("#football #foo"). The
+ // helper re-derives the end from the text that is actually in the box.
+ let newText = replaceTokenAt(fullText, i, t);
 
  // Replace content while preserving cursor
  let childTextNodes = [];

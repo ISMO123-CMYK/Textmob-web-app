@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { getLiveStreamsAPI, LiveStream } from '../../api/live';
 import { apiPost, API_BASE_URL } from '../../api/client';
+import SafeHTML from '../../components/SafeHTML';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
@@ -75,10 +76,11 @@ function LiveCommentMessage({ msg }: { msg: any }) {
             {msg.gift.tier >= 4 ? ' — MASSIVE!' : msg.gift.tier >= 3 ? ' — amazing!' : '!'}
           </Text>
         ) : (
-          <Text style={styles.msgText}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline' }}>
             <Text style={styles.msgUsername}>{msg.username} </Text>
-            {msg.text}
-          </Text>
+            {/* Raw text skipped the parser, so @mentions/#hashtags/links stayed inert. */}
+            <SafeHTML text={msg.text || ''} style={styles.msgText} />
+          </View>
         )}
       </View>
     </View>

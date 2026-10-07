@@ -55,7 +55,7 @@ export default function HomeDesktop() {
       </div>
 
       {/* Right Column: Trending, Suggestions */}
-      <aside className="w-80 bg-white overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l border-gray-200">
+      <aside className="w-[333px] bg-white overflow-y-auto scrollbar-thin scrollbar-thumb-rounded border-l border-gray-200">
         <RightSidebar />
       </aside>
     </div>

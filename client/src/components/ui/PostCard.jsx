@@ -10,6 +10,7 @@ import { SnapPlayer } from '../../pages/snaps/SnapsContent';
 import GiftCoinsModal from './GiftCoinsModal';
 import StickerPicker from './StickerPicker';
 import { makeStickerText, withSticker } from '../../utils/stickerUtils';
+import { replaceTokenAt } from '../../utils/autocomplete';
 import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban, Image, Sticker } from 'lucide-react';
 
 /* ─── constants ─── */
@@ -604,9 +605,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
 
  function selectSuggestion(item) {
  let replacement = item.type === 'user' ? `@${item.username}` : item.query;
- let before = text.slice(0, queryInfo.start);
- let after = text.slice(queryInfo.end);
- setText(`${before + replacement} ${after}`);
+ setText(replaceTokenAt(text, queryInfo.start, replacement));
  setSuggestions([]);
  setQueryInfo(null);
  setTimeout(() => inputRef.current?.focus(), 10);

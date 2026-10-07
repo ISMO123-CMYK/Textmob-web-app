@@ -8218,6 +8218,12 @@ const MobileHome = () => {
   if (res.ok) {
   Lexum.alert({ title: 'Success', message: `Message(s) forwarded to ${resolved.length} chat(s)` });
   setForwardPayload(null);
+  // bulk-forward writes straight to the DB and does not echo a socket event
+  // back to the sender, so the rows keep their stale lastMessage and the chat
+  // never re-sorts to the top. Re-read both lists — same path every other flow
+  // uses to pick up a new last message.
+  loadContacts(user.id);
+  loadGroups(user.id);
   } else {
   const d = await res.json();
   Lexum.alert({ title: 'Error', message: d.error || 'Forwarding failed' });
