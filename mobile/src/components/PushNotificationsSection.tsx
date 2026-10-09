@@ -66,11 +66,6 @@ export function PushNotificationsSection({
             </Ripple>
           )}
         </View>
-        <Text style={[s.hint, { color: colors.textSecondary }]}>
-          {enabled
-            ? 'On — Textmob activity and Louda messages both use this switch.'
-            : 'Off — no push on this device. Turn on and allow the system prompt to re-enable.'}
-        </Text>
       </View>
     </View>
   );
