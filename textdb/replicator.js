@@ -109,9 +109,11 @@ async function replayObjectsAfter(storage, engine, ns, sinceTs) {
       if (obj.op === 'delete') {
         engine.ensureTable(obj.table);
         engine.rawRun('DELETE FROM "' + String(obj.table).replace(/"/g, '""') + '" WHERE id = ?', [String(obj.key)]);
-      } else if (obj.op === 'upsert' && obj.row) {
-        engine.upsertRows(obj.table, [obj.row], 'id');
-      }
+        } else if (obj.op === 'upsert' && obj.row) {
+          // obj.row values are already in storage format (encodeRow output stored in
+          // the outbox payload) — write them raw, never re-encode (double-encode bug).
+          engine.upsertStoredRows(obj.table, [obj.row], 'id');
+        }
       replayed++;
     } catch (e) {
       console.error('[textdb:restore] replay error on', f.name, e.message);

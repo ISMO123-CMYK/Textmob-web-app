@@ -4952,7 +4952,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
 
       // Category weight from feed preferences
       let catWeight = 1.0;
-      const postCats = p.categories || [];
+      const postCats = Array.isArray(p.categories) ? p.categories : [];
       if (userCategoryWeights) {
         for (const c of postCats) {
           const w = userCategoryWeights[c];
@@ -9277,7 +9277,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
 
       // Per-category weight multiplier (from feed_prefs.categoryWeights)
       let catWeight = 1.0;
-      const postCats = post.categories || [];
+      const postCats = Array.isArray(post.categories) ? post.categories : [];
       if (ctx.categoryWeights) {
         for (const c of postCats) {
           const w = ctx.categoryWeights[c];
@@ -9293,7 +9293,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
 
       // Per-hashtag affinity boost from liked posts (feed_prefs.hashtagWeights)
       let hashtagBoost = 1.0;
-      const postTags = (post.hashtags || []).map(t => String(t).replace(/^#/, '').toLowerCase());
+      const postTags = (Array.isArray(post.hashtags) ? post.hashtags : []).map(t => String(t).replace(/^#/, '').toLowerCase());
       if (ctx.hashtagWeights && postTags.length > 0) {
         for (const tag of postTags) {
           const w = ctx.hashtagWeights[tag];
@@ -9344,7 +9344,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
         const userData = memoryDb.findUser(username);
         if (userData) {
           feedPrefs = userData.feed_prefs || {};
-          userCategories = userData.categories || [];
+          userCategories = Array.isArray(userData.categories) ? userData.categories : [];
           negativeSignals = memoryDb.getNegativeSignals(username) || new Map();
         }
       }
@@ -11795,19 +11795,20 @@ app.post("/negative-signal", async (req, res) => {
 
     // Also get post categories to store category-level signal
     const { data: postData } = await supabase2.from("Posts").select("categories, hashtags").eq("id", postId).single();
-    if (postData?.categories && memoryDb?.isReady) {
+    if (Array.isArray(postData?.categories) && memoryDb?.isReady) {
       memoryDb.addCategoryNegativeSignal(username, postData.categories, signalType);
     }
 
     // Decay hashtag affinity for skipped/hidden content
-    if (['skip', 'hide', 'not_interested'].includes(signalType) && postData?.hashtags?.length > 0) {
+    const postHashtags = Array.isArray(postData?.hashtags) ? postData.hashtags : [];
+    if (['skip', 'hide', 'not_interested'].includes(signalType) && postHashtags.length > 0) {
       setImmediate(async () => {
         try {
           const { data: userData } = await supabase.from("users").select("feed_prefs").eq("username", username).single();
           const feedPrefs = userData?.feed_prefs || {};
           const hw = feedPrefs.hashtagWeights || {};
           let changed = false;
-          for (const tag of postData.hashtags) {
+          for (const tag of postHashtags) {
             const key = String(tag).replace(/^#/, '').toLowerCase();
             if (!key) continue;
             const cur = hw[key] || 1.0;

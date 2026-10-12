@@ -48,7 +48,14 @@ function decodeValue(kind, v) {
     case 'text': return v;
     case 'json': {
       if (typeof v !== 'string') return v;
-      try { return JSON.parse(v); } catch { return v; }
+      // Self-heal double-encoded values (replay/re-store bugs): if a parse yields
+      // another JSON string, keep parsing (bounded) until we get a real value.
+      let out = v;
+      for (let i = 0; i < 3; i++) {
+        try { out = JSON.parse(out); } catch { break; }
+        if (typeof out !== 'string') break;
+      }
+      return out;
     }
     default: return v;
   }
@@ -172,10 +179,12 @@ class Engine {
     const schema = this.ensureTable(table);
     let cols = schema.cols;
     let changed = false;
+    let existing = null;
     for (const [k, v] of Object.entries(row)) {
       if (!(k in cols)) {
+        if (!existing) existing = new Set(this.rawAll('PRAGMA table_info(' + ident(table) + ')').map(c => c.name));
         const kind = inferKind([v]);
-        this.addColumn(table, k, kind);
+        if (!existing.has(k)) this.addColumn(table, k, kind);
         cols = Object.assign({}, cols, { [k]: kind });
         changed = true;
       }
@@ -261,6 +270,44 @@ class Engine {
       inserted.push(row);
     }
     return inserted;
+  }
+
+  // Insert rows whose values are ALREADY in storage format (e.g. replaying outbox
+  // object payloads from B2). Values are bound raw — no encodeValue — so json
+  // columns are NOT re-encoded (prevents double-encoding '["a"]' -> '"[\"a\"]"').
+  upsertStoredRows(table, rows, onConflict) {
+    if (!rows.length) return 0;
+    const conflictCol = onConflict || 'id';
+    this.ensureTable(table);
+    const schema = this.getSchema(table);
+    const cols = Object.assign({}, schema.cols);
+    const existing = new Set(this.rawAll('PRAGMA table_info(' + ident(table) + ')').map(c => c.name));
+    const colSet = new Set([conflictCol]);
+    for (const r of rows) for (const k of Object.keys(r)) colSet.add(k);
+    let schemaChanged = false;
+    for (const k of colSet) {
+      if (!(k in cols)) {
+        const v = rows[0][k];
+        let kind = inferKind([v]);
+        if (kind === 'text' && typeof v === 'string' && (v.startsWith('{') || v.startsWith('['))) {
+          try { JSON.parse(v); kind = 'json'; } catch {}
+        }
+        cols[k] = kind;
+        if (!existing.has(k)) this.addColumn(table, k, kind);
+        schemaChanged = true;
+      }
+    }
+    if (schemaChanged) this.saveSchema(table, cols);
+    const allCols = Array.from(colSet);
+    const sql =
+      'INSERT INTO ' + ident(table) + ' (' + allCols.map(ident).join(', ') + ') VALUES (' + allCols.map(() => '?').join(', ') + ')' +
+      ' ON CONFLICT(' + ident(conflictCol) + ') DO UPDATE SET ' +
+      allCols.filter(c => c !== conflictCol).map(c => ident(c) + ' = excluded.' + ident(c)).join(', ');
+    const stmt = this.prepareCached(sql);
+    for (const r of rows) {
+      stmt.run(...allCols.map(c => (r[c] === undefined ? null : r[c])));
+    }
+    return rows.length;
   }
 
   transaction(fn) {

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { Engine } = require('./engine');
+const { Engine, ident } = require('./engine');
 const LruCache = require('./lru');
 const { TextDbClient } = require('./shim');
 const { OutboxWorker } = require('./outbox');
@@ -28,6 +28,41 @@ async function ensureRestored(storage, ns, dbPath) {
   return true;
 }
 
+// One-shot repair of double-encoded json columns (values stored as '"[\"a\"]"'
+// instead of '["a"]'). Reads self-heal via decodeValue; this persists the fix.
+function repairDoubleEncoded(engine) {
+  let fixed = 0;
+  const tables = engine.rawAll("SELECT name, schema_json FROM __tables WHERE name NOT LIKE '\\_\\_%' ESCAPE '\\'", []);
+  for (const t of tables) {
+    let cols;
+    try { cols = JSON.parse(t.schema_json).cols; } catch { continue; }
+    for (const [col, kind] of Object.entries(cols || {})) {
+      if (kind !== 'json') continue;
+      let rows;
+      try {
+        rows = engine.rawAll(
+          'SELECT id, ' + ident(col) + ' AS v FROM ' + ident(t.name) +
+          " WHERE typeof(" + ident(col) + ")='text' AND " + ident(col) + " LIKE '\"%'",
+          []
+        );
+      } catch { continue; }
+      for (const r of rows) {
+        if (typeof r.v !== 'string') continue;
+        let parsed;
+        try { parsed = JSON.parse(r.v); } catch { continue; }
+        if (typeof parsed !== 'string') continue;
+        let reparsed;
+        try { reparsed = JSON.parse(parsed); } catch { continue; }
+        if (typeof reparsed !== 'object' || reparsed === null) continue;
+        engine.rawRun('UPDATE ' + ident(t.name) + ' SET ' + ident(col) + ' = ? WHERE id = ?', [JSON.stringify(reparsed), r.id]);
+        fixed++;
+      }
+    }
+  }
+  if (fixed) console.log('[textdb] repaired ' + fixed + ' double-encoded json values');
+  return fixed;
+}
+
 function openTextDbSync(opts) {
   opts = opts || {};
   const env = opts.env || process.env;
@@ -50,7 +85,9 @@ function openTextDbSync(opts) {
     for (const ns of namespaces) {
       const dbPath = path.join(dir, ns + '.db');
       const restored = skipRestore ? false : await ensureRestored(storage, ns, dbPath);
-      engines.push({ engine: new Engine(dbPath), ns, dbPath, restored });
+      const engine = new Engine(dbPath);
+      try { repairDoubleEncoded(engine); } catch (e) { console.error('[textdb] repair error:', e.message); }
+      engines.push({ engine, ns, dbPath, restored });
     }
   })();
 

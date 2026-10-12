@@ -174,6 +174,7 @@ class B2Storage {
   }
 
   async list(prefix) {
+    if (!this.authToken) await this._authorize();
     const out = [];
     let startFileName = null;
     for (;;) {
@@ -195,6 +196,7 @@ class B2Storage {
   }
 
   async delete(key) {
+    if (!this.authToken) await this._authorize();
     // B2 keeps version history — delete every version of this exact file name.
     for (let guard = 0; guard < 50; guard++) {
       const u = new URL(this.apiBase + '/b2api/v2/b2_list_file_versions');
