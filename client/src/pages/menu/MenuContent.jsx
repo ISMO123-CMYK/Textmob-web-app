@@ -7,17 +7,17 @@ import { apiFetch } from '../../config/api';
 
 function MenuRow({ item, active, onClick }) {
   const base =
-    'group flex items-center gap-3 rounded-xl border px-3 py-3 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 active:scale-[0.98]';
+    'group flex items-center gap-3 rounded-lg border px-3 py-3 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 active:scale-[0.98]';
   const state = active
-    ? 'border-blue-200 bg-blue-50/60 text-blue-700'
+    ? 'border-brand-200 bg-brand-50/60 text-brand-700'
     : 'border-gray-200/80 bg-white text-gray-900 hover:border-gray-300 hover:bg-gray-50';
 
   const iconWrap = active
-    ? 'bg-blue-100 text-blue-700'
+    ? 'bg-brand-100 text-brand-700'
     : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200';
 
   const chevron = active
-    ? 'text-blue-400'
+    ? 'text-brand-400'
     : 'text-gray-300 group-hover:text-gray-400';
 
   const sharedContent = (
@@ -62,10 +62,10 @@ function MenuRow({ item, active, onClick }) {
 
 function FeaturedCard({ username }) {
   return (
-    <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4 shadow-sm">
+    <div className="rounded-lg border border-brand-100 bg-gradient-to-br from-brand-50 via-white to-brand-50 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-500">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-500">
             Your next move
           </p>
           <h2 className="mt-1 text-base font-bold text-gray-900">Grow faster from here</h2>
@@ -76,7 +76,7 @@ function FeaturedCard({ username }) {
           </p>
         </div>
 
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
           <NavIcons.Cog className="h-5 w-5" />
         </div>
       </div>
@@ -84,13 +84,13 @@ function FeaturedCard({ username }) {
       <div className="mt-4 flex gap-2">
         <a
           href="/accountscenter"
-          className="inline-flex flex-1 items-center justify-center rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-700 active:scale-[0.98]"
+          className="inline-flex flex-1 items-center justify-center rounded-lg bg-brand-600 px-3 py-2.5 text-sm font-bold text-white transition-all hover:bg-brand-700 active:scale-[0.98]"
         >
           Open Accounts Center
         </a>
         <a
           href="/wallet"
-          className="inline-flex flex-1 items-center justify-center rounded-xl border border-blue-200 bg-white px-3 py-2.5 text-sm font-bold text-blue-700 transition-all hover:bg-blue-50 active:scale-[0.98]"
+          className="inline-flex flex-1 items-center justify-center rounded-lg border border-brand-200 bg-white px-3 py-2.5 text-sm font-bold text-brand-700 transition-all hover:bg-brand-50 active:scale-[0.98]"
         >
           View Wallet
         </a>
@@ -269,7 +269,7 @@ export default function MenuContent() {
 
   return (
     <div className="min-h-full bg-white text-gray-900">
-      <div className="sticky top-0 z-30 border-b border-gray-200/80 bg-white/90 backdrop-blur-xl">
+      <div className="sticky top-0 z-30 border-b border-gray-200/80 bg-white/90">
         <div className="flex h-14 items-center justify-between px-4 sm:px-6">
           <div>
             <h1 className="text-base font-semibold tracking-tight">Menu</h1>
@@ -289,9 +289,9 @@ export default function MenuContent() {
       <div className="mx-auto max-w-xl space-y-5 px-4 py-4 sm:px-6">
         <FeaturedCard username={username} />
 
-        <div className="rounded-2xl border border-gray-200/80 bg-gray-50/70 p-3">
+        <div className="rounded-lg border border-gray-200/80 bg-gray-50/70 p-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700">
               <NavIcons.User className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -336,14 +336,14 @@ export default function MenuContent() {
             <div className="space-y-1">
               {savedAccounts.map(acc => (
                 <button key={acc.username} onClick={() => switchAccount(acc.username, acc.password)}
-                  className="w-full flex items-center gap-3 rounded-xl border border-gray-200/80 bg-white px-3 py-3 transition-all duration-200 hover:bg-gray-50 active:scale-[0.98] text-left"
+                  className="w-full flex items-center gap-3 rounded-lg border border-gray-200/80 bg-white px-3 py-3 transition-all duration-200 hover:bg-gray-50 active:scale-[0.98] text-left"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-xs">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600 font-bold text-xs">
                     {acc.username.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-gray-900">@{acc.username}</div>
-                    <div className="text-xs text-blue-500 font-semibold">Tap to switch</div>
+                    <div className="text-xs text-brand-500 font-semibold">Tap to switch</div>
                   </div>
                   <NavIcons.ArrowRightOnRect className="h-4 w-4 text-gray-300" />
                 </button>
@@ -355,7 +355,7 @@ export default function MenuContent() {
         <div className="pt-1">
           <a
             href="/logout"
-            className="group flex items-center gap-3 rounded-xl border border-red-200/80 bg-red-50/60 px-3 py-3 transition-all duration-200 hover:border-red-300 hover:bg-red-100/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/20 active:scale-[0.98]"
+            className="group flex items-center gap-3 rounded-lg border border-red-200/80 bg-red-50/60 px-3 py-3 transition-all duration-200 hover:border-red-300 hover:bg-red-100/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/20 active:scale-[0.98]"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 group-hover:bg-red-200">
               <NavIcons.ArrowRightOnRect className="h-4 w-4" />

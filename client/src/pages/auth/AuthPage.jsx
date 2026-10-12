@@ -80,14 +80,14 @@ export default function AuthPage() {
         <div className="w-full max-w-sm flex-shrink-0">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 mb-6">
-            <span className="text-2xl font-black tracking-tighter text-blue-600 leading-none">
-              t<span className="text-blue-400">..</span>
+            <span className="text-2xl font-black tracking-tighter text-brand-600 leading-none">
+              t<span className="text-brand-400">..</span>
             </span>
             <span className="text-sm font-bold text-gray-400">Textmob</span>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-6">
-            <div className="h-1 w-8 bg-blue-600 rounded-full mb-5" />
+          <div className="bg-white border border-gray-100 rounded-lg p-6">
+            <div className="h-1 w-8 bg-brand-600 rounded-full mb-5" />
             {view === 'login' && (
               <LoginForm
                 switchToSignup={() => setView('signup')}
@@ -104,8 +104,8 @@ export default function AuthPage() {
 
           <p className="text-center text-[11px] text-gray-400 mt-4">
             By continuing, you agree to our{' '}
-            <a href="/terms.html" data-no-lexum="true" className="text-blue-500 font-medium">Terms</a> and{' '}
-            <a href="/privacy.html" data-no-lexum="true" className="text-blue-500 font-medium">Privacy Policy</a>
+            <a href="/terms.html" data-no-lexum="true" className="text-brand-500 font-medium">Terms</a> and{' '}
+            <a href="/privacy.html" data-no-lexum="true" className="text-brand-500 font-medium">Privacy Policy</a>
           </p>
         </div>
       </div>
@@ -115,7 +115,7 @@ export default function AuthPage() {
       {savedAccounts.length > 0 && view === 'login' && (
         <button
           onClick={() => setShowManage(true)}
-          className="fixed bottom-6 right-6 lg:hidden w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center active:scale-95 transition-colors"
+          className="fixed bottom-6 right-6 lg:hidden w-12 h-12 bg-brand-600 text-white rounded-full flex items-center justify-center active:scale-95 transition-colors"
           style={{ zIndex: 100 }}
           aria-label="Manage saved accounts"
         >

@@ -66,7 +66,7 @@ function SnapText({ text }) {
 }
 
 // Color encoder function mi
-const pi = ['#2563eb', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
+const pi = ['#2B3EE8', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
 function mi(e) {
  let t = 0;
  for (let n = 0; n < (e || '').length; n++) {
@@ -172,13 +172,13 @@ function SuggestionsDropdown({ items: e, onSelect: t, activeIndex: n }) {
  }
  return createPortal(
  <div className="fixed inset-0 z-[2147483647] pointer-events-none flex flex-col justify-end md:justify-start md:items-center">
- <div className="pointer-events-auto w-full md:w-[450px] md:mt-20 bg-white md:bg-white/95 md: md:backdrop-blur-xl rounded-t-[32px] md:rounded-2xl border-t md:border border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl overflow-hidden max-h-[60vh] md:max-h-[400px] flex flex-col transform transition-transform animate-in slide-in-from-bottom duration-300">
+ <div className="pointer-events-auto w-full md:w-[450px] md:mt-20 bg-white md:bg-white/95 rounded-t-lg md:rounded-lg border-t md:border border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl overflow-hidden max-h-[60vh] md:max-h-[400px] flex flex-col transform transition-transform animate-in slide-in-from-bottom duration-300">
  <div className="p-4 md:p-3 space-y-0.5">
  <div className="flex justify-center mb-4 md:hidden">
  <div className="w-12 h-1.5 rounded-full bg-gray-200 " />
  </div>
  <div className="flex items-center justify-between px-3 pb-2 border-b border-gray-50 mb-2">
- <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-600 ">Suggestions</p>
+ <p className="text-[10px] font-black uppercase tracking-[0.25em] text-brand-600 ">Suggestions</p>
  <span className="text-[9px] text-gray-400 uppercase font-black tracking-widest hidden md:block">{e.length} MATCHES</span>
  </div>
  <div className="space-y-1 overflow-y-auto pr-1">
@@ -193,9 +193,9 @@ function SuggestionsDropdown({ items: e, onSelect: t, activeIndex: n }) {
  t(item);
  }}
  className={cn(
- "flex items-center gap-3 px-4 py-3 md:py-2.5 rounded-xl cursor-pointer transition-all duration-200 group",
+ "flex items-center gap-3 px-4 py-3 md:py-2.5 rounded-lg cursor-pointer transition-all duration-200 group",
  isSelected
- ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+ ? "bg-brand-600 text-white shadow-lg shadow-brand-600/20"
  : "hover:bg-gray-50 text-gray-800 "
  )}
  key={isUser ? `user-${item.username}-${index}` : `term-${item.query || index}-${index}`}
@@ -215,12 +215,12 @@ function SuggestionsDropdown({ items: e, onSelect: t, activeIndex: n }) {
  <div className="flex-1 min-w-0">
  <p className="text-sm font-bold truncate">{isUser ? `@${item.username}` : (item.query || '').replace(/^[#@]/, '')}</p>
  {isUser && item.fullname && (
- <p className={cn("text-[10px] truncate opacity-80", isSelected ? "text-blue-100" : "text-gray-400 ")}>
+ <p className={cn("text-[10px] truncate opacity-80", isSelected ? "text-brand-100" : "text-gray-400 ")}>
  {item.fullname}
  </p>
  )}
  {!isUser && item.count > 0 && item.type === 'hashtag' && (
- <p className={cn("text-[10px] truncate opacity-80 uppercase font-black tracking-widest", isSelected ? "text-blue-100" : "text-gray-400")}>
+ <p className={cn("text-[10px] truncate opacity-80 uppercase font-black tracking-widest", isSelected ? "text-brand-100" : "text-gray-400")}>
  Trending topic
  </p>
  )}
@@ -383,7 +383,7 @@ function FollowButton({ targetUsername, currentUsername, onUpdate }) {
  ? "bg-gray-100 text-gray-400 cursor-wait"
  : status === 'friended' || status === 'following'
  ? "bg-gray-100 text-gray-700 "
- : "bg-blue-600 text-white hover:bg-blue-700"
+ : "bg-brand-600 text-white hover:bg-brand-700"
  )}
  >
  {loadingAction ? 'Wait...' : label}
@@ -542,7 +542,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  return (
  <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center snap-fade">
  <div className="absolute inset-0 bg-black/70" onClick={handleClose} />
- <div className="relative z-10 w-full md:max-w-lg bg-white rounded-t-3xl md:rounded-3xl snap-slide md:animate-none flex flex-col max-h-[90vh]">
+ <div className="relative z-10 w-full md:max-w-lg bg-white rounded-t-lg md:rounded-lg snap-slide md:animate-none flex flex-col max-h-[90vh]">
  {/* Header */}
  <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100 ">
  <div className="w-10">
@@ -561,7 +561,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  <div className="text-sm font-bold text-gray-900 ">New Snap</div>
  <div className="flex items-center justify-center gap-1 mt-1">
  {[1,2,3].map(s => (
- <div key={s} className={`h-1 rounded-full transition-all duration-300 ${s <= step ? 'bg-blue-600 w-6' : 'bg-gray-200 w-4'}`} />
+ <div key={s} className={`h-1 rounded-full transition-all duration-300 ${s <= step ? 'bg-brand-600 w-6' : 'bg-gray-200 w-4'}`} />
  ))}
  </div>
  </div>
@@ -577,7 +577,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
 
  <div className="overflow-y-auto px-5 py-5 space-y-4" style={{ overscrollBehavior: 'contain' }}>
  {uploading && (
- <div className="px-3 py-4 bg-blue-50 rounded-xl space-y-3">
+ <div className="px-3 py-4 bg-brand-50 rounded-lg space-y-3">
  <div className="flex items-center gap-3">
  <svg viewBox="0 0 44 44" className="w-10 h-10 flex-shrink-0">
  <circle cx="22" cy="22" r={radius} fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
@@ -586,23 +586,23 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  cy="22"
  r={radius}
  fill="none"
- stroke="#2563eb"
+ stroke="#2B3EE8"
  strokeWidth="3.5"
  strokeLinecap="round"
  strokeDasharray={strokeDasharray}
  strokeDashoffset={strokeDashoffset}
  className="snap-progress-ring"
  />
- <text x="22" y="27" textAnchor="middle" fontSize="9" fontWeight="700" fill="#2563eb">{progress}%</text>
+ <text x="22" y="27" textAnchor="middle" fontSize="9" fontWeight="700" fill="#2B3EE8">{progress}%</text>
  </svg>
  <div className="flex-1 min-w-0">
- <p className="text-xs font-bold text-blue-700 ">Uploading your snap…</p>
- <p className="text-[11px] text-blue-500">Please don't leave this page until the upload finishes.</p>
+ <p className="text-xs font-bold text-brand-700 ">Uploading your snap…</p>
+ <p className="text-[11px] text-brand-500">Please don't leave this page until the upload finishes.</p>
  </div>
  </div>
- <div className="w-full h-2 bg-blue-100 rounded-full overflow-hidden">
+ <div className="w-full h-2 bg-brand-100 rounded-full overflow-hidden">
  <div
- className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out"
+ className="h-full bg-gradient-to-r from-brand-500 to-brand-600 transition-all duration-300 ease-out"
  style={{ width: `${progress}%` }}
  />
  </div>
@@ -610,7 +610,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  )}
 
  {errorMsg && !uploading && (
- <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-xl">
+ <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg">
  <svg viewBox="0 0 24 24" className="w-4 h-4 text-red-500 flex-shrink-0 fill-none stroke-current" strokeWidth="2">
  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
  </svg>
@@ -624,7 +624,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  <p className="text-sm font-bold text-gray-700 ">Choose a video</p>
  {videoUrl ? (
  <div>
- <div className="relative rounded-2xl overflow-hidden bg-black" style={{ aspectRatio: '9/16', maxHeight: 300 }}>
+ <div className="relative rounded-lg overflow-hidden bg-black" style={{ aspectRatio: '9/16', maxHeight: 300 }}>
  <video src={videoUrl} className="w-full h-full object-contain" playsInline muted />
  <button
  onClick={() => { setVideoFile(null); setVideoUrl(null); }}
@@ -641,7 +641,7 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  </div>
  <button
  onClick={() => setStep(2)}
- className="w-full mt-3 py-3 rounded-xl text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all"
+ className="w-full mt-3 py-3 rounded-lg text-sm font-black text-white bg-brand-600 hover:bg-brand-700 active:scale-[0.98] transition-all"
  >
  Next
  </button>
@@ -653,15 +653,15 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  onDragLeave={() => setDragActive(false)}
  onDrop={e => { e.preventDefault(); setDragActive(false); if (!uploading) handleVideoFile(e.dataTransfer?.files?.[0]); }}
  className={cn(
- "h-56 md:h-72 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed cursor-pointer transition-colors",
+ "h-56 md:h-72 flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed cursor-pointer transition-colors",
  dragActive
- ? "border-blue-500 bg-blue-50 "
- : "border-gray-200 bg-gray-50 hover:border-blue-400 hover:bg-gray-100 "
+ ? "border-brand-500 bg-brand-50 "
+ : "border-gray-200 bg-gray-50 hover:border-brand-400 hover:bg-gray-100 "
  )}
  >
  <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={e => handleVideoFile(e.target.files?.[0])} />
- <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center">
- <svg viewBox="0 0 24 24" className="w-8 h-8 text-blue-600 fill-none stroke-current" strokeWidth="1.5">
+ <div className="w-16 h-16 rounded-lg bg-brand-50 flex items-center justify-center">
+ <svg viewBox="0 0 24 24" className="w-8 h-8 text-brand-600 fill-none stroke-current" strokeWidth="1.5">
  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
  </svg>
  </div>
@@ -687,14 +687,14 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  placeholder="Write something…"
  rows={4}
  maxLength={280}
- className="w-full bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:ring-2 focus:ring-blue-200 transition-all resize-none"
+ className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:ring-2 focus:ring-brand-200 transition-all resize-none"
  />
  <SuggestionsDropdown items={suggestions} onSelect={handleSelectSuggestion} activeIndex={activeIndex} />
  <p className="text-right text-[11px] text-gray-400 mt-1">{caption.length}/280</p>
  </div>
  <button
  onClick={() => setStep(3)}
- className="w-full py-3 rounded-xl text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all"
+ className="w-full py-3 rounded-lg text-sm font-black text-white bg-brand-600 hover:bg-brand-700 active:scale-[0.98] transition-all"
  >
  Next
  </button>
@@ -715,8 +715,8 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  className={cn(
  "px-4 py-2 rounded-full text-xs font-bold transition-all border",
  selectedCategory === cat.id
- ? "bg-blue-600 text-white border-blue-600 shadow-sm"
- : "bg-gray-50 text-gray-500 border-gray-200 hover:border-blue-300"
+ ? "bg-brand-600 text-white border-brand-600 shadow-sm"
+ : "bg-gray-50 text-gray-500 border-gray-200 hover:border-brand-300"
  )}
  >
  {cat.emoji} {cat.name}
@@ -726,14 +726,14 @@ function NewSnapModal({ isOpen, onClose, username, onPosted }) {
  <div className="flex gap-2 pt-2">
  <button
  onClick={() => setStep(2)}
- className="flex-1 py-3 rounded-xl text-sm font-semibold text-gray-500 bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all"
+ className="flex-1 py-3 rounded-lg text-sm font-semibold text-gray-500 bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all"
  >
  Back
  </button>
  <button
  onClick={handlePost}
  disabled={!videoFile}
- className="flex-1 py-3 rounded-xl text-sm font-black text-white bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+ className="flex-1 py-3 rounded-lg text-sm font-black text-white bg-brand-600 hover:bg-brand-700 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
  >
  Post Snap
  </button>
@@ -809,8 +809,8 @@ function CommentRow({ comment, snapUsername }) {
  style={{
  fontSize: 9,
  fontWeight: 800,
- color: '#2563eb',
- background: 'rgba(37,99,235,.2)',
+ color: '#2B3EE8',
+ background: 'rgba(43, 62, 232,.2)',
  padding: '1px 5px',
  borderRadius: 4,
  letterSpacing: '.5px'
@@ -926,7 +926,7 @@ function CommentsPanel({ snap, username, onClose, onAddComment }) {
  >
  <div className="absolute inset-0 bg-black/50" onClick={onClose} />
  <div
- className="relative z-10 flex flex-col snap-slide md:rounded-2xl md:max-w-lg md:max-h-[70vh] md:w-full"
+ className="relative z-10 flex flex-col snap-slide md:rounded-lg md:max-w-lg md:max-h-[70vh] md:w-full"
  style={{
  background: '#111',
  borderRadius: '20px 20px 0 0',
@@ -1054,7 +1054,7 @@ function CommentsPanel({ snap, username, onClose, onAddComment }) {
  display: 'flex',
  alignItems: 'center',
  background: 'rgba(255,255,255,0.08)',
- borderRadius: 24,
+ borderRadius: 12,
  padding: '0 14px',
  border: '1px solid rgba(255,255,255,0.1)',
  position: 'relative'
@@ -1095,7 +1095,7 @@ function CommentsPanel({ snap, username, onClose, onAddComment }) {
  width: 36,
  height: 36,
  borderRadius: '50%',
- background: commentText.trim() ? '#2563eb' : 'rgba(255,255,255,0.08)',
+ background: commentText.trim() ? '#2B3EE8' : 'rgba(255,255,255,0.08)',
  border: 'none',
  cursor: commentText.trim() ? 'pointer' : 'default',
  display: 'flex',
@@ -1162,6 +1162,26 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
 
  let isLiked = (currentSnap?.likes || []).includes(username);
  let profileInfo = Nn(currentSnap?.username);
+ let [isSavedSnap, setIsSavedSnap] = useState(() => {
+   try {
+     const s = JSON.parse(localStorage.getItem('textmob_saved_posts') || '[]');
+     return Array.isArray(s) && s.map(String).includes(String(snap?.id));
+   } catch { return false; }
+ });
+
+ useEffect(() => {
+   try {
+     const s = JSON.parse(localStorage.getItem('textmob_saved_posts') || '[]');
+     setIsSavedSnap(Array.isArray(s) && s.map(String).includes(String(currentSnap?.id)));
+   } catch { setIsSavedSnap(false); }
+ }, [currentSnap?.id]);
+
+ const fmtSnapCount = (n) => {
+   n = Number(n) || 0;
+   if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+   if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+   return String(n);
+ };
 
  useEffect(() => {
  setCurrentSnap(snap);
@@ -1346,7 +1366,6 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  height: 64,
  borderRadius: '50%',
  background: 'rgba(0,0,0,.5)',
- backdropFilter: 'blur(4px)',
  display: 'flex',
  alignItems: 'center',
  justifyContent: 'center'
@@ -1367,7 +1386,6 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  height: 64,
  borderRadius: '50%',
  background: 'rgba(0,0,0,.5)',
- backdropFilter: 'blur(4px)',
  display: 'flex',
  alignItems: 'center',
  justifyContent: 'center'
@@ -1398,7 +1416,6 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  height: 38,
  borderRadius: '50%',
  background: 'rgba(0,0,0,.35)',
- backdropFilter: 'blur(8px)',
  display: 'flex',
  alignItems: 'center',
  justifyContent: 'center',
@@ -1492,8 +1509,8 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  >
  {profileInfo?.fullname || currentSnap?.username}
  {currentSnap?.verified === true && (
- <div className="flex-shrink-0 flex items-center justify-center p-0.5 rounded-full bg-blue-500/20 ml-1">
- <VerifiedBadge className="w-3.5 h-3.5 text-blue-400" />
+ <div className="flex-shrink-0 flex items-center justify-center p-0.5 rounded-full bg-brand-500/20 ml-1">
+ <VerifiedBadge className="w-3.5 h-3.5 text-brand-400" />
  </div>
  )}
  {(currentSnap?.boost_score || 0) > 0 && (
@@ -1631,6 +1648,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  <button
  onClick={e => {
  e.stopPropagation();
+ if (!username) { window.showAuthPrompt?.('Log in to save snaps'); return; }
  try {
  let saved = [];
  try { saved = JSON.parse(localStorage.getItem('textmob_saved_posts') || '[]'); } catch {}
@@ -1640,23 +1658,52 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  if (idx >= 0) saved.splice(idx, 1);
  else saved.push(idStr);
  localStorage.setItem('textmob_saved_posts', JSON.stringify(saved));
+ setIsSavedSnap(idx < 0);
+ window.dispatchEvent(new CustomEvent('saved-posts-changed', { detail: { id: idStr, saved: idx < 0 } }));
  } catch {}
  }}
  className="flex flex-col items-center gap-0.5"
- aria-label="Save"
+ aria-label={isSavedSnap ? 'Unsave' : 'Save'}
  >
  <svg
  viewBox="0 0 24 24"
  style={{
  width: 28,
  height: 28,
- fill: '#fff',
+ fill: isSavedSnap ? '#3ecf8e' : '#fff',
+ stroke: isSavedSnap ? '#3ecf8e' : '#fff',
+ strokeWidth: isSavedSnap ? 0 : 1.5,
  filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.5))'
  }}
  >
  <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
  </svg>
  </button>
+ <div
+ className="flex flex-col items-center gap-0.5 pointer-events-none"
+ aria-label="Views"
+ >
+ <svg
+ viewBox="0 0 24 24"
+ style={{
+ width: 28,
+ height: 28,
+ fill: 'none',
+ stroke: '#fff',
+ strokeWidth: 1.8,
+ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.5))'
+ }}
+ >
+ <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+ <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+ </svg>
+ <span
+ className="text-white text-[11px] font-bold leading-none"
+ style={{ textShadow: '0 1px 3px rgba(0,0,0,.6)' }}
+ >
+ {fmtSnapCount(currentSnap?.view_count ?? (Array.isArray(currentSnap?.views) ? currentSnap.views.length : 0))}
+ </span>
+ </div>
  </div>
  <div
  className="absolute pointer-events-none z-20"
@@ -1895,7 +1942,6 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  height: 38,
  borderRadius: '50%',
  background: 'rgba(0,0,0,.35)',
- backdropFilter: 'blur(8px)',
  display: 'flex',
  alignItems: 'center',
  justifyContent: 'center',
@@ -1926,7 +1972,6 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  height: 38,
  borderRadius: '50%',
  background: 'rgba(0,0,0,.35)',
- backdropFilter: 'blur(8px)',
  display: 'flex',
  alignItems: 'center',
  justifyContent: 'center',
@@ -1944,9 +1989,8 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  className="pointer-events-auto flex items-center gap-1.5"
  style={{
  background: 'rgba(0,0,0,.35)',
- backdropFilter: 'blur(8px)',
  border: '1px solid rgba(255,255,255,.15)',
- borderRadius: 22,
+ borderRadius: 12,
  padding: '7px 16px',
  cursor: 'pointer'
  }}
@@ -2081,7 +2125,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  @{snap.username}
  {(() => {
  console.log(`[Snap Badge Debug] Username: ${snap.username}, snap.verified: ${snap.verified}`);
- return snap.verified === true && <VerifiedBadge className="w-3 h-3 text-blue-400" />;
+ return snap.verified === true && <VerifiedBadge className="w-3 h-3 text-brand-400" />;
  })()}
  </p>
  <p
@@ -2107,7 +2151,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  <button onClick={() => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }} style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.1)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: '#fff', strokeWidth: 2.5 }}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
  </button>
- <div className="flex-1 flex items-center gap-2 bg-white/10 rounded-2xl px-4 py-3 border border-white/15">
+ <div className="flex-1 flex items-center gap-2 bg-white/10 rounded-lg px-4 py-3 border border-white/15">
  <svg viewBox="0 0 24 24" style={{ width: 18, height: 18, fill: 'none', stroke: 'rgba(255,255,255,.4)', strokeWidth: 2.5, flexShrink: 0 }}>
  <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
  </svg>
@@ -2129,8 +2173,8 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  <div className="flex-1 overflow-y-auto px-1 pt-2">
  {!searchQuery.trim() && (
  <div className="flex flex-col items-center justify-center pt-24 text-center px-6">
- <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(37,99,235,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
- <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, fill: 'none', stroke: '#60a5fa', strokeWidth: 1.5 }}>
+ <div style={{ width: 64, height: 64, borderRadius: 12, background: 'rgba(43, 62, 232,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+ <svg viewBox="0 0 24 24" style={{ width: 28, height: 28, fill: 'none', stroke: '#6E7CF7', strokeWidth: 1.5 }}>
  <circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
  </svg>
  </div>
@@ -2175,7 +2219,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  </div>
  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,.85))', padding: '32px 8px 8px' }}>
   <p style={{ color: '#fff', fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{snap.username}</p>
-  {snap.verified && <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#60a5fa', flexShrink: 0 }}><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+  {snap.verified && <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#6E7CF7', flexShrink: 0 }}><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
   <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
   <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
@@ -2203,7 +2247,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  )}
  {!searchLoading && searchQuery.trim() && searchResults.length === 0 && (
  <div className="flex flex-col items-center justify-center pt-24 text-center px-6">
- <div style={{ width: 56, height: 56, borderRadius: 20, background: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+ <div style={{ width: 56, height: 56, borderRadius: 12, background: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
  <svg viewBox="0 0 24 24" style={{ width: 24, height: 24, fill: 'none', stroke: 'rgba(255,255,255,.2)', strokeWidth: 1.5 }}><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" /></svg>
  </div>
  <p style={{ color: 'rgba(255,255,255,.4)', fontSize: 14, fontWeight: 600 }}>No results for "{searchQuery}"</p>
@@ -2486,8 +2530,8 @@ export default function SnapsContent({ startSnapId }) {
  onClick={() => window.location.reload()}
  style={{
  padding: '10px 24px',
- borderRadius: 24,
- background: '#2563eb',
+ borderRadius: 12,
+ background: '#2B3EE8',
  color: '#fff',
  fontSize: 13,
  fontWeight: 700,
@@ -2508,8 +2552,8 @@ export default function SnapsContent({ startSnapId }) {
  style={{
  width: 64,
  height: 64,
- borderRadius: 20,
- background: 'rgba(37,99,235,.2)',
+ borderRadius: 12,
+ background: 'rgba(43, 62, 232,.2)',
  display: 'flex',
  alignItems: 'center',
  justifyContent: 'center',
@@ -2522,7 +2566,7 @@ export default function SnapsContent({ startSnapId }) {
  width: 32,
  height: 32,
  fill: 'none',
- stroke: '#60a5fa',
+ stroke: '#6E7CF7',
  strokeWidth: 1.5
  }}
  >
@@ -2553,8 +2597,8 @@ export default function SnapsContent({ startSnapId }) {
  style={{
  marginTop: 8,
  padding: '12px 28px',
- borderRadius: 28,
- background: '#2563eb',
+ borderRadius: 12,
+ background: '#2B3EE8',
  color: '#fff',
  fontSize: 13,
  fontWeight: 800,
@@ -2570,8 +2614,8 @@ export default function SnapsContent({ startSnapId }) {
  style={{
  marginTop: 8,
  padding: '12px 28px',
- borderRadius: 28,
- background: '#2563eb',
+ borderRadius: 12,
+ background: '#2B3EE8',
  color: '#fff',
  fontSize: 13,
  fontWeight: 800,

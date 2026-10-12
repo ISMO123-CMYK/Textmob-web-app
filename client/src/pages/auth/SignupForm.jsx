@@ -116,7 +116,7 @@ export default function SignupForm({ switchToLogin }) {
       {/* Step indicator */}
       <div className="flex items-center gap-1.5">
         {steps.map((_, i) => (
-          <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i < step ? 'w-6 bg-blue-300' : i === step ? 'w-8 bg-blue-600' : 'w-4 bg-gray-200'}`} />
+          <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i < step ? 'w-6 bg-brand-300' : i === step ? 'w-8 bg-brand-600' : 'w-4 bg-gray-200'}`} />
         ))}
         <span className="ml-auto text-[11px] text-gray-400 font-medium">{step + 1} / {steps.length}</span>
       </div>
@@ -134,7 +134,7 @@ export default function SignupForm({ switchToLogin }) {
                 <select
                   value={form[field.name]}
                   onChange={(e) => updateField(field.name, e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-900 focus:outline-none focus:border-blue-400 focus:bg-white transition-colors appearance-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors appearance-none"
                 >
                   <option value="">Select {field.label}</option>
                   {field.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
@@ -158,11 +158,11 @@ export default function SignupForm({ switchToLogin }) {
           </button>
         )}
         {step < steps.length - 1 ? (
-          <button onClick={() => validate() && setStep((s) => s + 1)} className="flex-1 h-11 rounded-full bg-blue-600 text-white text-sm font-bold active:scale-[0.98] transition-colors">
+          <button onClick={() => validate() && setStep((s) => s + 1)} className="flex-1 h-11 rounded-full bg-brand-600 text-white text-sm font-bold active:scale-[0.98] transition-colors">
             Continue →
           </button>
         ) : (
-          <button onClick={submit} disabled={loading} className="flex-1 h-11 rounded-full bg-blue-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
+          <button onClick={submit} disabled={loading} className="flex-1 h-11 rounded-full bg-brand-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
             {loading ? 'Creating account…' : 'Join Textmob'}
           </button>
         )}
@@ -170,13 +170,13 @@ export default function SignupForm({ switchToLogin }) {
 
       <p className="text-center text-xs text-gray-400">
         Already have an account?{' '}
-        <button onClick={switchToLogin} className="font-bold text-blue-600 active:opacity-70 transition-opacity">Sign in</button>
+        <button onClick={switchToLogin} className="font-bold text-brand-600 active:opacity-70 transition-opacity">Sign in</button>
       </p>
 
       {/* Success modal */}
       {success && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6 flex flex-col items-center text-center">
+          <div className="bg-white rounded-lg w-full max-w-sm p-6 flex flex-col items-center text-center">
             <div className="w-16 h-16 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center mb-4">
               <svg viewBox="0 0 24 24" className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="20 6 9 17 4 12" />
@@ -184,7 +184,7 @@ export default function SignupForm({ switchToLogin }) {
             </div>
             <h2 className="text-base font-bold text-gray-900 mb-1">You're in!</h2>
             <p className="text-xs text-gray-400 mb-5">Your Textmob account is ready</p>
-            <div className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-5 text-left space-y-3">
+            <div className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 mb-5 text-left space-y-3">
               <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</p>
                 <p className="text-sm font-semibold text-gray-800 mt-0.5">{form.fullName}</p>
@@ -194,7 +194,7 @@ export default function SignupForm({ switchToLogin }) {
                 <p className="text-sm font-semibold text-gray-800 mt-0.5">@{form.username}</p>
               </div>
             </div>
-            <button onClick={loginAfterSignup} className="w-full h-11 rounded-full bg-blue-600 text-white text-sm font-bold active:scale-[0.98] transition-colors">
+            <button onClick={loginAfterSignup} className="w-full h-11 rounded-full bg-brand-600 text-white text-sm font-bold active:scale-[0.98] transition-colors">
               Go to Textmob →
             </button>
           </div>

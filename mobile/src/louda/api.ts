@@ -1,6 +1,7 @@
 // Louda REST API — exact endpoints used by web LoudaApp.jsx + bridge/connector.js.
 import { LOUDA_API_URL, LOUDA_PROD_URL } from './constants';
 import { API_BASE_URL as TEXMOB_API_URL } from '../api/client';
+import { xhrMultipart } from '../utils/multipart';
 
 let loudaBaseOverride: string | null = null;
 function getLoudaBase(): string {
@@ -169,6 +170,22 @@ export const deleteStatus = (id: string, userId: string) =>
 export const viewStatus = (id: string, userId: string) => req(`/api/status/${id}/view`, jsonBody({ userId }));
 
 // ─── upload / misc ───
+// Expo SDK 57's winter `fetch` throws
+// `Unsupported FormDataPart implementation` for React Native's
+// `{ uri, name, type }` parts, so multipart bodies must ride XHR instead.
+// Keeps the same host-fallback behaviour as `loudaFetch`.
+async function loudaUpload(path: string, form: FormData, timeoutMs: number) {
+  try {
+    return await xhrMultipart(`${getLoudaBase()}${path}`, form, { timeoutMs });
+  } catch (e) {
+    if (getLoudaBase() !== LOUDA_PROD_URL) {
+      loudaBaseOverride = LOUDA_PROD_URL;
+      return await xhrMultipart(`${LOUDA_PROD_URL}${path}`, form, { timeoutMs });
+    }
+    throw e;
+  }
+}
+
 export const uploadFile = async (file: { uri: string; name?: string; type?: string; kind?: string }): Promise<any> => {
   const form = new FormData();
   form.append('file', {
@@ -178,10 +195,9 @@ export const uploadFile = async (file: { uri: string; name?: string; type?: stri
   } as any);
   // Web sends an explicit `type` form field (image|video|file|voice) — LoudaApp.jsx:3389
   if (file.kind) form.append('type', file.kind);
-  const res = await loudaFetch('/api/upload', { method: 'POST', body: form }, 120000);
-  const data = await j(res);
-  if (!res.ok) throw new Error(data?.error || 'Upload failed');
-  return data;
+  const res = await loudaUpload('/api/upload', form, 120000);
+  if (!res.ok) throw new Error(res.data?.error || 'Upload failed');
+  return res.data;
 };
 export const deleteUpload = (payload: any) => req('/api/upload/delete', jsonBody(payload));
 export const linkPreview = (url: string) => req(`/api/misc/link-preview?url=${encodeURIComponent(url)}`).catch(() => null);

@@ -4,7 +4,7 @@ import { MobileHome } from '../../louda/LoudaApp.jsx';
 import { ensureLoudaSession, getTextmobUser, openChatWith, refreshLoudaPresence } from '../../bridge/connector.js';
 import { DEFAULT_AVATAR } from '../../utils/defaultAvatar.js';
 
-// Shared fallback (utils/defaultAvatar.js) — always available, no network.
+// Shared fallback (utils/defaultAvatar.js) - always available, no network.
 const AVATAR_FALLBACK = DEFAULT_AVATAR;
 
 function swapBrokenImg(img) {
@@ -48,7 +48,7 @@ function readWithParam() {
  * - Scopes all Louda styling under .louda-scope (see louda.css).
  */
 export default function LoudaChatContent() {
-  // Guests never reach the session effect — decided once during render.
+  // Guests never reach the session effect - decided once during render.
   const [session, setSession] = useState(() => {
     const user = getTextmobUser();
     return user && user !== 'undefined' ? 'pending' : 'guest';
@@ -83,7 +83,7 @@ export default function LoudaChatContent() {
     ensureLoudaSession()
       .then(() => {
         if (cancelled) return;
-        // App-level presence socket (online everywhere, not just on /chats).
+        // App-level presence socket; presence is tracked app-wide, not only inside /chats.
         refreshLoudaPresence();
         // Legacy deep link /chats?with=<username> (profile Message button):
         // queue an open-chat intent for the Louda UI to consume.
@@ -104,7 +104,7 @@ export default function LoudaChatContent() {
   if (session === 'pending') {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-10 h-10 rounded-full border-2 border-gray-200 border-t-blue-600 animate-spin" />
+        <div className="w-10 h-10 rounded-full border-2 border-gray-200 border-t-brand-600 animate-spin" />
       </div>
     );
   }
@@ -117,7 +117,7 @@ export default function LoudaChatContent() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 rounded-full text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          className="mt-4 px-4 py-2 rounded-full text-xs font-bold bg-brand-600 text-white hover:bg-brand-700 transition-colors"
         >
           Retry
         </button>
@@ -130,7 +130,7 @@ export default function LoudaChatContent() {
       ref={wrapRef}
       className="louda-scope louda-embed w-full h-full"
       // Opt out of Textmob's global twemoji passes (Home runs twemoji.parse
-      // over document.body every 5s — re-parsing chat DOM distorts messages).
+      // over document.body every 5s - re-parsing chat DOM distorts messages).
       data-twemoji-ignore
     >
       <MobileHome />

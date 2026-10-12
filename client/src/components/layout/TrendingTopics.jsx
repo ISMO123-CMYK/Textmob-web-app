@@ -78,7 +78,7 @@ export default function TrendingTopics({ dark }) {
       <div className="px-4 py-5">
         <p className={`text-[11px] font-bold uppercase tracking-widest ${titleColor} mb-4`}>Trending Topics</p>
         <div className="flex flex-col items-center py-6 text-center gap-2">
-          <div className={`w-10 h-10 rounded-2xl ${emptyIconBg} flex items-center justify-center mb-1`}>
+          <div className={`w-10 h-10 rounded-lg ${emptyIconBg} flex items-center justify-center mb-1`}>
             <svg viewBox="0 0 24 24" className={`w-5 h-5 ${emptyIconColor} fill-none stroke-current`} strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
             </svg>
@@ -97,7 +97,7 @@ export default function TrendingTopics({ dark }) {
         {hashtags.map((item, idx) => (
           <button
             onClick={() => window.Lexum?.navigate(`/tag/${encodeURIComponent(item.tag)}`)}
-            className={`w-full flex items-center gap-3 py-2.5 ${hoverBg} active:scale-[0.98] transition-colors rounded-xl px-1 -mx-1 text-left`}
+            className={`w-full flex items-center gap-3 py-2.5 ${hoverBg} active:scale-[0.98] transition-colors rounded-lg px-1 -mx-1 text-left`}
             key={`${item.tag}-${idx}`}
           >
             <div className="flex-1 min-w-0">

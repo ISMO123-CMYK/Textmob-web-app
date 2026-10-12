@@ -62,10 +62,10 @@ export default function MobileHeader() {
   if (!isLoggedIn) {
     return (
       <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4">
-        <button onClick={() => window.Lexum?.navigate('/')} className="text-xl font-black text-blue-600 tracking-tighter select-none active:scale-95 transition-transform">textmob</button>
+        <button onClick={() => window.Lexum?.navigate('/')} className="text-xl font-black text-brand-600 tracking-tighter select-none active:scale-95 transition-transform">textmob</button>
         <button
           onClick={() => { window.Lexum?.navigate('/auth'); }}
-          className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all active:scale-[0.97]"
+          className="px-4 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all active:scale-[0.97]"
         >
           Log in
         </button>
@@ -75,7 +75,7 @@ export default function MobileHeader() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-40 milky-glass border-b border-gray-200/50 h-14 flex items-center justify-between px-4">
+      <header className="fixed top-0 left-0 right-0 z-40 panel-solid border-b border-gray-200/50 h-14 flex items-center justify-between px-4">
         {/* Left: Profile avatar button */}
         <button
           onClick={() => setProfileOpen(true)}
@@ -85,7 +85,7 @@ export default function MobileHeader() {
         </button>
 
         {/* Center: Branding Logo */}
-        <button onClick={() => window.Lexum?.navigate('/')} className="text-xl font-black text-blue-600 tracking-tighter select-none active:scale-95 transition-transform">
+        <button onClick={() => window.Lexum?.navigate('/')} className="text-xl font-black text-brand-600 tracking-tighter select-none active:scale-95 transition-transform">
           textmob
         </button>
 

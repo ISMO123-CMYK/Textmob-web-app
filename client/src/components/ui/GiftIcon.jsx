@@ -61,7 +61,7 @@ export function injectLiveStyles() {
     .tm-count-up     { animation: tmCountUp .25s cubic-bezier(.34,1.56,.64,1) forwards; }
     .tm-noscroll     { scrollbar-width:none; -ms-overflow-style:none; }
     .tm-noscroll::-webkit-scrollbar { display:none; }
-    .tm-glass        { background:rgba(0,0,0,.55); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+    .tm-glass        { background:rgba(0,0,0,.72); }
   `;
   document.head.appendChild(styleEl);
 }
@@ -70,8 +70,8 @@ export function injectLiveStyles() {
  * CameraSensorIcon
  * Shows which camera is currently active so users can understand the state.
  *
- * facing = 'user'        → front camera (selfie) — shows a person silhouette inside lens
- * facing = 'environment' → rear camera           — shows a landscape/mountain inside lens
+ * facing = 'user'        → front camera (selfie) - shows a person silhouette inside lens
+ * facing = 'environment' → rear camera           - shows a landscape/mountain inside lens
  *
  * Usage in CreateLiveContent:
  *   import { CameraSensorIcon } from './GiftIcon';
@@ -84,7 +84,7 @@ export function CameraSensorIcon({ facing = 'user', size = 22 }) {
   const s = { width: size, height: size, flexShrink: 0 };
 
   if (facing === 'user') {
-    // Front / selfie camera — person silhouette inside the lens
+    // Front / selfie camera - person silhouette inside the lens
     return (
       <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
         {/* Camera body */}
@@ -103,7 +103,7 @@ export function CameraSensorIcon({ facing = 'user', size = 22 }) {
     );
   }
 
-  // Rear / environment camera — landscape scene inside the lens
+  // Rear / environment camera - landscape scene inside the lens
   return (
     <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       {/* Camera body */}
@@ -123,7 +123,7 @@ export function CameraSensorIcon({ facing = 'user', size = 22 }) {
 }
 
 /**
- * GiftIcon — every icon redrawn to visually represent the actual gift item.
+ * GiftIcon - every icon redrawn to visually represent the actual gift item.
  * The `default` case (gift box with ribbon) is also used as the "send gift" button icon.
  */
 export default function GiftIcon({ id, size = 28 }) {
@@ -189,7 +189,7 @@ export default function GiftIcon({ id, size = 28 }) {
         <svg style={style} viewBox="0 0 24 24" fill="currentColor">
           {/* Base band */}
           <rect x="3" y="17.5" width="18" height="2.5" rx="1" />
-          {/* Crown body — 3 peaks */}
+          {/* Crown body - 3 peaks */}
           <path d="M3 17.5 L3 9 L7.5 14.5 L12 5 L16.5 14.5 L21 9 L21 17.5 Z" />
           {/* Centre jewel */}
           <circle cx="12" cy="8.5" r="1.5" fill="white" opacity="0.55" />

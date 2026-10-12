@@ -18,6 +18,7 @@ export interface Room {
   description?: string;
   host_username: string;
   category?: string;
+  hashtags?: string[];
   room_mode?: string;
   status: string;
   participant_count?: number;
@@ -30,6 +31,7 @@ export interface Room {
   pinned_message_id?: string | null;
   unlocked?: boolean;
   members?: string[];
+  unreadCount?: number;
 }
 
 export interface Msg {

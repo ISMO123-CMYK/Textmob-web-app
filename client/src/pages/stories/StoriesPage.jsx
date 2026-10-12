@@ -35,7 +35,7 @@ export default function StoriesPage() {
         {stories.map((_, i) => <div key={i} className="flex-1 h-0.5 rounded-full bg-white/30"><div className={`h-full bg-white ${i <= activeIndex ? 'w-full' : 'w-0'}`} /></div>)}
       </div>
       <div className="absolute top-8 left-4 z-20 flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">{(story.username||'?')[0].toUpperCase()}</div>
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">{(story.username||'?')[0].toUpperCase()}</div>
         <span className="text-white text-sm font-bold">@{story.username}</span>
       </div>
       <button onClick={() => window.history.back()} className="absolute top-8 right-4 z-20 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center">

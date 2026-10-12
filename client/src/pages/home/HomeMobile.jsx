@@ -64,7 +64,7 @@ export default function HomeMobile() {
         <div className="fixed bottom-24 right-4 z-40 md:hidden">
           <button
             onClick={() => setActiveTab(activeTab === 'posts' ? 'live' : 'posts')}
-            className="bg-blue-600 text-white rounded-full p-4 shadow-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center border-2 border-white"
+            className="bg-brand-600 text-white rounded-full p-4 shadow-2xl hover:bg-brand-700 active:scale-95 transition-all flex items-center justify-center border-2 border-white"
           >
             {activeTab === 'posts' ? (
               <NavIcons.Live className="w-6 h-6 animate-pulse" />

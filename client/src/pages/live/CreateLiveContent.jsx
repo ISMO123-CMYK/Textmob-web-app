@@ -290,7 +290,7 @@ export default function CreateLiveContent() {
           onClick={shareLiveLink}
           title="Share live link"
           aria-label="Share live link"
-          className="w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all active:scale-95"
+          className="w-11 h-11 rounded-lg bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all active:scale-95"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l6-6m0 0H9m6 0v6" />
@@ -303,7 +303,7 @@ export default function CreateLiveContent() {
           onClick={copyLiveLink}
           title="Copy live link"
           aria-label="Copy live link"
-          className="w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all active:scale-95"
+          className="w-11 h-11 rounded-lg bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all active:scale-95"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
             <rect x="9" y="9" width="10" height="10" rx="2" />
@@ -798,7 +798,7 @@ export default function CreateLiveContent() {
               )}
             </div>
 
-            <div className="relative flex-1 bg-black rounded-3xl overflow-hidden border border-white/10 flex items-center justify-center">
+            <div className="relative flex-1 bg-black rounded-lg overflow-hidden border border-white/10 flex items-center justify-center">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-contain" />
               {!liveActive && (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -827,7 +827,7 @@ export default function CreateLiveContent() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={togglePauseOverride}
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${paused ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
+                  className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all ${paused ? 'bg-brand-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
                 >
                   {paused ? (
                     <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M8 5v14l11-7z" /></svg>
@@ -838,7 +838,7 @@ export default function CreateLiveContent() {
 
                 <button
                   onClick={toggleMuteOverride}
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${muted ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
+                  className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all ${muted ? 'bg-brand-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
                 >
                   {muted ? (
                     <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
@@ -855,13 +855,13 @@ export default function CreateLiveContent() {
                   <CameraFlipButton
                     facing={facing}
                     onClick={flipCameraFacing}
-                    className="w-11 h-11 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all"
+                    className="w-11 h-11 rounded-lg bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-all"
                   />
                 )}
 
                 <button
                   onClick={() => setShowChat(c => !c)}
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${showChat ? 'bg-blue-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
+                  className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all ${showChat ? 'bg-brand-600 text-white' : 'bg-white/10 hover:bg-white/15 text-white'}`}
                 >
                   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
@@ -875,7 +875,7 @@ export default function CreateLiveContent() {
                 <button
                   onClick={stopBroadcastChannel}
                   disabled={ending}
-                  className="px-6 h-11 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-lg shadow-red-600/10 active:scale-95 transition-all"
+                  className="px-6 h-11 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-lg shadow-red-600/10 active:scale-95 transition-all"
                 >
                   {ending ? 'Ending...' : 'End Live'}
                 </button>
@@ -886,14 +886,14 @@ export default function CreateLiveContent() {
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="What is your stream about?"
-                  className="w-full bg-white/5 border border-white/10 text-white placeholder-white/20 rounded-2xl px-4 py-3 text-sm focus:border-blue-500 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 text-white placeholder-white/20 rounded-lg px-4 py-3 text-sm focus:border-brand-500 transition-colors"
                 />
                 <div className="flex gap-2">
                   {['camera', 'screen'].map(m => (
                     <button
                       key={m}
                       onClick={() => setMode(m)}
-                      className={`flex-1 py-3 rounded-2xl text-xs font-bold transition-all ${mode === m ? 'bg-blue-600 text-white' : 'bg-white/10 text-white hover:bg-white/15'}`}
+                      className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${mode === m ? 'bg-brand-600 text-white' : 'bg-white/10 text-white hover:bg-white/15'}`}
                     >
                       {m === 'camera' ? 'Camera Preview' : 'Share Screen'}
                     </button>
@@ -902,14 +902,14 @@ export default function CreateLiveContent() {
                     <CameraFlipButton
                       facing={facing}
                       onClick={flipCameraFacing}
-                      className="w-12 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-colors"
+                      className="w-12 py-3 rounded-lg bg-white/10 hover:bg-white/15 text-white flex items-center justify-center transition-colors"
                     />
                   )}
                 </div>
                 <button
                   onClick={handleGoLiveClick}
                   disabled={starting}
-                  className="w-full py-4 rounded-2xl bg-red-600 text-white text-sm font-black hover:bg-red-700 shadow-xl shadow-red-600/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-lg bg-red-600 text-white text-sm font-black hover:bg-red-700 shadow-xl shadow-red-600/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   <span className="w-2 h-2 bg-white rounded-full animate-ping" />
                   {starting ? 'Starting broadcast...' : 'Go Live · Start Stream'}
@@ -920,7 +920,7 @@ export default function CreateLiveContent() {
           </div>
 
           {(!liveActive || showChat) && (
-            <div className="w-80 border-l border-white/5 flex flex-col bg-white/[0.02] rounded-3xl overflow-hidden border border-white/10">
+            <div className="w-80 border-l border-white/5 flex flex-col bg-white/[0.02] rounded-lg overflow-hidden border border-white/10">
               <div className="p-4 border-b border-white/5 flex items-center justify-between">
                 <span className="text-xs font-black text-white uppercase tracking-wider">Live Chat</span>
                 <span className="text-[10px] text-white/30">{viewerCount} viewers</span>
@@ -944,11 +944,11 @@ export default function CreateLiveContent() {
                   onChange={e => setCommentInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && postHostComment()}
                   placeholder="Type comment..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-blue-500"
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-brand-500"
                 />
                 <button
                   onClick={postHostComment}
-                  className="px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl active:scale-95 transition-all"
+                  className="px-3 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg active:scale-95 transition-all"
                 >
                   Send
                 </button>
@@ -1022,7 +1022,7 @@ export default function CreateLiveContent() {
             <div className="absolute inset-x-4 bottom-48 max-h-40 overflow-hidden flex flex-col justify-end">
               <div className="space-y-1.5 overflow-hidden">
                 {comments.slice(-8).map((c, i) => (
-                  <div key={c.id || i} className="text-[11px] leading-normal bg-black/35 px-2.5 py-1 rounded-xl w-max max-w-full">
+                  <div key={c.id || i} className="text-[11px] leading-normal bg-black/35 px-2.5 py-1 rounded-lg w-max max-w-full">
                     <span className="font-bold text-white/90 mr-1.5">@{c.username}:</span>
                     <RichText html={c.text} className="inline text-white/70" />
                   </div>
@@ -1040,11 +1040,11 @@ export default function CreateLiveContent() {
                     onChange={e => setCommentInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && postHostComment()}
                     placeholder="Say something..."
-                    className="flex-1 bg-black/40 border border-white/20 rounded-full px-4 py-2.5 text-xs text-white outline-none focus:border-blue-500"
+                    className="flex-1 bg-black/40 border border-white/20 rounded-full px-4 py-2.5 text-xs text-white outline-none focus:border-brand-500"
                   />
                   <button
                     onClick={postHostComment}
-                    className="px-4 bg-blue-600 text-white text-xs font-bold rounded-full active:scale-95 transition-all"
+                    className="px-4 bg-brand-600 text-white text-xs font-bold rounded-full active:scale-95 transition-all"
                   >
                     Send
                   </button>
@@ -1052,7 +1052,7 @@ export default function CreateLiveContent() {
                 <div className="flex gap-2 items-center">
                   <button
                     onClick={togglePauseOverride}
-                    className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${paused ? 'bg-blue-600' : 'bg-white/15'}`}
+                    className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all ${paused ? 'bg-brand-600' : 'bg-white/15'}`}
                   >
                     {paused ? (
                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M8 5v14l11-7z" /></svg>
@@ -1063,7 +1063,7 @@ export default function CreateLiveContent() {
 
                   <button
                     onClick={toggleMuteOverride}
-                    className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${muted ? 'bg-blue-600' : 'bg-white/15'}`}
+                    className={`w-11 h-11 rounded-lg flex items-center justify-center transition-all ${muted ? 'bg-brand-600' : 'bg-white/15'}`}
                   >
                     {muted ? (
                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2">
@@ -1080,7 +1080,7 @@ export default function CreateLiveContent() {
                     <CameraFlipButton
                       facing={facing}
                       onClick={flipCameraFacing}
-                      className="w-11 h-11 rounded-xl bg-white/15 text-white flex items-center justify-center"
+                      className="w-11 h-11 rounded-lg bg-white/15 text-white flex items-center justify-center"
                     />
                   )}
 
@@ -1091,7 +1091,7 @@ export default function CreateLiveContent() {
                   <button
                     onClick={stopBroadcastChannel}
                     disabled={ending}
-                    className="px-5 h-11 rounded-xl bg-red-600 text-white text-xs font-black shadow-lg shadow-red-600/20 active:scale-95 transition-all"
+                    className="px-5 h-11 rounded-lg bg-red-600 text-white text-xs font-black shadow-lg shadow-red-600/20 active:scale-95 transition-all"
                   >
                     {ending ? 'Ending...' : 'End Live'}
                   </button>
@@ -1103,14 +1103,14 @@ export default function CreateLiveContent() {
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="Title of your live stream..."
-                  className="w-full bg-black/40 border border-white/20 text-white placeholder-white/30 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none"
+                  className="w-full bg-black/40 border border-white/20 text-white placeholder-white/30 rounded-lg px-4 py-3 text-sm focus:border-brand-500 outline-none"
                 />
                 <div className="flex gap-2">
                   {['camera', 'screen'].map(m => (
                     <button
                       key={m}
                       onClick={() => setMode(m)}
-                      className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${mode === m ? 'bg-blue-600 text-white' : 'bg-white/15 text-white'}`}
+                      className={`flex-1 py-3 rounded-lg text-xs font-bold transition-all ${mode === m ? 'bg-brand-600 text-white' : 'bg-white/15 text-white'}`}
                     >
                       {m === 'camera' ? 'Camera' : 'Screen'}
                     </button>
@@ -1119,14 +1119,14 @@ export default function CreateLiveContent() {
                     <CameraFlipButton
                       facing={facing}
                       onClick={flipCameraFacing}
-                      className="w-12 py-3 rounded-xl bg-white/15 text-white flex items-center justify-center"
+                      className="w-12 py-3 rounded-lg bg-white/15 text-white flex items-center justify-center"
                     />
                   )}
                 </div>
                 <button
                   onClick={handleGoLiveClick}
                   disabled={starting}
-                  className="w-full py-3.5 rounded-xl bg-red-600 text-white text-xs font-black hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-lg bg-red-600 text-white text-xs font-black hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
                   {starting ? 'Starting...' : 'Go Live'}
@@ -1144,7 +1144,6 @@ export default function CreateLiveContent() {
             position: 'fixed',
             inset: 0,
             background: 'rgba(0,0,0,0.8)',
-            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1156,7 +1155,7 @@ export default function CreateLiveContent() {
             style={{
               background: '#121214',
               border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: 24,
+              borderRadius: 12,
               padding: 28,
               maxWidth: 420,
               width: '100%',
@@ -1271,11 +1270,11 @@ export default function CreateLiveContent() {
 
       {savingProgress && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 24 }}>
-          <div style={{ background: '#111', border: '1px solid rgba(255,255,255,.1)', borderRadius: 24, padding: 32, maxWidth: 320, width: '100%', textAlign: 'center' }}>
+          <div style={{ background: '#111', border: '1px solid rgba(255,255,255,.1)', borderRadius: 12, padding: 32, maxWidth: 320, width: '100%', textAlign: 'center' }}>
             <div style={{ position: 'relative', width: 80, height: 80, margin: '0 auto 16px' }}>
               <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                 <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,.1)" strokeWidth="6" />
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#2563eb" strokeWidth="6" strokeLinecap="round" strokeDasharray="251.2" strokeDashoffset={(1 - progressVal / 100) * 251.2} />
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#2B3EE8" strokeWidth="6" strokeLinecap="round" strokeDasharray="251.2" strokeDashoffset={(1 - progressVal / 100) * 251.2} />
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 900, color: '#fff' }}>
                 {progressVal}%

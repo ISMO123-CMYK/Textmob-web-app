@@ -23,19 +23,32 @@ const compression = require("compression");
 const sharp = require("sharp");
 const { uploadMedia, destroyMedia } = require("./server/media");
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize database clients.
+// TEXTDB_ENABLED (default: on) -> TextDB (single SQLite + Backblaze B2 durability)
+//                                 supabase + supabase2 both point at the same TextDB
+// TEXTDB_ENABLED=false        -> original Supabase clients (untouched projects)
+// Louda ALWAYS uses its own real Supabase project (LOUDA_SUPABASE_*), never TextDB.
+let textDb = null;
+let supabase;
+let supabase2;
+const loudaSupabase = createClient(process.env.LOUDA_SUPABASE_URL, process.env.LOUDA_SUPABASE_KEY);
+if (process.env.TEXTDB_ENABLED === 'false') {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY;
+  supabase = createClient(supabaseUrl, supabaseKey);
 
-const supabaseUr = process.env.SUPABASE_2_URL;
-const supabaseKe = process.env.SUPABASE_2_KEY;
-const supabase2 = createClient(supabaseUr, supabaseKe);
-
-// --- Louda Integration ---
-const loudaSupabaseUrl = process.env.LOUDA_SUPABASE_URL;
-const loudaSupabaseKey = process.env.LOUDA_SUPABASE_KEY;
-const loudaSupabase = createClient(loudaSupabaseUrl, loudaSupabaseKey);
+  const supabaseUr = process.env.SUPABASE_2_URL;
+  const supabaseKe = process.env.SUPABASE_2_KEY;
+  supabase2 = createClient(supabaseUr, supabaseKe);
+  console.log('[db] Supabase mode (TEXTDB_ENABLED=false)');
+} else {
+  const { openTextDbSync } = require('./textdb');
+  textDb = openTextDbSync();
+  textDb.start();
+  supabase = textDb.supabase;
+  supabase2 = textDb.supabase; // single database — both legacy clients share one engine
+  console.log('[db] TextDB active (single SQLite + B2 durability, supabase-compatible shim)');
+}
 
 // Default avatar for the whole app (mirrors client/src/utils/defaultAvatar.js).
 // Inline SVG data URI — no external provider dependency.
@@ -175,9 +188,25 @@ const server = http.createServer(app); // attach raw HTTP server
 const io = socketIo(server, { cors: { origin: "*", methods: ["GET", "POST"] } });
 const PORT = process.env.PORT || 5000;
 
+app.get('/_healthz', (req, res) => {
+  res.json({ ok: true, db: process.env.TEXTDB_ENABLED === 'false' ? 'supabase' : 'textdb', uptime: process.uptime() });
+});
+app.get('/_db-stats', async (req, res) => {
+  if (!textDb) return res.json({ db: 'supabase' });
+  try { await textDb.ready; } catch {}
+  res.json(textDb.stats());
+});
+// TextDB admin dashboard (password gate + HMAC token, see textdb/admin.js)
+if (textDb) {
+  const { createAdminRouter } = require('./textdb/admin');
+  app.use('/blackbaze-admin', createAdminRouter(textDb));
+}
+
 // Initialize Global State
-const MemoryDB = require('./server/cache/MemoryDB');
-const memoryDb = new MemoryDB(supabase, supabase2);
+// MemoryDB DISABLED (archived at archive/memorydb/MemoryDB.js).
+// All 40+ call sites are guarded with `memoryDb && memoryDb.isReady` and fall
+// back to TextDB queries. Restore: move file back + re-enable here.
+const memoryDb = null;
 const onlineUsers = {};
 const liveSessions = new Map();
 const liveChunkBuffers = new Map();
@@ -1060,7 +1089,8 @@ const DEFAULT_NOTIFICATION_PREFS = {
   newPost: { inApp: true, email: false }, // default email off to avoid spam
   messages: { inApp: true, email: true },
   mobcoins: { inApp: true, email: true },
-  events: { inApp: true, email: true }
+  events: { inApp: true, email: true },
+  discussions: { inApp: true, email: false }
 };
 
 // ---------------------------------------------------------------------------
@@ -1089,6 +1119,7 @@ const NOTIF_DATA_KEYS = [
   "tags", "mentions",
   "postId", "commentId", "parentId", "replyToUsername", "replyable",
   "reaction", "amount", "groupId", "groupName", "statusId",
+  "roomId", "roomTitle",
 ];
 
 function buildNotifData(data) {
@@ -2592,7 +2623,8 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
             mentions: { inApp: true, email: true },
             followers: { inApp: true, email: true },
             messages: { inApp: true, email: true },
-            mobcoins: { inApp: true, email: true }
+            mobcoins: { inApp: true, email: true },
+            discussions: { inApp: true, email: false }
           },
         },
       ]);
@@ -2637,7 +2669,8 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
           mentions: { inApp: true, email: true },
           followers: { inApp: true, email: true },
           messages: { inApp: true, email: true },
-          mobcoins: { inApp: true, email: true }
+          mobcoins: { inApp: true, email: true },
+          discussions: { inApp: true, email: false }
         },
       };
       memoryDb.users.push(newUser);
@@ -9546,6 +9579,27 @@ app.post("/get-posts", express.json(), async (req, res) => {
         const iter = clientSeenIds.keys();
         for (let i = 0; i < 500; i++) clientSeenIds.delete(iter.next().value);
       }
+      // Recommend discussions after every 5 posts (first page only)
+      if (username && pg === 1 && final.length >= 5) {
+        try {
+          const recRooms = await getDiscussionRecommendations(username, 3);
+          if (recRooms.length) {
+            const withRecs = [];
+            let recsAdded = 0;
+            final.forEach((p, i) => {
+              withRecs.push(p);
+              if ((i + 1) % 5 === 0 && (i + 1) < final.length && recsAdded < 2) {
+                withRecs.push({ __type: "discussion_recommendation", id: "disc_rec_" + Date.now() + "_" + recsAdded, rooms: recRooms });
+                recsAdded++;
+              }
+            });
+            final.length = 0;
+            final.push(...withRecs);
+          }
+        } catch (e) {
+          console.warn("[FEED] discussion rec injection error:", e && e.message);
+        }
+      }
       final.forEach(attachLinkPreview);
       return res.json(final);
     }
@@ -9665,6 +9719,28 @@ app.post("/get-posts", express.json(), async (req, res) => {
       for (let i = 0; i < 500; i++) clientSeenIds.delete(iter.next().value);
     }
 
+    // Recommend discussions after every 5 posts (first page only)
+    if (username && pg === 1 && finalFeed.length >= 5) {
+      try {
+        const recRooms = await getDiscussionRecommendations(username, 3);
+        if (recRooms.length) {
+          const withRecs = [];
+          let recsAdded = 0;
+          finalFeed.forEach((p, i) => {
+            withRecs.push(p);
+            if ((i + 1) % 5 === 0 && (i + 1) < finalFeed.length && recsAdded < 2) {
+              withRecs.push({ __type: "discussion_recommendation", id: "disc_rec_" + Date.now() + "_" + recsAdded, rooms: recRooms });
+              recsAdded++;
+            }
+          });
+          finalFeed.length = 0;
+          finalFeed.push(...withRecs);
+        }
+      } catch (e) {
+        console.warn("[FEED] discussion rec injection error:", e && e.message);
+      }
+    }
+
     finalFeed.forEach(attachLinkPreview);
     res.json(finalFeed);
 
@@ -9743,6 +9819,382 @@ function liveParticipantCount(roomId, fallback) {
   return fallback;
 }
 
+// ---------------------------------------------------------------------------
+// Discovery: hashtags + activity ranking.
+//
+// Rooms carry a `hashtags` array (extracted from title/description on create;
+// plain `#tag` mentions in either field). The feed sorts by latest activity
+// and hottest total message count — NOT unread counts — and personalizes the
+// order with the viewer's most-followed hashtags.
+// ---------------------------------------------------------------------------
+function extractHashtags(text) {
+  return (String(text || "").match(/#[\w-]+/g) || []).map((t) => t.slice(1).toLowerCase());
+}
+
+// message_count + last_message_at per room, from one grouped scan.
+async function discussionRoomActivity(roomIds) {
+  const stats = {};
+  for (const id of roomIds || []) stats[id] = { message_count: 0, last_message_at: null };
+  if (!roomIds || !roomIds.length) return stats;
+  try {
+    const { data } = await supabase2
+      .from("live_room_messages")
+      .select("room_id, created_at")
+      .in("room_id", roomIds);
+    for (const m of data || []) {
+      const s = stats[m.room_id];
+      if (!s) continue;
+      s.message_count++;
+      if (!s.last_message_at || new Date(m.created_at) > new Date(s.last_message_at)) {
+        s.last_message_at = m.created_at;
+      }
+    }
+  } catch (e) {
+    console.warn("[DISCUSSION] discussionRoomActivity error:", e && e.message);
+  }
+  return stats;
+}
+
+// The viewer's interest hashtags: hashtagWeights from feed_prefs (boosted on
+// every like) plus recent hashtags from their own posts and posts by people
+// they follow (own posts weighted double). Top 40.
+async function userInterestHashtags(username) {
+  const weights = new Map();
+  const bump = (tag, by) => {
+    const k = String(tag || "").toLowerCase().replace(/^#/, "").trim();
+    if (!k) return;
+    weights.set(k, (weights.get(k) || 0) + by);
+  };
+  try {
+    const { data: u } = await supabase
+      .from("users")
+      .select("following, feed_prefs")
+      .eq("username", username)
+      .maybeSingle();
+    const hw = (u && u.feed_prefs && (u.feed_prefs.hashtagWeights || u.feed_prefs.hashtag_weights)) || {};
+    for (const [k, v] of Object.entries(hw)) bump(k, Number(v) || 0);
+    const following = Array.isArray(u && u.following) ? u.following.slice(0, 50) : [];
+    const { data: posts } = await supabase2
+      .from("Posts")
+      .select("hashtags, username")
+      .in("username", [username, ...following])
+      .order("created_at", { ascending: false })
+      .limit(300);
+    for (const p of posts || []) {
+      if (!Array.isArray(p.hashtags)) continue;
+      for (const t of p.hashtags) bump(t, p.username === username ? 2 : 1);
+    }
+  } catch (e) {
+    console.warn("[DISCUSSION] userInterestHashtags error:", e && e.message);
+  }
+  return new Set([...weights.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40).map((e) => e[0]));
+}
+
+// Sort comparator: latest activity first, hottest by TOTAL message count as
+// tiebreak; rooms matching the viewer's interest hashtags get a recency boost.
+function discussionActivityComparator(interest, now) {
+  const bonusMs = 24 * 3600 * 1000;
+  return (a, b) => {
+    const aTag = interest && interest.size ? (Array.isArray(a.hashtags) ? a.hashtags : extractHashtags((a.title || "") + " " + (a.description || ""))) : [];
+    const bTag = interest && interest.size ? (Array.isArray(b.hashtags) ? b.hashtags : extractHashtags((b.title || "") + " " + (b.description || ""))) : [];
+    const aMatch = interest ? aTag.filter((t) => interest.has(String(t).toLowerCase().replace(/^#/, ""))).length : 0;
+    const bMatch = interest ? bTag.filter((t) => interest.has(String(t).toLowerCase().replace(/^#/, ""))).length : 0;
+    const aTime = new Date(a.last_message_at || a.created_at || 0).getTime() + (aMatch > 0 ? bonusMs : 0);
+    const bTime = new Date(b.last_message_at || b.created_at || 0).getTime() + (bMatch > 0 ? bonusMs : 0);
+    if (bTime !== aTime) return bTime - aTime;
+    return (b.message_count || 0) - (a.message_count || 0);
+  };
+}
+
+// Live rooms ranked for one user — shared by /suggest and the feed injection.
+async function getDiscussionRecommendations(username, limit) {
+  const max = Math.min(Math.max(Number(limit) || 3, 1), 8);
+  const { data } = await supabase2
+    .from("live_rooms")
+    .select("*")
+    .eq("status", "live")
+    .limit(60);
+  const rooms = data || [];
+  if (!rooms.length) return [];
+  const stats = await discussionRoomActivity(rooms.map((r) => r.id));
+  const interest = username ? await userInterestHashtags(username) : new Set();
+  const now = Date.now();
+  for (const r of rooms) {
+    r.message_count = stats[r.id] ? stats[r.id].message_count : 0;
+    r.last_message_at = (stats[r.id] && stats[r.id].last_message_at) || r.created_at;
+    r.participant_count = liveParticipantCount(r.id, r.participant_count);
+  }
+  rooms.sort(discussionActivityComparator(interest.size ? interest : null, now));
+  // Never recommend rooms the user hosts.
+  return rooms.filter((r) => !username || r.host_username !== username).slice(0, max);
+}
+
+// ---------------------------------------------------------------------------
+// Discussion unread state + fan-out.
+//
+// No new tables: read cursors live on the EXISTING users.feed_prefs object as
+// `discussionReads: { "<roomId>": "<ISO ts>" }`. A cursor is written when the
+// user opens / joins a room or sends a message; a room with no cursor simply
+// does not count towards their badge (they are not "in" it yet).
+// ---------------------------------------------------------------------------
+const DISCUSSION_READS_KEY = "discussionReads";
+const DISCUSSION_AUDIENCE_CAP = 100;   // recipients per message
+const DISCUSSION_NOTIF_MAX = 3;        // pushes per (room, user) per minute
+
+async function getDiscussionReads(username) {
+  try {
+    const { data } = await supabase
+      .from("users")
+      .select("feed_prefs")
+      .eq("username", username)
+      .maybeSingle();
+    const reads = data && data.feed_prefs && data.feed_prefs[DISCUSSION_READS_KEY];
+    return reads && typeof reads === "object" && !Array.isArray(reads) ? reads : {};
+  } catch (e) {
+    console.warn("[DISCUSSION] getDiscussionReads error:", e && e.message);
+    return {};
+  }
+}
+
+// Cursors only ever move forward - a late / replayed read cannot un-read
+// messages the user already saw.
+async function setDiscussionReadCursor(username, roomId, iso) {
+  if (!username || !roomId) return false;
+  try {
+    const stamp = iso || new Date().toISOString();
+    if (!Number.isFinite(new Date(stamp).getTime())) return false;
+
+    const { data } = await supabase
+      .from("users")
+      .select("feed_prefs")
+      .eq("username", username)
+      .maybeSingle();
+    if (!data) return false;
+
+    const prefs = data.feed_prefs && typeof data.feed_prefs === "object" && !Array.isArray(data.feed_prefs)
+      ? data.feed_prefs
+      : {};
+    const reads = Object.assign({}, prefs[DISCUSSION_READS_KEY] || {});
+    const current = new Date(reads[roomId]).getTime();
+    if (Number.isFinite(current) && current >= new Date(stamp).getTime()) return true;
+
+    reads[roomId] = stamp;
+    const next = Object.assign({}, prefs, { [DISCUSSION_READS_KEY]: reads });
+    const { error } = await supabase
+      .from("users")
+      .update({ feed_prefs: next })
+      .eq("username", username);
+    if (error) {
+      console.warn("[DISCUSSION] setDiscussionReadCursor error:", error.message);
+      return false;
+    }
+    if (memoryDb && memoryDb.isReady) memoryDb.updateUser(username, { feed_prefs: next });
+    return true;
+  } catch (e) {
+    console.warn("[DISCUSSION] setDiscussionReadCursor error:", e && e.message);
+    return false;
+  }
+}
+
+/**
+ * Unread counts for one user.
+ *   - `roomIds` given  -> only those rooms (list endpoints), still requires a cursor
+ *   - `roomIds` omitted -> every room the user has a cursor for (nav badge)
+ * One grouped scan capped at 500 rows, so a busy room can under-count rather
+ * than melt the database.
+ */
+async function discussionUnreadFor(username, roomIds) {
+  const out = { unreadCount: 0, rooms: [] };
+  if (!username) return out;
+  try {
+    const reads = await getDiscussionReads(username);
+    const ids = Array.isArray(roomIds) && roomIds.length
+      ? roomIds.filter((id) => reads[id])
+      : Object.keys(reads);
+    if (!ids.length) return out;
+
+    const cursors = ids
+      .map((id) => new Date(reads[id]).getTime())
+      .filter((n) => Number.isFinite(n));
+    if (!cursors.length) return out;
+    const oldest = new Date(Math.min.apply(null, cursors)).toISOString();
+
+    const { data, error } = await supabase2
+      .from("live_room_messages")
+      .select("room_id, created_at, username")
+      .in("room_id", ids.slice(0, 300))
+      .gt("created_at", oldest)
+      .neq("username", username)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error || !data) {
+      if (error) console.warn("[DISCUSSION] unread query error:", error.message);
+      return out;
+    }
+
+    const counts = {};
+    for (const m of data) {
+      if (!m.room_id || m.username === "system") continue;
+      const cursor = new Date(reads[m.room_id]).getTime();
+      if (!Number.isFinite(cursor)) continue;
+      if (new Date(m.created_at).getTime() <= cursor) continue;
+      counts[m.room_id] = (counts[m.room_id] || 0) + 1;
+    }
+    let total = 0;
+    for (const id of Object.keys(counts)) {
+      out.rooms.push({ roomId: id, unreadCount: counts[id] });
+      total += counts[id];
+    }
+    out.unreadCount = total;
+    return out;
+  } catch (e) {
+    console.warn("[DISCUSSION] discussionUnreadFor error:", e && e.message);
+    return out;
+  }
+}
+
+/** Everyone who has ever spoken in a room, plus the host. */
+async function discussionRoomAudience(roomId, hostUsername) {
+  const names = new Set();
+  if (hostUsername) names.add(hostUsername);
+  try {
+    for (let page = 0; page < 4; page++) {
+      const { data, error } = await supabase2
+        .from("live_room_messages")
+        .select("username")
+        .eq("room_id", roomId)
+        .order("created_at", { ascending: false })
+        .range(page * 500, page * 500 + 499);
+      if (error) break;
+      for (const r of data || []) {
+        if (r.username && r.username !== "system") names.add(r.username);
+      }
+      if (!data || data.length < 500) break;
+    }
+  } catch (e) {
+    console.warn("[DISCUSSION] discussionRoomAudience error:", e && e.message);
+  }
+  return Array.from(names);
+}
+
+// max DISCUSSION_NOTIF_MAX notifications per (room, user) per minute
+const discussionNotifRate = new Map();
+function discussionNotifOk(key) {
+  const now = Date.now();
+  if (discussionNotifRate.size > 5000) {
+    for (const [k, v] of discussionNotifRate) if (now > v.resetAt) discussionNotifRate.delete(k);
+  }
+  const entry = discussionNotifRate.get(key);
+  if (!entry || now > entry.resetAt) {
+    discussionNotifRate.set(key, { n: 1, resetAt: now + 60000 });
+    return true;
+  }
+  if (entry.n >= DISCUSSION_NOTIF_MAX) return false;
+  entry.n++;
+  return true;
+}
+
+function discussionViewersOf(roomId) {
+  const viewers = globalThis.__discussionViewers;
+  return (viewers && viewers.get(roomId)) || null;
+}
+
+/**
+ * One notification PER MESSAGE (no batching) to every member of the room.
+ * Skips the sender, muted / removed users, anyone currently watching the room
+ * live, and anyone who already got 3 in the last minute.
+ */
+async function notifyDiscussionMessage(room, msg, senderUsername) {
+  try {
+    const audience = await discussionRoomAudience(room.id, room.host_username);
+    const muted = new Set(room.muted_users || []);
+    const removed = new Set(room.removed_users || []);
+    const watching = discussionViewersOf(room.id) || new Set();
+
+    const raw = String(msg.content || "").trim() || "Sent an attachment";
+    const preview = raw.length > 120 ? raw.slice(0, 120) + "…" : raw;
+    const title = `#${String(room.title || "discussion").slice(0, 40)}`;
+
+    let queued = 0;
+    for (const name of audience) {
+      if (queued >= DISCUSSION_AUDIENCE_CAP) break;
+      if (!name || name === senderUsername) continue;
+      if (muted.has(name) || removed.has(name)) continue;
+      if (watching.has(name)) continue; // they are reading it right now
+      if (!discussionNotifOk(`${room.id}|${name}`)) continue;
+      queued++;
+
+      triggerNotification(name, "discussions", {
+        title,
+        msg: `${senderUsername}: ${preview}`,
+        link: `/discussions/${room.id}`,
+        sender: senderUsername,
+        data: { kind: "discussion", roomId: room.id, roomTitle: room.title, text: preview },
+      });
+
+      const socket = onlineUsers[name];
+      if (socket) socket.emit("discussion_unread", { roomId: room.id, delta: 1 });
+    }
+  } catch (e) {
+    console.warn("[DISCUSSION] notifyDiscussionMessage error:", e && e.message);
+  }
+}
+
+/** New room -> the creator's followers + friends + members of their past rooms. */
+async function notifyDiscussionCreated(room, creator) {
+  try {
+    const audience = new Set();
+    const { data: creatorUser } = await supabase
+      .from("users")
+      .select("followers, friends, fullname")
+      .eq("username", creator)
+      .maybeSingle();
+
+    for (const name of [].concat(creatorUser?.followers || [], creatorUser?.friends || [])) {
+      if (name && name !== creator) audience.add(name);
+    }
+
+    const { data: previous } = await supabase2
+      .from("live_rooms")
+      .select("id")
+      .eq("host_username", creator)
+      .neq("id", room.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    for (const prev of previous || []) {
+      const { data: spoke } = await supabase2
+        .from("live_room_messages")
+        .select("username")
+        .eq("room_id", prev.id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      for (const row of spoke || []) {
+        if (row.username && row.username !== "system" && row.username !== creator) audience.add(row.username);
+      }
+    }
+
+    const displayName = (creatorUser && creatorUser.fullname) || creator;
+    const title = `New discussion #${String(room.title || "").slice(0, 40)}`;
+    const msg = `${displayName} started "${room.title}"${room.description ? ": " + String(room.description).slice(0, 120) : ""}`;
+    const link = `/discussions/${room.id}`;
+
+    let sent = 0;
+    for (const name of audience) {
+      if (sent >= 200) break;
+      sent++;
+      triggerNotification(name, "discussions", {
+        title,
+        msg,
+        link,
+        sender: creator,
+        data: { kind: "discussion", roomId: room.id, roomTitle: room.title, text: room.description || room.title },
+      });
+    }
+  } catch (e) {
+    console.warn("[DISCUSSION] notifyDiscussionCreated error:", e && e.message);
+  }
+}
+
 // Create a new live discussion room
 app.post("/api/discussions/create", async (req, res) => {
   try {
@@ -9750,10 +10202,14 @@ app.post("/api/discussions/create", async (req, res) => {
     if (!username || !title) return res.status(400).json({ error: "username and title required" });
 
     const roomId = "dr_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+    const desc = (description || "").slice(0, 500);
+    // #tags in the title/description drive discovery — people find rooms via
+    // the hashtags they follow (tip shown in the create form).
+    const hashtags = [...new Set([...extractHashtags(title), ...extractHashtags(desc)])].slice(0, 10);
     const { data, error } = await supabase2.from("live_rooms").insert({
       id: roomId,
       title: title.slice(0, 120),
-      description: (description || "").slice(0, 500),
+      description: desc,
       host_username: username,
       category: (category || "general").toLowerCase(),
       cover_image: cover_image || "",
@@ -9764,6 +10220,7 @@ app.post("/api/discussions/create", async (req, res) => {
       allow_stickers: allow_stickers !== false,
       status: "live",
       participant_count: 1,
+      hashtags,
     }).select().single();
 
     if (error) return res.status(500).json({ error: error.message });
@@ -9776,6 +10233,11 @@ app.post("/api/discussions/create", async (req, res) => {
       message_type: "system",
     });
 
+    // The host is "in" their own room from the start (their badge starts at 0)
+    void setDiscussionReadCursor(username, roomId, new Date().toISOString());
+    // Followers + friends + past-room members - fire and forget
+    void notifyDiscussionCreated(data, username);
+
     return res.json(data);
   } catch (err) {
     console.error("discussions/create err:", err);
@@ -9784,14 +10246,14 @@ app.post("/api/discussions/create", async (req, res) => {
 });
 
 // Get active live rooms (discovery)
+// Sorted by latest activity, then hottest by TOTAL message count (not
+// unread); personalized by the viewer's interest hashtags when ?username=.
 app.get("/api/discussions/active", async (req, res) => {
   try {
-    const { category, page = 1, limit = 20 } = req.query;
+    const { category, page = 1, limit = 20, username } = req.query;
     let query = supabase2.from("live_rooms")
       .select("*")
-      .eq("status", "live")
-      .order("participant_count", { ascending: false })
-      .order("created_at", { ascending: false });
+      .eq("status", "live");
 
     if (category && category !== "all") {
       query = query.eq("category", category);
@@ -9802,9 +10264,52 @@ app.get("/api/discussions/active", async (req, res) => {
 
     const { data, error } = await query;
     if (error) return res.json([]);
-    return res.json((data || []).map(r => ({ ...r, participant_count: liveParticipantCount(r.id, r.participant_count) })));
+
+    const rows = (data || []).map(r => ({ ...r, participant_count: liveParticipantCount(r.id, r.participant_count) }));
+
+    // Total message count + last activity per room, then sort: latest first,
+    // hottest (by total messages) as the tiebreak.
+    const stats = await discussionRoomActivity(rows.map(r => r.id));
+    for (const r of rows) {
+      r.message_count = stats[r.id] ? stats[r.id].message_count : 0;
+      r.last_message_at = (stats[r.id] && stats[r.id].last_message_at) || r.created_at;
+    }
+    let interest = null;
+    if (username) {
+      try {
+        const s = await userInterestHashtags(username);
+        interest = s.size ? s : null;
+      } catch (e) {
+        console.warn("[DISCUSSION] active interest error:", e && e.message);
+      }
+    }
+    rows.sort(discussionActivityComparator(interest, Date.now()));
+
+    // Unread badge per room (needs ?username=)
+    if (username && rows.length) {
+      try {
+        const unread = await discussionUnreadFor(username, rows.map(r => r.id));
+        const byRoom = {};
+        for (const u of unread.rooms) byRoom[u.roomId] = u.unreadCount;
+        for (const r of rows) r.unreadCount = byRoom[r.id] || 0;
+      } catch (e) {
+        console.warn("[DISCUSSION] active unread error:", e && e.message);
+      }
+    }
+    return res.json(rows);
   } catch (err) {
     console.error("discussions/active err:", err);
+    return res.json([]);
+  }
+});
+
+// Personalized discussion suggestions (used by "for you" surfaces + tools)
+app.get("/api/discussions/suggest", async (req, res) => {
+  try {
+    const { username, limit = 4 } = req.query;
+    return res.json(await getDiscussionRecommendations(username, limit));
+  } catch (err) {
+    console.error("discussions/suggest err:", err);
     return res.json([]);
   }
 });
@@ -9935,6 +10440,11 @@ app.post("/api/discussions/room/:roomId/send", async (req, res) => {
       message_count: (room.message_count || 0) + 1,
     }).eq("id", roomId);
 
+    // Sender's cursor moves to this message - their own badge stays clear
+    void setDiscussionReadCursor(username, roomId, msg.created_at);
+    // Per-message fan-out (no batching) to everyone else in the room
+    void notifyDiscussionMessage(room, msg, username);
+
     return res.json(msg);
   } catch (err) {
     console.error("discussions/send err:", err);
@@ -9955,6 +10465,10 @@ app.post("/api/discussions/room/:roomId/join", async (req, res) => {
     if ((room.removed_users || []).includes(username)) {
       return res.status(403).json({ error: "You were removed from this room" });
     }
+
+    // Entering a room counts as reading it
+    await setDiscussionReadCursor(username, roomId, new Date().toISOString());
+    onlineUsers[username] && onlineUsers[username].emit("discussion_read", { roomId });
 
     return res.json({ ok: true });
   } catch (err) {
@@ -10262,9 +10776,84 @@ app.get("/api/discussions/my-rooms", async (req, res) => {
       .eq("host_username", username)
       .order("created_at", { ascending: false })
       .limit(20);
-    return res.json(data || []);
+
+    const rows = data || [];
+    if (rows.length) {
+      try {
+        const unread = await discussionUnreadFor(username, rows.map(r => r.id));
+        const byRoom = {};
+        for (const u of unread.rooms) byRoom[u.roomId] = u.unreadCount;
+        for (const r of rows) r.unreadCount = byRoom[r.id] || 0;
+      } catch (e) {
+        console.warn("[DISCUSSION] my-rooms unread error:", e && e.message);
+      }
+    }
+    return res.json(rows);
   } catch (err) {
     return res.json([]);
+  }
+});
+
+/**
+ * POST /api/discussions/room/:roomId/read
+ * Body: { username, lastMessageId? }
+ * Moves the user's read cursor (users.feed_prefs.discussionReads[roomId]) and
+ * tells their sockets to clear the badge.
+ */
+app.post("/api/discussions/room/:roomId/read", async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username, lastMessageId } = req.body || {};
+    if (!username || !roomId) {
+      return res.status(400).json({ error: "username and roomId required" });
+    }
+
+    let iso = null;
+    if (lastMessageId) {
+      const { data: pinned } = await supabase2
+        .from("live_room_messages")
+        .select("created_at")
+        .eq("id", lastMessageId)
+        .maybeSingle();
+      if (pinned) iso = pinned.created_at;
+    }
+    if (!iso) {
+      const { data: last } = await supabase2
+        .from("live_room_messages")
+        .select("created_at")
+        .eq("room_id", roomId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      iso = last ? last.created_at : new Date().toISOString();
+    }
+
+    await setDiscussionReadCursor(username, roomId, iso);
+    const socket = onlineUsers[username];
+    if (socket) socket.emit("discussion_read", { roomId });
+    return res.json({ ok: true, roomId, lastReadAt: iso });
+  } catch (err) {
+    console.error("discussions/read err:", err);
+    return res.status(500).json({ error: "internal server error" });
+  }
+});
+
+/**
+ * GET /api/discussions-unread?username=...&rooms=id1,id2
+ * -> { unreadCount, rooms: [{ roomId, unreadCount }] }
+ * Without `rooms` it returns the badge for every room the user is in.
+ */
+app.get("/api/discussions-unread", async (req, res) => {
+  try {
+    const { username, rooms } = req.query;
+    if (!username) return res.json({ unreadCount: 0, rooms: [] });
+    const ids = rooms
+      ? String(rooms).split(",").map(s => s.trim()).filter(Boolean).slice(0, 300)
+      : null;
+    return res.json(await discussionUnreadFor(username, ids));
+  } catch (err) {
+    console.error("discussions-unread err:", err);
+    return res.json({ unreadCount: 0, rooms: [] });
   }
 });
 
@@ -12197,6 +12786,10 @@ io.on('connection', function (socket) {
     const wasNew = !viewers.has(username);
     viewers.add(username);
     const memberList = Array.from(viewers);
+    // Entering a room marks it read (clears their badge)
+    setDiscussionReadCursor(username, roomId, new Date().toISOString());
+    const ownSocket = onlineUsers[username];
+    if (ownSocket) ownSocket.emit('discussion_read', { roomId });
     // Always tell the joiner who is in the room (Discord-style member list)
     io.to(socket.id).emit('discussion_room_update', { participant_count: viewers.size, members: memberList });
     if (wasNew) {
@@ -12216,6 +12809,10 @@ io.on('connection', function (socket) {
         io.to(`discussion_${roomId}`).emit('discussion_room_update', { participant_count: viewers.size, members: memberList });
         supabase2.from('live_rooms').update({ participant_count: viewers.size }).eq('id', roomId)
           .then(({ error }) => { if (error) console.error('live_rooms participant_count update err:', error.message); });
+        // Leaving means "I saw up to here" - messages after this count again
+        setDiscussionReadCursor(socket.discussionUser, roomId, new Date().toISOString());
+        const ownSocket = onlineUsers[socket.discussionUser];
+        if (ownSocket) ownSocket.emit('discussion_read', { roomId });
       }
     }
     socket.leave(`discussion_${roomId}`);
@@ -13841,15 +14438,8 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 if (require.main === module) {
-  memoryDb.initialize().then(() => {
-    server.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }).catch(err => {
-    console.error('[MemoryDB] Failed to initialize. Starting without cache.', err);
-    server.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT} (NO CACHE)`);
-    });
+  server.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 

@@ -198,7 +198,7 @@ function LiveCommentMessage({ msg }) {
             }}
           >
             {msg.username} sent a {msg.gift.name}
-            {msg.gift.tier >= 4 ? ' — MASSIVE!' : msg.gift.tier >= 3 ? ' — amazing!' : '!'}
+            {msg.gift.tier >= 4 ? ', MASSIVE!' : msg.gift.tier >= 3 ? ', amazing!' : '!'}
           </span>
         ) : (
           <>
@@ -925,7 +925,7 @@ export default function LiveContent() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: active ? '#2563eb' : 'rgba(255,255,255,.15)',
+    background: active ? '#2B3EE8' : 'rgba(255,255,255,.15)',
     color: '#fff',
     flexShrink: 0
   });
@@ -1173,7 +1173,7 @@ export default function LiveContent() {
               ) : (
                 <button
                   onClick={joinStreamChannel}
-                  style={{ ...renderIconBtnStyle(false), background: '#2563eb', padding: '0 12px', width: 'auto' }}
+                  style={{ ...renderIconBtnStyle(false), background: '#2B3EE8', padding: '0 12px', width: 'auto' }}
                 >
                   <span style={{ fontSize: 12, fontWeight: 700 }}>Join</span>
                 </button>
@@ -1214,7 +1214,7 @@ export default function LiveContent() {
             >
               <div
                 className="tm-glass"
-                style={{ borderRadius: 20, padding: 12, border: '1px solid rgba(255,255,255,.1)' }}
+                style={{ borderRadius: 12, padding: 12, border: '1px solid rgba(255,255,255,.1)' }}
               >
                 <div
                   style={{
@@ -1314,7 +1314,7 @@ export default function LiveContent() {
                   alignItems: 'center',
                   background: 'rgba(255,255,255,.1)',
                   border: '1px solid rgba(255,255,255,.18)',
-                  borderRadius: 24,
+                  borderRadius: 12,
                   padding: '0 16px',
                   gap: 8
                 }}
@@ -1337,7 +1337,7 @@ export default function LiveContent() {
                 {inputText.trim() && (
                   <button
                     onClick={handlePostComment}
-                    style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+                    style={{ fontSize: 12, fontWeight: 700, color: '#6E7CF7', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}
                   >
                     Post
                   </button>
@@ -1345,7 +1345,7 @@ export default function LiveContent() {
               </div>
               <button
                 onClick={() => setShowGiftDrawer(prev => !prev)}
-                style={{ ...renderIconBtnStyle(showGiftDrawer), width: 44, height: 44, borderRadius: 14 }}
+                style={{ ...renderIconBtnStyle(showGiftDrawer), width: 44, height: 44, borderRadius: 12 }}
               >
                 <GiftIcon id="crown" size={20} />
               </button>
@@ -1469,7 +1469,7 @@ export default function LiveContent() {
                 ) : (
                   <button
                     onClick={joinStreamChannel}
-                    style={{ ...renderIconBtnStyle(false), background: '#2563eb', width: 'auto', padding: '0 16px' }}
+                    style={{ ...renderIconBtnStyle(false), background: '#2B3EE8', width: 'auto', padding: '0 16px' }}
                   >
                     <span style={{ fontSize: 13, fontWeight: 700 }}>Join Stream</span>
                   </button>
@@ -1477,7 +1477,7 @@ export default function LiveContent() {
               </div>
             </div>
 
-            <div style={{ position: 'relative', flex: 1, background: '#000', borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ position: 'relative', flex: 1, background: '#000', borderRadius: 12, overflow: 'hidden' }}>
               <video
                 controls
                 ref={videoRef}
@@ -1511,7 +1511,7 @@ export default function LiveContent() {
                   <p style={{ color: 'rgba(255,255,255,.5)', fontSize: 14 }}>Tap join to watch the live stream</p>
                   <button
                     onClick={joinStreamChannel}
-                    style={{ padding: '12px 28px', background: '#2563eb', color: '#fff', borderRadius: 14, fontSize: 14, fontWeight: 800, border: 'none', cursor: 'pointer' }}
+                    style={{ padding: '12px 28px', background: '#2B3EE8', color: '#fff', borderRadius: 12, fontSize: 14, fontWeight: 800, border: 'none', cursor: 'pointer' }}
                   >
                     Join Stream
                   </button>
@@ -1638,7 +1638,7 @@ export default function LiveContent() {
               />
               <button
                 onClick={handlePostComment}
-                style={{ padding: '9px 14px', background: '#2563eb', color: '#fff', borderRadius: 12, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                style={{ padding: '9px 14px', background: '#2B3EE8', color: '#fff', borderRadius: 12, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer' }}
               >
                 Send
               </button>

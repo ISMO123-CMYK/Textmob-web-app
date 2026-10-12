@@ -8,7 +8,7 @@ function SuggestedUserItem({ username, fullname, profile_pic, mutuals }) {
   const profile = useProfileCache(username);
   return (
     <div
-      className="flex items-center gap-2 py-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer px-2 -mx-2"
+      className="flex items-center gap-2 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer px-2 -mx-2"
       onClick={() => window.Lexum?.navigate(`/@${username}`)}
     >
       <img

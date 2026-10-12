@@ -4,8 +4,8 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2563eb",
-  "description": "Textmob — where Africa comes to talk. Join conversations, find your community, and be heard.",
+  "theme_color": "#2B3EE8",
+  "description": "Textmob: where Africa comes to talk. Join conversations, find your community, and be heard.",
   "icons": [
     {
       "src": "https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png",

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { API_BASE_URL } from '../api/client';
 import io from 'socket.io-client';
+import { useAuth } from './AuthContext';
 
 interface SocketContextType {
   socket: any | null;
@@ -19,6 +20,7 @@ const SocketContext = createContext<SocketContextType>({
 });
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
+  const { username } = useAuth();
   const socketRef = useRef<any>(null);
   const listenersRef = useRef<Map<string, Set<Function>>>(new Map());
   const [isConnected, setIsConnected] = useState(false);
@@ -75,6 +77,14 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       socketRef.current = null;
     };
   }, []);
+
+  // Register this device with the server's onlineUsers map so direct socket
+  // events (discussion_unread / discussion_read / new-notification) reach us.
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !username || !isConnected) return;
+    try { socket.emit('register', username); } catch { /* socket not ready */ }
+  }, [username, isConnected]);
 
   const emit = useCallback((event: string, data?: any, callback?: Function) => {
     if (socketRef.current?.connected) {

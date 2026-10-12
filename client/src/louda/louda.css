@@ -1,13 +1,13 @@
 @reference "../index.css";
 /* ─── Textmob design tokens (ported from Louda theme) ─── */
 .louda-scope {
-    --primary: #2563eb;
+    --primary: #2B3EE8;
     /* Textmob blue */
     --secondary: #1f2937;
     /* gray-800 body text */
-    --accent: #2563eb;
+    --accent: #2B3EE8;
     /* Textmob blue */
-    --safari-green: #2563eb;
+    --safari-green: #2B3EE8;
     /* Primary accent (was Louda green) */
     --warm-bg: #f3f4f6;
     /* gray-100 app background */
@@ -27,7 +27,7 @@
 .louda-scope {
     background: var(--warm-bg);
     margin: 0;
-    font-family: 'Inter', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     color: var(--secondary);
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
@@ -39,7 +39,7 @@
 }
 
 .louda-scope h1, .louda-scope h2, .louda-scope h3, .louda-scope h4, .louda-scope .titlee {
-    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-family: 'Inter', sans-serif;
     letter-spacing: -0.02em;
 }
 
@@ -75,7 +75,7 @@
     background: var(--bg-main);
 }
 
-/* Subtle dot pattern background — low contrast, barely visible */
+/* Subtle dot pattern background - low contrast, barely visible */
 .louda-scope .chat-bg, .louda-scope .pattern-bg {
     background-color: var(--bg-main);
     background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%235D4037' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1.5'/%3E%3Ccircle cx='0' cy='0' r='1'/%3E%3Ccircle cx='60' cy='0' r='1'/%3E%3Ccircle cx='0' cy='60' r='1'/%3E%3Ccircle cx='60' cy='60' r='1'/%3E%3C/g%3E%3C/svg%3E");
@@ -370,7 +370,6 @@
     justify-content: center;
     align-items: center;
     background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(8px);
     padding: 16px;
 }
 
@@ -455,7 +454,7 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* No pulse animation — keep it calm and professional */
+/* No pulse animation - keep it calm and professional */
 
 /* ─── Typing Indicator ─── */
 .louda-scope .typing-dots {
@@ -592,8 +591,6 @@
     max-width: 500px;
     height: 72px;
     background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-radius: 24px;
     border: 1px solid rgba(255, 255, 255, 0.3);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
@@ -836,7 +833,6 @@
     align-items: center;
     justify-content: center;
     color: #fff;
-    backdrop-filter: blur(2px);
 }
 
 /* ─── Fullscreen Media Viewer ─── */
@@ -1344,7 +1340,7 @@
     @media (max-width: 768px) {
 
         /* Input bar safe area */
-        .louda-scope .p-1\.5.backdrop-blur-sm {
+        .louda-scope .p-1\.5 {
             padding-bottom: calc(0.375rem + env(safe-area-inset-bottom));
         }
     }
@@ -1523,7 +1519,7 @@ button, .louda-scope [role="button"], .louda-scope .cursor-pointer, .louda-scope
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ─── Modal Backdrop Enhancement ─── */
+/* ─── Modal pop-in animation ─── */
 .louda-scope .animate-modal-pop {
     animation: louda-modal-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1598,10 +1594,9 @@ button, .louda-scope [role="button"], .louda-scope .cursor-pointer, .louda-scope
         transition: background 0.05s;
     }
     
-    /* Bottom nav glassmorphism enhancement */
+    /* Bottom nav */
     .louda-scope .bottom-nav {
         background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(24px) saturate(200%);
     }
 }
 
@@ -1750,7 +1745,7 @@ button, .louda-scope [role="button"], .louda-scope .cursor-pointer, .louda-scope
   @apply line-through opacity-70;
 }
 .louda-scope .markdown-content blockquote {
-  @apply pl-3.5 my-2.5 border-l-4 border-[var(--safari-green)] bg-black/5 dark:bg-white/5 py-1.5 pr-3 rounded-r-xl italic shadow-sm;
+  @apply pl-3.5 my-2.5 border-l-4 border-[var(--safari-green)] bg-black/5 dark:bg-white/5 py-1.5 pr-3 rounded-r-lg italic shadow-sm;
 }
 .louda-scope .markdown-content ul {
   @apply list-disc list-inside my-2 space-y-1 pl-1;
@@ -1765,13 +1760,13 @@ button, .louda-scope [role="button"], .louda-scope .cursor-pointer, .louda-scope
   @apply my-0.5 pl-4;
 }
 .louda-scope .markdown-content a {
-  @apply text-blue-500 dark:text-blue-400 hover:underline font-medium inline-block break-all cursor-pointer;
+  @apply text-brand-500 dark:text-brand-400 hover:underline font-medium inline-block break-all cursor-pointer;
 }
 .louda-scope .markdown-content img {
-  @apply max-w-full h-auto rounded-xl my-2 shadow-md border border-black/5 dark:border-white/5;
+  @apply max-w-full h-auto rounded-lg my-2 shadow-md border border-black/5 dark:border-white/5;
 }
 .louda-scope .markdown-content table {
-  @apply w-full my-3 border-collapse rounded-xl overflow-hidden shadow-sm border border-black/10 dark:border-white/10 text-xs;
+  @apply w-full my-3 border-collapse rounded-lg overflow-hidden shadow-sm border border-black/10 dark:border-white/10 text-xs;
 }
 .louda-scope .markdown-content thead {
   @apply bg-black/10 dark:bg-white/10 font-bold text-left;
@@ -1786,7 +1781,7 @@ button, .louda-scope [role="button"], .louda-scope .cursor-pointer, .louda-scope
   @apply border-b-0;
 }
 .louda-scope .markdown-content pre {
-  @apply p-3 my-2.5 bg-black/5 dark:bg-black/40 border border-black/10 dark:border-white/10 rounded-xl font-mono text-[13px] overflow-x-auto shadow-inner max-w-full text-gray-800 dark:text-gray-200 whitespace-pre;
+  @apply p-3 my-2.5 bg-black/5 dark:bg-black/40 border border-black/10 dark:border-white/10 rounded-lg font-mono text-[13px] overflow-x-auto shadow-inner max-w-full text-gray-800 dark:text-gray-200 whitespace-pre;
 }
 .louda-scope .markdown-content code {
   @apply bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-[13px] font-mono text-pink-600 dark:text-pink-400;
@@ -1798,7 +1793,7 @@ button, .louda-scope [role="button"], .louda-scope .cursor-pointer, .louda-scope
   @apply my-4 border-0 h-[1px] bg-black/10 dark:bg-white/10;
 }
 .louda-scope .markdown-content details {
-  @apply my-2 p-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl shadow-sm transition-all;
+  @apply my-2 p-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg shadow-sm transition-all;
 }
 .louda-scope .markdown-content summary {
   @apply font-bold cursor-pointer outline-none select-none flex items-center gap-2;

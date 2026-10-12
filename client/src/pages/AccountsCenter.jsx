@@ -85,10 +85,10 @@ const NAV = [
 function Accordion({ title, children, icon, description, isOrg }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-2">
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-2">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors">
         <div className="flex items-center gap-3">
-          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", isOrg ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600")}>{icon}</div>
+          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", isOrg ? "bg-purple-50 text-purple-600" : "bg-brand-50 text-brand-600")}>{icon}</div>
           <div>
             <p className="text-sm font-semibold text-gray-900">{title}</p>
             {description && <p className="text-xs text-gray-400">{description}</p>}
@@ -180,9 +180,9 @@ export default function AccountsCenter() {
   }, [sidebarOpen]);
 
   const isOrg = (profile?.profile_type || '').toLowerCase() === 'organisation';
-  const accent = isOrg ? 'bg-purple-600' : 'bg-blue-600';
-  const accentText = isOrg ? 'text-purple-600' : 'text-blue-600';
-  const accentLight = isOrg ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600';
+  const accent = isOrg ? 'bg-purple-600' : 'bg-brand-600';
+  const accentText = isOrg ? 'text-purple-600' : 'text-brand-600';
+  const accentLight = isOrg ? 'bg-purple-50 text-purple-600' : 'bg-brand-50 text-brand-600';
   const defaultPic = DEFAULT_AVATAR;
 
   if (loading) {
@@ -218,10 +218,10 @@ export default function AccountsCenter() {
     <div className="min-h-screen bg-gray-50 flex">
       {alertModal.open && (
         <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4" onClick={() => setAlertModal({ ...alertModal, open: false })}>
-          <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold mb-2">{alertModal.title}</h3>
             <p className="text-sm text-gray-600 mb-6">{alertModal.message}</p>
-            <button onClick={() => setAlertModal({ ...alertModal, open: false })} className="w-full h-11 bg-blue-600 text-white rounded-xl font-bold">OK</button>
+            <button onClick={() => setAlertModal({ ...alertModal, open: false })} className="w-full h-11 bg-brand-600 text-white rounded-lg font-bold">OK</button>
           </div>
         </div>
       )}
@@ -289,7 +289,7 @@ export default function AccountsCenter() {
           {activeTab === 'danger' && <DangerTab username={username} />}
           {activeTab === 'leaderboard' && (
             <div className="py-16 text-center">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-300 mx-auto mb-3">{K.Crown}</div>
+              <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300 mx-auto mb-3">{K.Crown}</div>
               <p className="text-sm font-semibold text-gray-400">Leaderboard coming soon</p>
             </div>
           )}
@@ -331,7 +331,7 @@ function VerificationTab({ username, accent, setTab }) {
     ? Math.max(0, Math.ceil((new Date(status.verified_until).getTime() - Date.now()) / 86400000))
     : 0;
 
-  const waMessage = `I want to pay for the verified badge on Textmob. Username: @${username || ''} (Fee: ₦500)`;
+  const waMessage = `I want to pay for the verified badge on Textmob. Username: @${username || ''} (Fee: ₦1000)`;
   const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
   const waDisplay = waNumber === '2347057581322' ? '+234 705 758 1322' : '+234 708 742 1125';
 
@@ -343,41 +343,41 @@ function VerificationTab({ username, accent, setTab }) {
       </div>
 
       {loading ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-12 flex flex-col items-center justify-center">
-          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-3" />
+        <div className="bg-white border border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
+          <div className="w-8 h-8 border-3 border-brand-600 border-t-transparent rounded-full animate-spin mb-3" />
           <p className="text-xs font-semibold text-gray-500">Checking verification status...</p>
         </div>
       ) : isActive ? (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 text-center space-y-3">
-          <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
+        <div className="bg-brand-50 border border-brand-200 rounded-lg p-6 text-center space-y-3">
+          <div className="w-14 h-14 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center mx-auto shadow-inner">
             <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-bold text-blue-900">You're Verified!</h3>
-            <p className="text-xs text-blue-700 mt-1 font-medium">
+            <h3 className="text-lg font-bold text-brand-900">You're Verified!</h3>
+            <p className="text-xs text-brand-700 mt-1 font-medium">
               {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : 'Expiring soon.'}
             </p>
           </div>
-          <span className="inline-block bg-blue-100/80 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">
-            Renews at ₦500 / month via WhatsApp
+          <span className="inline-block bg-brand-100/80 text-brand-800 text-xs font-bold px-3 py-1 rounded-full">
+            Renews at ₦1000 / month via WhatsApp
           </span>
           <div>
             <a
               href={waLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all items-center justify-center gap-2"
+              className="inline-flex h-11 px-6 rounded-lg bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all items-center justify-center gap-2"
             >
               Renew via WhatsApp
             </a>
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mx-auto">
               <svg viewBox="0 0 24 24" className="w-7 h-7 fill-none" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -389,7 +389,7 @@ function VerificationTab({ username, accent, setTab }) {
             </p>
           </div>
 
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 space-y-3">
             <div className="flex justify-between text-xs text-gray-600 font-medium">
               <span>Verified Badge</span>
               <span className="font-bold text-gray-900">Blue Tick</span>
@@ -400,7 +400,7 @@ function VerificationTab({ username, accent, setTab }) {
             </div>
             <div className="border-t border-gray-200 pt-3 flex justify-between items-baseline">
               <span className="text-sm font-semibold text-gray-900">Total</span>
-              <span className="text-2xl font-black text-blue-600">₦500</span>
+              <span className="text-2xl font-black text-brand-600">₦1000</span>
             </div>
           </div>
 
@@ -408,9 +408,9 @@ function VerificationTab({ username, accent, setTab }) {
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
+            className="w-full h-12 rounded-lg bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
           >
-            <span>Pay ₦500 via WhatsApp</span>
+            <span>Pay ₦1000 via WhatsApp</span>
           </a>
 
           <div className="flex items-center justify-center gap-2 text-[11px] text-gray-500">
@@ -418,19 +418,19 @@ function VerificationTab({ username, accent, setTab }) {
             <button
               type="button"
               onClick={() => setWaNumber(prev => (prev === '2347057581322' ? '2347087421125' : '2347057581322'))}
-              className="text-blue-600 font-semibold hover:underline"
+              className="text-brand-600 font-semibold hover:underline"
             >
               Use other line
             </button>
           </div>
 
           <p className="text-[11px] text-gray-400 text-center">
-            🔒 Manual verification — our team confirms your payment on WhatsApp and activates your badge (valid 30 days).
+            🔒 Manual verification: our team confirms your payment on WhatsApp and activates your badge (valid 30 days).
           </p>
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+      <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-3">
         <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">What you get</h4>
         <ul className="space-y-2.5">
           {[
@@ -440,7 +440,7 @@ function VerificationTab({ username, accent, setTab }) {
             'Eligibility for creator reward boosts and special perks',
           ].map((perk, i) => (
             <li key={i} className="flex items-start gap-2.5 text-xs text-gray-600 leading-relaxed">
-              <span className="text-blue-600 font-bold mt-0.5">✓</span>
+              <span className="text-brand-600 font-bold mt-0.5">✓</span>
               <span>{perk}</span>
             </li>
           ))}
@@ -467,9 +467,9 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       {!profile?.verified && (
         <div
           onClick={() => setTab('verification')}
-          className="bg-white border border-blue-100 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer"
+          className="bg-white border border-brand-100 rounded-lg p-5 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer"
         >
-          <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl flex-shrink-0">
+          <div className="w-12 h-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xl flex-shrink-0">
             {K.CheckCircle || K.Check}
           </div>
           <div className="flex-1 min-w-0">
@@ -478,20 +478,20 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); setTab('verification'); }}
-            className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold inline-flex items-center flex-shrink-0"
+            className="h-9 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold inline-flex items-center flex-shrink-0"
           >
             Get Verified
           </button>
         </div>
       )}
       {!isOrg && (
-        <div className="bg-white border border-purple-100 rounded-2xl p-5 flex items-center gap-4">
+        <div className="bg-white border border-purple-100 rounded-lg p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xl">{K.Bolt}</div>
           <div className="flex-1">
             <p className="text-sm font-bold text-gray-900">Switch to Professional</p>
             <p className="text-xs text-gray-500">Unlock monetization, analytics, and more.</p>
           </div>
-          <button onClick={() => setTab('profile')} className="h-12 px-8 bg-blue-600 text-white rounded-full text-sm font-bold hover:bg-blue-700 transition-all">Switch Now</button>
+          <button onClick={() => setTab('profile')} className="h-12 px-8 bg-brand-600 text-white rounded-full text-sm font-bold hover:bg-brand-700 transition-all">Switch Now</button>
         </div>
       )}
       <div className="flex items-center justify-between">
@@ -508,19 +508,19 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       </div>
 
       {/* Hero card */}
-      <div style={{ background: isOrg ? 'linear-gradient(135deg, #2563eb, #6d28d9)' : 'linear-gradient(135deg, #2563eb, #1e40af)' }} className='rounded-2xl p-5 text-white'>
+      <div style={{ background: isOrg ? 'linear-gradient(135deg, #2B3EE8, #6d28d9)' : 'linear-gradient(135deg, #2B3EE8, #1B28A3)' }} className='rounded-lg p-5 text-white'>
         <div className="flex items-center gap-3 mb-5">
           <img
             src={profile?.profile_pic || DEFAULT_AVATAR}
             alt=""
-            className="w-12 h-12 rounded-xl object-cover border-2 border-white/20 flex-shrink-0"
+            className="w-12 h-12 rounded-lg object-cover border-2 border-white/20 flex-shrink-0"
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="font-bold text-base leading-tight truncate">{profile?.fullname || '—'}</p>
+              <p className="font-bold text-base leading-tight truncate">{profile?.fullname || '-'}</p>
               {isOrg && <span className="text-[9px] font-bold bg-white/20 rounded px-1.5 py-px border border-white/10 flex-shrink-0">PRO</span>}
             </div>
-            <p className="text-blue-100 text-xs opacity-80">@{profile?.username || 'user'}</p>
+            <p className="text-brand-100 text-xs opacity-80">@{profile?.username || 'user'}</p>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
@@ -529,8 +529,8 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
             { label: 'Balance', value: `₦${ngnValue}` },
             { label: 'Interactions', value: totalInteractions.toLocaleString() },
           ].map(stat => (
-            <div key={stat.label} className="bg-white/10 rounded-xl p-3 border border-white/10">
-              <p className="text-[10px] text-blue-100 mb-1">{stat.label}</p>
+            <div key={stat.label} className="bg-white/10 rounded-lg p-3 border border-white/10">
+              <p className="text-[10px] text-brand-100 mb-1">{stat.label}</p>
               <p className="text-lg font-bold">{stat.value}</p>
             </div>
           ))}
@@ -540,12 +540,12 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       {/* Quick actions */}
       <div className="grid grid-cols-4 gap-2">
         {[
-          { label: 'New Post', icon: K.Plus, tab: 'composer', color: 'bg-blue-50 text-blue-600' },
+          { label: 'New Post', icon: K.Plus, tab: 'composer', color: 'bg-brand-50 text-brand-600' },
           { label: 'Earnings', icon: K.Coin, tab: 'monetize', color: 'bg-emerald-50 text-emerald-600' },
           { label: 'Analytics', icon: K.Chart, tab: 'analytics', color: 'bg-purple-50 text-purple-600' },
           { label: 'Profile', icon: K.Profile, tab: 'profile', color: 'bg-orange-50 text-orange-600' },
         ].map(a => (
-          <button key={a.tab} onClick={() => setTab(a.tab)} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-white border border-gray-200 hover:border-blue-200 transition-colors">
+          <button key={a.tab} onClick={() => setTab(a.tab)} className="flex flex-col items-center gap-2 p-3 rounded-lg bg-white border border-gray-200 hover:border-brand-200 transition-colors">
             <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", a.color)}>{a.icon}</div>
             <p className="text-[10px] font-medium text-gray-700">{a.label}</p>
           </button>
@@ -553,7 +553,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       </div>
 
       {/* Engagement bar */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-medium text-gray-700">Avg. interactions per post</p>
           <span className={cn('text-base font-bold', accentText)}>{avgInteractions}</span>
@@ -566,7 +566,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
 
       {/* Rank */}
       {rank && (
-        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3">
           <div className="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center text-yellow-500 flex-shrink-0">{K.Crown}</div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900">#{rank} on the leaderboard</p>
@@ -630,8 +630,8 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
           <p className="text-xs text-gray-400 mt-0.5">Creator monetization & rewards</p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-8 text-center flex flex-col items-center justify-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center flex flex-col items-center justify-center space-y-4">
+          <div className="w-14 h-14 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shadow-inner">
             <svg viewBox="0 0 24 24" className="w-7 h-7 fill-none" stroke="currentColor" strokeWidth="2.5">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0110 0v4" />
@@ -646,7 +646,7 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
           <div className="flex flex-col sm:flex-row gap-2.5 w-full max-w-xs pt-2">
             <button
               onClick={() => setTab?.('verification')}
-              className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+              className="flex-1 h-11 bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
             >
               Get Verified Now
             </button>
@@ -654,7 +654,7 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
               href="https://wa.me/2347087421125"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 h-11 border border-gray-200 hover:bg-gray-50 active:scale-[0.98] text-gray-700 text-xs font-semibold rounded-xl flex items-center justify-center transition-all"
+              className="flex-1 h-11 border border-gray-200 hover:bg-gray-50 active:scale-[0.98] text-gray-700 text-xs font-semibold rounded-lg flex items-center justify-center transition-all"
             >
               Contact Support
             </a>
@@ -670,7 +670,7 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
   return (
     <div className="space-y-4">
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #059669, #065f46)' }} className="rounded-2xl p-5 text-white">
+      <div style={{ background: 'linear-gradient(135deg, #059669, #065f46)' }} className="rounded-lg p-5 text-white">
         <p className="text-xs text-emerald-100 mb-1">Total balance</p>
         <p className="text-3xl font-bold mb-1">₦{(balance * 0.1).toLocaleString()}</p>
         <p className="text-xs text-emerald-100 opacity-80">= {balance.toLocaleString()} coins</p>
@@ -678,7 +678,7 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
           <button
             disabled={!isOrg || balance < 2000}
             onClick={() => isOrg ? setShowRedeem(true) : showAlert('Access Restricted', 'Switch to Professional account in Edit Profile to redeem earnings.')}
-            className="flex-1 h-11 bg-white text-emerald-700 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
+            className="flex-1 h-11 bg-white text-emerald-700 rounded-lg text-sm font-semibold transition-all disabled:opacity-40"
           >
             {isOrg ? 'Cash out' : 'Upgrade to cash out'}
           </button>
@@ -696,31 +696,31 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
         const fromPosts = mine.filter(p => p.type !== 'snap').reduce((s, p) => s + Math.floor((p.likes?.length || 0) / 10) * 5, 0);
         const fromSnaps = mine.filter(p => p.type === 'snap').reduce((s, p) => s + Math.floor((p.likes?.length || 0) / 10) * 5, 0);
         return (
-          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
             <p className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Milestone earnings</p>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-gray-50 border border-gray-100 rounded-xl py-3 px-1">
+              <div className="bg-gray-50 border border-gray-100 rounded-lg py-3 px-1">
                 <p className="text-lg font-black text-gray-900">{likes.toLocaleString()}</p>
                 <p className="text-[10px] font-medium text-gray-400 mt-0.5">Total likes</p>
               </div>
-              <div className="bg-gray-50 border border-gray-100 rounded-xl py-3 px-1">
+              <div className="bg-gray-50 border border-gray-100 rounded-lg py-3 px-1">
                 <p className="text-lg font-black text-gray-900">{milestones.toLocaleString()}</p>
                 <p className="text-[10px] font-medium text-gray-400 mt-0.5">Milestones hit</p>
               </div>
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl py-3 px-1">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-lg py-3 px-1">
                 <p className="text-lg font-black text-emerald-600">{(fromPosts + fromSnaps).toLocaleString()}</p>
                 <p className="text-[10px] font-medium text-emerald-600/70 mt-0.5">Coins from likes</p>
               </div>
             </div>
             <div className="flex gap-2 mt-2 text-[11px] font-semibold">
-              <span className="flex-1 bg-blue-50 text-blue-700 rounded-lg px-3 py-2 text-center">Posts: +{fromPosts.toLocaleString()}</span>
+              <span className="flex-1 bg-brand-50 text-brand-700 rounded-lg px-3 py-2 text-center">Posts: +{fromPosts.toLocaleString()}</span>
               <span className="flex-1 bg-purple-50 text-purple-700 rounded-lg px-3 py-2 text-center">Snaps: +{fromSnaps.toLocaleString()}</span>
             </div>
           </div>
         );
       })()}
       {!isOrg && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-xs">
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg text-xs">
           Personal accounts cannot redeem earnings. Please go to <strong>Edit Profile → Switch Mode</strong> to upgrade to a Professional account.
         </div>
       )}
@@ -749,7 +749,7 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
         ) : (
           <div className="space-y-2 pt-3">
             {payouts.map(p => (
-              <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100">
+              <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
                 <div>
                   <p className="text-sm font-medium text-gray-900">{p.type === 'CASH' ? 'Bank transfer' : 'Airtime'}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{new Date(p.created_at).toLocaleString()}</p>
@@ -766,31 +766,31 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
 
       <BottomSheet open={showRedeem} onClose={() => setShowRedeem(false)} title="Request payout" wide>
         <div className="p-5 space-y-4 pb-10">
-          <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
+          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
             <button onClick={() => setRedeemType('CASH')} className={cn("flex-1 h-10 rounded-lg text-sm font-medium transition-all", redeemType === 'CASH' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}>Bank transfer</button>
             <button onClick={() => setRedeemType('AIRTIME')} className={cn("flex-1 h-10 rounded-lg text-sm font-medium transition-all", redeemType === 'AIRTIME' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}>Airtime</button>
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Amount (coins)</label>
-            <input type="number" value={redeemAmount} onChange={e => setRedeemAmount(e.target.value)} placeholder="Minimum 2000" className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 focus:bg-white transition-all" />
+            <input type="number" value={redeemAmount} onChange={e => setRedeemAmount(e.target.value)} placeholder="Minimum 2000" className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 focus:bg-white transition-all" />
             {redeemAmount && <p className="text-xs text-emerald-600 mt-1.5">= ₦{Number(redeemAmount * 0.1).toLocaleString()}</p>}
           </div>
           {redeemType === 'CASH' ? (
             <div className="space-y-3">
-              <input type="text" placeholder="Bank name" value={details.bank} onChange={e => setDetails({ ...details, bank: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:bg-white transition-all" />
-              <input type="text" placeholder="Account number" value={details.account_no} onChange={e => setDetails({ ...details, account_no: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:bg-white transition-all" />
-              <input type="text" placeholder="Account name" value={details.name} onChange={e => setDetails({ ...details, name: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:bg-white transition-all" />
+              <input type="text" placeholder="Bank name" value={details.bank} onChange={e => setDetails({ ...details, bank: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all" />
+              <input type="text" placeholder="Account number" value={details.account_no} onChange={e => setDetails({ ...details, account_no: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all" />
+              <input type="text" placeholder="Account name" value={details.name} onChange={e => setDetails({ ...details, name: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all" />
             </div>
           ) : (
             <div className="space-y-3">
-              <select value={details.network} onChange={e => setDetails({ ...details, network: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:bg-white transition-all">
+              <select value={details.network} onChange={e => setDetails({ ...details, network: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all">
                 <option>MTN</option><option>Airtel</option><option>Glo</option><option>9Mobile</option>
               </select>
-              <input type="tel" placeholder="Phone number" value={details.phone} onChange={e => setDetails({ ...details, phone: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:bg-white transition-all" />
+              <input type="tel" placeholder="Phone number" value={details.phone} onChange={e => setDetails({ ...details, phone: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all" />
             </div>
           )}
           <StatusMsg msg={status} />
-          <button onClick={handleRedeem} disabled={submitting || !redeemAmount} className="w-full h-12 bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-40">
+          <button onClick={handleRedeem} disabled={submitting || !redeemAmount} className="w-full h-12 bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-40">
             {submitting ? 'Sending...' : 'Submit request'}
           </button>
         </div>
@@ -802,7 +802,7 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
 // ─── 3. Composer ─────────────────────────────────────────────────────────────
 function ComposerTab({ username, setTab, isOrg, accent }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-4">
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
       <MakePostContent username={username} onToggle={() => { }} />
     </div>
   );
@@ -982,11 +982,11 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       </div>
 
       {/* Photo */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center gap-4">
-        <img src={photoPreview} alt="" className="w-16 h-16 rounded-xl object-cover border border-gray-200 flex-shrink-0" />
+      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-4">
+        <img src={photoPreview} alt="" className="w-16 h-16 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
         <div>
           <p className="text-sm font-medium text-gray-900 mb-2">Profile photo</p>
-          <label className={cn("h-9 px-4 rounded-lg border text-xs font-medium flex items-center justify-center cursor-pointer transition-colors", isOrg ? "border-purple-600 text-purple-600 hover:bg-purple-50" : "border-blue-600 text-blue-600 hover:bg-blue-50")}>
+          <label className={cn("h-9 px-4 rounded-lg border text-xs font-medium flex items-center justify-center cursor-pointer transition-colors", isOrg ? "border-purple-600 text-purple-600 hover:bg-purple-50" : "border-brand-600 text-brand-600 hover:bg-brand-50")}>
             Change photo
             <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </label>
@@ -994,7 +994,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       </div>
 
       {/* Cover Photo */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="relative h-28 md:h-36 bg-gray-100">
           {coverPreview ? (
             <img src={coverPreview} alt="Cover" className="w-full h-full object-cover" />
@@ -1017,7 +1017,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
             <p className="text-xs text-gray-400">Recommended 1200 × 400px</p>
           </div>
           <div className="flex items-center gap-2">
-            <label className={cn("h-8 px-3.5 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-colors", isOrg ? "border-purple-600 text-purple-600 hover:bg-purple-50" : "border-blue-600 text-blue-600 hover:bg-blue-50")}>
+            <label className={cn("h-8 px-3.5 rounded-lg border text-xs font-semibold flex items-center justify-center cursor-pointer transition-colors", isOrg ? "border-purple-600 text-purple-600 hover:bg-purple-50" : "border-brand-600 text-brand-600 hover:bg-brand-50")}>
               {coverPreview ? 'Change' : 'Add'}
               <input type="file" accept="image/*" className="hidden" onChange={handleCoverChange} disabled={coverSaving} />
             </label>
@@ -1036,7 +1036,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       </div>
 
       {/* Account type */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-sm font-medium text-gray-900">Account type</p>
@@ -1048,40 +1048,40 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       </div>
 
       {/* Profile form */}
-      <form onSubmit={handleProfileUpdate} className="bg-white border border-gray-200 rounded-2xl p-4 space-y-4">
+      <form onSubmit={handleProfileUpdate} className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
         <p className="text-xs font-semibold text-gray-500">Personal details</p>
         <div>
           <label className="text-xs font-medium text-gray-600 block mb-1">Full name</label>
-          <input type="text" placeholder="Your full name" value={fields.fullName} onChange={e => setFields(prev => ({ ...prev, fullName: e.target.value }))} className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-colors" />
+          <input type="text" placeholder="Your full name" value={fields.fullName} onChange={e => setFields(prev => ({ ...prev, fullName: e.target.value }))} className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand-400 focus:bg-white transition-colors" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Phone</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{K.Phone}</span>
-              <input type="tel" placeholder="+234..." value={fields.phone} onChange={e => setFields(prev => ({ ...prev, phone: e.target.value }))} className="w-full pl-9 pr-3 h-11 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-colors" />
+              <input type="tel" placeholder="+234..." value={fields.phone} onChange={e => setFields(prev => ({ ...prev, phone: e.target.value }))} className="w-full pl-9 pr-3 h-11 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand-400 focus:bg-white transition-colors" />
             </div>
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Email</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{K.Mail}</span>
-              <input type="email" placeholder="email@example.com" value={fields.email} onChange={e => setFields(prev => ({ ...prev, email: e.target.value }))} className="w-full pl-9 pr-3 h-11 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-colors" />
+              <input type="email" placeholder="email@example.com" value={fields.email} onChange={e => setFields(prev => ({ ...prev, email: e.target.value }))} className="w-full pl-9 pr-3 h-11 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand-400 focus:bg-white transition-colors" />
             </div>
           </div>
         </div>
         <div>
           <label className="text-xs font-medium text-gray-600 block mb-1">Bio</label>
-          <textarea placeholder="Tell people about yourself…" rows={3} value={fields.biography} onChange={e => setFields(prev => ({ ...prev, biography: e.target.value }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-colors resize-none leading-relaxed" />
+          <textarea placeholder="Tell people about yourself…" rows={3} value={fields.biography} onChange={e => setFields(prev => ({ ...prev, biography: e.target.value }))} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand-400 focus:bg-white transition-colors resize-none leading-relaxed" />
         </div>
         <StatusMsg msg={statusMsg} />
-        <button type="submit" disabled={saving} className={cn('w-full h-11 rounded-xl text-white text-sm font-semibold disabled:opacity-50 transition-all', accent)}>
+        <button type="submit" disabled={saving} className={cn('w-full h-11 rounded-lg text-white text-sm font-semibold disabled:opacity-50 transition-all', accent)}>
           {saving ? 'Saving...' : 'Save changes'}
         </button>
       </form>
 
       {/* Password */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">{K.Lock}</div>
           <div>
@@ -1098,14 +1098,14 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Current password</label>
             <div className="relative">
-              <input type={showCurrentPw ? 'text' : 'password'} placeholder="Your current password" value={passwordFields.current} onChange={e => setPasswordFields(prev => ({ ...prev, current: e.target.value }))} className="w-full px-4 h-11 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-all pr-11" />
+              <input type={showCurrentPw ? 'text' : 'password'} placeholder="Your current password" value={passwordFields.current} onChange={e => setPasswordFields(prev => ({ ...prev, current: e.target.value }))} className="w-full px-4 h-11 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand-400 focus:bg-white transition-all pr-11" />
               <button type="button" onClick={() => setShowCurrentPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">{showCurrentPw ? K.EyeOff : K.Eye}</button>
             </div>
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">New password</label>
             <div className="relative">
-              <input type={showNewPw ? 'text' : 'password'} placeholder="At least 8 characters" value={passwordFields.newPw} onChange={e => setPasswordFields(prev => ({ ...prev, newPw: e.target.value }))} className="w-full px-4 h-11 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-all pr-11" />
+              <input type={showNewPw ? 'text' : 'password'} placeholder="At least 8 characters" value={passwordFields.newPw} onChange={e => setPasswordFields(prev => ({ ...prev, newPw: e.target.value }))} className="w-full px-4 h-11 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand-400 focus:bg-white transition-all pr-11" />
               <button type="button" onClick={() => setShowNewPw(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">{showNewPw ? K.EyeOff : K.Eye}</button>
             </div>
             {passwordFields.newPw.length > 0 && (
@@ -1120,12 +1120,12 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Confirm new password</label>
-            <input type="password" placeholder="Repeat new password" value={passwordFields.confirm} onChange={e => setPasswordFields(prev => ({ ...prev, confirm: e.target.value }))} className="w-full px-4 h-11 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-blue-400 focus:bg-white transition-all" />
+            <input type="password" placeholder="Repeat new password" value={passwordFields.confirm} onChange={e => setPasswordFields(prev => ({ ...prev, confirm: e.target.value }))} className="w-full px-4 h-11 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:outline-none focus:border-brand-400 focus:bg-white transition-all" />
           </div>
           <StatusMsg msg={passwordStatusMsg} />
           <div className="flex gap-3">
-            <button type="button" onClick={() => setPasswordModalOpen(false)} className="flex-1 h-11 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
-            <button type="submit" disabled={passwordSaving} className={cn('flex-1 h-11 rounded-xl text-white text-sm font-semibold disabled:opacity-50 transition-all', accent)}>{passwordSaving ? 'Saving...' : 'Update password'}</button>
+            <button type="button" onClick={() => setPasswordModalOpen(false)} className="flex-1 h-11 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
+            <button type="submit" disabled={passwordSaving} className={cn('flex-1 h-11 rounded-lg text-white text-sm font-semibold disabled:opacity-50 transition-all', accent)}>{passwordSaving ? 'Saving...' : 'Update password'}</button>
           </div>
         </form>
       </BottomSheet>
@@ -1134,19 +1134,19 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       <BottomSheet open={modeModalOpen} onClose={() => setModeModalOpen(false)} title="Switch account type">
         <div className="px-5 py-4 space-y-3 pb-10">
           {/* Personal */}
-          <div className={cn('border-2 rounded-xl p-4 transition-all', !isOrg ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200')}>
+          <div className={cn('border-2 rounded-lg p-4 transition-all', !isOrg ? 'bg-brand-50 border-brand-200' : 'bg-white border-gray-200')}>
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">{K.Profile}</div>
+              <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center text-brand-600 flex-shrink-0">{K.Profile}</div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900">Personal</p>
                 <p className="text-xs text-gray-500 mt-0.5">Standard access for social discovery and connection.</p>
               </div>
-              {!isOrg && <span className="text-blue-600 flex-shrink-0">{K.Check}</span>}
+              {!isOrg && <span className="text-brand-600 flex-shrink-0">{K.Check}</span>}
             </div>
             {isOrg && <button onClick={() => handleModeSwitch('Individual')} disabled={modeSaving} className="w-full mt-3 h-9 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 disabled:opacity-50 bg-white hover:bg-gray-50 transition-all">{modeSaving ? 'Switching...' : 'Switch to Personal'}</button>}
           </div>
           {/* Professional */}
-          <div className={cn('border-2 rounded-xl p-4 transition-all', isOrg ? 'bg-purple-50 border-purple-200' : 'bg-white border-gray-200')}>
+          <div className={cn('border-2 rounded-lg p-4 transition-all', isOrg ? 'bg-purple-50 border-purple-200' : 'bg-white border-gray-200')}>
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 flex-shrink-0">{K.Bolt}</div>
               <div className="flex-1">
@@ -1164,12 +1164,12 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
           {/* Migration Confirmation Modal */}
           {migrationModalOpen && (
             <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4" onClick={() => setMigrationModalOpen(false)}>
-              <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
                 <h3 className="text-lg font-bold mb-2">Migrate Friends?</h3>
                 <p className="text-sm text-gray-600 mb-6">Do you want to migrate your friends to followers for your new Organisation account?</p>
                 <div className="flex gap-3">
-                  <button onClick={() => { setMigrationModalOpen(false); handleModeSwitch('Organisation', true); }} className="flex-1 h-11 bg-purple-600 text-white rounded-xl font-bold">Yes, migrate</button>
-                  <button onClick={() => { setMigrationModalOpen(false); handleModeSwitch('Organisation', false); }} className="flex-1 h-11 bg-gray-100 text-gray-700 rounded-xl font-bold">No, skip</button>
+                  <button onClick={() => { setMigrationModalOpen(false); handleModeSwitch('Organisation', true); }} className="flex-1 h-11 bg-purple-600 text-white rounded-lg font-bold">Yes, migrate</button>
+                  <button onClick={() => { setMigrationModalOpen(false); handleModeSwitch('Organisation', false); }} className="flex-1 h-11 bg-gray-100 text-gray-700 rounded-lg font-bold">No, skip</button>
                 </div>
               </div>
             </div>
@@ -1270,10 +1270,10 @@ function PostsTab({ posts, setPosts, username, setTab }) {
   if (!visible.length) {
     return (
       <div className="flex flex-col items-center py-16 gap-3 text-center">
-        <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-300">{K.Posts}</div>
+        <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">{K.Posts}</div>
         <p className="text-sm font-semibold text-gray-500">No posts yet</p>
         <p className="text-xs text-gray-400 max-w-[180px] leading-relaxed">Create your first post to get started.</p>
-        <button onClick={() => setTab('composer')} className="mt-1 h-10 px-6 bg-blue-600 text-white rounded-xl text-sm font-medium transition-all">New post</button>
+        <button onClick={() => setTab('composer')} className="mt-1 h-10 px-6 bg-brand-600 text-white rounded-lg text-sm font-medium transition-all">New post</button>
       </div>
     );
   }
@@ -1285,11 +1285,11 @@ function PostsTab({ posts, setPosts, username, setTab }) {
           <h2 className="text-xl font-bold text-gray-900">My Posts</h2>
           <p className="text-xs text-gray-400 mt-0.5">{visible.length} posts · {totalEarned.toLocaleString()} coins earned from likes</p>
         </div>
-        <button onClick={() => setTab('composer')} className="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex-shrink-0 transition-colors">New post</button>
+        <button onClick={() => setTab('composer')} className="h-9 px-4 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex-shrink-0 transition-colors">New post</button>
       </div>
 
       {/* Milestone explainer */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-3">
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 flex items-center gap-3">
         <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">{K.Coin}</div>
         <p className="text-xs text-emerald-800 leading-relaxed"><strong>Every 10 likes = 5 Mobcoins.</strong> Keep pushing your posts to the next milestone.</p>
       </div>
@@ -1301,20 +1301,20 @@ function PostsTab({ posts, setPosts, username, setTab }) {
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search your posts…"
-          className="flex-1 h-10 px-4 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+          className="flex-1 h-10 px-4 bg-white border border-gray-200 rounded-lg text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all"
         />
         <div className="flex gap-2">
           <select
             value={sort}
             onChange={e => setSort(e.target.value)}
-            className="flex-1 sm:flex-none h-10 px-3 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 outline-none focus:border-blue-400 transition-all"
+            className="flex-1 sm:flex-none h-10 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-brand-400 transition-all"
           >
             <option value="newest">Newest</option>
             <option value="liked">Most liked</option>
             <option value="closest">Closest to payout</option>
             <option value="earned">Top earning</option>
           </select>
-          <div className="flex p-1 bg-gray-100 rounded-xl">
+          <div className="flex p-1 bg-gray-100 rounded-lg">
             <button onClick={() => setView('list')} className={cn('h-8 px-3 rounded-lg text-xs font-semibold transition-all', view === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500')}>List</button>
             <button onClick={() => setView('grid')} className={cn('h-8 px-3 rounded-lg text-xs font-semibold transition-all', view === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500')}>Grid</button>
           </div>
@@ -1322,19 +1322,19 @@ function PostsTab({ posts, setPosts, username, setTab }) {
       </div>
 
       {filtered.length === 0 && (
-        <div className="py-12 text-center text-xs text-gray-400">No posts match “{query}”. <button onClick={() => setQuery('')} className="text-blue-600 font-semibold">Clear search</button></div>
+        <div className="py-12 text-center text-xs text-gray-400">No posts match “{query}”. <button onClick={() => setQuery('')} className="text-brand-600 font-semibold">Clear search</button></div>
       )}
 
       <div className={cn(view === 'grid' && 'grid grid-cols-1 sm:grid-cols-2 gap-4', view === 'list' && 'space-y-4')}>
       {filtered.map(post => (
-        <div key={post.id} className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
+        <div key={post.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm font-medium text-gray-900 capitalize">{post.type || 'Post'}</p>
               <p className="text-xs text-gray-400 mt-0.5">{new Date(post.created_at).toLocaleDateString()} · {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => window.Lexum ? window.Lexum.navigate(`/post/${post.id}`) : (window.location.href = `/post/${post.id}`)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 bg-gray-100 hover:bg-blue-600 hover:text-white transition-all">{K.Link}</button>
+              <button onClick={() => window.Lexum ? window.Lexum.navigate(`/post/${post.id}`) : (window.location.href = `/post/${post.id}`)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 bg-gray-100 hover:bg-brand-600 hover:text-white transition-all">{K.Link}</button>
               <button onClick={() => { setEditingPost(post); setEditText(post.text?.replace(/<[^>]*>/g, '') || ''); }} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 bg-gray-100 hover:bg-gray-700 hover:text-white transition-all">{K.Edit}</button>
               <button onClick={() => deletePost(post.id)} disabled={deletingId === post.id} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 bg-gray-100 hover:bg-red-600 hover:text-white transition-all disabled:opacity-40">{K.Trash}</button>
             </div>
@@ -1345,7 +1345,7 @@ function PostsTab({ posts, setPosts, username, setTab }) {
           </div>
 
           {post.media?.[0] && (
-            <div className="rounded-xl overflow-hidden aspect-video bg-gray-100">
+            <div className="rounded-lg overflow-hidden aspect-video bg-gray-100">
               {/\.(mp4|webm|ogg)/i.test(post.media[0])
                 ? <video src={post.media[0]} className="w-full h-full object-cover" muted />
                 : <img src={post.media[0]} alt="" className="w-full h-full object-cover" />}
@@ -1354,11 +1354,11 @@ function PostsTab({ posts, setPosts, username, setTab }) {
 
           <div className="flex items-center gap-4 text-xs text-gray-400">
             <span className="flex items-center gap-1"><span className="text-red-500">{K.Heart}</span>{post.likes?.length || 0} likes</span>
-            <span className="flex items-center gap-1"><span className="text-blue-500">{K.Chat}</span>{post.comments?.length || 0} comments</span>
+            <span className="flex items-center gap-1"><span className="text-brand-500">{K.Chat}</span>{post.comments?.length || 0} comments</span>
             <span className="flex items-center gap-1"><span className="text-gray-500">
               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current inline" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><circle cx="12" cy="12" r="3" /></svg>
             </span>{post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0)} views</span>
-            {post.type === 'poll' && <span className="bg-blue-100 text-blue-700 text-[10px] font-medium px-2 py-0.5 rounded-full">Poll</span>}
+            {post.type === 'poll' && <span className="bg-brand-100 text-brand-700 text-[10px] font-medium px-2 py-0.5 rounded-full">Poll</span>}
           </div>
 
           {/* Milestone progress */}
@@ -1368,10 +1368,10 @@ function PostsTab({ posts, setPosts, username, setTab }) {
             const into = likes % 10;
             const away = into === 0 && likes > 0 ? 0 : 10 - into;
             return (
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-1.5">
+              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-gray-700">
-                    {away === 0 ? `🎉 Milestone hit — +5 coins paid` : `${away} like${away !== 1 ? 's' : ''} to +5 coins`}
+                    {away === 0 ? `🎉 Milestone hit: +5 coins paid` : `${away} like${away !== 1 ? 's' : ''} to +5 coins`}
                   </span>
                   <span className="font-bold text-emerald-600">{earned > 0 ? `+${earned} earned` : `${into}/10`}</span>
                 </div>
@@ -1387,7 +1387,7 @@ function PostsTab({ posts, setPosts, username, setTab }) {
               {post.boost_score > 0 && (
                 <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full flex items-center gap-1">{K.Bolt}Score: {post.boost_score}</span>
               )}
-              <button onClick={() => { setBoostingPost(post); setBoostAmount(1); }} className="flex-1 h-10 rounded-xl border border-orange-200 bg-orange-50 text-orange-600 text-sm font-semibold hover:bg-orange-100 transition-all flex items-center justify-center gap-2">
+              <button onClick={() => { setBoostingPost(post); setBoostAmount(1); }} className="flex-1 h-10 rounded-lg border border-orange-200 bg-orange-50 text-orange-600 text-sm font-semibold hover:bg-orange-100 transition-all flex items-center justify-center gap-2">
                 {K.Bolt}Boost Post
               </button>
             </div>
@@ -1400,7 +1400,7 @@ function PostsTab({ posts, setPosts, username, setTab }) {
         <div className="px-5 py-4 pb-10 space-y-5">
           {boostingPost && (
             <>
-              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-1">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-1">
                 <p className="text-xs text-gray-500">Current boost score</p>
                 <p className="text-xl font-bold text-orange-600">{boostingPost.boost_score || 0} pts</p>
               </div>
@@ -1414,7 +1414,7 @@ function PostsTab({ posts, setPosts, username, setTab }) {
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-xl p-4 space-y-1.5">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-1.5">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Cost</span>
                   <span className="font-bold text-gray-900">{(boostAmount * 500).toLocaleString()} mobcoins</span>
@@ -1430,8 +1430,8 @@ function PostsTab({ posts, setPosts, username, setTab }) {
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => setBoostingPost(null)} className="flex-1 h-11 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
-                <button onClick={handleBoost} disabled={boosting || balance < boostAmount * 500} className="flex-1 h-11 bg-orange-500 text-white rounded-xl text-sm font-semibold disabled:opacity-40 hover:bg-orange-600 transition-all flex items-center justify-center gap-2">
+                <button onClick={() => setBoostingPost(null)} className="flex-1 h-11 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
+                <button onClick={handleBoost} disabled={boosting || balance < boostAmount * 500} className="flex-1 h-11 bg-orange-500 text-white rounded-lg text-sm font-semibold disabled:opacity-40 hover:bg-orange-600 transition-all flex items-center justify-center gap-2">
                   {boosting ? 'Processing...' : <>{K.Bolt}Boost {boostAmount} pt{boostAmount > 1 ? 's' : ''}</>}
                 </button>
               </div>
@@ -1442,10 +1442,10 @@ function PostsTab({ posts, setPosts, username, setTab }) {
 
       <BottomSheet open={!!editingPost} onClose={() => setEditingPost(null)} title="Edit post" wide>
         <div className="px-5 py-4 pb-10 space-y-4">
-          <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={7} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none leading-relaxed" />
+          <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={7} className="w-full p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:ring-2 focus:ring-brand-100 outline-none transition-all resize-none leading-relaxed" />
           <div className="flex gap-3">
-            <button onClick={() => setEditingPost(null)} className="flex-1 h-11 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
-            <button onClick={saveEdit} disabled={saving} className="flex-1 h-11 bg-blue-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-all">{saving ? 'Saving...' : 'Save'}</button>
+            <button onClick={() => setEditingPost(null)} className="flex-1 h-11 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
+            <button onClick={saveEdit} disabled={saving} className="flex-1 h-11 bg-brand-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-all">{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </div>
       </BottomSheet>
@@ -1487,9 +1487,9 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
       </div>
 
       {/* Milestone explainer */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-3">
+      <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 flex items-center gap-3">
         <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">{K.Coin}</div>
-        <p className="text-xs text-emerald-800 leading-relaxed"><strong>Every 10 likes = 5 Mobcoins</strong> — snaps earn exactly like posts.</p>
+        <p className="text-xs text-emerald-800 leading-relaxed"><strong>Every 10 likes = 5 Mobcoins</strong>. Snaps earn exactly like posts.</p>
       </div>
 
       {snaps.length > 0 && (
@@ -1497,7 +1497,7 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
           <select
             value={sort}
             onChange={e => setSort(e.target.value)}
-            className="h-9 px-3 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-700 outline-none focus:border-blue-400 transition-all"
+            className="h-9 px-3 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 outline-none focus:border-brand-400 transition-all"
           >
             <option value="newest">Newest</option>
             <option value="liked">Most liked</option>
@@ -1517,10 +1517,10 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
             const away = into === 0 && likes > 0 ? 0 : 10 - into;
             const comments = snap.comments?.length || 0;
             return (
-              <div key={snap.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div key={snap.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <div className="flex gap-3 p-3">
                   <div
-                    className="w-20 aspect-[9/16] bg-gray-900 rounded-xl overflow-hidden relative cursor-pointer flex-shrink-0 group"
+                    className="w-20 aspect-[9/16] bg-gray-900 rounded-lg overflow-hidden relative cursor-pointer flex-shrink-0 group"
                     onClick={() => setPreview(snap)}
                   >
                     <video src={snap.media?.[0]} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" muted preload="metadata" />
@@ -1531,7 +1531,7 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
                     <p className="text-[10px] text-gray-400">{new Date(snap.created_at).toLocaleDateString()}</p>
                     <div className="flex items-center gap-3 text-[11px] font-semibold text-gray-600">
                       <span className="flex items-center gap-1"><span className="text-red-500">{K.Heart}</span>{likes}</span>
-                      <span className="flex items-center gap-1"><span className="text-blue-500">{K.Chat}</span>{comments}</span>
+                      <span className="flex items-center gap-1"><span className="text-brand-500">{K.Chat}</span>{comments}</span>
                       <span className="flex items-center gap-1 text-gray-500">👁 {views.toLocaleString()}</span>
                       {earned > 0 && <span className="text-emerald-600 font-bold">+{earned} 🪙</span>}
                     </div>
@@ -1566,7 +1566,7 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
         </div>
       ) : (
         <div className="flex flex-col items-center py-16 gap-3 text-center">
-          <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-300">{K.Camera}</div>
+          <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300">{K.Camera}</div>
           <p className="text-sm font-semibold text-gray-500">No snaps yet</p>
           <p className="text-xs text-gray-400 max-w-[180px] leading-relaxed">Share short video clips with your audience.</p>
         </div>
@@ -1574,7 +1574,7 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
 
       <BottomSheet open={!!preview} onClose={() => setPreview(null)} title="Manage snap">
         <div className="p-5 flex flex-col items-center gap-4 pb-10">
-          <div className="w-full max-w-[260px] aspect-[9/16] bg-black rounded-2xl overflow-hidden">
+          <div className="w-full max-w-[260px] aspect-[9/16] bg-black rounded-lg overflow-hidden">
             <video src={preview?.media?.[0]} className="w-full h-full object-cover" controls autoPlay loop />
           </div>
           {preview && (
@@ -1585,7 +1585,7 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
                 { label: 'Views', value: (Array.isArray(preview.views) ? preview.views.length : 0).toLocaleString() },
                 { label: 'Earned', value: `+${Math.floor((preview.likes?.length || 0) / 10) * 5}` },
               ].map(s => (
-                <div key={s.label} className="bg-gray-50 border border-gray-100 rounded-xl py-2">
+                <div key={s.label} className="bg-gray-50 border border-gray-100 rounded-lg py-2">
                   <p className="text-sm font-bold text-gray-900">{s.value}</p>
                   <p className="text-[9px] font-medium text-gray-400">{s.label}</p>
                 </div>
@@ -1601,7 +1601,7 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
                 });
               }
             }}
-            className="w-full max-w-[260px] h-11 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-200 hover:bg-red-100 transition-all"
+            className="w-full max-w-[260px] h-11 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-200 hover:bg-red-100 transition-all"
           >
             Delete snap
           </button>
@@ -1681,7 +1681,7 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
       [chartRef1, chartRef2, chartRef3, chartRef4, chartRef5, chartRef6].forEach(destroyChart);
 
       const gridColor = '#f3f4f6';
-      const blue = '#3B82F6', purple = '#8B5CF6', green = '#10B981', orange = '#F59E0B', red = '#EF4444';
+      const blue = '#4555F2', purple = '#8B5CF6', green = '#10B981', orange = '#F59E0B', red = '#EF4444';
       const baseOpts = {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
@@ -1772,7 +1772,7 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
   if (!isOrg) {
     return (
       <div className="flex flex-col items-center py-16 gap-3 text-center px-6">
-        <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-500">{K.Chart}</div>
+        <div className="w-12 h-12 rounded-lg bg-purple-50 flex items-center justify-center text-purple-500">{K.Chart}</div>
         <p className="text-sm font-semibold text-gray-900">Analytics is for Professional accounts</p>
         <p className="text-xs text-gray-400 max-w-xs leading-relaxed">Switch to a Professional account in Profile settings to unlock detailed analytics and charts.</p>
       </div>
@@ -1791,8 +1791,8 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
           <p className="text-xs text-gray-500">Likes, comments, and poll votes on your posts.</p>
           <div className="relative w-full" style={{ height: 250 }}><canvas ref={chartRef1} /></div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="p-3 rounded-xl bg-blue-50 text-center"><p className="text-lg font-bold text-blue-700">{likesCount}</p><p className="text-[10px] text-blue-400">Likes</p></div>
-            <div className="p-3 rounded-xl bg-emerald-50 text-center"><p className="text-lg font-bold text-emerald-700">{commentsCount}</p><p className="text-[10px] text-emerald-400">Comments</p></div>
+            <div className="p-3 rounded-lg bg-brand-50 text-center"><p className="text-lg font-bold text-brand-700">{likesCount}</p><p className="text-[10px] text-brand-400">Likes</p></div>
+            <div className="p-3 rounded-lg bg-emerald-50 text-center"><p className="text-lg font-bold text-emerald-700">{commentsCount}</p><p className="text-[10px] text-emerald-400">Comments</p></div>
           </div>
         </div>
       </Accordion>
@@ -1874,10 +1874,10 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
           <button
             key={m.label}
             onClick={() => m.done && m.tab ? setTab(m.tab) : null}
-            className={cn("w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all text-left", m.done ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-200 opacity-60")}
+            className={cn("w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all text-left", m.done ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-200 opacity-60")}
           >
             <div className="flex items-center gap-3">
-              <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center", m.done ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-300")}>{m.icon}</div>
+              <div className={cn("w-11 h-11 rounded-lg flex items-center justify-center", m.done ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-300")}>{m.icon}</div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">{m.label}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{m.desc}</p>
@@ -1891,7 +1891,7 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500">
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.08 2.26a1 1 0 011.08 1.45L8.5 5c-.18.4-.33.82-.44 1.25-.66 2.6.48 5.44 2.8 6.94a.5.5 0 00.67-.1l.5-.7c.33-.46.73-.85 1.18-1.16 1.1-.75 2.5-.83 3.68-.2.72.39 1.28 1.02 1.6 1.77.33.75.4 1.57.2 2.37a7 7 0 11-10.61-9.06 1 1 0 011.01-.85z" /></svg>
           </div>
@@ -1900,7 +1900,7 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
             <p className="text-base font-bold text-gray-900">{streak} day{streak === 1 ? '' : 's'}</p>
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+        <div className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center text-yellow-500">{K.Crown}</div>
           <div>
             <p className="text-xs text-gray-400">Global rank</p>
@@ -1913,7 +1913,7 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
         <p className="text-xs font-semibold text-gray-500 mb-2">Tips to grow faster</p>
         <div className="grid md:grid-cols-2 gap-2">
           {tips.map((tip, idx) => (
-            <div key={idx} className="flex items-start gap-3 bg-white border border-gray-200 rounded-xl px-3 py-3">
+            <div key={idx} className="flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-3 py-3">
               <span className="text-gray-400 flex-shrink-0 mt-0.5">{tip.icon}</span>
               <div>
                 <p className="text-sm font-medium text-gray-900">{tip.title}</p>
@@ -1925,9 +1925,9 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => setTab('composer')} className={cn('h-11 rounded-xl text-white text-sm font-medium transition-all', accent)}>New post</button>
+        <button onClick={() => setTab('composer')} className={cn('h-11 rounded-lg text-white text-sm font-medium transition-all', accent)}>New post</button>
         {LIVE_STREAMING_ENABLED && (
-          <button onClick={() => window.Lexum ? window.Lexum.navigate('/create-live') : (window.location.href = '/create-live')} className="h-11 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">Go live</button>
+          <button onClick={() => window.Lexum ? window.Lexum.navigate('/create-live') : (window.location.href = '/create-live')} className="h-11 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all">Go live</button>
         )}
       </div>
     </div>
@@ -1946,6 +1946,7 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
     followers: { inApp: true, email: true },
     newPost: { inApp: true, email: false },
     messages: { inApp: true, email: true },
+    discussions: { inApp: true, email: false },
     mobcoins: { inApp: true, email: true },
     events: { inApp: true, email: true },
   });
@@ -1996,6 +1997,7 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
         { id: 'followers', label: 'New followers', sub: 'When someone follows you', icon: K.Users },
         { id: 'newPost', label: 'New posts', sub: 'Updates from people you follow', icon: K.Posts },
         { id: 'messages', label: 'Messages', sub: 'Direct messages', icon: K.Chat },
+        { id: 'discussions', label: 'Discussions', sub: 'New rooms and discussion messages', icon: K.Chat },
       ],
     },
   ];
@@ -2004,12 +2006,12 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
     <div className="space-y-4 pb-16">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Preferences</h2>
-        {autoSaving && <span className="text-xs text-blue-600 animate-pulse">Saving...</span>}
+        {autoSaving && <span className="text-xs text-brand-600 animate-pulse">Saving...</span>}
       </div>
 
       {/* Appearance */}
       <p className="text-sm font-semibold text-gray-700">Appearance</p>
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100">
           <p className="text-sm font-medium text-gray-900">Theme</p>
           <p className="text-xs text-gray-400">Choose how Textmob looks for you</p>
@@ -2031,7 +2033,7 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
 
       {/* Offline Mode */}
       <p className="text-sm font-semibold text-gray-700">Data & Offline</p>
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="p-4">
           <div className="flex items-center justify-between mb-1">
             <div>
@@ -2055,7 +2057,7 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="p-4">
           <div className="flex items-center justify-between mb-1">
             <div>
@@ -2081,7 +2083,7 @@ function PrefsTab({ user, setProfile, accent, accentText }) {
 
       <p className="text-sm font-semibold text-gray-700">Notifications</p>
       {notifSections.map((section, sIdx) => (
-        <div key={sIdx} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div key={sIdx} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100">
             <p className="text-xs font-semibold text-gray-500">{section.title}</p>
           </div>
@@ -2118,7 +2120,7 @@ function ToggleBtn({ active, label, onClick, accent }) {
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-      className={cn('flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all cursor-pointer select-none', active ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300')}
+      className={cn('flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all cursor-pointer select-none', active ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-gray-50 border-gray-200 text-gray-400 hover:border-gray-300')}
     >
       <Toggle checked={active} onChange={onClick} size="sm" label={label} />
       {label}
@@ -2159,7 +2161,7 @@ function DangerTab({ username }) {
       <h2 className="text-xl font-bold text-gray-900">Account</h2>
 
       {/* Log out */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">{K.Logout}</div>
           <div>
@@ -2171,8 +2173,8 @@ function DangerTab({ username }) {
       </div>
 
       {/* Danger zone */}
-      <div className="bg-white border-2 border-red-100 rounded-xl p-4 space-y-4">
-        <div className="flex items-start gap-3 p-3 bg-red-50 rounded-xl">
+      <div className="bg-white border-2 border-red-100 rounded-lg p-4 space-y-4">
+        <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
           <span className="text-red-500 mt-0.5">{K.Danger}</span>
           <div>
             <p className="text-sm font-semibold text-red-900">Delete account</p>
@@ -2181,9 +2183,9 @@ function DangerTab({ username }) {
         </div>
         <div>
           <label className="text-xs font-medium text-gray-600 block mb-1">Type <strong>@{username}</strong> to confirm</label>
-          <input type="text" placeholder={`@${username}`} value={confirmVal} onChange={e => setConfirmVal(e.target.value)} className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:border-red-400 focus:bg-white transition-all" />
+          <input type="text" placeholder={`@${username}`} value={confirmVal} onChange={e => setConfirmVal(e.target.value)} className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-red-400 focus:bg-white transition-all" />
         </div>
-        <button onClick={handleDeactivate} disabled={confirmVal !== username || deactivating} className="w-full h-11 bg-red-600 text-white rounded-xl text-sm font-semibold disabled:opacity-30 transition-all">
+        <button onClick={handleDeactivate} disabled={confirmVal !== username || deactivating} className="w-full h-11 bg-red-600 text-white rounded-lg text-sm font-semibold disabled:opacity-30 transition-all">
           {deactivating ? 'Deleting...' : 'Delete my account permanently'}
         </button>
       </div>

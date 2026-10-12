@@ -74,9 +74,9 @@ export function SnapUploadProvider({ children }) {
       {/* Global Upload Progress Indicator */}
       <div className="fixed top-0 left-0 right-0 z-[1000] pointer-events-none">
         {Object.entries(uploads).map(([id, upload]) => (
-          <div key={id} className="w-full h-1.5 bg-blue-100/30 backdrop-blur-sm overflow-hidden">
+          <div key={id} className="w-full h-1.5 bg-brand-100/30 overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(37,99,235,0.5)]"
+              className="h-full bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(43, 62, 232,0.5)]"
               style={{ width: `${upload.progress}%` }}
             />
           </div>

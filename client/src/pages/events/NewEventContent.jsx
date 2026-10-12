@@ -51,12 +51,12 @@ export default function NewEventContent() {
  }
  };
 
- const inputClass = 'w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all';
+ const inputClass = 'w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-100 transition-all';
 
  return (
  <div className="min-h-screen bg-white pb-24 md:pb-8">
  {/* Header */}
- <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-4 flex items-center gap-3">
+ <div className="sticky top-0 z-10 bg-white/95 border-b border-gray-100 px-4 py-4 flex items-center gap-3">
  <button
  type="button"
  onClick={() => window.history.back()}
@@ -105,7 +105,7 @@ export default function NewEventContent() {
  rows={4}
  placeholder="Tell people what to expect…"
  required
- className={cn(inputClass, 'resize-none rounded-2xl')}
+ className={cn(inputClass, 'resize-none rounded-lg')}
  />
  </div>
 
@@ -178,12 +178,12 @@ export default function NewEventContent() {
 
  {/* Preview */}
  {(title.trim() || date) && (
- <div className="rounded-2xl border border-gray-100 overflow-hidden">
- <div className="h-[3px] bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+ <div className="rounded-lg border border-gray-100 overflow-hidden">
+ <div className="h-[3px] bg-gradient-to-r from-brand-500 via-indigo-500 to-violet-500" />
  <div className="p-4">
  <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2">Preview</p>
  {date && time && (
- <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full mb-2">
+ <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full mb-2">
  <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2">
  <rect x="3" y="4" width="18" height="18" rx="2" />
  <line x1="3" y1="10" x2="21" y2="10" />
@@ -227,7 +227,7 @@ export default function NewEventContent() {
  className={cn(
  'w-full py-3.5 rounded-full text-sm font-bold transition-colors',
  isValid && !posting
- ? 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]'
+ ? 'bg-brand-600 text-white hover:bg-brand-700 active:scale-[0.98]'
  : 'bg-gray-100 text-gray-300 cursor-not-allowed'
  )}
  >

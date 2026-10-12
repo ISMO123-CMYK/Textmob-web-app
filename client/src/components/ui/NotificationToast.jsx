@@ -9,7 +9,7 @@ export default function NotificationToast({ title, message, type, onClose }) {
   const borderColors = {
     success: 'border-l-green-500',
     error: 'border-l-red-500',
-    info: 'border-l-blue-500',
+    info: 'border-l-brand-500',
   };
 
   const icons = {
@@ -26,7 +26,7 @@ export default function NotificationToast({ title, message, type, onClose }) {
       </svg>
     ),
     info: (
-      <svg viewBox="0 0 24 24" className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg viewBox="0 0 24 24" className="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="16" x2="12" y2="12" />
         <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -36,7 +36,7 @@ export default function NotificationToast({ title, message, type, onClose }) {
 
   return (
     <div
-      className={`fixed top-4 right-4 w-[340px] bg-white border border-gray-100 border-l-4 ${borderColors[type] || borderColors.info} rounded-2xl px-4 py-3 flex items-start gap-3`}
+      className={`fixed top-4 right-4 w-[340px] bg-white border border-gray-100 border-l-4 ${borderColors[type] || borderColors.info} rounded-lg px-4 py-3 flex items-start gap-3`}
       style={{ zIndex: 9999 }}
     >
       <div className="flex-shrink-0 mt-0.5">{icons[type] || icons.info}</div>

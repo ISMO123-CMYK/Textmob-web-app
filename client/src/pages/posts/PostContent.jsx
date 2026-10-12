@@ -35,7 +35,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  loading="lazy"
  />
  <div className="flex-1 min-w-0">
- <div className="bg-gray-50 px-3 py-2 rounded-2xl">
+ <div className="bg-gray-50 px-3 py-2 rounded-lg">
  <div className="flex items-center gap-1">
  <p className="text-xs font-bold text-gray-900 leading-snug cursor-pointer" onClick={() => { if (ciGuest) { window.showAuthPrompt?.('Create an account to view profiles'); return; } window.Lexum?.navigate(`/@${cmt.username}`); }}>
  {profile.fullname || cmt.username}
@@ -52,7 +52,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  {!cmt.deleted && (
  <div className="flex items-center gap-3 mt-0.5 ml-2">
  {currentUser && (
- <button onClick={() => setShowReplyInput(!showReplyInput)} className="text-[11px] font-semibold text-gray-400 hover:text-blue-500 transition-colors">
+ <button onClick={() => setShowReplyInput(!showReplyInput)} className="text-[11px] font-semibold text-gray-400 hover:text-brand-500 transition-colors">
  Reply
  </button>
  )}
@@ -64,7 +64,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  {replies.length > 0 && (
   <button
   onClick={() => { if (postRead) setShowReplies(!showReplies); }}
-  className={cn("text-[11px] font-semibold transition-colors", postRead ? "text-gray-400 hover:text-blue-500 cursor-pointer" : "text-gray-300 cursor-default")}
+  className={cn("text-[11px] font-semibold transition-colors", postRead ? "text-gray-400 hover:text-brand-500 cursor-pointer" : "text-gray-300 cursor-default")}
   title={postRead ? "" : "Scroll to read the post first"}
   >
   {showReplies ? 'Hide' : 'View'} {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
@@ -88,7 +88,7 @@ function CommentItem({ cmt, postId, postOwner, onReply, onDelete, depth = 0, fol
  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2"><path d="M15.5 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h6l7-7V7a4 4 0 0 0-4-4Z" strokeLinejoin="round" /><path d="M13 21v-4a4 4 0 0 1 4-4h4" strokeLinejoin="round" /></svg>
  </button>
  {(replyText.trim() || replyStickerUrl) && (
- <button onClick={() => { const p = withSticker(replyText, replyStickerUrl); if (!p) return; onReply(cmt.id, p); setReplyText(''); setReplyStickerUrl(null); setShowReplyInput(false); }} className="text-blue-600 font-bold text-xs">
+ <button onClick={() => { const p = withSticker(replyText, replyStickerUrl); if (!p) return; onReply(cmt.id, p); setReplyText(''); setReplyStickerUrl(null); setShowReplyInput(false); }} className="text-brand-600 font-bold text-xs">
  Reply
  </button>
  )}
@@ -198,7 +198,7 @@ function CommentInput({ onSubmit }) {
  className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100 "
  alt=""
  />
- <div className="flex-1 flex items-center bg-gray-100 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-blue-100 transition-all relative">
+ <div className="flex-1 flex items-center bg-gray-100 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-brand-100 transition-all relative">
  <input
  ref={inputRef}
  type="text"
@@ -212,14 +212,14 @@ function CommentInput({ onSubmit }) {
  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><path d="M15.5 3H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h6l7-7V7a4 4 0 0 0-4-4Z" strokeLinejoin="round" /><path d="M13 21v-4a4 4 0 0 1 4-4h4" strokeLinejoin="round" /></svg>
  </button>
  {suggestions.length > 0 && (
- <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+ <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
  {suggestions.map((item, i) => (
  <button
  key={item.username || item.query || i}
  onClick={() => selectSuggestion(item)}
  className={cn(
  'flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors',
- i === activeIndex ? 'bg-blue-50 ' : 'hover:bg-gray-50 '
+ i === activeIndex ? 'bg-brand-50 ' : 'hover:bg-gray-50 '
  )}
  >
  {item.type === 'user' && item.profile_pic && (
@@ -234,7 +234,7 @@ function CommentInput({ onSubmit }) {
  </div>
  )}
  {(text.trim() || stickerUrl) && (
- <button onClick={submitComment} className="text-blue-600 font-bold text-xs flex-shrink-0">Post</button>
+ <button onClick={submitComment} className="text-brand-600 font-bold text-xs flex-shrink-0">Post</button>
  )}
  </div>
  </div>
@@ -556,7 +556,7 @@ export default function PostContent() {
  if (loading) {
  return (
  <div className="flex justify-center items-center p-12">
- <svg className="animate-spin w-8 h-8 text-blue-600" viewBox="0 0 24 24" fill="none">
+ <svg className="animate-spin w-8 h-8 text-brand-600" viewBox="0 0 24 24" fill="none">
  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
  </svg>
@@ -579,7 +579,7 @@ export default function PostContent() {
  return (
  <div className="min-h-screen bg-white">
  {/* Desktop sticky page bar (mobile web uses MobilePageLayout's fixed header) */}
- <div className="hidden md:flex sticky top-0 z-30 h-12 items-center gap-6 px-4 bg-white/95 backdrop-blur-md border-b border-gray-100 ">
+ <div className="hidden md:flex sticky top-0 z-30 h-12 items-center gap-6 px-4 bg-white/95 border-b border-gray-100 ">
  <button onClick={() => window.history.back()} className="tm-ripple -ml-2 p-2 rounded-full text-gray-700 hover:bg-gray-100 " aria-label="Back">
  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />

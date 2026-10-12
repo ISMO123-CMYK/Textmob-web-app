@@ -46,13 +46,49 @@ function isGroupPost(p) {
  return p.type.toLowerCase().startsWith('group');
 }
 
+/* â”€â”€â”€ discussion recommendation card (server-injected every 5 posts) â”€â”€â”€ */
+const fmtSmall = (n) => {
+ n = Number(n) || 0;
+ if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+ if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+ return String(n);
+};
+function DiscussionRecCard({ rooms }) {
+ const navigate = path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path);
+ if (!Array.isArray(rooms) || !rooms.length) return null;
+ return (
+ <div className="bg-brand-50/60 border-y border-brand-100 px-4 py-3">
+  <div className="flex items-center gap-1.5 mb-2">
+  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-brand-600" strokeWidth="2" strokeLinecap="round"><path d="M5.25 2.25a3 3 0 00-3 3v13.5a3 3 0 003 3h13.5a3 3 0 003-3V5.25a3 3 0 00-3-3H5.25zm1.5 4.5a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9a.75.75 0 01-.75-.75zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H7.5zm.75 3a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5a.75.75 0 01.75-.75zm4.5-3a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5H12zm-.75 3a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5a.75.75 0 01.75-.75z" /></svg>
+  <span className="text-[11px] font-bold uppercase tracking-wider text-brand-600">Suggested discussions</span>
+  </div>
+  <div className="flex flex-col gap-2">
+  {rooms.slice(0, 3).map(r => (
+   <a key={r.id} href={`/discussions/${r.id}`} data-lexum
+   onClick={e => { e.preventDefault(); navigate(`/discussions/${r.id}`); }}
+   className="flex items-center gap-3 bg-white border border-gray-100 rounded-lg px-3 py-2.5 hover:border-brand-200 transition-all active:scale-[0.99]">
+   <div className="w-9 h-9 rounded-lg bg-brand-50 border border-brand-100 flex items-center justify-center shrink-0">
+    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-brand-500" strokeWidth="2" strokeLinecap="round"><path d="M5.25 2.25a3 3 0 00-3 3v13.5a3 3 0 003 3h13.5a3 3 0 003-3V5.25a3 3 0 00-3-3H5.25zm1.5 4.5a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9a.75.75 0 01-.75-.75zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H7.5zm.75 3a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5a.75.75 0 01.75-.75zm4.5-3a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5H12zm-.75 3a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5a.75.75 0 01.75-.75z" /></svg>
+   </div>
+   <div className="flex-1 min-w-0">
+   <p className="text-sm font-bold text-gray-900 truncate leading-tight">{r.title}</p>
+   <p className="text-[11px] text-gray-400 truncate">@{r.host_username} · {fmtSmall(r.message_count || 0)} messages</p>
+   </div>
+   <span className="px-2 py-1 bg-brand-600 text-white text-[10px] font-bold rounded-full shrink-0">LIVE</span>
+   </a>
+  ))}
+  </div>
+ </div>
+ );
+}
+
 /* â”€â”€â”€ $n â€“ suggestion card â”€â”€â”€ */
 function SuggestionCard({ sug }) {
  const currentUser = localStorage.currentUser;
  const navigate = path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path);
 
  return (
- <div className="flex items-center gap-2 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-colors cursor-pointer flex-1 min-w-0" onClick={() => navigate(`/@${sug.username}`)}>
+ <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-colors cursor-pointer flex-1 min-w-0" onClick={() => navigate(`/@${sug.username}`)}>
  <img src={sug.profile_pic || DEFAULT_PIC} alt={sug.username} className="w-10 h-10 rounded-full object-cover flex-shrink-0" loading="lazy" />
  <div className="flex-1 min-w-0">
  <p className="text-sm font-bold text-gray-900 truncate leading-snug">{sug.fullname}</p>
@@ -95,7 +131,7 @@ function SuggestionSlot({ suggestions, slotIndex }) {
  </div>
  ) : (
  <div className="flex gap-2">
- {[0, 1].map(i => <div className="flex-1 h-16 bg-gray-100 rounded-xl animate-pulse" key={i} />)}
+ {[0, 1].map(i => <div className="flex-1 h-16 bg-gray-100 rounded-lg animate-pulse" key={i} />)}
  </div>
  )}
  </div>
@@ -303,16 +339,16 @@ export default function HomeFeed({ propPosts }) {
  'z-[45] border-b border-gray-100 flex transition-all duration-300',
  isMobile
  ? `block md:hidden sticky bg-white ${tabHidden ? 'top-0' : 'top-[56px]'}`
-  : 'hidden md:flex sticky top-[52px] bg-white backdrop-blur-md'
+  : 'hidden md:flex sticky top-[52px] bg-white'
  )}>
  {tabs.map(tab => (
  <button
  onClick={() => switchTab(tab)}
- className={cn('flex-1 py-3.5 text-sm font-bold text-center relative', activeTab === tab ? 'text-blue-600 ' : 'text-gray-400 ')}
+ className={cn('flex-1 py-3.5 text-sm font-bold text-center relative', activeTab === tab ? 'text-brand-600 ' : 'text-gray-400 ')}
  key={tab}
  >
   {tab === 'foryou' ? (isLoggedIn ? 'For you' : 'Trending') : 'Following'}
- {activeTab === tab && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-blue-600 rounded-full block" />}
+ {activeTab === tab && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-brand-600 rounded-full block" />}
  </button>
  ))}
  {isLoggedIn && (
@@ -363,7 +399,7 @@ export default function HomeFeed({ propPosts }) {
 
  return (
  <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 bg-black/40 overflow-y-auto" onClick={() => setShowFeedSettings(false)}>
- <div className="bg-white rounded-2xl p-5 w-96 max-w-[95vw] shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+ <div className="bg-white rounded-lg p-5 w-96 max-w-[95vw] shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
  <div className="flex items-center justify-between mb-4 sticky top-0 bg-white pb-2">
  <h3 className="text-sm font-bold text-gray-900 ">Feed Preferences</h3>
  <button onClick={() => setShowFeedSettings(false)} className="text-gray-400 hover:text-gray-600">
@@ -417,7 +453,7 @@ export default function HomeFeed({ propPosts }) {
  className={cn(
  'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
  (feedPrefs.contentTypeWeights[t] || 1) > 1
- ? 'bg-blue-600 text-white border-blue-600'
+ ? 'bg-brand-600 text-white border-brand-600'
  : 'text-gray-600 border-gray-200 '
  )}
  >
@@ -443,7 +479,7 @@ export default function HomeFeed({ propPosts }) {
  let remaining = removeBlocked(u.username);
  setBlockedList(remaining.map(u => ({ username: u })));
  setPosts(prev => [...prev]);
- }} className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex-shrink-0">Unblock</button>
+ }} className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex-shrink-0">Unblock</button>
  </div>
  ))}
  </div>
@@ -821,13 +857,13 @@ export default function HomeFeed({ propPosts }) {
  <div className="font-sans antialiased min-h-screen p-0 w-full">
  {isOffline && (
  <div className="p-4 text-center">
- <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 max-w-md mx-auto">
+ <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-md mx-auto">
  <p className="text-sm font-semibold text-amber-800 mb-1">You are offline</p>
  <p className="text-xs text-amber-700 mb-3">{error}</p>
  {!offlineMode && (
  <button
  onClick={() => { setOfflineMode(true); setError(''); setPage(1); setLoading(true); }}
- className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+ className="px-4 py-2 bg-brand-600 text-white text-xs font-semibold rounded-lg hover:bg-brand-700 transition-colors"
  >
  Enable Offline Mode
  </button>
@@ -852,7 +888,7 @@ export default function HomeFeed({ propPosts }) {
  setPosts([]);
  setLoading(true);
  }}
- className="text-xs font-semibold text-blue-600 hover:underline"
+ className="text-xs font-semibold text-brand-600 hover:underline"
  >
  Try again
  </button>
@@ -861,9 +897,9 @@ export default function HomeFeed({ propPosts }) {
  {isOffline && cachedPosts && cachedPosts.length > 0 && (
   <div className="flex flex-col w-full bg-white">
   <p className="px-4 py-2 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">Showing cached content</p>
- {cachedPosts.slice(0, 20).map((post, idx) => (
- <PostCard key={post.id} post={post} index={idx} />
- ))}
+  {cachedPosts.slice(0, 20).map((post, idx) => post?.__type === 'discussion_recommendation'
+   ? <DiscussionRecCard key={post.id || `disc-rec-${idx}`} rooms={post.rooms} />
+   : <PostCard key={post.id} post={post} index={idx} />)}
  </div>
  )}
  </div>
@@ -880,7 +916,7 @@ export default function HomeFeed({ propPosts }) {
  );
  }
 
- let visiblePosts = posts.filter(p => p?.type && !isGroupPost(p));
+ let visiblePosts = posts.filter(p => p?.__type === 'discussion_recommendation' || (p?.type && !isGroupPost(p)));
  let showEmptyState = visiblePosts.length === 0 && !hasMore;
 
  return (
@@ -888,7 +924,7 @@ export default function HomeFeed({ propPosts }) {
  {/* Pull-to-refresh indicator */}
  <div className="flex justify-center items-center overflow-hidden w-full" style={{ height: `${pullDelta}px`, opacity: pullDelta / 80 }}>
  <div className={cn('w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center', loading && pullDelta > 0 ? 'animate-spin' : '')}>
- <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+ <svg className="w-4 h-4 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
  </svg>
  </div>
@@ -899,7 +935,7 @@ export default function HomeFeed({ propPosts }) {
 
  {/* Floating discussions pill â€” mobile only */}
  <div className="md:hidden fixed top-12 left-1/2 -translate-x-1/2 z-50">
-   <a href="/discussions" data-lexum className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 active:scale-95 transition-all">
+   <a href="/discussions" data-lexum className="flex items-center gap-1.5 bg-brand-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg hover:bg-brand-700 active:scale-95 transition-all">
      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
      Discussions
      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -913,7 +949,7 @@ export default function HomeFeed({ propPosts }) {
  {/* New posts banner */}
  {newPosts.length > 0 && !propPosts && (
  <div className={cn('sticky z-40 flex justify-center mt-2 w-full pointer-events-none md:top-[60px]', tabHidden ? 'top-[48px]' : 'top-[104px]')}>
- <button onClick={flushNewPosts} className="pointer-events-auto bg-blue-600 text-white text-xs font-bold py-2 px-5 rounded-full hover:bg-blue-700 active:scale-95 transition-colors flex items-center gap-2">
+ <button onClick={flushNewPosts} className="pointer-events-auto bg-brand-600 text-white text-xs font-bold py-2 px-5 rounded-full hover:bg-brand-700 active:scale-95 transition-colors flex items-center gap-2">
  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
  </svg>
@@ -927,8 +963,11 @@ export default function HomeFeed({ propPosts }) {
  {showEmptyState ? (
  <div className="py-16 text-center text-sm text-gray-400 ">Nothing to show yet.</div>
  ) : (
- visiblePosts.map((post, index) => {
- let showSuggestion = !propPosts && (index + 1) % 5 === 0 && suggestions.length > 0;
+  visiblePosts.map((post, index) => {
+  if (post.__type === 'discussion_recommendation') {
+    return <DiscussionRecCard key={`disc-rec-${index}`} rooms={post.rooms} />;
+  }
+  let showSuggestion = !propPosts && (index + 1) % 5 === 0 && suggestions.length > 0;
  return (
  <Fragment key={post.id || index}>
  <div data-post-id={String(post.id)} ref={trackPostRef}>
@@ -975,7 +1014,7 @@ export default function HomeFeed({ propPosts }) {
  <FeedSettingsPanel />
  {showOnboarding && (
  <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
- <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+ <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-2xl">
  <h2 className="text-lg font-bold text-gray-900 mb-1">Personalize Your Feed</h2>
  <p className="text-sm text-gray-500 mb-5">Select at least 3 categories you're interested in. We'll show you more of what you love.</p>
  <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto mb-5">
@@ -994,8 +1033,8 @@ export default function HomeFeed({ propPosts }) {
  })}
  </div>
  <div className="flex gap-3">
- <button onClick={() => { localStorage.setItem('textmob_feed_onboarded', 'true'); setShowOnboarding(false); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-gray-100 ">Skip</button>
- <button onClick={() => { if (onboardSelected.length < 3) { alert('Please select at least 3 categories'); return; } localStorage.setItem('textmob_feed_onboarded', 'true'); localStorage.setItem('textmob_feed_preferences', JSON.stringify(onboardSelected)); const weights = {}; allCategories.forEach(c => { weights[c] = onboardSelected.includes(c) ? 3.0 : 1.0; }); saveFeedPrefs({ categoryWeights: weights }); setShowOnboarding(false); }} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600">Continue</button>
+ <button onClick={() => { localStorage.setItem('textmob_feed_onboarded', 'true'); setShowOnboarding(false); }} className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-gray-500 bg-gray-100 ">Skip</button>
+ <button onClick={() => { if (onboardSelected.length < 3) { alert('Please select at least 3 categories'); return; } localStorage.setItem('textmob_feed_onboarded', 'true'); localStorage.setItem('textmob_feed_preferences', JSON.stringify(onboardSelected)); const weights = {}; allCategories.forEach(c => { weights[c] = onboardSelected.includes(c) ? 3.0 : 1.0; }); saveFeedPrefs({ categoryWeights: weights }); setShowOnboarding(false); }} className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-brand-600">Continue</button>
  </div>
  </div>
  </div>

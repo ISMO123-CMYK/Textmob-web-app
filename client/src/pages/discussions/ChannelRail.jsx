@@ -13,14 +13,15 @@ const Chevron = ({ open }) => (
   <svg viewBox="0 0 24 24" className={`w-3 h-3 fill-none stroke-current transition-transform duration-200 ${open ? 'rotate-90' : ''}`} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7" /></svg>
 );
 
-/* Shared rail data — one fetch per session burst, reused by every view. */
+/* Shared rail data - one fetch per session burst, reused by every view. */
 const railCache = { data: null, at: 0 };
 
-function loadRailData() {
+function loadRailData(user) {
   const now = Date.now();
   if (railCache.data && now - railCache.at < 15000) return Promise.resolve(railCache.data);
+  const userParam = user ? `&username=${encodeURIComponent(user)}` : '';
   return Promise.all([
-    apiFetch('/api/discussions/active?limit=50').then(r => (r.ok ? r.json() : [])).catch(() => []),
+    apiFetch(`/api/discussions/active?limit=50${userParam}`).then(r => (r.ok ? r.json() : [])).catch(() => []),
     apiFetch('/api/discussions/archives?limit=20').then(r => (r.ok ? r.json() : [])).catch(() => []),
   ]).then(([active, archives]) => {
     const data = {
@@ -33,15 +34,20 @@ function loadRailData() {
   });
 }
 
-function ChannelRow({ room, active, locked }) {
+function ChannelRow({ room, active, locked, unread = 0 }) {
   return (
     <a href={`/discussions/${room.id}`} data-lexum
-      className={`group flex items-center gap-2 mx-2 px-2 py-[7px] rounded-xl text-sm transition-colors ${active ? 'bg-white shadow-sm ring-1 ring-gray-200/70 text-blue-600 font-semibold' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
+      className={`group flex items-center gap-2 mx-2 px-2 py-[7px] rounded-lg text-sm transition-colors ${active ? 'bg-white shadow-sm ring-1 ring-gray-200/70 text-brand-600 font-semibold' : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'}`}>
       {locked ? <LockIcon className="w-4 h-4 shrink-0 text-gray-400" /> : <HashIcon className="w-4 h-4 shrink-0 text-gray-400 group-hover:text-gray-500" />}
-      <span className="flex-1 truncate font-medium">{room.title}</span>
+      <span className={`flex-1 truncate ${unread > 0 ? 'font-bold text-gray-900' : 'font-medium'}`}>{room.title}</span>
+      {unread > 0 && (
+        <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center">
+          {unread > 99 ? '99+' : unread}
+        </span>
+      )}
       {room.status === 'live' ? (
-        <span className="flex items-center gap-1 shrink-0 text-[10px] font-bold text-blue-600">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+        <span className="flex items-center gap-1 shrink-0 text-[10px] font-bold text-brand-600">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-600 animate-pulse" />
           {room.participant_count || 0}
         </span>
       ) : (
@@ -51,7 +57,7 @@ function ChannelRow({ room, active, locked }) {
   );
 }
 
-const RailGroup = memo(function RailGroup({ label, rooms, activeRoomId, locked, collapsed, onToggle }) {
+const RailGroup = memo(function RailGroup({ label, rooms, activeRoomId, locked, collapsed, onToggle, unreadMap }) {
   if (!rooms.length) return null;
   return (
     <div>
@@ -64,7 +70,8 @@ const RailGroup = memo(function RailGroup({ label, rooms, activeRoomId, locked, 
       {!collapsed && (
         <div className="space-y-0.5 pb-1">
           {rooms.map(room => (
-            <ChannelRow key={room.id} room={room} active={activeRoomId === room.id} locked={locked} />
+            <ChannelRow key={room.id} room={room} active={activeRoomId === room.id} locked={locked}
+              unread={unreadMap?.[room.id] || 0} />
           ))}
         </div>
       )}
@@ -76,12 +83,51 @@ export default function ChannelRail({ activeRoomId = '', onNew, onHome }) {
   const [data, setData] = useState(() => railCache.data);
   const [collapsed, setCollapsed] = useState({});
   const [query, setQuery] = useState('');
+  const [unread, setUnread] = useState({});
+  const currentUser = localStorage.getItem('currentUser');
 
   useEffect(() => {
     let alive = true;
-    loadRailData().then(d => { if (alive) setData(d); }).catch(() => {});
+    loadRailData(currentUser).then(d => { if (alive) setData(d); }).catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Seed per-room unread from the fetch; live socket events below override it.
+  useEffect(() => {
+    if (!data) return;
+    const seeded = {};
+    [...data.active, ...data.archives].forEach(r => { if (r.unreadCount) seeded[r.id] = r.unreadCount; });
+    setUnread(prev => ({ ...seeded, ...prev }));
+  }, [data]);
+
+  // Live badges: server emits discussion_unread (delta) / discussion_read (clear)
+  useEffect(() => {
+    const sock = window.socket;
+    if (!sock) return;
+    const onUnread = ({ roomId, delta = 1 }) => {
+      if (!roomId) return;
+      setUnread(prev => ({ ...prev, [roomId]: (prev[roomId] || 0) + delta }));
+      // A room we have never listed - drop the rail cache so the next visit shows it
+      if (railCache.data && !railCache.data.active.some(r => r.id === roomId)) railCache.at = 0;
+    };
+    const onRead = ({ roomId }) => {
+      if (!roomId) return;
+      setUnread(prev => {
+        if (!prev[roomId]) return prev;
+        const next = { ...prev };
+        delete next[roomId];
+        return next;
+      });
+    };
+    sock.on('discussion_unread', onUnread);
+    sock.on('discussion_read', onRead);
+    return () => {
+      sock.off('discussion_unread', onUnread);
+      sock.off('discussion_read', onRead);
+    };
+  }, []);
+
+  const totalUnread = useMemo(() => Object.values(unread).reduce((a, b) => a + b, 0), [unread]);
 
   const groups = useMemo(() => {
     if (!data) return [];
@@ -109,10 +155,15 @@ export default function ChannelRail({ activeRoomId = '', onNew, onHome }) {
   return (
     <div className="hidden md:flex w-60 shrink-0 flex-col h-full bg-gray-50/80 border-r border-gray-200/70 overflow-y-auto scrollbar-thin">
       <button onClick={onHome} className="h-12 shrink-0 px-3 flex items-center gap-2 border-b border-gray-200/70 hover:bg-gray-100/60 transition-colors">
-        <span className="w-6 h-6 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+        <span className="w-6 h-6 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
           <HashIcon className="w-4 h-4 text-white" />
         </span>
         <span className="font-bold text-sm text-gray-900 flex-1 text-left truncate">Discussions</span>
+        {totalUnread > 0 && (
+          <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center">
+            {totalUnread > 99 ? '99+' : totalUnread}
+          </span>
+        )}
         <Chevron open />
       </button>
 
@@ -128,7 +179,7 @@ export default function ChannelRail({ activeRoomId = '', onNew, onHome }) {
           )}
         </div>
         <button onClick={onNew} title="Start a discussion"
-          className="w-7 h-7 shrink-0 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors">
+          className="w-7 h-7 shrink-0 rounded-lg bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center transition-colors">
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5"><path strokeLinecap="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
         </button>
       </div>
@@ -136,7 +187,7 @@ export default function ChannelRail({ activeRoomId = '', onNew, onHome }) {
       <div className="pb-4">
         {!data && (
           <div className="px-4 py-6 space-y-2">
-            {[0, 1, 2, 3].map(i => <div key={i} className="h-7 bg-gray-200/70 rounded-xl animate-pulse" style={{ width: `${85 - i * 8}%` }} />)}
+            {[0, 1, 2, 3].map(i => <div key={i} className="h-7 bg-gray-200/70 rounded-lg animate-pulse" style={{ width: `${85 - i * 8}%` }} />)}
           </div>
         )}
         {data && data.active.length === 0 && data.archives.length === 0 && (
@@ -144,14 +195,14 @@ export default function ChannelRail({ activeRoomId = '', onNew, onHome }) {
         )}
         {groups.map(g => (
           <RailGroup key={g.key} label={g.label} rooms={g.rooms} activeRoomId={activeRoomId} locked={g.locked}
-            collapsed={!!collapsed[g.key]} onToggle={() => toggle(g.key)} />
+            collapsed={!!collapsed[g.key]} onToggle={() => toggle(g.key)} unreadMap={unread} />
         ))}
       </div>
 
-      {/* pinned CTA — where a Discord-style "start" belongs, not in the page header */}
+      {/* pinned CTA - where a Discord-style "start" belongs, not in the page header */}
       <div className="sticky bottom-0 mt-auto p-3 pt-8 bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent">
         <button onClick={onNew}
-          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all active:scale-[0.98] shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5">
+          className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition-all active:scale-[0.98] shadow-md shadow-brand-500/10 flex items-center justify-center gap-1.5">
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5"><path strokeLinecap="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           Start a discussion
         </button>

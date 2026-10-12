@@ -22,7 +22,6 @@ function Overlay({ onClose }) {
       className="fixed inset-0 bg-black/40 z-40"
       onClick={onClose}
       aria-hidden="true"
-      style={{ backdropFilter: 'blur(8px) saturate(150%)', WebkitBackdropFilter: 'blur(8px) saturate(150%)' }}
     />
   );
 }
@@ -35,8 +34,8 @@ export default function BottomSheet({ open, onClose, title, children, wide }) {
       <Overlay onClose={onClose} />
       <div
         className={cn(
-          'fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 flex flex-col',
-          'md:inset-0 md:m-auto md:rounded-2xl md:h-fit',
+          'fixed bottom-0 left-0 right-0 bg-white rounded-t-lg z-50 flex flex-col',
+          'md:inset-0 md:m-auto md:rounded-lg md:h-fit',
           wide ? 'md:max-w-2xl' : 'md:max-w-sm'
         )}
       >

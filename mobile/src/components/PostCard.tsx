@@ -2,6 +2,7 @@
 import {
   View, Text, Image, StyleSheet, TextInput, Modal,
   FlatList, ActivityIndicator, Alert, Pressable, ScrollView, Dimensions, Share, Animated, useWindowDimensions, PanResponder, Linking,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ripple } from './Ripple';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
@@ -30,6 +31,15 @@ import { getFollowStatusAPI, followAPI, friendAPI } from '../api/users';
 import { SnapVideoPlayer } from '../screens/snaps/SnapsScreen';
 
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
+
+// View count formatting: 999, 1.2K, 1.5M
+const fmtViews = (n: number): string => {
+  const v = Number(n) || 0;
+  if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(v);
+};
+
 function getScreenDims() {
   const { width, height } = Dimensions.get('window');
   return { SCREEN_WIDTH: width || 390, SCREEN_HEIGHT: height || 800 };
@@ -1022,7 +1032,14 @@ const PostCard = React.memo(function PostCard({
   }
 
   return (
-    <View style={[s.card, { backgroundColor: colors.card, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' }]}>
+    <Ripple
+      style={[s.card, { backgroundColor: colors.card, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)' }]}
+      // Whole-card tap opens the post. Children with their own onPress (like,
+      // comment, menu, media, poll…) win the responder, so they keep working.
+      // `hideHeader` marks the PostDetail screen itself — pushing it again
+      // would stack a duplicate.
+      onPress={hideHeader ? undefined : () => navigate(`/post/${post.id}`)}
+    >
       {/* Header */}
       {!hideHeader && (
         <PostHeaderRow post={post} onNegativeSignal={onNegativeSignal} onBlocked={onBlocked} />
@@ -1098,14 +1115,18 @@ const PostCard = React.memo(function PostCard({
 
         <View style={[s.actionBtn, { marginLeft: 'auto' }]}>
           <Ionicons name="eye-outline" size={18} color={colors.textSecondary} />
-          <Text style={[s.actionCount, { color: colors.textSecondary }]}>{post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0)}</Text>
+          <Text style={[s.actionCount, { color: colors.textSecondary }]}>{fmtViews(post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0))}</Text>
         </View>
       </View>
 
       {/* Comment modal */}
       <Modal visible={showCommentField && !!username} transparent animationType="fade" onRequestClose={() => setShowCommentField(false)}>
         <Ripple style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }} activeOpacity={1} onPress={() => setShowCommentField(false)}>
-          <Ripple activeOpacity={1} onPress={() => { }} style={{ width: '90%', maxHeight: '80%', backgroundColor: isDark ? '#1e293b' : '#fff', borderRadius: 16, padding: 20 }}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ width: '90%', maxHeight: '80%' }}
+          >
+            <Ripple activeOpacity={1} onPress={() => { }} style={{ width: '100%', backgroundColor: isDark ? '#1e293b' : '#fff', borderRadius: 16, padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <Text style={{ fontWeight: '700', fontSize: 16, color: colors.textPrimary }}>Add comment</Text>
               <Ripple onPress={() => setShowCommentField(false)}>
@@ -1137,7 +1158,8 @@ const PostCard = React.memo(function PostCard({
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Post</Text>
               </Ripple>
             </View>
-          </Ripple>
+            </Ripple>
+          </KeyboardAvoidingView>
         </Ripple>
       </Modal>
       <StickerPicker
@@ -1166,7 +1188,7 @@ const PostCard = React.memo(function PostCard({
       {lightboxIdx !== null && post.media && (
         <MediaLightbox media={post.media} startIndex={lightboxIdx} onClose={() => setLightboxIdx(null)} />
       )}
-    </View>
+    </Ripple>
   );
 });
 

@@ -13,6 +13,7 @@ export default function Sidebar() {
   const [profile, setProfile] = useState(null);
   const [unread, setUnread] = useState(null);
   const [loudaUnread, setLoudaUnread] = useState(0);
+  const [discUnread, setDiscUnread] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [savedAccounts, setSavedAccounts] = useState([]);
@@ -104,13 +105,44 @@ export default function Sidebar() {
     apiFetch(`/profile/${user}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : {}).then(setProfile).catch(() => setProfile({}));
   }, []);
 
+  // Discussion unread badge: one fetch on mount + live socket deltas
+  useEffect(() => {
+    const user = localStorage.getItem('currentUser');
+    if (!user) return;
+    const fetchDisc = () => {
+      apiFetch(`/api/discussions-unread?username=${encodeURIComponent(user)}`, { cache: 'no-store' })
+        .then(r => (r.ok ? r.json() : { unreadCount: 0 }))
+        .then(d => setDiscUnread(d?.unreadCount || 0))
+        .catch(() => {});
+    };
+    fetchDisc();
+    const reconcile = setInterval(() => { if (!document.hidden) fetchDisc(); }, 45000);
+    const onVis = () => { if (!document.hidden) fetchDisc(); };
+    document.addEventListener('visibilitychange', onVis);
+    const sock = window.socket;
+    const onUnread = ({ delta = 1 }) => setDiscUnread(n => n + (Number(delta) || 0));
+    const onRead = () => fetchDisc();
+    if (sock) {
+      sock.on('discussion_unread', onUnread);
+      sock.on('discussion_read', onRead);
+    }
+    return () => {
+      clearInterval(reconcile);
+      document.removeEventListener('visibilitychange', onVis);
+      if (sock) {
+        sock.off('discussion_unread', onUnread);
+        sock.off('discussion_read', onRead);
+      }
+    };
+  }, []);
+
   const currentPath = window.location.pathname;
 
   const navItems = [
     { Icon: NavIcons.Feed, label: 'Feed', badge: null, to: '/' },
     { Icon: NavIcons.Snaps, label: 'Snaps', badge: null, to: '/snaps' },
     { Icon: NavIcons.Search, label: 'Discover', badge: null, to: '/topsearch' },
-    { Icon: NavIcons.Discussions, label: 'Discussions', badge: null, to: '/discussions' },
+    { Icon: NavIcons.Discussions, label: 'Discussions', badge: discUnread || null, to: '/discussions' },
     ...(LIVE_STREAMING_ENABLED ? [{ Icon: NavIcons.Live, label: 'Go Live', badge: null, to: '/create-live' }] : []),
 
     { Icon: NavIcons.Messages, label: 'Messages', badge: loudaUnread || null, to: '/chats' },
@@ -124,8 +156,8 @@ export default function Sidebar() {
     return (
       <aside className="hidden md:flex flex-col h-screen sticky top-0 w-80 bg-white border-r border-gray-200">
         <div className="flex flex-col items-center justify-center h-full px-8 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mb-5">
-            <svg viewBox="0 0 24 24" className="w-8 h-8 text-blue-600 fill-none stroke-current" strokeWidth="1.5">
+          <div className="w-16 h-16 rounded-lg bg-brand-50 flex items-center justify-center mb-5">
+            <svg viewBox="0 0 24 24" className="w-8 h-8 text-brand-600 fill-none stroke-current" strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
             </svg>
           </div>
@@ -133,13 +165,13 @@ export default function Sidebar() {
           <p className="text-sm text-gray-500 mb-6 leading-relaxed">Join Africa's fastest growing social network. Post, go live, earn real money, and connect with millions.</p>
           <button
             onClick={() => window.Lexum?.navigate('/auth')}
-            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition-all active:scale-[0.97]"
+            className="w-full py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold transition-all active:scale-[0.97]"
           >
             Create account
           </button>
           <p className="text-xs text-gray-400 mt-3">
             Already have an account?{' '}
-            <button onClick={() => window.Lexum?.navigate('/auth')} className="text-blue-600 font-semibold hover:underline">Log in</button>
+            <button onClick={() => window.Lexum?.navigate('/auth')} className="text-brand-600 font-semibold hover:underline">Log in</button>
           </p>
         </div>
       </aside>
@@ -148,7 +180,7 @@ export default function Sidebar() {
 
   if (!profile || unread === null) {
     return (
-      <aside className={cn('hidden md:flex flex-col h-screen milky-glass border-r border-gray-200/50 overflow-y-auto', collapsed ? 'w-20' : 'w-64')}>
+      <aside className={cn('hidden md:flex flex-col h-screen panel-solid border-r border-gray-200/50 overflow-y-auto', collapsed ? 'w-20' : 'w-64')}>
         <div className="p-4 space-y-3">
           <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse" />
           {!collapsed && <>
@@ -170,11 +202,11 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className={cn('hidden md:flex flex-col h-screen milky-glass border-r border-gray-200/50 overflow-y-auto sticky top-0 transition-[width] duration-300', collapsed ? 'w-20' : 'w-64')}>
+      <aside className={cn('hidden md:flex flex-col h-screen panel-solid border-r border-gray-200/50 overflow-y-auto sticky top-0 transition-[width] duration-300', collapsed ? 'w-20' : 'w-64')}>
         {/* Header */}
         <div className={cn('flex items-center px-4 pt-4 pb-2', collapsed ? 'justify-center' : 'justify-between')}>
           {!collapsed && <button onClick={() => window.Lexum?.navigate('/')} className="text-sm font-bold text-gray-900 tracking-tight active:scale-95 transition-transform">Textmob</button>}
-          <button onClick={() => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem('sidebar-collapsed', JSON.stringify(next)); } catch { } }} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+          <button onClick={() => { const next = !collapsed; setCollapsed(next); try { localStorage.setItem('sidebar-collapsed', JSON.stringify(next)); } catch { } }} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d={collapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7'} />
             </svg>
@@ -183,7 +215,7 @@ export default function Sidebar() {
 
         {/* Profile dropdown */}
         <div className={cn('relative px-3 pb-4', collapsed ? 'flex justify-center' : '')}>
-          <button onClick={() => setMenuOpen(v => !v)} className={cn('flex items-center gap-2 w-full rounded-2xl px-2 py-2 hover:bg-gray-50 transition-colors', collapsed ? 'justify-center p-0 hover:bg-transparent' : '')}>
+          <button onClick={() => setMenuOpen(v => !v)} className={cn('flex items-center gap-2 w-full rounded-lg px-2 py-2 hover:bg-gray-50 transition-colors', collapsed ? 'justify-center p-0 hover:bg-transparent' : '')}>
             <img src={pic} alt={name} className="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-gray-200" loading="lazy" />
             {!collapsed && <>
               <div className="flex-1 min-w-0 text-left">
@@ -199,7 +231,7 @@ export default function Sidebar() {
           {menuOpen && (
             <div
               ref={menuRef}
-              className="absolute left-2 right-2 top-[calc(100%-4px)] z-50 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-2xl overflow-hidden shadow-xl"
+              className="absolute left-2 right-2 top-[calc(100%-4px)] z-50 bg-white/95 border border-gray-200/50 rounded-lg overflow-hidden shadow-xl"
               role="menu"
             >
               {showAccountSwitcher ? (
@@ -216,10 +248,10 @@ export default function Sidebar() {
                         {acc.profile_pic ? (
                           <img src={acc.profile_pic} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 border border-gray-100" loading="lazy" />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">{acc.username.slice(0, 2).toUpperCase()}</div>
+                          <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-xs shrink-0">{acc.username.slice(0, 2).toUpperCase()}</div>
                         )}
                         <span className="font-semibold flex-1 truncate">@{acc.username}</span>
-                        <span className="text-blue-600 text-xs font-bold">Switch</span>
+                        <span className="text-brand-600 text-xs font-bold">Switch</span>
                       </button>
                       <button
                         onClick={() => removeSavedAccount(acc.username)}
@@ -272,8 +304,8 @@ export default function Sidebar() {
           {navItems.map(({ Icon, label, badge, to }) => {
             const active = to === '/' ? currentPath === '/' : currentPath.startsWith(to);
             return (
-              <a href={to} data-lexum={true} className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors', active ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')} title={collapsed ? label : undefined} key={label}>
-                <Icon className={cn('w-5 h-5 flex-shrink-0', active ? 'text-blue-600' : 'text-gray-400')} />
+              <a href={to} data-lexum={true} className={cn('flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors', active ? 'bg-brand-50 text-brand-600 font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900')} title={collapsed ? label : undefined} key={label}>
+                <Icon className={cn('w-5 h-5 flex-shrink-0', active ? 'text-brand-600' : 'text-gray-400')} />
                 {!collapsed && <span className="flex-1 truncate">{label}</span>}
                 {!collapsed && badge != null && badge > 0 && <span className="ml-auto text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 leading-none">{badge > 99 ? '99+' : badge}</span>}
                 {collapsed && badge != null && badge > 0 && <span className="absolute right-2.5 top-1.5 w-2 h-2 bg-red-500 rounded-full" />}
@@ -287,7 +319,7 @@ export default function Sidebar() {
           <button
             onClick={() => setCreateMenuOpen(prev => !prev)}
             className={cn(
-              "w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl active:scale-[0.98] transition-all shadow-md shadow-blue-500/10",
+              "w-full flex items-center justify-center gap-2 py-3 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-lg active:scale-[0.98] transition-all shadow-md shadow-brand-500/10",
               collapsed ? "w-12 h-12 p-0 mx-auto rounded-full" : ""
             )}
             title={collapsed ? "Create" : undefined}
@@ -300,14 +332,14 @@ export default function Sidebar() {
 
           {createMenuOpen && (
             <div
-              className={cn("absolute z-50 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-2xl overflow-hidden shadow-2xl w-48 bottom-full mb-2", collapsed ? "left-2" : "left-3 right-3")}
+              className={cn("absolute z-50 bg-white/95 border border-gray-200/50 rounded-lg overflow-hidden shadow-2xl w-48 bottom-full mb-2", collapsed ? "left-2" : "left-3 right-3")}
               style={{ animation: 'sheetSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
             >
               <button
                 onClick={() => { setCreateMenuOpen(false); window.Lexum?.navigate('/make-post'); }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold border-b border-gray-100"
               >
-                <NavIcons.Edit className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                <NavIcons.Edit className="w-4 h-4 text-brand-500 flex-shrink-0" />
                 <span>Create Post</span>
               </button>
               {LIVE_STREAMING_ENABLED && (
@@ -330,7 +362,7 @@ export default function Sidebar() {
                 onClick={() => { setCreateMenuOpen(false); window.Lexum?.navigate('/discussions'); }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left font-semibold"
               >
-                <NavIcons.Discussions className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                <NavIcons.Discussions className="w-4 h-4 text-brand-500 flex-shrink-0" />
                 <span>Discussions</span>
               </button>
             </div>

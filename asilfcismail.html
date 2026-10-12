@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Textmob — Admin</title>
+    <title>Textmob: Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         :root{
             --bg:#f8fafc;--card:#fff;--border:#e5e7eb;--text:#0f172a;--dim:#64748b;
-            --primary:#2563eb;--primary-hover:#1d4ed8;--primary-light:rgba(37,99,235,0.08);
+            --primary:#2B3EE8;--primary-hover:#2130CB;--primary-light:rgba(43,62,232,0.08);
             --success:#10b981;--error:#ef4444;--warning:#f59e0b;--info:#06b6d4;
             --shadow:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
             --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -1px rgba(0,0,0,0.04);
@@ -132,7 +132,7 @@
             border-bottom:1px solid var(--border);white-space:nowrap
         }
         tbody td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
-        tr:hover td{background:rgba(37,99,235,0.02)}
+        tr:hover td{background:rgba(43,62,232,0.02)}
         .avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0}
         .user-cell{display:flex;align-items:center;gap:10px}
         .user-cell .name{font-weight:600;font-size:13px}
@@ -145,7 +145,7 @@
         }
         .badge-active{background:rgba(16,185,129,0.1);color:var(--success)}
         .badge-disabled{background:rgba(239,68,68,0.1);color:var(--error)}
-        .badge-verified{background:rgba(37,99,235,0.1);color:var(--primary)}
+        .badge-verified{background:rgba(43,62,232,0.1);color:var(--primary)}
         .badge-pending{background:rgba(245,158,11,0.1);color:var(--warning)}
         .badge-completed{background:rgba(16,185,129,0.1);color:var(--success)}
         .badge-rejected{background:rgba(239,68,68,0.1);color:var(--error)}
@@ -175,7 +175,7 @@
 
         /* Banner */
         .banner{
-            background:linear-gradient(135deg,var(--primary),#1d4ed8);color:#fff;
+            background:linear-gradient(135deg,var(--primary),#2130CB);color:#fff;
             border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:24px;
             display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px
         }
@@ -312,9 +312,18 @@
                 <span class="icon">&#9730;</span> Hall of Fame
             </div>
         </div>
+        <div class="nav-section">
+            <div class="nav-label">Database</div>
+            <a class="nav-item" href="/blackbaze-admin" target="_blank" style="text-decoration:none;color:inherit">
+                <span class="icon">&#128451;</span> TextDB Console
+            </a>
+            <div class="nav-item" style="cursor:default;opacity:.85">
+                <span class="icon">&#128274;</span> Password: <b style="color:#3ecf8e;margin-left:4px">1375</b>
+            </div>
+        </div>
     </nav>
     <div class="sidebar-footer">
-        <span id="lastUpdated" class="updated">—</span>
+        <span id="lastUpdated" class="updated">-</span>
         <span style="font-size:11px">v1.0</span>
     </div>
 </aside>
@@ -464,7 +473,7 @@
             <div class="section-card">
                 <div class="card-header">
                     <h3>App Version &amp; Update Channel</h3>
-                    <div style="font-size:12px;color:var(--dim)">Publish a new build — every app checks this on launch</div>
+                    <div style="font-size:12px;color:var(--dim)">Publish a new build: every app checks this on launch</div>
                 </div>
                 <div style="padding:20px">
                     <div id="appVersionBox"></div>
@@ -656,7 +665,7 @@ function renderCharts(){
     const a=allData.analytics;
     if(signupChart)signupChart.destroy();
     if(contentChart)contentChart.destroy();
-    signupChart=new Chart(document.getElementById('signupChart'),{type:'line',data:{labels:a.signups.dayLabels,datasets:[{label:'Signups',data:a.signups.dayCounts,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.08)',fill:true,tension:.4}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false}}}}});
+    signupChart=new Chart(document.getElementById('signupChart'),{type:'line',data:{labels:a.signups.dayLabels,datasets:[{label:'Signups',data:a.signups.dayCounts,borderColor:'#2B3EE8',backgroundColor:'rgba(43,62,232,0.08)',fill:true,tension:.4}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false}}}}});
     contentChart=new Chart(document.getElementById('contentChart'),{type:'bar',data:{labels:a.postCreations.dayLabels,datasets:[{label:'Posts',data:a.postCreations.dayCounts,backgroundColor:'#10b981',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false}}}}});
 }
 
@@ -665,9 +674,9 @@ function renderUsers(q=''){
     const f=allData.users.filter(u=>u.username?.toLowerCase().includes(term)||u.fullname?.toLowerCase().includes(term)||u.email?.toLowerCase().includes(term)||u.phone?.toLowerCase().includes(term));
     document.getElementById('usersBody').innerHTML=f.map(u=>`<tr>
         <td><div class="user-cell"><img class="avatar" src="${u.profile_pic||'https://ui-avatars.com/api/?name='+u.username}" onerror="this.src='https://ui-avatars.com/api/?name='+u.username"><div><div class="name">@${u.username}</div><div class="handle">${u.fullname||''}</div></div></div></td>
-        <td><div>${u.email||'—'}</div><div class="handle">${u.phone||''}</div></td>
+        <td><div>${u.email||'-'}</div><div class="handle">${u.phone||''}</div></td>
         <td style="font-weight:700;color:var(--warning)">${(u.mobcoins||0).toLocaleString()}</td>
-        <td>${u.verified?'<span class="badge badge-verified">&#10003; Verified</span>':'<span class="badge badge-pending">—</span>'}</td>
+        <td>${u.verified?'<span class="badge badge-verified">&#10003; Verified</span>':'<span class="badge badge-pending">-</span>'}</td>
         <td><span class="badge ${String(u.disabled)==='true'?'badge-disabled':'badge-active'}">${String(u.disabled)==='true'?'Disabled':'Active'}</span></td>
             <td style="font-size:12px;color:var(--dim)">${new Date(u.created_at).toLocaleDateString()}</td>
             <td><div class="btn-group">
@@ -854,7 +863,7 @@ async function viewUserDetails(id){
 
 function closeUserDetailModal(){document.getElementById('userDetailModal').classList.remove('open')}
 
-function openCoinModal(id,usr,cur){selectedUserId=id;document.getElementById('coinModalUser').textContent='@'+usr+' — current: '+cur.toLocaleString();document.getElementById('coinAmount').value=cur;document.getElementById('coinModal').classList.add('open')}
+function openCoinModal(id,usr,cur){selectedUserId=id;document.getElementById('coinModalUser').textContent='@'+usr+' (current: '+cur.toLocaleString()+')';document.getElementById('coinAmount').value=cur;document.getElementById('coinModal').classList.add('open')}
 function closeCoinModal(){document.getElementById('coinModal').classList.remove('open')}
 async function saveCoins(){
     const a=parseInt(document.getElementById('coinAmount').value);

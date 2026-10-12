@@ -9,6 +9,7 @@ import {
 import RenderHTML from 'react-native-render-html';
 import sanitizeHtml from 'sanitize-html';
 import { useLoudaTheme } from './primitives';
+import { rnrhDefaultProps } from '../../components/rnrhDefaults';
 
 // Renders parseRichText() output for message bubbles (web used
 // dangerouslySetInnerHTML inside .markdown-content). Links open externally,
@@ -166,6 +167,7 @@ function TableBlock({
                 }}
               >
                 <RenderHTML
+                  {...rnrhDefaultProps}
                   contentWidth={180}
                   source={{ html: `<body>${cell}</body>` }}
                   tagsStyles={cellStyles as any}
@@ -300,6 +302,7 @@ export function RichText({
   if (parts.length === 1 && parts[0].kind === 'html') {
     return (
       <RenderHTML
+        {...rnrhDefaultProps}
         contentWidth={width}
         source={{ html: `<body>${parts[0].html}</body>` }}
         tagsStyles={tagsStyles as any}
@@ -318,6 +321,7 @@ export function RichText({
         ) : (
           <RenderHTML
             key={i}
+            {...rnrhDefaultProps}
             contentWidth={width}
             source={{ html: `<body>${part.html}</body>` }}
             tagsStyles={tagsStyles as any}

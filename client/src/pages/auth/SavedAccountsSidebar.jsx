@@ -8,7 +8,7 @@ export default function SavedAccountsSidebar({ accounts, onLogin, onRemove }) {
       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1 mb-1">Saved accounts</p>
       {accounts.map((a) => (
         <div key={a.username} onClick={() => onLogin(a.username, a.password)}
-          className="group flex items-center gap-3 px-3 py-2.5 rounded-2xl border border-gray-100 bg-white hover:border-blue-200 hover:bg-blue-50 active:scale-[0.98] transition-colors cursor-pointer">
+          className="group flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 bg-white hover:border-brand-200 hover:bg-brand-50 active:scale-[0.98] transition-colors cursor-pointer">
           <img src={a.profile_pic || DEFAULT_PIC} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-100 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-gray-800 truncate">@{a.username}</p>

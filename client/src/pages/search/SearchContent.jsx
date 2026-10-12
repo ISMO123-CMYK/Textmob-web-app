@@ -63,7 +63,7 @@ function HighlightMatch({ text, query }) {
   return (
     <span>
       {strText.slice(0, idx)}
-      <span className="text-blue-600 font-bold">{strText.slice(idx, idx + strQuery.length)}</span>
+      <span className="text-brand-600 font-bold">{strText.slice(idx, idx + strQuery.length)}</span>
       {strText.slice(idx + strQuery.length)}
     </span>
   );
@@ -267,7 +267,7 @@ export default function SearchContent() {
         </div>
         <div className="flex items-center gap-2 mb-5">
           <div className="relative flex-1 min-w-0">
-            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border transition-colors ${focused ? 'border-blue-500 bg-white' : 'border-gray-200 bg-gray-50'}`}>
+            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors ${focused ? 'border-brand-500 bg-white' : 'border-gray-200 bg-gray-50'}`}>
               <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-400 flex-shrink-0 fill-none stroke-current" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" /></svg>
               <input
                 ref={inputRef}
@@ -294,11 +294,11 @@ export default function SearchContent() {
               )}
             </div>
             {isDropdownVisible && (
-              <div ref={dropdownRef} className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-2xl border border-gray-200 overflow-y-auto max-h-[70vh] scrollbar-thin" role="listbox">
+              <div ref={dropdownRef} className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-lg border border-gray-200 overflow-y-auto max-h-[70vh] scrollbar-thin" role="listbox">
                 {!query.trim() && history.length > 0 && (
                   <div className="flex items-center justify-between px-4 py-2.5">
                     <span className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Recent</span>
-                    <button onClick={handleClearAllHistory} className="text-xs font-semibold text-blue-500 hover:text-blue-600 transition-colors">Clear all</button>
+                    <button onClick={handleClearAllHistory} className="text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors">Clear all</button>
                   </div>
                 )}
                 {query.trim() && loadingSuggestions && (
@@ -325,7 +325,7 @@ export default function SearchContent() {
                       role="option"
                       aria-selected={isSelected}
                       onClick={() => handleSuggestionClick(suggestionText)}
-                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                      className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${isSelected ? 'bg-brand-50' : 'hover:bg-gray-50'}`}
                       key={isStr ? n : n.username || String(r)}
                     >
                       {isStr ? (
@@ -339,8 +339,8 @@ export default function SearchContent() {
                           </div>
                         )
                       ) : n.type === 'hashtag' ? (
-                        <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0">
-                          <span className="text-blue-500 font-black text-sm leading-none">#</span>
+                        <div className="w-8 h-8 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0">
+                          <span className="text-brand-500 font-black text-sm leading-none">#</span>
                         </div>
                       ) : n.type === 'mention' ? (
                         <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center flex-shrink-0">
@@ -417,7 +417,7 @@ export default function SearchContent() {
           </div>
           <button
             onClick={() => runSearch(query)}
-            className="flex-shrink-0 w-11 h-11 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.96] transition-colors flex items-center justify-center"
+            className="flex-shrink-0 w-11 h-11 rounded-lg bg-brand-600 hover:bg-brand-700 active:scale-[0.96] transition-colors flex items-center justify-center"
             aria-label="Run search"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2.5"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" /></svg>
@@ -430,7 +430,7 @@ export default function SearchContent() {
 
             {/* Recent Searches */}
             {history.length > 0 && (
-              <div className="bg-gray-50 rounded-2xl p-4">
+              <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[11px] font-black uppercase tracking-wider text-gray-400">Recent Searches</span>
                   <button onClick={handleClearAllHistory} className="text-xs font-bold text-red-400 hover:text-red-500 transition-colors">Clear All</button>
@@ -440,7 +440,7 @@ export default function SearchContent() {
                     <div
                       key={idx}
                       onClick={() => handleSuggestionClick(item)}
-                      className="group flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer text-xs font-semibold text-gray-700 active:scale-95 transition-all"
+                      className="group flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-100 border border-gray-200 rounded-lg cursor-pointer text-xs font-semibold text-gray-700 active:scale-95 transition-all"
                     >
                       <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-gray-400 fill-none stroke-current" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" /></svg>
                       <span className="truncate max-w-[120px]">{item}</span>
@@ -459,9 +459,9 @@ export default function SearchContent() {
 
 
             {/* Discussions promo banner */}
-            <div className="rounded-3xl p-5 bg-gradient-to-br from-blue-50 via-white to-gray-50 border border-blue-100/80 shadow-sm">
+            <div className="rounded-lg p-5 bg-gradient-to-br from-brand-50 via-white to-gray-50 border border-brand-100/80 shadow-sm">
               <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 shrink-0 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25">
+                <div className="w-11 h-11 shrink-0 rounded-lg bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-500/25">
                   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 12c0 4.552-3.653 8.25-8.17 8.25a9.6 9.6 0 01-2.6-.35L5.25 21l1.2-3.51a7.94 7.94 0 01-1.68-4.86C4.77 7.92 8.42 4.5 12.84 4.5c4.517 0 8.16 3.698 8.16 7.5z" /></svg>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -469,7 +469,7 @@ export default function SearchContent() {
                   <p className="text-xs text-gray-500 mt-1 leading-relaxed">Jump into live rooms, community chats and topic debates.</p>
                   <button
                     onClick={() => (window.Lexum && window.Lexum.navigate ? window.Lexum.navigate('/discussions') : (window.location.hash = '/discussions'))}
-                    className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95 shadow-sm shadow-blue-500/20"
+                    className="mt-3 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-sm shadow-brand-500/20"
                   >
                     Go to Discussions
                   </button>
@@ -481,7 +481,7 @@ export default function SearchContent() {
 
         {/* Loading Skeletons */}
         {loadingResults && (
-          <div className="rounded-2xl overflow-hidden">
+          <div className="rounded-lg overflow-hidden">
             {[0, 1, 2, 3, 4].map(e => (
               <div className="flex items-center gap-3 px-4 py-3" key={e}>
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex-shrink-0" />
@@ -497,7 +497,7 @@ export default function SearchContent() {
 
         {/* Error State */}
         {error && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-2xl">
+          <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg">
             <svg viewBox="0 0 24 24" className="w-4 h-4 text-red-400 fill-none stroke-current flex-shrink-0" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
             <p className="text-sm text-red-500">{error}</p>
           </div>
@@ -513,16 +513,16 @@ export default function SearchContent() {
             ].map(tab => (
               <button
                 onClick={() => setActiveTab(tab.key)}
-                className={`relative px-4 py-3 text-sm font-bold transition-colors ${activeTab === tab.key ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`relative px-4 py-3 text-sm font-bold transition-colors ${activeTab === tab.key ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}
                 key={tab.key}
               >
                 {tab.label}
                 {tab.count > 0 && (
-                  <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+                  <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-brand-50 text-brand-600' : 'bg-gray-100 text-gray-400'}`}>
                     {tab.count}
                   </span>
                 )}
-                {activeTab === tab.key && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-blue-600 rounded-full block" />}
+                {activeTab === tab.key && <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-brand-600 rounded-full block" />}
               </button>
             ))}
           </div>
@@ -531,7 +531,7 @@ export default function SearchContent() {
         {/* No Results State */}
         {searched && !loadingResults && !error && searchResults.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+            <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mb-4">
               <svg viewBox="0 0 24 24" className="w-7 h-7 text-gray-400 fill-none stroke-current" strokeWidth="1.5"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" /></svg>
             </div>
             <p className="text-sm font-bold text-gray-700 mb-1">No results for "{query}"</p>
@@ -541,7 +541,7 @@ export default function SearchContent() {
 
         {/* Users Results list tab */}
         {!loadingResults && activeTab === 'users' && usersResults.length > 0 && (
-          <div className="rounded-2xl overflow-hidden bg-gray-50">
+          <div className="rounded-lg overflow-hidden bg-gray-50">
             {usersResults.map((t, idx) => {
               let isOrg = (t.profile_type || '').toLowerCase() === 'organisation';
               let isConnected = t.relation === 'following' || t.relation === 'friended';
@@ -560,7 +560,7 @@ export default function SearchContent() {
                       <p className="text-sm font-bold text-gray-900 truncate leading-snug">
                         <HighlightMatch text={t.fullname || t.username} query={query} />
                       </p>
-                      {isOrg && <span className="text-[9px] font-bold text-blue-500 border border-blue-200 px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">ORG</span>}
+                      {isOrg && <span className="text-[9px] font-bold text-brand-500 border border-brand-200 px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">ORG</span>}
                     </div>
                     <p className="text-xs text-gray-400 truncate">@{<HighlightMatch text={t.username} query={query} />}</p>
                     {t.biography && <p className="text-xs text-gray-400 truncate">{t.biography}</p>}
@@ -570,7 +570,7 @@ export default function SearchContent() {
                       e.stopPropagation();
                       handleRelationChange(t.username, actionName, t.profile_type);
                     }}
-                    className={`flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${isConnected ? 'bg-gray-200 text-gray-600' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                    className={`flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${isConnected ? 'bg-gray-200 text-gray-600' : 'bg-brand-600 text-white hover:bg-brand-700'}`}
                   >
                     {buttonText}
                   </button>
@@ -582,14 +582,14 @@ export default function SearchContent() {
 
         {/* Posts Results list tab */}
         {!loadingResults && activeTab === 'posts' && postsResults.length > 0 && (
-          <div className="rounded-2xl overflow-hidden bg-gray-50">
+          <div className="rounded-lg overflow-hidden bg-gray-50">
             <HomeFeed propPosts={postsResults} />
           </div>
         )}
 
         {/* Discussions Results list tab */}
         {!loadingResults && activeTab === 'discussions' && discussionsResults.length > 0 && (
-          <div className="rounded-2xl overflow-hidden bg-gray-50">
+          <div className="rounded-lg overflow-hidden bg-gray-50">
             {discussionsResults.map(d => (
               <a
                 href={`/discussions/${d.id}`}
@@ -597,7 +597,7 @@ export default function SearchContent() {
                 className="flex items-center gap-3 px-4 py-3 hover:bg-gray-100 transition-colors"
                 key={d.id}
               >
-                <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 text-base font-bold text-gray-400">#</div>
+                <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 text-base font-bold text-gray-400">#</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-gray-900 truncate leading-snug">
                     <HighlightMatch text={d.title || 'Untitled discussion'} query={query} />
@@ -605,7 +605,7 @@ export default function SearchContent() {
                   <p className="text-xs text-gray-400 truncate">@{d.host_username} · {d.participant_count || 0} members</p>
                 </div>
                 {d.status === 'live' ? (
-                  <span className="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full flex-shrink-0">LIVE</span>
+                  <span className="px-2 py-1 bg-brand-50 text-brand-600 text-[10px] font-bold rounded-full flex-shrink-0">LIVE</span>
                 ) : (
                   <span className="text-[10px] text-gray-300 flex-shrink-0">{d.category || 'discussion'}</span>
                 )}

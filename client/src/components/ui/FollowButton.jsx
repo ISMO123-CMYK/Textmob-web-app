@@ -80,7 +80,7 @@ export default function FollowButton({ targetUsername, currentUsername, onUpdate
  ? 'bg-gray-100 text-gray-400 cursor-wait'
  : status === 'friended' || status === 'following'
  ? 'bg-gray-100 text-gray-700 '
- : 'bg-blue-600 text-white hover:bg-blue-700'
+ : 'bg-brand-600 text-white hover:bg-brand-700'
  )}
  >
  {submitting ? 'Wait...' : label}

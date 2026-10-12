@@ -283,7 +283,7 @@ function Ur({
     const Component1911 = `path`;
     const Component1912 = `svg`;
     const Component1913 = `div`;
-    return <Component1913 className={`flex justify-center items-center p-6`}><Component1912 className={`animate-spin w-8 h-8 text-blue-600`} viewBox={`0 0 24 24`} fill={`none`}><Component1910 className={`opacity-25`} cx={`12`} cy={`12`} r={`10`} stroke={`currentColor`} strokeWidth={`4`} /><Component1911 className={`opacity-75`} fill={`currentColor`} d={`M4 12a8 8 0 018-8v8H4z`} /></Component1912></Component1913>;
+    return <Component1913 className={`flex justify-center items-center p-6`}><Component1912 className={`animate-spin w-8 h-8 text-brand-600`} viewBox={`0 0 24 24`} fill={`none`}><Component1910 className={`opacity-25`} cx={`12`} cy={`12`} r={`10`} stroke={`currentColor`} strokeWidth={`4`} /><Component1911 className={`opacity-75`} fill={`currentColor`} d={`M4 12a8 8 0 018-8v8H4z`} /></Component1912></Component1913>;
   } else if (a) {
     const Component1914 = `div`;
     return <Component1914 className={`p-6 text-center text-sm text-red-500`}>{a}</Component1914>;
@@ -357,6 +357,6 @@ function Wr({
   const Component1923 = `button`;
   const Component1924 = `div`;
   const Component1925 = `div`;
-  return <Component1925 className={`flex items-center gap-2 relative`}><Component1921 src={localStorage.cached_profile_pic || `${hn}default-avatar`} className={`w-8 h-8 rounded-full object-cover flex-shrink-0`} alt={``} /><Component1924 className={`flex-1 flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900 transition-all relative`}><Component1922 ref={r} type={`text`} value={t} onChange={e => n(e.target.value)} onKeyDown={d} placeholder={`Write a comment…`} className={`flex-1 bg-transparent text-sm outline-none placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-200`} /><_n items={i} onSelect={u} activeIndex={o} />{t.trim() && <Component1923 onClick={f} className={`text-blue-600 dark:text-blue-400 font-bold text-xs flex-shrink-0`}>{`Post`}</Component1923>}</Component1924></Component1925>;
+  return <Component1925 className={`flex items-center gap-2 relative`}><Component1921 src={localStorage.cached_profile_pic || `${hn}default-avatar`} className={`w-8 h-8 rounded-full object-cover flex-shrink-0`} alt={``} /><Component1924 className={`flex-1 flex items-center bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-brand-100 dark:focus-within:ring-brand-900 transition-all relative`}><Component1922 ref={r} type={`text`} value={t} onChange={e => n(e.target.value)} onKeyDown={d} placeholder={`Write a comment…`} className={`flex-1 bg-transparent text-sm outline-none placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-gray-200`} /><_n items={i} onSelect={u} activeIndex={o} />{t.trim() && <Component1923 onClick={f} className={`text-brand-600 dark:text-brand-400 font-bold text-xs flex-shrink-0`}>{`Post`}</Component1923>}</Component1924></Component1925>;
 }
 function Gr

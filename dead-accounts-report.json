@@ -1,0 +1,2205 @@
+{
+  "generatedAt": "2026-10-10T19:36:24.385Z",
+  "inactiveDays": 365,
+  "totals": {
+    "users": 337,
+    "postsScanned": 3194,
+    "activeOrRecentlyCreated": 211,
+    "fake": 18,
+    "inactive": 105,
+    "alreadyDisabled": 3
+  },
+  "fakeAccounts": [
+    {
+      "id": "5c8f0d5c-fa57-4072-bc9c-eed6b45084bd",
+      "username": "michealcordata",
+      "fullname": "Michealcordata",
+      "email": "mickeal@cordata.com",
+      "created_at": "2026-09-16T12:06:33.394623",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "e16b706e-ba88-424d-a2a7-fb2056c505db",
+      "username": "trojan",
+      "fullname": "Trojan",
+      "email": "ferorizzy@gmail.com",
+      "created_at": "2026-10-02T07:44:48.939251",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "b444751a-5d2f-4e7f-912b-fb2aea72f754",
+      "username": "elizabethlinda",
+      "fullname": "Elizabeth linda",
+      "email": "joneelizabeth550@gmail.com",
+      "created_at": "2026-09-14T00:36:04.835109",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "fdf00510-0c4e-47f7-b219-483523d5be08",
+      "username": "rahmy_xoxo",
+      "fullname": "Motunrayo",
+      "email": "kazeemrahmah@gmail.com",
+      "created_at": "2026-09-14T07:15:10.132391",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "b0c32b11-d0c1-4943-9798-5790941508f2",
+      "username": "glencurtiss",
+      "fullname": "Glen curtiss",
+      "email": "davidboluwatife376@gmail.com",
+      "created_at": "2026-08-26T16:47:19.019143",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "25969bca-da3e-4799-8165-03514a591d76",
+      "username": "wablex",
+      "fullname": "Olawale garuba",
+      "email": "olawalegaruba2@gmail.com",
+      "created_at": "2026-09-11T14:25:58.507824",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "82fa0907-f4b4-421c-bc14-1110ff91d269",
+      "username": "clararegan",
+      "fullname": "Clara Regan",
+      "email": "adolfanderson001@gmail.co",
+      "created_at": "2026-09-23T12:54:48.498985",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "e4cbcb1f-73b9-4096-a433-4851f727566a",
+      "username": "opeyemi",
+      "fullname": "Adeshina Opeyemi",
+      "email": "opeyemiolamide882@gmail.com",
+      "created_at": "2026-09-07T10:22:14.849017",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "8acb8be5-0386-4c69-be2b-98398098603c",
+      "username": "alex",
+      "fullname": "Alex",
+      "email": "alexanderalexmiracle@gmail.com",
+      "created_at": "2026-10-08T19:05:39.164093",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "5a835147-4023-4a83-85df-5ec10ad6727c",
+      "username": "abdulmuiz",
+      "fullname": "Abdul muiz",
+      "email": "abdulwasiuabdulmuiz9@gmail.com",
+      "created_at": "2026-09-07T20:47:40.069666",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "26be1df8-59b7-4b65-a8eb-b68013bd4f79",
+      "username": "miracleihuomaeloagu",
+      "fullname": "Miracle ihuoma Eloagu",
+      "email": "eloagumiracleihuoma@gmail.com",
+      "created_at": "2026-10-09T12:37:59.27918",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "97d410d4-7fc6-4932-aa3a-2868f7f018d6",
+      "username": "michaelolojo",
+      "fullname": "Michael olojo",
+      "email": "michaelolojo471@gmail.com",
+      "created_at": "2026-10-09T20:28:36.387282",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "dc7ee006-93ef-437e-b1e0-21c3e2940e54",
+      "username": "mubarak",
+      "fullname": "Muhammed",
+      "email": "novawebsitedeveloper2000@gmail.com",
+      "created_at": "2026-10-09T15:14:26.737622",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "675307c9-9663-469c-b826-e1aa779840ab",
+      "username": "kxx",
+      "fullname": "Kîèxx🖤🤭🧕",
+      "email": "hauwaikeoluwa@gmail.com",
+      "created_at": "2026-09-05T22:17:44.39317",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "e2a27395-9d20-4bd3-b619-d3d2a8818dcf",
+      "username": "lordgidado",
+      "fullname": "Jeffrey R Gidado",
+      "email": "lordgidado@gmail.com",
+      "created_at": "2026-09-12T18:56:30.960631",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "96ce3f73-1ec5-4a5e-97da-0f254754ed46",
+      "username": "omoigberaleeseohesuc",
+      "fullname": "Omoigberale eseohe success",
+      "email": "omoigberaleeseohe6@gmail.com",
+      "created_at": "2026-10-09T17:38:49.911975",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "79f5500c-71e4-4616-bdfd-edf74a74c056",
+      "username": "aannafihi",
+      "fullname": "Abdullahi Nafiu",
+      "email": "nafiu2alabi@gmail.com",
+      "created_at": "2026-09-11T15:37:53.119232",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    },
+    {
+      "id": "9df1b47f-717b-4668-8f9d-7c86e6abdceb",
+      "username": "ononohannat",
+      "fullname": "Onono hannat",
+      "email": "ishaqonono@gmail.com",
+      "created_at": "2026-09-11T10:38:41.292249",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 0,
+      "defaultAvatar": true,
+      "reasons": [
+        "zero posts",
+        "zero followers",
+        "zero following",
+        "default avatar"
+      ]
+    }
+  ],
+  "inactiveAccounts": [
+    {
+      "id": "8f6c6e6e-ee33-4985-910a-80a1d3f3a3b1",
+      "username": "sodiqkehinde",
+      "fullname": "Sodiq kehinde",
+      "email": "sodiqkehinde050@gmail.com",
+      "created_at": "2025-09-29T22:01:00.388349",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "55b68cc6-5ead-4aca-84d5-c37b967da07e",
+      "username": "ismailyekini",
+      "fullname": "Ismail Yekini",
+      "email": "freelancer.ismailby@gmail.com",
+      "created_at": "2025-10-06T09:08:47.319288",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "c8262f03-7ae6-4628-af10-f2963ad2e286",
+      "username": "Shaadat",
+      "fullname": "Shaadat Mohammed Taofeek",
+      "email": "shaadatmohammedtaofeek@gmail.com",
+      "created_at": "2025-08-18T23:43:24.711806",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "ca762f05-7984-4bdd-9937-058de57ca182",
+      "username": "Mrtech",
+      "fullname": "Mr lucky",
+      "email": "onuegbulucky2@gmail.com",
+      "created_at": "2025-06-01T07:18:21.318817",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "e6fbd56e-068d-41c0-8083-67af623a4d6c",
+      "username": "Gbolarmighty",
+      "fullname": "Aliu gbolahan",
+      "email": "gbolarmighty137@gmail.com",
+      "created_at": "2025-08-26T11:37:37.426275",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "0dbfe926-ddf3-44df-a3e6-32c4ff8ad5f5",
+      "username": "shareenpan1",
+      "fullname": "Shareen",
+      "email": "shareendandasi@gmail.com",
+      "created_at": "2025-05-01T17:10:49.472971",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "a2bae1ee-89d6-4e79-bd1a-d20e61ad5d7c",
+      "username": "Sayyidcode",
+      "fullname": "Core Front Technologies",
+      "email": "sayyeedmuhammadyahaya@gmail.com",
+      "created_at": "2025-05-01T18:18:31.156851",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "e790a872-3cb0-4b5d-884f-2d170457139b",
+      "username": "Mujibat",
+      "fullname": "Tajudeen mujibat",
+      "email": "jimohramat79@gmail.com",
+      "created_at": "2025-08-27T06:28:16.181434",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "71e2e4a7-801f-46b6-8cab-455ecdf392a3",
+      "username": "Fatdad",
+      "fullname": "Ayinla Alowonle",
+      "email": "owolarafetaju50@gmail.com",
+      "created_at": "2025-08-05T11:07:42.803193",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": "2025-08-06T12:56:53.017Z",
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-08-06T12:56:53.017Z (> 365d)"
+      ]
+    },
+    {
+      "id": "884c3792-aa4a-443b-93fd-98c7f36f4aaf",
+      "username": "Nigga",
+      "fullname": "Rehan",
+      "email": "webwithrehan@gmail.com",
+      "created_at": "2025-05-01T10:27:46.92517",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "66b7215b-90bc-494b-8778-655bdece1eb6",
+      "username": "Kayode",
+      "fullname": "Kayode Alabi",
+      "email": "abubakarabdulrauf396@gmail.com",
+      "created_at": "2025-08-22T14:51:02.145464",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "2867e9bb-9322-464a-ade7-f2cd19df560e",
+      "username": "muhammadabdulshakuur",
+      "fullname": "muhammad abdulshakuur",
+      "email": "muhammadabdulshakuur04@gmail.com",
+      "created_at": "2025-09-24T19:49:11.618474",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "bf9b3c65-f0a3-4eca-be61-386ab7f1ef84",
+      "username": "george12",
+      "fullname": "Samuel gbenga",
+      "email": "samuelpentagon484@gmail.com",
+      "created_at": "2025-09-17T21:57:36.172453",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "e5a70255-b186-4d92-92d1-6cd2d22d5367",
+      "username": "Temidun",
+      "fullname": "Abduljelil maryam",
+      "email": "maryam@gmail.com",
+      "created_at": "2025-08-24T13:56:03.544826",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": "2025-08-24T14:12:39.473Z",
+      "likesGiven": 4,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-08-24T14:12:39.473Z (> 365d)"
+      ]
+    },
+    {
+      "id": "2f11b760-893a-4edb-957d-12159dbf88df",
+      "username": "Wakeel",
+      "fullname": "Abdulazeez abdulwakeel",
+      "email": "abdulwakeeloluwanifemi@gmail.com",
+      "created_at": "2025-08-24T19:12:33.672635",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": "2025-08-24T19:33:05.777Z",
+      "likesGiven": 2,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-08-24T19:33:05.777Z (> 365d)"
+      ]
+    },
+    {
+      "id": "5b94e396-755d-430c-8032-b7c1c4a6ded3",
+      "username": "Jamzyyung",
+      "fullname": "olanipon jamiu",
+      "email": "olaniponjamiu28@gmail.com",
+      "created_at": "2025-07-21T07:19:00.10825",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "69748ebb-901b-4c11-8549-5ec3c6f8920e",
+      "username": "The Bully",
+      "fullname": "Mohammed Anas",
+      "email": "mohammedmaryamshiya007@gmail.com",
+      "created_at": "2025-08-17T21:48:39.623637",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 3,
+      "followers": 0,
+      "following": 8,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "79ece936-15c7-4157-bc20-c1ed611c2208",
+      "username": "abubakar",
+      "fullname": "fatima binta",
+      "email": "muhammadabdulshakuur208@gmail.com",
+      "created_at": "2025-10-03T14:00:00.145452",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "c161d9c0-513e-4335-ab10-706001df597b",
+      "username": "OAM",
+      "fullname": "Abdul mumeen",
+      "email": "oamtolu5@gmail.com",
+      "created_at": "2025-08-19T19:47:02.740393",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "0b4b47a6-87a1-4845-b650-083502a3f79d",
+      "username": "Zee_lero",
+      "fullname": "Zakiyyah Aiyelero",
+      "email": "Zakiyyahaiyelero032@gmail.com",
+      "created_at": "2025-08-26T19:32:22.284486",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "79a88e0f-432f-4ac1-b2b7-ea13a7e745e6",
+      "username": "Bushroh",
+      "fullname": "Itz Gold Al Bushrah",
+      "email": "dikroh@gmail.com",
+      "created_at": "2025-08-28T07:33:02.504334",
+      "postCount": 9,
+      "lastPostAt": "2025-10-03T07:09:11.229456+00:00",
+      "lastCommentAt": "2025-09-20T21:19:46.050Z",
+      "likesGiven": 25,
+      "followers": 0,
+      "following": 3,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-10-03T07:09:11.229456+00:00 (> 365d)"
+      ]
+    },
+    {
+      "id": "53f24b79-b4cf-4c2e-a9eb-c6ed2e6c8766",
+      "username": "Damola",
+      "fullname": "Makinde firdaous",
+      "email": "fridausmakinde@gmail.com",
+      "created_at": "2025-08-23T10:47:09.706132",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "05b36d76-9fce-4668-a294-fe6b19d1e3f0",
+      "username": "Cisse",
+      "fullname": "Cisse jamiu",
+      "email": "cissejamiu25@gmail.com",
+      "created_at": "2025-07-28T21:05:04.237406",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "0d292cf0-5a8e-476e-ad77-44d787267175",
+      "username": "aryvibes",
+      "fullname": "Ary vibes",
+      "email": "victoriaaina875@gmail.com",
+      "created_at": "2025-09-27T08:45:00.704926",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "e4c28329-3e04-401e-9592-905335f0fbfa",
+      "username": "Salaudeen miftau",
+      "fullname": "Salaudeen miftau",
+      "email": "salaudeenmiftau5@gmail.com",
+      "created_at": "2025-08-18T19:31:35.460911",
+      "postCount": 1,
+      "lastPostAt": "2025-08-26T20:01:47.973166+00:00",
+      "lastCommentAt": "2025-08-26T20:02:46.712Z",
+      "likesGiven": 5,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-08-26T20:02:46.712Z (> 365d)"
+      ]
+    },
+    {
+      "id": "ae6018ed-6683-46ec-b12b-3c1404adcf43",
+      "username": " Yungz",
+      "fullname": "Yuingz",
+      "email": "kremzsmith@gmail.com",
+      "created_at": "2025-05-01T15:51:47.175934",
+      "postCount": 1,
+      "lastPostAt": "2025-05-18T12:15:07.223441+00:00",
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-05-18T12:15:07.223441+00:00 (> 365d)"
+      ]
+    },
+    {
+      "id": "274bb93b-0a9d-4f76-8770-00c8c15ddd30",
+      "username": "yahayabarnabas",
+      "fullname": "Yahaya Barnabas",
+      "email": "barnabasyahaya2003@gmail.com",
+      "created_at": "2025-10-02T18:08:19.514764",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "87ac1c81-3d16-4ad2-a338-ade5690e9931",
+      "username": "Busola",
+      "fullname": "Olawuyi Blessing",
+      "email": "blessing@gmail.com",
+      "created_at": "2025-08-23T13:56:40.378045",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "1e0ca307-6e15-42eb-87f0-c13c454a7217",
+      "username": "usmankolo",
+      "fullname": "Usman kolo",
+      "email": "saidud070@gmail.com",
+      "created_at": "2025-09-15T20:27:32.129231",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "144405e0-90ab-4222-8ed6-5e8404f131ec",
+      "username": "Abdul Qodir",
+      "fullname": "Bakare Abdulqodir",
+      "email": "bakareabdulqodir1@gmail.com",
+      "created_at": "2025-08-31T11:15:21.353135",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "3a8d90aa-ec4e-4e19-8834-65a13c48cb22",
+      "username": "Hayzed",
+      "fullname": "Ajao abdulazeez",
+      "email": "hayfurr2009@gmail.com",
+      "created_at": "2025-08-24T20:05:48.229921",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 14,
+      "followers": 0,
+      "following": 3,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "50ff2275-7195-4a49-b479-e05052f1f148",
+      "username": "Young balo",
+      "fullname": "Balogun Faizol",
+      "email": "balogunfaizol1@gmail.com",
+      "created_at": "2025-08-11T08:08:27.897926",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "b9927b6e-b626-4e6c-80b3-cf6d3d725248",
+      "username": "Herbdulqadri",
+      "fullname": "Holly Boi",
+      "email": "makun@gmail.com",
+      "created_at": "2025-08-23T14:10:10.599907",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "4e473bc3-65e5-4b16-8aa7-2804eb1c92b6",
+      "username": "Quadtech",
+      "fullname": "Abdulquadir Adebayo",
+      "email": "abdulquadiradebayo50@gmail.com",
+      "created_at": "2025-08-24T06:55:43.448504",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "fe507f70-7c52-4093-80b7-9be47f558b4a",
+      "username": "gmail.com",
+      "fullname": "Mugesh Rao Rao",
+      "email": "mugeshraoego@gmail.com",
+      "created_at": "2025-05-01T10:31:26.339033",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "10aaaf0f-62a9-4754-9778-08870296174a",
+      "username": "Mcdmk",
+      "fullname": "Fidelis Celestine",
+      "email": "cfredrecko25@gmail.com",
+      "created_at": "2025-07-28T21:06:15.247268",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "6da6bf08-53a7-4164-b297-9e06b53fcc08",
+      "username": "adeboyerebecca",
+      "fullname": "Adeboye Rebecca",
+      "email": "adeboyerebecca02@gmail.com",
+      "created_at": "2025-09-19T06:49:55.879644",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "2b9ae901-47a6-4bfc-a836-eed37691107f",
+      "username": "hassancoder",
+      "fullname": "Hassan Ali",
+      "email": "hassan228pc@gmail.com",
+      "created_at": "2025-05-01T10:29:00.30331",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "0ae21942-e0e4-4ace-9c38-d193afaa204d",
+      "username": "mehulxagarwal1",
+      "fullname": "Mehul",
+      "email": "mehulagarwal11111@gmail.com",
+      "created_at": "2025-05-01T10:26:00.887323",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "011f96e8-4259-4026-9842-d22238b69c1d",
+      "username": "Vickman17",
+      "fullname": "Victory Madumere",
+      "email": "victorymadumere6@gmail.com",
+      "created_at": "2025-05-01T16:58:21.982359",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "a61d7e83-7866-44a2-9d46-09974ec5bf2a",
+      "username": "hwmza",
+      "fullname": "hamza Ishaq",
+      "email": "ishaqhamza212@gmail.com",
+      "created_at": "2025-05-31T16:53:48.63917",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "7d5e518a-6591-4cc0-8df0-a9e1fcbee7c9",
+      "username": "hamza",
+      "fullname": "hamza ishaq",
+      "email": "newhamzaishaq@gmail.com",
+      "created_at": "2025-05-31T16:54:39.292967",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "697e1def-f034-491d-bd07-f2a6257eed8e",
+      "username": "Muhammad irfan",
+      "fullname": "Muhammad Irfan",
+      "email": "muhammadirfan2244.dhodi@gmail.com",
+      "created_at": "2025-08-10T11:30:35.778567",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "6e9f8e5e-36bd-4cae-a845-43cdd459c693",
+      "username": "yakubsalawudeen",
+      "fullname": "Yakub salawudeen",
+      "email": "mukkyshop111@gmail.com",
+      "created_at": "2025-10-02T22:02:14.027904",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "2e361512-cd8d-4292-a7b3-94afce14c47c",
+      "username": "Agboola",
+      "fullname": "Abdulquodri Adulquodri Agboola",
+      "email": "abdulquodriabdulquodriagboola@gmail.com",
+      "created_at": "2025-05-27T07:58:42.469613",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "a1827603-9cec-4040-ba0a-65472303c7e1",
+      "username": "Jabari",
+      "fullname": "Jabari Sung",
+      "email": "augustecomte70@gmail.com",
+      "created_at": "2025-07-28T22:53:10.222552",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "f55c92cf-aca7-4323-b0af-cf3b38d42745",
+      "username": "propenster",
+      "fullname": "Faith Olusegun",
+      "email": "faitholusegun487@gmail.com",
+      "created_at": "2025-10-05T07:00:51.357751",
+      "postCount": 1,
+      "lastPostAt": "2025-10-05T07:03:13.741392+00:00",
+      "lastCommentAt": "2025-10-05T07:14:44.615Z",
+      "likesGiven": 9,
+      "followers": 0,
+      "following": 4,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-10-05T07:14:44.615Z (> 365d)"
+      ]
+    },
+    {
+      "id": "e8aec6fa-f905-4c9f-8a32-8ce098d2b755",
+      "username": "Abdulkadir",
+      "fullname": "Suleiman Abdulkadir",
+      "email": "hummulkhairabdulkadir@gmail.com",
+      "created_at": "2025-08-19T06:07:44.267358",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "c1fb3eb7-89c6-4e47-9002-4fe264ae82ad",
+      "username": "Ade",
+      "fullname": "Sulaimon Olamilekan",
+      "email": "jsomatphygeo124434@gmail.com",
+      "created_at": "2025-08-26T22:30:39.77034",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "305c442a-3efa-46b4-ba4d-bc6d92bc33b3",
+      "username": "Itz herbdulqadri",
+      "fullname": "Itz herbdulqadri",
+      "email": "makunabdulqadir68@gmail.com",
+      "created_at": "2025-08-27T09:27:00.175908",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 2,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "943beb56-8e7a-4f9c-bdc8-2a1fed4c99ee",
+      "username": "Aliyu Ammar",
+      "fullname": "Aliyu Ammar",
+      "email": "aliyuammar201@gmail.com",
+      "created_at": "2025-07-27T21:01:13.139514",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 3,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "a75a049d-6fd4-478b-9108-65bd4b885733",
+      "username": "Emmanuel",
+      "fullname": "Emmanuel Abara",
+      "email": "emmanuelabara265@gmail.com",
+      "created_at": "2025-04-29T08:44:30.751139",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "73034b36-f3f4-40ef-8ffb-8011d79c937d",
+      "username": "Abiodun",
+      "fullname": "Aliyu Masrurat",
+      "email": "amasrurat@gmail.com",
+      "created_at": "2025-08-17T21:29:05.082353",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "a593662e-8d52-4796-ac12-fdceadc71aeb",
+      "username": "adebiyimuhammadadebajo",
+      "fullname": "Adebiyi Muhammad Adebajo",
+      "email": "adebiyimuhammad0@gmail.com",
+      "created_at": "2025-09-14T15:00:28.11512",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "b9cb7d1b-1ed5-444e-a999-169bd3b4542f",
+      "username": "Makun Abdulqadir",
+      "fullname": "Abdulqadir Danjuma",
+      "email": "asd@gmail.com",
+      "created_at": "2025-07-02T11:55:28.920357",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": "2025-08-17T21:28:06.809Z",
+      "likesGiven": 2,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-08-17T21:28:06.809Z (> 365d)"
+      ]
+    },
+    {
+      "id": "232802f0-6981-4cda-8d4f-e16ca140b575",
+      "username": "Amina Jibril",
+      "fullname": "Amina Jibril",
+      "email": "praepostor@gmail.com",
+      "created_at": "2025-07-30T10:07:25.502806",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "ee142d86-20d5-49a8-8eee-8f6dae212658",
+      "username": "dumzey45",
+      "fullname": "Victory Wala Chukuwudumebi",
+      "email": "viexstudio9@gmail.com",
+      "created_at": "2025-08-07T17:37:34.566689",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "2e46c556-3a33-481a-bffe-95c10de5f34d",
+      "username": "Balabil",
+      "fullname": "Abdullah Muhammad Qozeem",
+      "email": "kazeemakanniamusa@gmail.com",
+      "created_at": "2025-07-19T07:00:41.4897",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "e3a77716-34a4-46a0-b458-fba0b869a78d",
+      "username": " Sharafa",
+      "fullname": "Sherifat Sharafa",
+      "email": "sharafasherifat881@gmail.com",
+      "created_at": "2025-07-22T15:48:59.164393",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": "2025-07-22T15:52:46.025Z",
+      "likesGiven": 6,
+      "followers": 1,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-07-22T15:52:46.025Z (> 365d)"
+      ]
+    },
+    {
+      "id": "8f7f3f71-da98-4b23-885f-f2d52727bb88",
+      "username": "Smah",
+      "fullname": "Smah baby",
+      "email": "Smahyape@gmail.com",
+      "created_at": "2025-04-28T22:09:31.167846",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "cb21aabd-d724-4e7d-9dc5-8c3d7b7fe0a4",
+      "username": "Abdullah",
+      "fullname": "Abdullah",
+      "email": "a7624.work@gmail.com",
+      "created_at": "2025-05-01T10:37:14.892087",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "3562fa5a-f705-4de4-83fe-989e63f04908",
+      "username": "Hibee25",
+      "fullname": "Ibrahim Ajao",
+      "email": "sibroam25@gmail.com",
+      "created_at": "2025-08-26T21:42:39.726167",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "82ad278d-470b-4390-b2e6-c1087f38b478",
+      "username": "Sweet",
+      "fullname": "Sweet boll",
+      "email": "yunusr99@gmail.com",
+      "created_at": "2025-08-24T19:21:44.496953",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "d21db6a3-9c40-4c51-8e4e-754440604dec",
+      "username": "hussein",
+      "fullname": "Ibrahim Hussein Ibrahim",
+      "email": "bj9780569@gmail.com",
+      "created_at": "2025-09-13T15:41:47.706238",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "fd039137-7304-482a-9a88-a3052b6d6cb5",
+      "username": "Selim",
+      "fullname": "Bashir selim",
+      "email": "selimbashir89@gmail.com",
+      "created_at": "2025-08-18T15:20:36.863088",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "c5c30ffc-90e6-4f7b-b120-10d5183ce7ca",
+      "username": "Abdulrahman Temitope",
+      "fullname": "Abdulrahman Temitope",
+      "email": "olarewajuabdulsamad61@gmail.com",
+      "created_at": "2025-07-29T11:12:21.035888",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 5,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "875af2e4-73ef-4c0b-b935-798eb422096a",
+      "username": "rosanah",
+      "fullname": "Rosana h",
+      "email": "shuaibhakeem@gmail.com",
+      "created_at": "2025-10-05T12:32:02.610619",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "e4ef7c81-d114-47c7-9e36-5c75f3a6be86",
+      "username": "mobman",
+      "fullname": "Niga Ola",
+      "email": "niggaman@gmail.com",
+      "created_at": "2025-08-18T23:30:16.416594",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "89dd3d7e-08e5-45db-af76-802706975749",
+      "username": "taofeeka",
+      "fullname": "Issa Taofeeqa",
+      "email": "issataofeeqa@mail.google",
+      "created_at": "2025-08-11T08:31:19.257848",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "ca07aa4a-39a5-498c-979e-a38fa4f7b02c",
+      "username": "Morenikeji",
+      "fullname": "Abdulraheem Halimah",
+      "email": "halimahabdulraheem871@gmail.com",
+      "created_at": "2025-07-20T15:31:41.961918",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "6db60c12-d6c1-4930-9205-9f0997eb019f",
+      "username": "Almunawaroh",
+      "fullname": "Abdullah Opeyemi Qozeem",
+      "email": "superiorinternational15@gmail.com",
+      "created_at": "2025-05-25T21:32:21.289945",
+      "postCount": 1,
+      "lastPostAt": "2025-06-05T12:14:58.128199+00:00",
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-06-05T12:14:58.128199+00:00 (> 365d)"
+      ]
+    },
+    {
+      "id": "9d7ed365-c398-4280-ac5e-90f1922d52fc",
+      "username": "Alvira pearl",
+      "fullname": "ALVIRA PEARL",
+      "email": "alinaalvira93@gmail.com",
+      "created_at": "2025-07-20T13:05:11.239939",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "1a92ee66-d8bf-4207-8e6a-f12bd3509137",
+      "username": "Technova16",
+      "fullname": "Caleb Oni",
+      "email": "onicaleb5@gmail.com",
+      "created_at": "2025-07-27T23:38:28.786541",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "3d9c4966-647c-4b32-aa0c-98b0fbf2f351",
+      "username": "mikdad",
+      "fullname": "Mikdad  juo",
+      "email": "abdullahgidado6@gmail.com",
+      "created_at": "2025-08-17T14:46:48.22698",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "a837d8cb-23c3-425c-af0a-c9f695bf33d5",
+      "username": "muhammadayatullah",
+      "fullname": "Muhammad Ayatullah",
+      "email": "muhammadayatullah62@gmail.com",
+      "created_at": "2025-10-01T22:24:10.300234",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 2,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "9d0017f6-1f9d-49db-9578-dc602a0b4de8",
+      "username": "wahabolayinka",
+      "fullname": "Wahab olayinka",
+      "email": "damilolaoloyede001@gmail.com",
+      "created_at": "2025-10-01T18:11:10.577282",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "3b903c40-e1fc-4f4e-9a30-52bb78d6ccf8",
+      "username": "Ana khan",
+      "fullname": "Ana khan",
+      "email": "morgan001white@gmail.com",
+      "created_at": "2025-08-24T20:30:10.211578",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "21107fd7-cba5-4c2e-a3e2-64af34ed55a8",
+      "username": "abdulqadridanjuma",
+      "fullname": "Abdulqadri Danjuma",
+      "email": "abdulqadirmakun@gmail.com",
+      "created_at": "2025-09-19T21:31:37.257479",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "533aa643-af9f-4c3f-aa4d-744cfb8eb243",
+      "username": "ayrahvibe",
+      "fullname": "Ayrah vibe",
+      "email": "funmilayodavid588@gmail.com",
+      "created_at": "2025-09-27T08:51:44.599863",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "7327299c-19dc-4fa1-9752-dfb3496ae2c4",
+      "username": "Salman Farees",
+      "fullname": "Salman Farees Abdulfatai",
+      "email": "abdulfataisalmanfarees@gmail.com",
+      "created_at": "2025-04-22T10:25:21.912313",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "f7ce4a63-1e17-49b8-98af-47bc33799b9b",
+      "username": "Vicky",
+      "fullname": "Ary vibe",
+      "email": "victoriaaina875@gmail.com",
+      "created_at": "2025-09-11T18:46:47.36917",
+      "postCount": 1,
+      "lastPostAt": "2025-10-09T23:00:33.557375+00:00",
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 3,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-10-09T23:00:33.557375+00:00 (> 365d)"
+      ]
+    },
+    {
+      "id": "88ffc2ca-eccd-4246-98f8-0d9aabcfab42",
+      "username": "HassanInnocent",
+      "fullname": "Innocent Hassan",
+      "email": "innocentiliya83@gmail.com",
+      "created_at": "2025-08-19T21:58:58.099895",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "ee63fb9a-6ed2-49df-ae00-a10c5694aa57",
+      "username": "hollystarcomedian",
+      "fullname": "Hollystar comedian",
+      "email": "abdulsalamr816@gmail.com",
+      "created_at": "2025-07-29T10:41:29.821282",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "8e4c0549-23ba-44d3-ac2e-52594ad0f515",
+      "username": "henrycoker",
+      "fullname": "Henry Coker",
+      "email": "oluwaferanmihenry60@gmail.com",
+      "created_at": "2025-09-13T18:01:51.962605",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "7abaa988-8a8d-47a3-ad70-2276ccbdca58",
+      "username": "saloo006",
+      "fullname": "Saloo Ka",
+      "email": "lajagem179@iotrama.com",
+      "created_at": "2025-08-27T08:16:32.156402",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "bdbdf9a4-f0fe-4511-abdc-a314c831e041",
+      "username": "asheer hadayat",
+      "fullname": "Asheer",
+      "email": "abb@gmail.com",
+      "created_at": "2025-05-01T10:31:59.074414",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "721e26ae-f138-48d5-829b-d3262b9bce66",
+      "username": "Ceejay",
+      "fullname": "Cee Jay",
+      "email": "jonathanike209@gmail.com",
+      "created_at": "2025-07-21T21:21:01.036491",
+      "postCount": 1,
+      "lastPostAt": "2025-07-24T10:54:55.347745+00:00",
+      "lastCommentAt": null,
+      "likesGiven": 3,
+      "followers": 0,
+      "following": 3,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-07-24T10:54:55.347745+00:00 (> 365d)"
+      ]
+    },
+    {
+      "id": "b139c9bc-f174-4c45-8625-0b9cb21622bb",
+      "username": "Shakira",
+      "fullname": "Shakira Salaudeen",
+      "email": "shakira@gmail.com",
+      "created_at": "2025-08-11T09:00:15.184592",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "834964c7-3990-4cf0-8ed2-b56b215c60df",
+      "username": "Owolarafe",
+      "fullname": "Owolarafe Maryam Modupe",
+      "email": "owolarafemaryam0@gmail.com",
+      "created_at": "2025-08-05T09:25:31.627541",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "0ce87195-8709-488a-9004-66063992516c",
+      "username": "De tee boy",
+      "fullname": "De tee boy",
+      "email": "testimonyajakaye15@gmail.com",
+      "created_at": "2025-08-29T05:19:44.461917",
+      "postCount": 1,
+      "lastPostAt": "2025-08-29T06:00:07.137086+00:00",
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-08-29T06:00:07.137086+00:00 (> 365d)"
+      ]
+    },
+    {
+      "id": "c509fc99-f5b9-4d11-abb0-968249cf5d11",
+      "username": "Süb Ñãtïøñ",
+      "fullname": "Issa Abdulsobur",
+      "email": "habibullahiabdulsalam5@gmail.com",
+      "created_at": "2025-07-30T15:06:37.215009",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "aed225e9-7cb9-47c7-994d-80c7cfe13da2",
+      "username": "lazysea",
+      "fullname": "N A Srinivasa",
+      "email": "nasrinivasseena@gmail.com",
+      "created_at": "2025-08-23T21:43:03.874736",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "38c4cc6b-1d93-4fa4-a138-bb3fea66a59b",
+      "username": "Abdulsobur",
+      "fullname": "Abdulsobur Toyin alao",
+      "email": "nimih36516@inkight.com",
+      "created_at": "2025-05-18T11:15:21.459959",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 2,
+      "followers": 0,
+      "following": 5,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "1dec2bc5-28dc-44df-8105-8c9f62aa76f6",
+      "username": "Gabru miëmiê",
+      "fullname": "Jumai Jibril",
+      "email": "miëmiêjumai@gmail.com",
+      "created_at": "2025-07-27T23:03:40.676374",
+      "postCount": 1,
+      "lastPostAt": "2025-07-27T23:08:15.696685+00:00",
+      "lastCommentAt": null,
+      "likesGiven": 3,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity since 2025-07-27T23:08:15.696685+00:00 (> 365d)"
+      ]
+    },
+    {
+      "id": "0d26cb04-02ac-47fa-8c2d-0040d827bbf7",
+      "username": "Taiwo",
+      "fullname": "Abdulrhaman Abdulganiyu",
+      "email": "abdulrhamanabdulganiyu21@gmail.com",
+      "created_at": "2025-08-24T10:16:31.442783",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "51c79836-06e2-4d9a-a293-69290946d70d",
+      "username": "Medweez224",
+      "fullname": "Muhammed ismail",
+      "email": "nairabody001@gmail.com",
+      "created_at": "2025-09-07T14:32:59.980346",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 2,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "d8ccff6d-72fd-4656-a3d2-bdf009d76012",
+      "username": "Zuky01",
+      "fullname": "Chibuike Emmanuel",
+      "email": "eizunna108@gmail.com",
+      "created_at": "2025-05-01T10:27:26.08635",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "1724b114-a617-4ee1-b129-2b5cb81a440b",
+      "username": "Evans",
+      "fullname": "EVANS NJOABUZINA",
+      "email": "njoabuzinaevans@gmail.com",
+      "created_at": "2025-07-12T13:55:05.762882",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "c5463470-e0cb-415b-9b53-78f138855f0d",
+      "username": "Chrisluke",
+      "fullname": "Chrisluke Obinna",
+      "email": "chrislukeobinna2000@gmail.com",
+      "created_at": "2025-08-18T15:06:53.796062",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "45aa360a-b883-44fd-94c5-bd815829eafa",
+      "username": "qwineasy",
+      "fullname": "Qwin easy",
+      "email": "soliuishaqakanbi@gmail.com",
+      "created_at": "2025-09-15T06:26:23.808188",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "fabbaa9d-077b-46cf-baa7-cea1c51f79c4",
+      "username": "ismailaomuhammed",
+      "fullname": "Ismaila o Muhammed",
+      "email": "ismailamuhammed911@gmail.com",
+      "created_at": "2025-09-21T20:05:40.843217",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "0ed28726-6493-4328-9d9a-9509a8cdf132",
+      "username": "itkhaver",
+      "fullname": "Abdullah Khaver",
+      "email": "itkhaver@gmail.com",
+      "created_at": "2025-05-18T12:24:05.427428",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 1,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "47b57aea-8fdb-414e-912e-82842bbaf519",
+      "username": "Abdulqadri",
+      "fullname": "Abdulqadri Zakir",
+      "email": "zakir@mail.com",
+      "created_at": "2025-08-16T21:20:06.743016",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "3d0d081c-748b-4721-9b55-d5294bf9228f",
+      "username": "Gabtech",
+      "fullname": "Dosu Gabriel",
+      "email": "gabstuds35@gmail.com",
+      "created_at": "2025-08-24T13:16:20.868011",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 0,
+      "following": 2,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    },
+    {
+      "id": "1dcdaa86-eec3-4bfc-93de-d5c39c9092a3",
+      "username": "Abraham WIX Partner",
+      "fullname": "Abraham WIX Partner",
+      "email": "abraham.wix.partner@gmail.com",
+      "created_at": "2025-04-21T17:12:16.259991",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 0,
+      "followers": 3,
+      "following": 1,
+      "defaultAvatar": true,
+      "reasons": [
+        "no post/comment activity ever (account older than 365d)"
+      ]
+    }
+  ],
+  "alreadyDisabled": [
+    {
+      "id": "8b0451a8-90c9-438e-9d7c-1580bb26dbe8",
+      "username": "textmobai",
+      "fullname": "Textmob AI",
+      "email": "ismailgidado2012@gmail.com",
+      "created_at": "2025-07-19T19:13:46.042635",
+      "postCount": 104,
+      "lastPostAt": "2026-07-11T09:59:18.350906+00:00",
+      "lastCommentAt": "2026-08-24T11:15:39.486Z",
+      "likesGiven": 3,
+      "followers": 9,
+      "following": 2,
+      "defaultAvatar": true
+    },
+    {
+      "id": "be9cfae6-0eab-465f-a9c9-f95a587ad79d",
+      "username": "bossprogrammer",
+      "fullname": "Boss Programmer",
+      "email": "bossprogrammer20@gmail.com",
+      "created_at": "2026-06-11T20:05:11.754399",
+      "postCount": 108,
+      "lastPostAt": "2026-07-22T12:17:30.551984+00:00",
+      "lastCommentAt": "2026-07-25T00:20:37.955Z",
+      "likesGiven": 333,
+      "followers": 8,
+      "following": 6,
+      "defaultAvatar": true
+    },
+    {
+      "id": "2c6da5a4-bb29-4c64-8fec-a9e1a27a8800",
+      "username": "thewebdev",
+      "fullname": "The web dev",
+      "email": "ismailg@gm.ckm",
+      "created_at": "2025-09-26T21:05:18.949622",
+      "postCount": 0,
+      "lastPostAt": null,
+      "lastCommentAt": null,
+      "likesGiven": 1,
+      "followers": 0,
+      "following": 3,
+      "defaultAvatar": true
+    }
+  ]
+}

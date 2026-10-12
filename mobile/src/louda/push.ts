@@ -272,6 +272,13 @@ function handlePushOpen(raw: any) {
       return;
     }
 
+    if (data.type === 'discussion' && data.roomId) {
+      whenNavigationReady(() => {
+        navigationRef.navigate('Discussions', { roomId: String(data.roomId) });
+      });
+      return;
+    }
+
     whenNavigationReady(() => routeTextmobNotification(data));
   } catch (e) {
     console.warn('[Push] open routing failed', e);

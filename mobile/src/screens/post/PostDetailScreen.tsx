@@ -2,6 +2,7 @@
 import {
   View, Text, FlatList, StyleSheet,
   ActivityIndicator, TextInput, Image, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,8 +15,10 @@ import { getPostAPI, addCommentAPI, deleteCommentAPI, likePostAPI, getPostReacti
 import { searchUsersAPI, UserProfile } from '../../api/users';
 import { getProfileAPI } from '../../api/auth';
 import useProfileCache from '../../hooks/useProfileCache';
+import { useKeyboardPad } from '../../hooks/useKeyboardPad';
 import PostCard, { PostHeaderRow } from '../../components/PostCard';
 import SafeHTML from '../../components/SafeHTML';
+import StickerComment from '../../components/StickerComment';
 import StickerPicker from '../../components/StickerPicker';
 import { makeStickerText, parseStickerText, withSticker } from '../../utils/stickerUtils';
 import { timeAgo } from '../../utils/format';
@@ -43,7 +46,7 @@ function CommentRow({ item, colors, borderColor, onPress, onReply, onDelete, rep
             <Text style={[styles.commentUser, { color: colors.textPrimary }]}>{profile?.fullname || item.username}</Text>
             <Text style={[styles.commentTime, { color: colors.textSecondary }]}>{timeAgo(item.created_at || '')}</Text>
           </View>
-          {(() => { const s = parseStickerText(item.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <SafeHTML text={item.text} style={[styles.commentText, { color: colors.textSecondary }]} />; })()}
+          <StickerComment text={item.text} style={[styles.commentText, { color: colors.textSecondary }]} />
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 4 }}>
             <Ripple onPress={() => onReply(item.id, item.username)}>
               <Text style={{ fontSize: 11, fontWeight: '600', color: colors.primary }}>Reply</Text>
@@ -105,6 +108,7 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [stickerUrl, setStickerUrl] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
+  const { containerRef, keyboardPad } = useKeyboardPad();
 
   useEffect(() => {
     const p = route.params || {};
@@ -254,6 +258,15 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     navigation.navigate('Profile', { username: u });
   }, [navigation]);
 
+  // PostCard's comment modal posts through `addCommentAPI` itself; this only
+  // mirrors the new comment into this screen's list. Without it, comments made
+  // from the modal never showed up until the screen was reopened.
+  const handleModalComment = useCallback((_postId: string | number, payload: string) => {
+    if (!username) return;
+    const newC: Comment = { id: Date.now().toString(), username, text: payload, created_at: new Date().toISOString() };
+    setComments(prev => [...prev, newC]);
+  }, [username]);
+
   const renderHeader = useCallback(() => (
     <PostCard
       post={post!}
@@ -262,12 +275,13 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
       showCommentInput
       commentModalOpen={commentModalOpen}
       onCommentModalChange={setCommentModalOpen}
+      onComment={handleModalComment}
       reactionCounts={reactionCounts}
       onReact={handleReact}
       onVotePoll={handlePollVote}
       onLike={handleLike}
     />
-  ), [post, reactionCounts, handleReact, handlePollVote, handleLike, commentModalOpen]);
+  ), [post, reactionCounts, handleReact, handlePollVote, handleLike, commentModalOpen, handleModalComment]);
 
   const topLevelComments = useMemo(() => comments.filter(c => !c.parentId), [comments]);
 
@@ -377,7 +391,15 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
 
   return (
     <>
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      ref={containerRef}
+      style={[
+        styles.safe,
+        { backgroundColor: colors.background },
+        // Android 15 / edge-to-edge: keyboard overlays instead of resizing.
+        keyboardPad > 0 ? { paddingBottom: keyboardPad } : null,
+      ]}
+    >
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <Ripple onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
@@ -391,22 +413,26 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
         <PostHeaderRow post={post} />
       </View>
 
-      <FlatList
-        data={topLevelComments}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={renderHeader}
-        renderItem={renderComment}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={isEmpty}
-        keyboardShouldPersistTaps="handled"
-        initialNumToRender={12}
-        maxToRenderPerBatch={12}
-        windowSize={7}
-        removeClippedSubviews
-        extraData={replyToId}
-      />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <FlatList
+          data={topLevelComments}
+          keyExtractor={keyExtractor}
+          ListHeaderComponent={renderHeader}
+          renderItem={renderComment}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={isEmpty}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={7}
+          removeClippedSubviews
+          extraData={replyToId}
+        />
 
-      <View style={[styles.bottomInput, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 10 }]}>
+        <View style={[styles.bottomInput, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: insets.bottom + 10 }]}>
         {username ? (
           replyToId ? (
           <View style={{ flex: 1, position: 'relative' }}>
@@ -469,7 +495,8 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
             <Text style={{ color: colors.textSecondary, fontSize: 13 }}><Text style={{ fontWeight: '700', color: colors.primary }}>Log in</Text> to leave a comment</Text>
           </Ripple>
         )}
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
     <StickerPicker
       visible={showStickerPicker}

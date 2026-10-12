@@ -40,7 +40,7 @@ export default function StickerPicker({ onSelect, onClose }) {
     <div className="fixed inset-0 z-[999] flex items-end sm:items-center sm:justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} onClick={onClose}>
       {/* Mobile: bottom sheet | Desktop: centered modal */}
       <div
-        className="bg-white sm:rounded-2xl shadow-2xl w-full sm:w-96 max-h-[70vh] sm:max-h-[60vh] flex flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl animate-slide-up"
+        className="bg-white sm:rounded-lg shadow-2xl w-full sm:w-96 max-h-[70vh] sm:max-h-[60vh] flex flex-col overflow-hidden rounded-t-lg sm:rounded-lg animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag handle on mobile */}
@@ -72,7 +72,7 @@ export default function StickerPicker({ onSelect, onClose }) {
             <button
               key={sticker.id}
               onClick={() => handleSelect(sticker.url)}
-              className="rounded-xl overflow-hidden aspect-square bg-gray-100 active:scale-95 transition-transform hover:scale-105"
+              className="rounded-lg overflow-hidden aspect-square bg-gray-100 active:scale-95 transition-transform hover:scale-105"
             >
               <img src={sticker.url} alt="" className="w-full h-full object-cover" loading="lazy" />
             </button>

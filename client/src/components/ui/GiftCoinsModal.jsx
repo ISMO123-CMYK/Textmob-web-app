@@ -93,11 +93,11 @@ export default function GiftCoinsModal({ open, onClose, recipientUsername, recip
 
  return (
  <>
- <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} />
+ <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
  <div
  className={cn(
- 'fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 flex flex-col',
- 'md:inset-0 md:m-auto md:rounded-2xl md:max-w-sm md:h-fit md:border md:border-gray-100 md:shadow-2xl'
+ 'fixed bottom-0 left-0 right-0 bg-white rounded-t-lg z-50 flex flex-col',
+ 'md:inset-0 md:m-auto md:rounded-lg md:max-w-sm md:h-fit md:border md:border-gray-100 md:shadow-2xl'
  )}
  >
  <div className="md:hidden flex justify-center pt-2.5 pb-1">
@@ -119,7 +119,7 @@ export default function GiftCoinsModal({ open, onClose, recipientUsername, recip
 
  {/* Recipient info */}
  <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50 bg-gray-50/50 ">
- <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+ <div className="w-10 h-10 rounded-full overflow-hidden bg-brand-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
  {recipientAvatar ? (
  <img src={recipientAvatar} alt="" className="w-full h-full object-cover" />
  ) : (
@@ -149,9 +149,9 @@ export default function GiftCoinsModal({ open, onClose, recipientUsername, recip
  key={pack.value}
  onClick={() => handlePackClick(pack.value)}
  className={cn(
- 'py-2.5 rounded-xl text-xs font-bold transition-all border',
+ 'py-2.5 rounded-lg text-xs font-bold transition-all border',
  amount === String(pack.value)
- ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+ ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
  : 'bg-gray-50 text-gray-700 border-gray-100 hover:bg-gray-100 '
  )}
  >
@@ -164,7 +164,7 @@ export default function GiftCoinsModal({ open, onClose, recipientUsername, recip
  {/* Custom amount */}
  <div className="px-5 pt-3 pb-2">
  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Custom Amount</p>
- <div className="flex items-center gap-2.5 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all bg-transparent">
+ <div className="flex items-center gap-2.5 border border-gray-200 rounded-lg px-4 py-3 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all bg-transparent">
  <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-500 flex-shrink-0 fill-current">
  <path d="M9.375 3a1.875 1.875 0 0 0 0 3.75h1.875v4.5H3.375A1.875 1.875 0 0 1 1.5 9.375v-.75c0-1.036.84-1.875 1.875-1.875h3.193A3.375 3.375 0 0 1 12 2.753a3.375 3.375 0 0 1 5.432 3.997h3.943c1.035 0 1.875.84 1.875 1.875v.75c0 1.036-.84 1.875-1.875 1.875H12.75v-4.5h1.875a1.875 1.875 0 1 0-1.875-1.875V6.75h-1.5V4.875C11.25 3.839 10.41 3 9.375 3ZM11.25 12.75H3v6.75a2.25 2.25 0 0 0 2.25 2.25h6v-9ZM12.75 12.75v9h6.75a2.25 2.25 0 0 0 2.25-2.25v-6.75h-9Z" />
  </svg>
@@ -184,12 +184,12 @@ export default function GiftCoinsModal({ open, onClose, recipientUsername, recip
 
  {/* Status messages */}
  {status?.error && (
- <div className="mx-5 mt-2 mb-1 text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
+ <div className="mx-5 mt-2 mb-1 text-xs font-semibold text-red-600 bg-red-50 border border-red-100 rounded-lg px-3.5 py-2.5">
  {status.error}
  </div>
  )}
  {status?.success && (
- <div className="mx-5 mt-2 mb-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-100 rounded-xl px-3.5 py-2.5">
+ <div className="mx-5 mt-2 mb-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-100 rounded-lg px-3.5 py-2.5">
  {status.success}
  </div>
  )}
@@ -198,14 +198,14 @@ export default function GiftCoinsModal({ open, onClose, recipientUsername, recip
  <div className="px-5 pb-8 md:pb-4 pt-4 flex gap-2 border-t border-gray-50 mt-3">
  <button
  onClick={onClose}
- className="flex-1 h-11 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all"
+ className="flex-1 h-11 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-all"
  >
  Cancel
  </button>
  <button
  onClick={handleSend}
  disabled={sending || !!status?.success}
- className="flex-1 h-11 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-40 shadow-sm flex items-center justify-center gap-1.5"
+ className="flex-1 h-11 rounded-lg bg-brand-600 text-white text-xs font-bold hover:bg-brand-700 active:scale-[0.98] transition-all disabled:opacity-40 shadow-sm flex items-center justify-center gap-1.5"
  >
  {sending ? (
  <>

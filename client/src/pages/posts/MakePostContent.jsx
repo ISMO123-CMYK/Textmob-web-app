@@ -597,7 +597,7 @@ export default function MakePostContent(props) {
 
  <button
  onClick={() => t(true)}
- className={`w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center active:scale-90 hover:bg-blue-700 transition-all`}
+ className={`w-14 h-14 bg-brand-600 rounded-lg flex items-center justify-center active:scale-90 hover:bg-brand-700 transition-all`}
  aria-label={`Create post`}
  >
  <svg className={`w-7 h-7 text-white`} fill={`none`} stroke={`currentColor`} viewBox={`0 0 24 24`}>
@@ -609,7 +609,7 @@ export default function MakePostContent(props) {
  {e && (
  <div className={`fixed inset-0 z-50 bg-white flex flex-col md:bg-black/40 md:items-center md:justify-center`}>
  <div
- className={`flex flex-col w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-2xl md:border border-gray-100 bg-white overflow-hidden`}
+ className={`flex flex-col w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-lg md:border border-gray-100 bg-white overflow-hidden`}
  onClick={(e) => e.stopPropagation()}
  >
  <div className={`flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0`}>
@@ -629,7 +629,7 @@ export default function MakePostContent(props) {
  disabled={c || (!n.trim() && i.length === 0)}
  className={cn(
  `px-4 py-1.5 rounded-full text-xs font-bold transition-colors`,
- c ? `bg-gray-100 text-gray-400 cursor-not-allowed` : `bg-blue-600 text-white hover:opacity-90`
+ c ? `bg-gray-100 text-gray-400 cursor-not-allowed` : `bg-brand-600 text-white hover:opacity-90`
  )}
  >
  {c ? `Posting…` : `Post`}
@@ -667,7 +667,7 @@ export default function MakePostContent(props) {
  <AutocompleteDropdown items={be} onSelect={je} activeIndex={Se} />
 
  {quotedPostData && (
- <div className={`mt-3 p-3 rounded-xl border border-gray-100 bg-gray-50 relative`}>
+ <div className={`mt-3 p-3 rounded-lg border border-gray-100 bg-gray-50 relative`}>
  <button
  onClick={() => {
  setQuotedPostId(null);
@@ -691,7 +691,7 @@ export default function MakePostContent(props) {
  </div>
 
  {k && (
- <div className={`space-y-2 p-3 rounded-2xl bg-gray-50 border border-gray-100 `}>
+ <div className={`space-y-2 p-3 rounded-lg bg-gray-50 border border-gray-100 `}>
  <div className={`flex items-center justify-between mb-1`}>
  <p className={`text-xs font-bold text-gray-500 uppercase tracking-wider`}>{`Poll`}</p>
  <button onClick={Ve} className={`text-xs font-semibold text-red-400 hover:text-red-500 transition-colors`}>
@@ -708,7 +708,7 @@ export default function MakePostContent(props) {
  M(n);
  }}
  placeholder={`Option ${t + 1}`}
- className={`w-full px-4 py-2.5 rounded-full border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all`}
+ className={`w-full px-4 py-2.5 rounded-full border border-gray-200 bg-white text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-100 transition-all`}
  key={e.id}
  />
  ))}
@@ -726,7 +726,7 @@ export default function MakePostContent(props) {
  }
  ])
  }
- className={`text-xs font-semibold text-blue-600 hover:underline`}
+ className={`text-xs font-semibold text-brand-600 hover:underline`}
  >
  {`+ Add option`}
  </button>
@@ -745,7 +745,7 @@ export default function MakePostContent(props) {
  <div className={cn(`grid gap-2`, o.length === 1 ? `grid-cols-1` : o.length === 2 ? `grid-cols-2` : `grid-cols-3`)}>
  {o.map((e, t) => (
  <div
- className={cn(`relative rounded-xl overflow-hidden bg-gray-100 group`, o.length === 1 ? `aspect-video` : `aspect-square`)}
+ className={cn(`relative rounded-lg overflow-hidden bg-gray-100 group`, o.length === 1 ? `aspect-video` : `aspect-square`)}
  key={t}
  >
  {e.type === `image` ? (
@@ -816,7 +816,7 @@ export default function MakePostContent(props) {
  {CATEGORIES.map(cat => (
  <button key={cat.id} onClick={() => setPostCategories(prev => prev.includes(cat.id) ? prev.filter(c => c !== cat.id) : [...prev, cat.id])}
  className={cn(`text-[11px] font-semibold px-2.5 py-1 rounded-full transition whitespace-nowrap`,
- postCategories.includes(cat.id) ? `bg-blue-100 text-blue-600 ` : `bg-gray-100 text-gray-500 hover:bg-gray-200 `
+ postCategories.includes(cat.id) ? `bg-brand-100 text-brand-600 ` : `bg-gray-100 text-gray-500 hover:bg-gray-200 `
  )}>
  {cat.name}
  </button>
@@ -829,10 +829,10 @@ export default function MakePostContent(props) {
  <label
  title={De ? `Remove poll to add media` : `Add photo or video`}
  className={cn(
- `flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer`,
+ `flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer`,
  De
  ? `text-gray-200 cursor-not-allowed`
- : `text-gray-400 hover:bg-gray-100 hover:text-blue-600`
+ : `text-gray-400 hover:bg-gray-100 hover:text-brand-600`
  )}
  >
  <input
@@ -856,8 +856,8 @@ export default function MakePostContent(props) {
  onClick={() => F(true)}
  title={`Add feeling`}
  className={cn(
- `flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition-colors`,
- N ? `bg-blue-50 text-blue-600 ` : `text-gray-400 hover:bg-gray-100 `
+ `flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-colors`,
+ N ? `bg-brand-50 text-brand-600 ` : `text-gray-400 hover:bg-gray-100 `
  )}
  >
  <span className={`text-base leading-none`}>
@@ -877,11 +877,11 @@ export default function MakePostContent(props) {
  onClick={Ve}
  title={Oe ? `Remove media to add poll` : `Add poll`}
  className={cn(
- `flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl transition-colors`,
+ `flex-shrink-0 flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-colors`,
  Oe
  ? `text-gray-200 cursor-not-allowed`
  : k
- ? `bg-blue-50 text-blue-600 `
+ ? `bg-brand-50 text-brand-600 `
  : `text-gray-400 hover:bg-gray-100 `
  )}
  >
@@ -912,9 +912,9 @@ export default function MakePostContent(props) {
  F(false);
  }}
  className={cn(
- `flex flex-col items-center gap-1.5 py-3 rounded-2xl text-xs font-semibold transition-colors`,
+ `flex flex-col items-center gap-1.5 py-3 rounded-lg text-xs font-semibold transition-colors`,
  N?.name === item.name
- ? `bg-blue-50 text-blue-600 `
+ ? `bg-brand-50 text-brand-600 `
  : `bg-gray-50 text-gray-600 hover:bg-gray-100 `
  )}
  >
@@ -933,7 +933,7 @@ export default function MakePostContent(props) {
 const ComposerSheet = ({ onClose: e, title: t, children: n }) => (
  <div className={`fixed inset-0 z-[70] flex flex-col justify-end md:items-center md:justify-center`}>
  <div className={`absolute inset-0 bg-black/40`} onClick={e} />
- <div className={`relative bg-white w-full md:max-w-md rounded-t-2xl md:rounded-2xl border-t md:border border-gray-100 max-h-[85vh] overflow-y-auto`}>
+ <div className={`relative bg-white w-full md:max-w-md rounded-t-lg md:rounded-lg border-t md:border border-gray-100 max-h-[85vh] overflow-y-auto`}>
  <div className={`flex justify-center pt-3 pb-1 md:hidden`}>
  <div className={`w-9 h-1 rounded-full bg-gray-200 `} />
  </div>
@@ -961,7 +961,7 @@ const ComposerBtn = ({ onClick: e, title: t, active: n, disabled: r, children: i
  title={t}
  className={cn(
  `w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-colors`,
- r ? `text-gray-200 cursor-not-allowed` : n ? `bg-blue-50 text-blue-600 ` : `text-gray-500 hover:bg-gray-100 `
+ r ? `text-gray-200 cursor-not-allowed` : n ? `bg-brand-50 text-brand-600 ` : `text-gray-500 hover:bg-gray-100 `
  )}
  >
  {i}

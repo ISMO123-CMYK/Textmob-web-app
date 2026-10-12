@@ -2,7 +2,7 @@
 //
 // Every composer captures the token's END from the caret on the render that
 // produced the suggestion. A click (or Enter) can land one keystroke later,
-// at which point `end` points into the middle of the token — the leftover
+// at which point `end` points into the middle of the token - the leftover
 // fragment then gets appended after the replacement and the hashtag shows up
 // twice ("#football #foo"). Re-deriving the end from the text that is actually
 // in the box makes that impossible.

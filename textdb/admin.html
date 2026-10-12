@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TextDB Admin</title>
+<style>
+:root{--bg:#0b0f14;--bg2:#111823;--bg3:#18202d;--border:#232d3d;--text:#e6edf3;--muted:#8b98a9;--accent:#3ecf8e;--accent2:#249a6a;--danger:#f85149;--warn:#d29922;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden}
+button{background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button.primary{background:var(--accent);color:#04110a;border-color:var(--accent);font-weight:600}
+button.primary:hover{background:var(--accent2);color:#fff}
+button.danger{color:var(--danger);border-color:#5a2a28}
+button.danger:hover{background:var(--danger);color:#fff}
+input,select{background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;outline:none;width:100%}
+input:focus,select:focus{border-color:var(--accent)}
+.hidden{display:none!important}
+#login{display:flex;align-items:center;justify-content:center;height:100vh;background:radial-gradient(ellipse at 50% 30%,#14202e 0%,var(--bg) 70%)}
+.login-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:40px;width:360px;text-align:center}
+.login-card h1{font-size:20px;margin-bottom:4px}
+.login-card p{color:var(--muted);font-size:13px;margin-bottom:24px}
+.login-card input{text-align:center;font-size:18px;letter-spacing:4px;margin-bottom:16px}
+.login-card .err{color:var(--danger);font-size:12px;min-height:18px;margin-bottom:8px}
+#app{display:flex;height:100vh}
+#sidebar{width:250px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.sb-head{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.sb-head .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.sb-head b{font-size:15px}
+.sb-section{padding:12px 12px 4px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.sb-item{display:flex;justify-content:space-between;align-items:center;padding:7px 12px;margin:1px 6px;border-radius:6px;cursor:pointer;color:var(--muted);font-size:13px}
+.sb-item:hover{background:var(--bg3);color:var(--text)}
+.sb-item.active{background:var(--bg3);color:var(--accent)}
+.sb-item .cnt{background:var(--bg);border-radius:10px;padding:0 7px;font-size:11px;font-family:var(--mono)}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;background:var(--bg2)}
+#topbar h2{font-size:15px;flex:1}
+#content{flex:1;overflow:auto;padding:20px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px}
+.stat-card .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.stat-card .value{font-size:24px;font-weight:700;margin-top:4px;font-family:var(--mono)}
+.stat-card .value.ok{color:var(--accent)}
+.stat-card .value.warn{color:var(--warn)}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:20px;overflow:hidden}
+.panel-h{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px}
+.panel-h .spacer{flex:1}
+.panel-b{padding:16px}
+table.grid{width:100%;border-collapse:collapse;font-size:12px}
+table.grid th{background:var(--bg3);padding:8px 10px;text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0}
+table.grid td{padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top}
+table.grid tr:hover td{background:#141c28}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:2px 10px;font-size:11px;font-family:var(--mono);margin:2px}
+.chip .k{color:var(--accent)}
+.chip .x{cursor:pointer;color:var(--muted);margin-left:2px}
+.chip .x:hover{color:var(--danger)}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.toolbar input[type=text],.toolbar input[type=number]{width:auto;min-width:140px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;width:460px;max-height:80vh;overflow:auto}
+.modal-h{padding:16px;border-bottom:1px solid var(--border);font-weight:700}
+.modal-b{padding:16px;display:flex;flex-direction:column;gap:10px}
+.modal-f{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.row-add{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.row-add input{width:130px!important}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:200;max-width:360px}
+.toast.err{border-color:var(--danger);color:var(--danger)}
+.toast.ok{border-color:var(--accent);color:var(--accent)}
+.obj-row{font-family:var(--mono);font-size:12px;padding:6px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px}
+.obj-row .sz{color:var(--muted);margin-left:auto}
+.muted{color:var(--muted)}
+.pager{display:flex;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<div id="login" class="">
+  <div class="login-card">
+    <h1>⬛ TextDB Admin</h1>
+    <p>SQLite + Backblaze B2 control panel</p>
+    <div class="err" id="loginErr"></div>
+    <input type="password" id="pw" placeholder="password" autocomplete="off">
+    <button class="primary" style="width:100%" onclick="login()">Sign in</button>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div id="sidebar">
+    <div class="sb-head"><span class="dot"></span><b>TextDB Admin</b></div>
+    <div class="sb-section">System</div>
+    <div class="sb-item" data-view="overview" onclick="nav('overview')">Overview</div>
+    <div class="sb-item" data-view="objects" onclick="nav('objects')">B2 Objects</div>
+    <div id="tablesNav"></div>
+    <div style="margin-top:auto;padding:12px;border-top:1px solid var(--border)">
+      <button style="width:100%" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+  <div id="main">
+    <div id="topbar"><h2 id="viewTitle">Overview</h2><span class="muted" id="storageKind"></span></div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+let TOKEN = localStorage.getItem('tdb_admin_token') || '';
+let OVERVIEW = null;
+let current = { view: 'overview', ns: null, table: null, page: 0, pageSize: 50 };
+
+async function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + TOKEN }, opts.headers || {});
+  if (opts.body && typeof opts.body !== 'string') { opts.body = JSON.stringify(opts.body); opts.headers['Content-Type'] = 'application/json'; }
+  const res = await fetch(path, opts);
+  if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+function toast(msg, type) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || '');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(v) {
+  if (v === null || v === undefined) return '<span class="muted">null</span>';
+  if (typeof v === 'object') return esc(JSON.stringify(v));
+  const s = String(v);
+  return esc(s.length > 120 ? s.slice(0, 120) + '…' : s);
+}
+
+async function login() {
+  const pw = document.getElementById('pw').value;
+  document.getElementById('loginErr').textContent = '';
+  try {
+    const res = await fetch('/blackbaze-admin/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'login failed');
+    TOKEN = data.token;
+    localStorage.setItem('tdb_admin_token', TOKEN);
+    enterApp();
+  } catch (e) { document.getElementById('loginErr').textContent = e.message; }
+}
+document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+
+function logout() {
+  TOKEN = '';
+  localStorage.removeItem('tdb_admin_token');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login').classList.remove('hidden');
+}
+
+async function enterApp() {
+  try { await api('/blackbaze-admin/api/me'); } catch { return; }
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  await loadOverview();
+  nav('overview');
+}
+
+async function loadOverview() {
+  OVERVIEW = await api('/blackbaze-admin/api/overview');
+  document.getElementById('storageKind').textContent = 'storage: ' + OVERVIEW.stats.storage;
+  const nav = document.getElementById('tablesNav');
+  let html = '';
+  for (const ns of ['main']) {
+    html += '<div class="sb-section">' + ns + ' tables</div>';
+    for (const t of OVERVIEW.tables[ns]) {
+      html += '<div class="sb-item" data-view="table" data-ns="' + ns + '" data-table="' + esc(t.name) + '" onclick="navTable(\'' + ns + '\',\'' + esc(t.name) + '\')">' + esc(t.name) + '<span class="cnt">' + t.count + '</span></div>';
+    }
+  }
+  nav.innerHTML = html;
+}
+
+function setActive(view, ns, table) {
+  document.querySelectorAll('.sb-item').forEach(el => {
+    el.classList.toggle('active',
+      (view === 'table' && el.dataset.view === 'table' && el.dataset.ns === ns && el.dataset.table === table) ||
+      (view !== 'table' && el.dataset.view === view));
+  });
+}
+
+async function nav(view) {
+  current.view = view;
+  setActive(view);
+  document.getElementById('viewTitle').textContent = view.charAt(0).toUpperCase() + view.slice(1);
+  if (view === 'overview') return renderOverview();
+  if (view === 'objects') return renderObjects();
+}
+
+async function navTable(ns, table) {
+  current.view = 'table'; current.ns = ns; current.table = table; current.page = 0;
+  setActive('table', ns, table);
+  document.getElementById('viewTitle').textContent = ns + ' / ' + table;
+  await renderTable();
+}
+
+function renderOverview() {
+  const s = OVERVIEW.stats;
+  let html = '<div class="stats-grid">';
+  html += card('Storage', s.storage, s.storage === 'b2' ? 'ok' : 'warn');
+  html += card('Outbox pending', s.outbox.pending, s.outbox.pending > 0 ? 'warn' : 'ok');
+  html += card('Outbox synced', s.outbox.synced, 'ok');
+  html += card('Outbox failed', s.outbox.failed + s.outbox.failedRows, s.outbox.failed > 0 ? 'warn' : 'ok');
+  html += card('LRU entries', s.lru.entries, '');
+  html += card('LRU bytes', (s.lru.bytes / 1024).toFixed(0) + ' KB', '');
+  const ls = s.lastSnapshot && Object.keys(s.lastSnapshot).length ? s.lastSnapshot : null;
+  html += card('Last snapshot', ls ? new Date(Object.values(ls)[0] || Date.now()).toLocaleString() : '—', '');
+  html += '</div>';
+  html += '<div class="toolbar"><button class="primary" onclick="doSnapshot()">Snapshot now → B2</button><button onclick="doFlush()">Flush outbox → B2</button></div>';
+  for (const ns of ['main']) {
+    const tables = OVERVIEW.tables[ns];
+    html += '<div class="panel"><div class="panel-h">' + ns + ' namespace<span class="spacer"></span><button onclick="showCreateTable(\'' + ns + '\')">+ New table</button></div><div class="panel-b" style="padding:0"><table class="grid"><tr><th>Table</th><th>Rows</th><th>Columns</th><th></th></tr>';
+    for (const t of tables) {
+      const colNames = t.schema ? Object.keys(t.schema).length : '?';
+      html += '<tr style="cursor:pointer" onclick="navTable(\'' + ns + '\',\'' + esc(t.name) + '\')"><td>' + esc(t.name) + '</td><td>' + t.count + '</td><td>' + colNames + '</td><td><button class="danger" onclick="event.stopPropagation();dropTable(\'' + ns + '\',\'' + esc(t.name) + '\')">drop</button></td></tr>';
+    }
+    if (!tables.length) html += '<tr><td colspan="4" class="muted" style="padding:20px;text-align:center">no tables yet — create one</td></tr>';
+    html += '</table></div></div>';
+  }
+  document.getElementById('content').innerHTML = html;
+}
+
+function card(label, value, cls) { return '<div class="stat-card"><div class="label">' + label + '</div><div class="value ' + (cls || '') + '">' + esc(value) + '</div></div>'; }
+
+async function renderTable() {
+  const info = await api('/blackbaze-admin/api/tables/' + current.ns + '/' + current.table + '/rows?limit=' + current.pageSize + '&offset=' + (current.page * current.pageSize));
+  const nsInfo = OVERVIEW.tables[current.ns].find(t => t.name === current.table) || { schema: {} };
+  let schemaCols = [];
+  try {
+    const ov = await api('/blackbaze-admin/api/overview');
+    const t = ov.tables[current.ns].find(x => x.name === current.table);
+    if (t && t.schema) schemaCols = Object.entries(t.schema);
+    OVERVIEW = ov;
+  } catch {}
+  let html = '<div class="toolbar">';
+  html += '<button onclick="nav(\'overview\')">← Back</button>';
+  html += '<span class="muted">' + info.total + ' rows · page ' + (current.page + 1) + '/' + Math.max(1, Math.ceil(info.total / current.pageSize)) + '</span>';
+  html += '<span style="flex:1"></span>';
+  html += '<button class="primary" onclick="showInsertRow()">+ Insert row</button>';
+  html += '<button onclick="showAddColumn()">+ Add column</button>';
+  html += '</div>';
+  html += '<div style="margin-bottom:12px">';
+  for (const [col, kind] of schemaCols) {
+    if (col === 'id') { html += '<span class="chip"><span class="k">id</span> uuid</span>'; continue; }
+    html += '<span class="chip"><span class="k">' + esc(col) + '</span> ' + esc(kind) + (col !== 'created_at' && col !== 'timestamp' ? '<span class="x" title="drop column" onclick="dropColumn(\'' + esc(col) + '\')">✕</span>' : '') + '</span>';
+  }
+  html += '</div>';
+  const cols = info.rows.length ? Object.keys(info.rows[0]) : (schemaCols.map(c => c[0]));
+  html += '<div class="panel"><table class="grid"><tr>' + cols.map(c => '<th>' + esc(c) + '</th>').join('') + '<th></th></tr>';
+  for (const r of info.rows) {
+    html += '<tr>' + cols.map(c => '<td title="' + esc(typeof r[c] === 'object' ? JSON.stringify(r[c]) : r[c]) + '">' + fmt(r[c]) + '</td>').join('');
+    html += '<td style="white-space:nowrap"><button style="padding:2px 8px;font-size:11px" onclick="editRow(\'' + esc(r.id) + '\')">edit</button> <button class="danger" style="padding:2px 8px;font-size:11px" onclick="delRow(\'' + esc(r.id) + '\')">del</button></td></tr>';
+  }
+  if (!info.rows.length) html += '<tr><td colspan="' + (cols.length + 1) + '" class="muted" style="padding:20px;text-align:center">empty table</td></tr>';
+  html += '</table></div>';
+  html += '<div class="pager"><button' + (current.page === 0 ? ' disabled' : '') + ' onclick="current.page--;renderTable()">← Prev</button><button' + ((current.page + 1) * current.pageSize >= info.total ? ' disabled' : '') + ' onclick="current.page++;renderTable()">Next →</button></div>';
+  document.getElementById('content').innerHTML = html;
+  window._rowCols = cols;
+}
+
+async function renderObjects() {
+  document.getElementById('content').innerHTML = '<div class="panel"><div class="panel-b muted">Loading B2 objects…</div></div>';
+  const data = await api('/blackbaze-admin/api/objects');
+  let html = '<div class="panel"><div class="panel-h">Backblaze B2 — ' + data.objects.length + ' objects</div>';
+  for (const o of data.objects) {
+    html += '<div class="obj-row"><span>' + esc(o.name) + '</span><span class="sz">' + (o.size / 1024).toFixed(1) + ' KB · ' + new Date(o.uploadTimestamp).toLocaleString() + '</span></div>';
+  }
+  if (!data.objects.length) html += '<div class="panel-b muted">bucket is empty — run a snapshot</div>';
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+// ── modals ──
+function modal(title, bodyHtml, footerHtml) {
+  document.getElementById('modalRoot').innerHTML = '<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-h">' + title + '</div><div class="modal-b">' + bodyHtml + '</div><div class="modal-f">' + footerHtml + '</div></div></div>';
+}
+function closeModal() { document.getElementById('modalRoot').innerHTML = ''; }
+
+function showCreateTable(ns) {
+  modal('Create table in ' + ns,
+    '<input id="mTName" placeholder="table_name" autocomplete="off">' +
+    '<div class="muted" style="font-size:12px">columns (id, created_at added automatically) — format: name:type (text|num|bool|json)</div>' +
+    '<input id="mTCols" placeholder="title:text, score:num, meta:json" autocomplete="off">',
+    '<button onclick="closeModal()">Cancel</button><button class="primary" onclick="createTable(\'' + ns + '\')">Create</button>');
+}
+
+async function createTable(ns) {
+  try {
+    const name = document.getElementById('mTName').value.trim();
+    const colsRaw = document.getElementById('mTCols').value.trim();
+    const columns = {};
+    if (colsRaw) for (const part of colsRaw.split(',')) {
+      const [c, k] = part.split(':').map(s => s.trim());
+      if (c) columns[c] = k || 'text';
+    }
+    await api('/blackbaze-admin/api/tables', { method: 'POST', body: { ns, name, columns } });
+    closeModal();
+    toast('table ' + name + ' created', 'ok');
+    await loadOverview();
+    navTable(ns, name);
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function dropTable(ns, name) {
+  if (!confirm('Drop table "' + name + '" (' + ns + ')? This deletes all its rows.')) return;
+  try {
+    await api('/blackbaze-admin/api/tables/' + ns + '/' + name, { method: 'DELETE' });
+    toast('table dropped', 'ok');
+    await loadOverview();
+    nav('overview');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function showAddColumn() {
+  modal('Add column to ' + current.table,
+    '<input id="mCName" placeholder="column_name" autocomplete="off">' +
+    '<select id="mCKind"><option value="text">text</option><option value="num">num</option><option value="bool">bool</option><option value="json">json</option></select>',
+    '<button onclick="closeModal()">Cancel</button><button class="primary" onclick="addColumn()">Add</button>');
+}
+
+async function addColumn() {
+  try {
+    const col = document.getElementById('mCName').value.trim();
+    const kind = document.getElementById('mCKind').value;
+    await api('/blackbaze-admin/api/tables/' + current.ns + '/' + current.table + '/columns', { method: 'POST', body: { col, kind } });
+    closeModal();
+    toast('column added', 'ok');
+    await loadOverview();
+    renderTable();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function dropColumn(col) {
+  if (!confirm('Drop column "' + col + '"? Existing values are lost.')) return;
+  try {
+    await api('/blackbaze-admin/api/tables/' + current.ns + '/' + current.table + '/columns/' + col, { method: 'DELETE' });
+    toast('column dropped', 'ok');
+    await loadOverview();
+    renderTable();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function showInsertRow() {
+  const cols = (window._rowCols || []).filter(c => c !== 'id' && c !== 'created_at' && c !== 'timestamp');
+  let body = '';
+  for (const c of cols) body += '<div><div class="muted" style="font-size:11px">' + esc(c) + '</div><input id="ri_' + esc(c) + '" data-col="' + esc(c) + '"></div>';
+  if (!cols.length) body = '<div class="muted">table has no editable columns — add one first</div>';
+  modal('Insert row into ' + current.table, body, '<button onclick="closeModal()">Cancel</button><button class="primary" onclick="insertRow()">Insert</button>');
+}
+
+async function insertRow() {
+  try {
+    const row = {};
+    document.querySelectorAll('#modalRoot input[data-col]').forEach(inp => {
+      const v = inp.value;
+      if (v === '') return;
+      const t = (OVERVIEW.tables[current.ns].find(t => t.name === current.table) || { schema: {} }).schema || {};
+      const kind = t[inp.dataset.col] || 'text';
+      row[inp.dataset.col] = kind === 'num' ? Number(v) : kind === 'json' ? (() => { try { return JSON.parse(v); } catch { return v; } })() : v;
+    });
+    await api('/blackbaze-admin/api/tables/' + current.ns + '/' + current.table + '/rows', { method: 'POST', body: row });
+    closeModal();
+    toast('row inserted', 'ok');
+    await loadOverview();
+    renderTable();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function editRow(id) {
+  const data = await api('/blackbaze-admin/api/tables/' + current.ns + '/' + current.table + '/rows?limit=500&offset=0');
+  const row = data.rows.find(r => String(r.id) === String(id));
+  if (!row) return toast('row not found', 'err');
+  const t = (OVERVIEW.tables[current.ns].find(t => t.name === current.table) || { schema: {} }).schema || {};
+  let body = '';
+  for (const [c, kind] of Object.entries(t)) {
+    if (c === 'id' || c === 'created_at') continue;
+    const v = row[c];
+    body += '<div><div class="muted" style="font-size:11px">' + esc(c) + ' <i>(' + esc(kind) + ')</i></div><input id="re_' + esc(c) + '" data-col="' + esc(c) + '" value="' + esc(typeof v === 'object' ? JSON.stringify(v) : v == null ? '' : v) + '"></div>';
+  }
+  modal('Edit row ' + esc(String(id).slice(0, 8)) + '…', body, '<button onclick="closeModal()">Cancel</button><button class="primary" onclick="updateRow(\'' + esc(id) + '\')">Save</button>');
+}
+
+async function updateRow(id) {
+  try {
+    const patch = {};
+    const t = (OVERVIEW.tables[current.ns].find(t => t.name === current.table) || { schema: {} }).schema || {};
+    document.querySelectorAll('#modalRoot input[data-col]').forEach(inp => {
+      const kind = t[inp.dataset.col] || 'text';
+      const v = inp.value;
+      patch[inp.dataset.col] = kind === 'num' ? (v === '' ? null : Number(v)) : kind === 'json' ? (() => { try { return v === '' ? null : JSON.parse(v); } catch { return v; } })() : v === '' ? null : v;
+    });
+    await api('/blackbaze-admin/api/tables/' + current.ns + '/' + current.table + '/rows/' + encodeURIComponent(id), { method: 'PATCH', body: patch });
+    closeModal();
+    toast('row updated', 'ok');
+    renderTable();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function delRow(id) {
+  if (!confirm('Delete this row?')) return;
+  try {
+    await api('/blackbaze-admin/api/tables/' + current.ns + '/' + current.table + '/rows/' + encodeURIComponent(id), { method: 'DELETE' });
+    toast('row deleted', 'ok');
+    await loadOverview();
+    renderTable();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function doSnapshot() {
+  try { toast('snapshotting…'); await api('/blackbaze-admin/api/snapshot', { method: 'POST' }); toast('snapshot uploaded to B2', 'ok'); } catch (e) { toast(e.message, 'err'); }
+}
+async function doFlush() {
+  try { const r = await api('/blackbaze-admin/api/flush', { method: 'POST' }); toast('outbox flushed — ' + r.outbox.synced + ' synced', 'ok'); } catch (e) { toast(e.message, 'err'); }
+}
+
+if (TOKEN) enterApp(); else document.getElementById('pw').focus();
+</script>
+</body>
+</html>

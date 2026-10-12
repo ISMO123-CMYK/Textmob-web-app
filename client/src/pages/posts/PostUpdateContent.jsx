@@ -29,17 +29,17 @@ export default function PostUpdateContent() {
     } catch {} finally { setSaving(false); }
   }
 
-  if (loading) return <div className="p-6"><div className="h-40 bg-gray-50 rounded-2xl animate-pulse" /></div>;
+  if (loading) return <div className="p-6"><div className="h-40 bg-gray-50 rounded-lg animate-pulse" /></div>;
 
   return (
     <div>
-      <div className="sticky top-14 md:top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 px-6 h-14 flex items-center justify-between">
+      <div className="sticky top-14 md:top-0 z-30 bg-white/95 border-b border-gray-100 px-6 h-14 flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-black text-gray-900">Edit Post</h1>
-        <button onClick={handleSave} disabled={saving} className="ml-auto md:ml-0 px-5 py-2 bg-blue-600 text-white rounded-full text-xs font-bold disabled:opacity-50 active:scale-95 transition-all">{saving ? 'Saving...' : 'Save'}</button>
+        <button onClick={handleSave} disabled={saving} className="ml-auto md:ml-0 px-5 py-2 bg-brand-600 text-white rounded-full text-xs font-bold disabled:opacity-50 active:scale-95 transition-all">{saving ? 'Saving...' : 'Save'}</button>
       </div>
       <div className="p-4 lg:p-6 max-w-xl space-y-4">
-        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold focus:outline-none focus:border-blue-400" />
-        <textarea value={text} onChange={e => setText(e.target.value)} rows={6} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm resize-none focus:outline-none focus:border-blue-400" />
+        <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:outline-none focus:border-brand-400" />
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={6} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:border-brand-400" />
       </div>
     </div>
   );

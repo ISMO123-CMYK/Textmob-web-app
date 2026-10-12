@@ -7,7 +7,7 @@ export default function MobilePageLayout({ title, children, onBack }) {
   return (
     <div className="relative min-h-screen pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100">
+      <header className="sticky top-0 z-40 bg-white/95 border-b border-gray-100">
         <div className="flex items-center h-14 px-4 gap-3">
           {onBack && (
             <button onClick={onBack} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 active:scale-95 transition-colors">

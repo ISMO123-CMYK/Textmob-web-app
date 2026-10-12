@@ -90,6 +90,55 @@ const sugSlotStyles = StyleSheet.create({
   label: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10 },
 });
 
+// Server-injected discussion recommendations (every 5 posts on page 1)
+const fmtSmall = (n?: number) => {
+  const v = Number(n) || 0;
+  if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(v);
+};
+function DiscussionRecCard({ rooms }: { rooms: any[] }) {
+  const { colors, isDark } = useTheme();
+  const navigation = useNavigation<any>();
+  if (!Array.isArray(rooms) || !rooms.length) return null;
+  return (
+    <View style={[recStyles.container, { backgroundColor: isDark ? colors.card : '#f0fdf7', borderBottomColor: colors.border }]}>
+      <View style={recStyles.headerRow}>
+        <Ionicons name="chatbubbles-outline" size={14} color={colors.primary} />
+        <Text style={[recStyles.label, { color: colors.primary }]}>Suggested discussions</Text>
+      </View>
+      {rooms.slice(0, 3).map((r: any) => (
+        <Ripple key={String(r.id)} style={[recStyles.room, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => navigation.navigate('Discussions', { roomId: r.id })}>
+          <View style={[recStyles.hashBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <Ionicons name="chatbubble-outline" size={16} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={[recStyles.title, { color: colors.textPrimary }]}>{String(r.title || '')}</Text>
+            <Text numberOfLines={1} style={[recStyles.sub, { color: colors.textSecondary }]}>
+              @{r.host_username} · {fmtSmall(r.message_count)} messages
+            </Text>
+          </View>
+          <View style={[recStyles.liveBadge, { backgroundColor: colors.primary }]}>
+            <Text style={recStyles.liveText}>LIVE</Text>
+          </View>
+        </Ripple>
+      ))}
+    </View>
+  );
+}
+const recStyles = StyleSheet.create({
+  container: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  label: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2 },
+  room: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, marginBottom: 8 },
+  hashBox: { width: 36, height: 36, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 13, fontWeight: '700' },
+  sub: { fontSize: 11, marginTop: 1 },
+  liveBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  liveText: { color: '#fff', fontSize: 9, fontWeight: '800' },
+});
+
 function computeReactionData(reactions: any[], currentUser: string | null) {
   const counts: Record<string, number> = {};
   let userReaction: string | null = null;
@@ -617,6 +666,9 @@ export default function HomeScreen() {
 
   // Render post with suggestion slots
   const renderPost = useCallback(({ item, index }: { item: Post; index: number }) => {
+    if ((item as any).__type === 'discussion_recommendation') {
+      return <DiscussionRecCard rooms={(item as any).rooms || []} />;
+    }
     const showSuggestion = (index + 1) % 5 === 0 && suggestions.length > 0;
     return (
       <View>

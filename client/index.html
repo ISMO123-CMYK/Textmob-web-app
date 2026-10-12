@@ -88,17 +88,37 @@
     })();
   </script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '#EEF1FE', 100: '#DDE4FE', 200: '#C1CBFD', 300: '#98A7FB',
+              400: '#6E7CF7', 500: '#4555F2', 600: '#2B3EE8', 700: '#2130CB',
+              800: '#1B28A3', 900: '#1A2780', 950: '#121A4D',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            display: ['Inter', 'sans-serif'],
+          },
+          borderRadius: { lg: '12px', xl: '12px', '2xl': '12px', '3xl': '12px' },
+        },
+      },
+    }
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="manifest" href="/manifest.json" />
 
-  <!-- Fonts: Space Grotesk (display) + Inter (body) -->
+  <!-- Font: Inter (clean, neutral, cool — not the quirky Space Grotesk/Outfit) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload"
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
     as="style">
   <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet">
   <script>
     if ('serviceWorker' in navigator) {
@@ -123,23 +143,23 @@
   <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
 
   <!-- SEO Meta -->
-  <meta name="title" content="Textmob — Where Africa Comes to Talk" />
+  <meta name="title" content="Textmob: Where Africa Comes to Talk" />
   <meta name="description"
-    content="Textmob is where Africa comes to talk. See what Nigerians are discussing, share your take, and find your community — free on web and Android." />
+    content="Textmob is where Africa comes to talk. See what Nigerians are discussing, share your take, and find your community, free on web and Android." />
   <meta name="keywords"
     content="Textmob, African conversations, Nigerian social media, where Africa talks, trending topics Nigeria, African Twitter alternative, Nigeria discussion app, African social network, African communities, live streaming Africa, Snaps, blue tick verification, offline social app, data saver" />
-  <meta name="author" content="Textmob — Founded by Ibrahim Gidado & Ismail Gidado" />
+  <meta name="author" content="Textmob: Founded by Ibrahim Gidado & Ismail Gidado" />
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <link rel="canonical" href="https://textmob.web.app/" />
   <meta name="note"
     content="Textmob (textmob.web.app) is not affiliated with TXTmob, TextMob SMS, or any SMS/text messaging service. Textmob is an African social network built around conversations, founded by Ismail Gidado and Ibrahim Gidado." />
-  <meta name="theme-color" content="#2563eb" />
+  <meta name="theme-color" content="#2B3EE8" />
   <meta name="app-version" content="1.0.2" />
 
   <!-- Open Graph -->
-  <meta property="og:title" content="Textmob — Where Africa Comes to Talk" />
+  <meta property="og:title" content="Textmob: Where Africa Comes to Talk" />
   <meta property="og:description"
-    content="See what Nigerians are talking about today, share your take, and find your people. Textmob is where Africa comes to talk — free on web and Android." />
+    content="See what Nigerians are talking about today, share your take, and find your people. Textmob is where Africa comes to talk, free on web and Android." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://textmob.web.app/" />
   <meta property="og:site_name" content="Textmob" />
@@ -151,7 +171,7 @@
   <meta name="google-site-verification" content="1HK9t5P6Oum2egWt8HDZaeAcGQ7WHseZUxRDj3AUa1o" />
 
   <!-- Twitter Card -->
-  <meta name="twitter:title" content="Textmob — Where Africa Comes to Talk" />
+  <meta name="twitter:title" content="Textmob: Where Africa Comes to Talk" />
   <meta name="twitter:description"
     content="Where Africa comes to talk. Join conversations, share your take, and find your community on Textmob." />
   <meta name="twitter:card" content="summary_large_image" />
@@ -160,7 +180,7 @@
   <meta name="twitter:image"
     content="https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png" />
 
-  <title>Textmob — Where Africa Comes to Talk</title>
+  <title>Textmob: Where Africa Comes to Talk</title>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
@@ -181,7 +201,7 @@
           "width": 512,
           "height": 512
         },
-        "description": "Textmob is where Africa comes to talk. A social network built around African conversations — share your take, find your community, and be heard, on web and Android.",
+        "description": "Textmob is where Africa comes to talk. A social network built around African conversations. Share your take, find your community, and be heard on web and Android.",
         "foundingDate": "2024-01-01",
         "founder": [
           {
@@ -236,7 +256,7 @@
         "url": "https://textmob.web.app",
         "logo": "https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png",
         "image": "https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png",
-        "description": "Where Africa comes to talk — conversations, communities, and creators across Nigeria and Africa.",
+        "description": "Where Africa comes to talk, conversations, communities, and creators across Nigeria and Africa.",
         "telephone": "+2348000000000",
         "priceRange": "Free",
         "address": {
@@ -269,7 +289,7 @@
         "@id": "https://textmob.web.app/#website",
         "name": "Textmob",
         "url": "https://textmob.web.app",
-        "description": "Where Africa comes to talk — see what's being discussed, share your take, and find your community.",
+        "description": "Where Africa comes to talk, see what's being discussed, share your take, and find your community.",
         "publisher": { "@id": "https://textmob.web.app/#organization" },
         "potentialAction": {
           "@type": "SearchAction",
@@ -286,7 +306,7 @@
         "applicationCategory": "SocialNetworkingApplication",
         "operatingSystem": "Web, Android, iOS (PWA)",
         "browserRequirements": "Requires JavaScript. Modern browser required.",
-        "description": "Textmob is where Africa comes to talk. Start or join conversations, find your community, and be heard — free on web and Android.",
+        "description": "Textmob is where Africa comes to talk. Start or join conversations, find your community, and be heard, free on web and Android.",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -295,14 +315,14 @@
         },
         "creator": { "@id": "https://textmob.web.app/#organization" },
         "featureList": [
-          "Posts & Polls — Say what you think and see where you stand",
-          "Discussions — Go deeper than a hot take with threaded conversations",
-          "Live Streaming — Talk face-to-face with your audience in real time",
-          "Snaps — Show the story everyone is talking about",
-          "Communities — Find your people around topics you care about",
-          "MobCoins — Creators who start conversations get rewarded",
-          "Verification — Know who you are talking to with the blue tick",
-          "Offline Mode & Data Saver — Conversations that don't eat your data"
+          "Posts & Polls: Say what you think and see where you stand",
+          "Discussions: Go deeper than a hot take with threaded conversations",
+          "Live Streaming: Talk face-to-face with your audience in real time",
+          "Snaps: Show the story everyone is talking about",
+          "Communities: Find your people around topics you care about",
+          "MobCoins: Creators who start conversations get rewarded",
+          "Verification: Know who you are talking to with the blue tick",
+          "Offline Mode & Data Saver, Conversations that don't eat your data"
         ]
       },
       {
@@ -314,7 +334,7 @@
             "name": "What is Textmob?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Textmob is where Africa comes to talk. It's a social network built around African conversations — see what Nigerians are discussing today, share your take through posts, polls, discussions and live video, find your community, and be heard. Free on web and Android."
+              "text": "Textmob is where Africa comes to talk. It's a social network built around African conversations. See what Nigerians are discussing today, share your take through posts, polls, discussions and live video, find your community, and be heard. Free on web and Android."
             }
           },
           {
@@ -322,7 +342,7 @@
             "name": "How do MobCoins work on Textmob?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "MobCoins reward the people who start conversations people care about. You earn MobCoins when your posts and Snaps gain traction — then convert them to real money (NGN or USD) and withdraw to your bank account via the in-app Wallet, so the best voices on Textmob get paid, not just the biggest advertisers."
+              "text": "MobCoins reward the people who start conversations people care about. You earn MobCoins when your posts and Snaps gain traction, then convert them to real money (NGN or USD) and withdraw to your bank account via the in-app Wallet, so the best voices on Textmob get paid."
             }
           },
           {
@@ -330,7 +350,7 @@
             "name": "What are Snaps on Textmob?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Snaps are short vertical videos that start conversations. Record, upload, and scroll full-screen videos — and every Snap has a shareable link, so the story you're talking about travels beyond the app."
+              "text": "Snaps are short vertical videos that start conversations. Record, upload, and scroll full-screen videos, and every Snap has a shareable link, so the story you're talking about travels beyond the app."
             }
           },
           {
@@ -338,7 +358,7 @@
             "name": "How do I get verified on Textmob?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Verification — the blue tick — helps everyone know who they're talking to. Authentic, notable accounts can apply once they meet the eligibility criteria, and verified accounts show a blue checkmark badge next to their name."
+              "text": "Verification (the blue tick) helps everyone know who they're talking to. Authentic, notable accounts can apply once they meet the eligibility criteria, and verified accounts show a blue checkmark badge next to their name."
             }
           },
           {
@@ -346,7 +366,7 @@
             "name": "Who created Textmob?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Textmob was founded by Ibrahim Gidado and Ismail Gidado to give Africa a place built for its conversations — a space where African voices are heard and creators are rewarded."
+              "text": "Textmob was founded by Ibrahim Gidado and Ismail Gidado to give Africa a place built for its conversations, a space where African voices are heard and creators are rewarded."
             }
           },
           {
@@ -489,7 +509,7 @@
     .markdown h2,
     .markdown h3 {
       font-weight: 700;
-      color: #1e40af;
+      color: #1B28A3;
       margin-top: 1rem;
     }
 
@@ -533,7 +553,7 @@
     }
 
     .markdown a {
-      color: #2563eb;
+      color: #2B3EE8;
       text-decoration: underline;
     }
 
@@ -619,7 +639,7 @@
     h4,
     h5,
     h6 {
-      font-family: 'Space Grotesk', 'Inter', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-weight: 700;
       line-height: 1.15;
       margin-top: 0;
@@ -652,8 +672,8 @@
     select:focus,
     textarea:focus {
       outline: none;
-      border-color: #2563eb !important;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+      border-color: #2B3EE8 !important;
+      box-shadow: 0 0 0 3px rgba(43, 62, 232, 0.08);
       transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
         box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
@@ -675,11 +695,6 @@
       }
     }
 
-    /* Milky backdrop on modals/overlays */
-    .bg-black\/40 {
-      backdrop-filter: blur(8px) saturate(150%);
-      -webkit-backdrop-filter: blur(8px) saturate(150%);
-    }
 
     /* Smooth image loading */
     img {
@@ -851,34 +866,34 @@
 <body class="bg-gray-100 text-gray-800">
   <!-- SEO: Crawler-visible content for bots that don't execute JavaScript -->
   <noscript>
-    <div style="max-width:800px;margin:40px auto;padding:0 24px;font-family:Inter,sans-serif;color:#0f172a;">
-      <h1>Textmob — Where Africa Comes to Talk</h1>
-      <p>Textmob is where Africa comes to talk — a social network built around African conversations. See what
+    <div style="max-width:800px;margin:40px auto;padding:0 24px;font-family:'Inter',sans-serif;color:#0f172a;">
+      <h1>Textmob: Where Africa Comes to Talk</h1>
+      <p>Textmob is where Africa comes to talk, a social network built around African conversations. See what
         Nigerians are discussing, share your take, and find your community. Founded by
         <strong>Ibrahim Gidado</strong> and <strong>Ismail Gidado</strong>, Textmob is free on web and Android.
       </p>
 
       <h2>What you get out of Textmob</h2>
       <ul>
-        <li><strong>Be heard</strong> — Share your thoughts, images, videos, and polls, and see where the community
+        <li><strong>Be heard</strong>. Share your thoughts, images, videos, and polls, and see where the community
           stands with you.</li>
-        <li><strong>Talk face-to-face</strong> — Go live and hold real-time conversations with the people watching,
+        <li><strong>Talk face-to-face</strong>. Go live and hold real-time conversations with the people watching,
           who can gift you while you talk.</li>
-        <li><strong>Get rewarded</strong> — Creators who start conversations people care about earn MobCoins they can
+        <li><strong>Get rewarded</strong>. Creators who start conversations people care about earn MobCoins they can
           convert to real cash (NGN, USD).</li>
-        <li><strong>Take it private</strong> — Move any conversation into private messages with voice notes, media,
+        <li><strong>Take it private</strong>. Move any conversation into private messages with voice notes, media,
           and read receipts.</li>
-        <li><strong>Show the story</strong> — Snaps lets you post short vertical videos, and every Snap has a
+        <li><strong>Show the story</strong>. Snaps lets you post short vertical videos, and every Snap has a
           shareable link.</li>
-        <li><strong>Trust who you talk to</strong> — A blue tick verification badge proves who someone is before you
+        <li><strong>Trust who you talk to</strong>. A blue tick verification badge proves who someone is before you
           join the conversation.</li>
-        <li><strong>Find the best voices</strong> — The Hall of Fame celebrates the creators who drive the week's
+        <li><strong>Find the best voices</strong>. The Hall of Fame celebrates the creators who drive the week's
           best conversations.</li>
-        <li><strong>Join your people</strong> — Communities bring together people who care about the same topics.</li>
-        <li><strong>Never miss a reply</strong> — Real-time notifications keep every conversation moving.</li>
-        <li><strong>Save your data</strong> — Offline Mode and Data Saver keep conversations going even when data
+        <li><strong>Join your people</strong>. Communities bring together people who care about the same topics.</li>
+        <li><strong>Never miss a reply</strong>. Real-time notifications keep every conversation moving.</li>
+        <li><strong>Save your data</strong>. Offline Mode and Data Saver keep conversations going even when data
           gets expensive.</li>
-        <li><strong>Disagree without abuse</strong> — Trust &amp; Safety keeps debates sharp but civil.</li>
+        <li><strong>Disagree without abuse</strong>. Trust &amp; Safety keeps debates sharp but civil.</li>
       </ul>
 
       <h2>Pages</h2>
@@ -893,15 +908,15 @@
       </nav>
 
       <h2>About the Founders</h2>
-      <p><strong>Ismail Gidado</strong> — Co-Founder &amp; Lead Developer. Built Textmob's architecture, from
+      <p><strong>Ismail Gidado</strong>. Co-Founder &amp; Lead Developer. Built Textmob's architecture, from
         the frontend to the API and Hosting infrastructure.</p>
-      <p><strong>Ibrahim Gidado</strong> — Founder. Drives product vision and strategy for Africa's home for
+      <p><strong>Ibrahim Gidado</strong>. Founder. Drives product vision and strategy for Africa's home for
         conversation.
       </p>
 
       <h2>Frequently Asked Questions</h2>
       <h3>What is Textmob?</h3>
-      <p>Textmob is where Africa comes to talk — a social network built around African conversations. See what
+      <p>Textmob is where Africa comes to talk, a social network built around African conversations. See what
         Nigerians are discussing, share your take, and find your community. Free on web and Android.</p>
       <h3>How do MobCoins work?</h3>
       <p>MobCoins reward the people who start conversations people care about. Earn them when your posts and Snaps
@@ -909,15 +924,15 @@
       <h3>Is Textmob free?</h3>
       <p>Yes. Join conversations, post, message, go live, and watch Snaps without paying anything.</p>
       <h3>Who created Textmob?</h3>
-      <p>Textmob was founded by Ibrahim Gidado and Ismail Gidado to give Africa a place built for its conversations —
+      <p>Textmob was founded by Ibrahim Gidado and Ismail Gidado to give Africa a place built for its conversations,
         where African voices are heard and creators are rewarded.</p>
     </div>
   </noscript>
   <!-- Hidden SEO content for crawlers that DO execute JS -->
   <div style="position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;" aria-hidden="true">
-    <h1>Textmob — Where Africa Comes to Talk</h1>
+    <h1>Textmob: Where Africa Comes to Talk</h1>
     <p>Textmob is where Africa comes to talk. See what Nigerians are discussing, share your take through posts,
-      discussions, polls and live video, and find your community — free on web and Android, founded by Ismail Gidado
+      discussions, polls and live video, and find your community, free on web and Android, founded by Ismail Gidado
       and Ibrahim Gidado.</p>
     <nav aria-label="Site pages">
       <a href="/about.html">About Textmob</a>
@@ -966,7 +981,7 @@
       // Re-check on every SPA navigation
       function shouldSkip() { return isLivePage(); }
 
-      // 1. Handle tab switching — pause feed/snap videos only
+      // 1. Handle tab switching - pause feed/snap videos only
       document.addEventListener("visibilitychange", () => {
         if (shouldSkip()) return;
         if (document.hidden) {
@@ -976,7 +991,7 @@
         }
       });
 
-      // 2. Handle scrolling away — pause off-screen videos only
+      // 2. Handle scrolling away - pause off-screen videos only
       const observer = new IntersectionObserver((entries) => {
         if (shouldSkip()) return;
         entries.forEach(entry => {

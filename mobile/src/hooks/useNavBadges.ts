@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { getNotificationsAPI } from '../api/notifications';
+import { apiGet } from '../api/client';
 import { startLoudaUnreadBridge, subscribeLoudaUnread } from '../louda/unread';
 
 export default function useNavBadges() {
@@ -10,6 +11,7 @@ export default function useNavBadges() {
   const { on, off } = useSocket();
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [loudaUnread, setLoudaUnread] = useState(0);
+  const [discussionsUnread, setDiscussionsUnread] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appStateRef = useRef(AppState.currentState);
 
@@ -59,11 +61,38 @@ export default function useNavBadges() {
     };
   }, [username, on, off, fetchUnreadCount]);
 
+  // Discussion unread: one fetch on mount/foreground + live socket deltas
+  useEffect(() => {
+    if (!username) return;
+    const fetchDiscussions = async () => {
+      try {
+        const res = await apiGet(`/api/discussions-unread?username=${encodeURIComponent(username)}`);
+        setDiscussionsUnread(res?.data?.unreadCount || 0);
+      } catch { /* ignore */ }
+    };
+    fetchDiscussions();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (appStateRef.current.match(/inactive|background/) && state === 'active') fetchDiscussions();
+      appStateRef.current = state;
+    });
+    const onUnread = (payload: { delta?: number }) => {
+      setDiscussionsUnread(n => n + (Number(payload?.delta) || 1));
+    };
+    const onRead = () => { fetchDiscussions(); };
+    on('discussion_unread', onUnread);
+    on('discussion_read', onRead);
+    return () => {
+      sub.remove();
+      off('discussion_unread', onUnread);
+      off('discussion_read', onRead);
+    };
+  }, [username, on, off]);
+
   // Louda message badge — app-lifetime bridge, never stopped here.
   useEffect(() => {
     startLoudaUnreadBridge();
     return subscribeLoudaUnread((snap) => setLoudaUnread(snap.messages));
   }, []);
 
-  return { unreadNotifications, loudaUnread };
+  return { unreadNotifications, loudaUnread, discussionsUnread };
 }

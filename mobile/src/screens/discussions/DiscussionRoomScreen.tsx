@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, FlatList, TextInput, StyleSheet, Modal, ActivityIndicator, Image, ScrollView, Share, KeyboardAvoidingView, Keyboard, Platform } from 'react-native';
 import { Ripple } from '../../components/Ripple';
+import { useKeyboardPad } from '../../hooks/useKeyboardPad';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
-import { apiGet, apiPost, API_BASE_URL } from '../../api/client';
+import { apiGet, apiPost, uploadFile, API_BASE_URL } from '../../api/client';
 import { playClick } from '../../utils/sound';
 import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,6 +18,7 @@ type Props = { roomId: string; onBack: () => void; onProfile: (u: string) => voi
 
 export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Props) {
   const { username: currentUser } = useAuth();
+  const { containerRef, keyboardPad } = useKeyboardPad();
   const [room, setRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [members, setMembers] = useState<string[]>([]);
@@ -287,9 +289,10 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
         fd.append('media', { uri: asset.uri, type: (asset as any).mimeType || 'image/jpeg', name: (asset as any).fileName || `discussion_${Date.now()}.jpg` } as any);
         fd.append('username', currentUser || '');
         fd.append('roomId', roomId);
-        const res = await fetch(`${API_BASE_URL}/api/discussions/upload`, { method: 'POST', body: fd });
-        const data = await res.json();
-        if (data?.url) setImagePreview(data.url);
+        // Expo's winter fetch rejects RN's `{uri,name,type}` FormData parts;
+        // the shared helper sends multipart bodies through XHR instead.
+        const res = await uploadFile('/api/discussions/upload', fd);
+        if (res.ok && res.data?.url) setImagePreview(res.data.url);
         setUploadingImage(false);
       }
     } catch { setUploadingImage(false); }
@@ -488,7 +491,15 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
   const roomNames = Array.from(new Set<string>([room.host_username, ...(members.length ? members : speakers), ...speakers]));
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView
+      ref={containerRef}
+      style={[
+        styles.container,
+        // Android 15 / edge-to-edge: keyboard overlays instead of resizing.
+        keyboardPad > 0 ? { paddingBottom: keyboardPad } : null,
+      ]}
+      edges={['top']}
+    >
       <View style={styles.header}>
         <Ripple onPress={onBack} style={styles.backBtn}><Ionicons name="arrow-back" size={20} color="#6b7280" /></Ripple>
         <View style={styles.headerHash}><Text style={styles.headerHashText}>#</Text></View>
@@ -602,11 +613,14 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
       {pinnedMsg && (
         <Ripple onPress={() => scrollToMessage(pinnedMsg.id)} style={styles.pinnedBar}>
           <Ionicons name="pin" size={13} color="#a16207" />
-          <Text style={styles.pinnedText} numberOfLines={1}><Text style={{ fontWeight: 'bold' }}>@{pinnedMsg.username}</Text> {pinnedMsg.content?.startsWith('http') ? '📷 Image' : pinnedMsg.content}</Text>
+          <Text style={styles.pinnedText} numberOfLines={1}><Text style={{ fontWeight: 'bold' }}>@{pinnedMsg.username}</Text> {pinnedMsg.content?.startsWith('http') ? <Text><Ionicons name="image-outline" size={11} color="#6b7280" /> Image</Text> : pinnedMsg.content}</Text>
         </Ripple>
       )}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} enabled>
+      {/* Android: measure-and-pad (useKeyboardPad) instead of 'height' —
+          behaviour='height' double-lifts when the OS already resized the
+          window for the keyboard. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} enabled>
         <FlatList
           ref={flatListRef}
           data={feed}
@@ -714,7 +728,7 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
                     <View style={styles.replyPreviewBar} />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.replyPreviewUser}>@{replyTo.username}</Text>
-                      <Text style={styles.replyPreviewContent} numberOfLines={1}>{replyTo.content?.startsWith('http') ? '📷 Image' : replyTo.content}</Text>
+                      <Text style={styles.replyPreviewContent} numberOfLines={1}>{replyTo.content?.startsWith('http') ? <Text><Ionicons name="image-outline" size={11} color="#6b7280" /> Image</Text> : replyTo.content}</Text>
                     </View>
                     <Ripple onPress={() => setReplyTo(null)} hitSlop={8}><Ionicons name="close" size={14} color="#9ca3af" /></Ripple>
                   </View>
@@ -857,7 +871,7 @@ const MessageRow = React.memo(function MessageRow({
           {!!item.replyToMsg && (
             <Ripple onPress={() => onScrollTo(item.replyToMsg!.id)} style={styles.replyQuote}>
               <Text style={styles.replyUser}>@{item.replyToMsg.username}</Text>
-              <Text style={styles.replyContent} numberOfLines={1}>{item.replyToMsg.content?.startsWith('http') ? '📷 Image' : item.replyToMsg.content}</Text>
+              <Text style={styles.replyContent} numberOfLines={1}>{item.replyToMsg.content?.startsWith('http') ? <Text><Ionicons name="image-outline" size={11} color="#6b7280" /> Image</Text> : item.replyToMsg.content}</Text>
             </Ripple>
           )}
           {isMedia ? (

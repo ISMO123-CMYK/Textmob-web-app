@@ -14,7 +14,7 @@ export default function ManageAccountsModal({ show, accounts, onLogin, onRemove,
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center md:items-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-bold text-gray-900">Saved Accounts</p>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
@@ -26,7 +26,7 @@ export default function ManageAccountsModal({ show, accounts, onLogin, onRemove,
         <div className="flex flex-col gap-2">
           {accounts.map((a) => (
             <div key={a.username} onClick={() => { onLogin(a.username, a.password); onClose(); }}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-2xl border border-gray-100 hover:bg-blue-50 cursor-pointer">
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 hover:bg-brand-50 cursor-pointer">
               <img src={a.profile_pic || DEFAULT_PIC} alt="" className="w-8 h-8 rounded-full object-cover" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-gray-800">@{a.username}</p>

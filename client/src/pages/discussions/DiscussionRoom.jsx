@@ -22,6 +22,10 @@ const HashIcon = ({ className = 'w-5 h-5' }) => (
   <svg viewBox="0 0 24 24" className={className} fill="currentColor"><path fillRule="evenodd" d="M5.25 2.25a3 3 0 0 0-3 3v13.5a3 3 0 0 0 3 3h13.5a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3H5.25Zm1.5 4.5a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1-.75-.75Zm.75 2.25a.75.75 0 0 0 0 1.5H12a.75.75 0 0 0 0-1.5H7.5Zm.75 3a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5a.75.75 0 0 1 .75-.75Zm4.5-3a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5H12Zm-.75 3a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" /></svg>
 );
 const PinIcon = (p) => <Ico d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" {...p} />;
+const ImageIcon = (p) => <Ico d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21zm0-13.5h.008v.008H3.75V7.5zm4.5 4.5h.008v.008h-.008V12zm4.5 0h.008v.008h-.008V12z" {...p} />;
+const ImgLabel = ({ text }) => text && text.startsWith('http')
+  ? <span className="inline-flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5" />Image</span>
+  : text;
 const MembersIcon = (p) => <Ico d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" {...p} />;
 const SmileIcon = (p) => <Ico d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" {...p} />;
 const ReplyIcon = (p) => <Ico d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" {...p} />;
@@ -57,7 +61,7 @@ const MessageRow = memo(function MessageRow({
   const reactionKeys = Object.keys(reactions);
 
   const toolbar = (
-    <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+    <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
       <ToolBtn title="React" onClick={() => { setShowActions(false); onTogglePicker(msg.id); }}><SmileIcon className="w-4 h-4" /></ToolBtn>
       {isLive && <ToolBtn title="Reply" onClick={() => { setShowActions(false); onReply(msg); }}><ReplyIcon className="w-4 h-4" /></ToolBtn>}
       {isHostUser && <ToolBtn title="Pin" onClick={() => { setShowActions(false); onPin(msg.id); }}><PinIcon className="w-4 h-4" /></ToolBtn>}
@@ -66,7 +70,7 @@ const MessageRow = memo(function MessageRow({
   );
 
   return (
-    <div id={`msg-${msg.id}`} className="group relative flex gap-3 sm:gap-4 px-4 pt-2 pb-0.5 rounded-xl hover:bg-gray-50/70 scroll-mt-24">
+    <div id={`msg-${msg.id}`} className="group relative flex gap-3 sm:gap-4 px-4 pt-2 pb-0.5 rounded-lg hover:bg-gray-50/70 scroll-mt-24">
       {grouped ? (
         <div className="hidden md:block w-[56px] shrink-0 text-right pt-[3px] text-[10px] leading-4 text-gray-400 opacity-0 group-hover:opacity-100 select-none tabular-nums">
           {clockTime(msg.created_at)}
@@ -79,22 +83,22 @@ const MessageRow = memo(function MessageRow({
 
       <div className="min-w-0 flex-1">
         {replyToMsg && (
-          <div className="flex items-center gap-1.5 mb-1 pl-2 border-l-2 border-blue-300 rounded">
-            <span className="text-[11px] text-blue-500 font-semibold shrink-0">@{replyToMsg.username}</span>
-            <span className="text-[11px] text-gray-400 truncate max-w-[240px]">{replyToMsg.content?.startsWith('http') ? '📷 Image' : replyToMsg.content}</span>
+          <div className="flex items-center gap-1.5 mb-1 pl-2 border-l-2 border-brand-300 rounded">
+            <span className="text-[11px] text-brand-500 font-semibold shrink-0">@{replyToMsg.username}</span>
+            <span className="text-[11px] text-gray-400 truncate max-w-[240px]"><ImgLabel text={replyToMsg.content} /></span>
           </div>
         )}
         {!grouped && (
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <button onClick={() => onJump(msg.username)} className={`text-sm font-semibold hover:underline ${isMsgHost ? 'text-blue-600' : 'text-gray-900'}`}>{msg.username}</button>
+            <button onClick={() => onJump(msg.username)} className={`text-sm font-semibold hover:underline ${isMsgHost ? 'text-brand-600' : 'text-gray-900'}`}>{msg.username}</button>
             {verified && <VerifiedBadge className="w-3.5 h-3.5" />}
-            {isMsgHost && <span className="text-[9px] font-bold tracking-wide bg-blue-100 text-blue-600 px-1.5 py-[1px] rounded">HOST</span>}
+            {isMsgHost && <span className="text-[9px] font-bold tracking-wide bg-brand-100 text-brand-600 px-1.5 py-[1px] rounded">HOST</span>}
             <span className="text-[11px] text-gray-400">{timeAgo(msg.created_at)}</span>
           </div>
         )}
 
         {isMedia ? (
-          <button onClick={() => onLightbox(mediaUrl)} className="block max-w-[320px] sm:max-w-[380px] rounded-xl overflow-hidden border border-gray-100 hover:border-gray-200 transition-colors">
+          <button onClick={() => onLightbox(mediaUrl)} className="block max-w-[320px] sm:max-w-[380px] rounded-lg overflow-hidden border border-gray-100 hover:border-gray-200 transition-colors">
             <img src={mediaUrl} alt="" loading="lazy" className="w-full block bg-gray-100" />
           </button>
         ) : (
@@ -109,7 +113,7 @@ const MessageRow = memo(function MessageRow({
               const mine = Array.isArray(users) && users.includes(currentUser);
               return (
                 <button key={emoji} onClick={() => isLive && onPick(msg.id, emoji)}
-                  className={`inline-flex items-center gap-1 px-1.5 py-[1px] rounded-lg border text-xs transition-colors ${mine ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                  className={`inline-flex items-center gap-1 px-1.5 py-[1px] rounded-lg border text-xs transition-colors ${mine ? 'bg-brand-50 border-brand-300 text-brand-700' : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'}`}>
                   <span>{emoji}</span>
                   <span className="font-semibold tabular-nums">{count}</span>
                 </button>
@@ -134,14 +138,14 @@ const MessageRow = memo(function MessageRow({
       )}
 
       {pickerOpen && (
-        <div className="absolute right-2 sm:right-4 top-6 z-40 w-[248px] bg-white rounded-2xl shadow-xl border border-gray-200 p-2 flex flex-wrap gap-1">
+        <div className="absolute right-2 sm:right-4 top-6 z-40 w-[248px] bg-white rounded-lg shadow-xl border border-gray-200 p-2 flex flex-wrap gap-1">
           {REACTION_EMOJIS.map(emoji => (
             <button key={emoji} onClick={() => { onPick(msg.id, emoji); onTogglePicker(msg.id); }}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-xl text-xl transition-colors">{emoji}</button>
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-lg text-xl transition-colors">{emoji}</button>
           ))}
           {isHostUser && (
             <button onClick={() => { onPin(msg.id); onTogglePicker(msg.id); }}
-              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-xl text-lg" title="Pin message">📌</button>
+              className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-500 hover:text-yellow-500 transition-colors" title="Pin message"><PinIcon className="w-5 h-5" /></button>
           )}
         </div>
       )}
@@ -152,11 +156,11 @@ const MessageRow = memo(function MessageRow({
 /* ══════════════════════ MEMBERS PANEL ══════════════════════ */
 const MemberRow = memo(function MemberRow({ username, isHost, pic, verified }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-1.5 rounded-xl hover:bg-gray-100/70 transition-colors">
+    <div className="flex items-center gap-3 px-4 py-1.5 rounded-lg hover:bg-gray-100/70 transition-colors">
       <img src={pic || DEFAULT_PIC} alt="" loading="lazy" className="w-8 h-8 rounded-full object-cover bg-gray-200 shrink-0" />
-      <span className={`text-sm font-medium truncate ${isHost ? 'text-blue-600' : 'text-gray-700'}`}>{username}</span>
+      <span className={`text-sm font-medium truncate ${isHost ? 'text-brand-600' : 'text-gray-700'}`}>{username}</span>
       {verified && <VerifiedBadge className="w-3.5 h-3.5" />}
-      {isHost && <span className="ml-auto text-[9px] font-bold bg-blue-100 text-blue-600 px-1.5 py-[1px] rounded shrink-0">HOST</span>}
+      {isHost && <span className="ml-auto text-[9px] font-bold bg-brand-100 text-brand-600 px-1.5 py-[1px] rounded shrink-0">HOST</span>}
     </div>
   );
 });
@@ -178,7 +182,7 @@ function MembersContent({ room, members, speakers, meta }) {
         </div>
       </div>
 
-      <div className="px-4 pt-4 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Members — {names.length}</div>
+      <div className="px-4 pt-4 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-400">Members: {names.length}</div>
       <div className="px-2 pb-6 space-y-0.5">
         {names.map(u => (
           <MemberRow key={u} username={u} isHost={u === host} pic={metaMap[u]?.pic} verified={metaMap[u]?.verified} />
@@ -245,7 +249,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
   const isArchived = !!room && room.status === 'ended';
   const canView = isLive || unlocked || isHost;
 
-  /* ── data (roomId never changes for a mounted view — the router keys by path) ── */
+  /* ── data (roomId never changes for a mounted view - the router keys by path) ── */
   useEffect(() => {
     if (!roomId) return;
     let alive = true;
@@ -578,7 +582,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
       const res = await apiFetch(`/api/discussions/room/${roomId}/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: currentUser }) });
       const data = await res.json();
       setRoom(prev => (prev ? { ...prev, status: 'ended', ended_at: new Date().toISOString(), duration_seconds: data.duration || 0, participant_count: 0 } : prev));
-    } catch { /* end failed — room stays live */ }
+    } catch { /* end failed, room stays live */ }
   };
 
   const handleDeleteRoom = async () => {
@@ -617,7 +621,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
   if (loading) {
     return shell(
       <div className="flex-1 flex items-center justify-center bg-white">
-        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -626,7 +630,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
       <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-white px-4">
         <HashIcon className="w-12 h-12 text-gray-200" />
         <p className="text-sm font-semibold text-gray-400">Discussion not found</p>
-        <a href="/discussions" data-lexum className="text-sm text-blue-600 font-bold active:opacity-70">Browse discussions</a>
+        <a href="/discussions" data-lexum className="text-sm text-brand-600 font-bold active:opacity-70">Browse discussions</a>
       </div>
     );
   }
@@ -634,13 +638,13 @@ export default function DiscussionRoom({ roomId, active = true }) {
   if (isArchived && !canView) {
     return shell(
       <div className="flex-1 flex flex-col items-center justify-center px-4 bg-white">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-sm w-full text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 max-w-sm w-full text-center">
+          <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mx-auto mb-4">
             <svg viewBox="0 0 24 24" className="w-7 h-7 fill-none stroke-gray-400" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
           </div>
           <h2 className="text-base font-bold text-gray-900 mb-1">{room.title}</h2>
           <p className="text-xs text-gray-400 mb-4">by @{room.host_username}</p>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <p className="text-xs font-bold text-yellow-700">Unlock this archive</p>
             <p className="text-xs text-yellow-600 mt-0.5">500 mobcoins · Host gets 50 (10%)</p>
           </div>
@@ -658,9 +662,9 @@ export default function DiscussionRoom({ roomId, active = true }) {
   return shell(
     <div className="flex flex-col h-full min-h-0 min-w-0 bg-white">
       {/* ── channel header ── */}
-      <header className="flex-shrink-0 h-14 px-3 sm:px-4 flex items-center gap-3 border-b border-gray-200/70 bg-white/90 backdrop-blur-xl z-30">
+      <header className="flex-shrink-0 h-14 px-3 sm:px-4 flex items-center gap-3 border-b border-gray-200/70 bg-white/90 z-30">
         {!desktop && (
-          <a href="/discussions" data-lexum className="p-1.5 -ml-1 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors" aria-label="Back">
+          <a href="/discussions" data-lexum className="p-1.5 -ml-1 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors" aria-label="Back">
             <NavIcons.ArrowLeft className="w-5 h-5" />
           </a>
         )}
@@ -671,23 +675,23 @@ export default function DiscussionRoom({ roomId, active = true }) {
         <div className="flex-1 md:hidden" />
         <div className="flex items-center gap-1 shrink-0">
           <span className="hidden md:block text-[11px] font-semibold text-gray-400 mr-1">
-            {isLive ? <span className="text-blue-600">{room.participant_count || 0} here</span> : `ended · ${formatDuration(room.duration_seconds || 0)}`}
+            {isLive ? <span className="text-brand-600">{room.participant_count || 0} here</span> : `ended · ${formatDuration(room.duration_seconds || 0)}`}
           </span>
           <button onClick={() => pinnedMsg && jumpToMessage(pinnedMsg.id)} title="Pinned message"
-            className={`hidden md:block p-2 rounded-xl transition-colors ${pinnedMsg ? 'text-yellow-500 hover:bg-yellow-50' : 'text-gray-400 hover:bg-gray-100'}`}>
+            className={`hidden md:block p-2 rounded-lg transition-colors ${pinnedMsg ? 'text-yellow-500 hover:bg-yellow-50' : 'text-gray-400 hover:bg-gray-100'}`}>
             <PinIcon className="w-[18px] h-[18px]" />
           </button>
           <button onClick={() => (wide ? setShowMembers(v => !v) : setPanelOpen(true))} title="About &amp; members"
-            className={`p-2 rounded-xl transition-colors ${wide && showMembers ? 'text-gray-700 bg-gray-100' : 'text-gray-400 hover:bg-gray-100'}`}>
+            className={`p-2 rounded-lg transition-colors ${wide && showMembers ? 'text-gray-700 bg-gray-100' : 'text-gray-400 hover:bg-gray-100'}`}>
             <MembersIcon className="w-[18px] h-[18px]" />
           </button>
         </div>
         <div className="relative shrink-0" ref={menuRef}>
-          <button onClick={() => setShowMenu(v => !v)} className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 transition-colors" aria-label="Room menu">
+          <button onClick={() => setShowMenu(v => !v)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors" aria-label="Room menu">
             <NavIcons.Dots className="w-5 h-5" />
           </button>
           {showMenu && (
-            <div className="absolute right-0 top-full mt-1 bg-white rounded-2xl shadow-xl border border-gray-100 py-1 z-50 w-52">
+            <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50 w-52">
               <button onClick={() => { setShowMenu(false); navigator.clipboard.writeText(`https://textmob.web.app/discussions/${room.id}`); }} className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors">
                 <NavIcons.Link className="w-4 h-4" /> Copy link
               </button>
@@ -730,8 +734,8 @@ export default function DiscussionRoom({ roomId, active = true }) {
           {pinnedMsg && (
             <button onClick={() => jumpToMessage(pinnedMsg.id)}
               className="flex-shrink-0 w-full px-4 py-2 bg-yellow-50 border-b border-yellow-200 flex items-center gap-2 hover:bg-yellow-100 transition-colors text-left">
-              <span className="text-yellow-500 flex-shrink-0">📌</span>
-              <p className="text-xs text-yellow-700 truncate"><span className="font-bold">@{pinnedMsg.username}</span> {pinnedMsg.content?.startsWith('http') ? '📷 Image' : pinnedMsg.content}</p>
+              <PinIcon className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+              <p className="text-xs text-yellow-700 truncate"><span className="font-bold">@{pinnedMsg.username}</span> <ImgLabel text={pinnedMsg.content} /></p>
             </button>
           )}
 
@@ -740,8 +744,8 @@ export default function DiscussionRoom({ roomId, active = true }) {
             {hasMore && (
               <div className="text-center pb-3">
                 {loadingMore
-                  ? <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-                  : <button onClick={loadMoreMessages} className="text-[12px] text-blue-600 font-semibold hover:text-blue-700 transition-colors">Load earlier messages</button>}
+                  ? <div className="w-5 h-5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
+                  : <button onClick={loadMoreMessages} className="text-[12px] text-brand-600 font-semibold hover:text-brand-700 transition-colors">Load earlier messages</button>}
               </div>
             )}
 
@@ -754,7 +758,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
                 <h3 className="text-xl font-black text-gray-900" style={{ fontFamily: 'var(--font-display)' }}>Welcome to {room.title}!</h3>
                 <p className="text-sm text-gray-500 mt-1 leading-snug">
                   This is the start of the <span className="font-semibold text-gray-700">{room.title}</span> discussion, hosted by{' '}
-                  <button onClick={() => jumpToUser(room.host_username)} className="text-blue-600 font-semibold hover:underline">@{room.host_username}</button>.
+                  <button onClick={() => jumpToUser(room.host_username)} className="text-brand-600 font-semibold hover:underline">@{room.host_username}</button>.
                 </p>
               </div>
             )}
@@ -804,7 +808,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
           {/* ── composer ── */}
           <div className="flex-shrink-0 px-3 sm:px-4 pb-4 pt-1 bg-white relative">
             {showGiphy && (
-              <div className="absolute bottom-full left-3 right-3 sm:left-4 sm:right-4 md:right-auto md:w-80 mb-2 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 max-h-[46vh] sm:max-h-64 flex flex-col overflow-hidden">
+              <div className="absolute bottom-full left-3 right-3 sm:left-4 sm:right-4 md:right-auto md:w-80 mb-2 bg-white rounded-lg shadow-xl border border-gray-100 z-50 max-h-[46vh] sm:max-h-64 flex flex-col overflow-hidden">
                 <div className="flex items-center gap-2 p-3 border-b border-gray-100">
                   <NavIcons.Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <input type="text" autoFocus placeholder="Search GIFs..." value={giphyQuery} onChange={e => searchGiphy(e.target.value)} className="flex-1 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none" />
@@ -812,7 +816,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
                 </div>
                 <div className="overflow-y-auto p-2 grid grid-cols-3 gap-1.5">
                   {giphyResults.map(gif => (
-                    <button key={gif.id} onClick={() => sendMessage(gif.images.original.url)} className="rounded-xl overflow-hidden aspect-square bg-gray-100 active:scale-95 transition-transform">
+                    <button key={gif.id} onClick={() => sendMessage(gif.images.original.url)} className="rounded-lg overflow-hidden aspect-square bg-gray-100 active:scale-95 transition-transform">
                       <img src={gif.images.fixed_height.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                     </button>
                   ))}
@@ -823,7 +827,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
             )}
 
             {mentionQuery !== null && mentionResults.length > 0 && (
-              <div className="absolute bottom-full left-3 right-3 sm:left-4 sm:right-4 md:right-auto md:w-96 mb-2 bg-white rounded-2xl shadow-xl border border-gray-100 py-1 z-50 max-h-48 overflow-y-auto">
+              <div className="absolute bottom-full left-3 right-3 sm:left-4 sm:right-4 md:right-auto md:w-96 mb-2 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-50 max-h-48 overflow-y-auto">
                 {mentionResults.map(u => (
                   <button key={u.username || u} onClick={() => insertMention(u.username || u)} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors">
                     <img src={u.profile_pic || DEFAULT_PIC} alt="" className="w-7 h-7 rounded-full object-cover" />
@@ -835,7 +839,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
             )}
 
             {showHostPanel && isHost && isLive && (
-              <div className="absolute bottom-full right-4 mb-2 bg-white rounded-2xl shadow-xl border border-gray-100 p-4 z-50 w-56">
+              <div className="absolute bottom-full right-4 mb-2 bg-white rounded-lg shadow-xl border border-gray-100 p-4 z-50 w-56">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-bold text-gray-900">Settings</h3>
                   <button onClick={() => setShowHostPanel(false)} className="text-gray-400 hover:text-gray-600"><svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
@@ -847,7 +851,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
                       await apiFetch(`/api/discussions/room/${roomId}/mode`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ host_username: currentUser, room_mode: mode }) });
                       socketRef.current?.emit('discussion_mode_change', { roomId, room_mode: mode });
                       setRoom(prev => (prev ? { ...prev, room_mode: mode } : prev));
-                    }} className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition-all ${room.room_mode === mode ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+                    }} className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-all ${room.room_mode === mode ? 'bg-brand-50 text-brand-600 border border-brand-200' : 'text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                       {mode === 'open' ? 'Open' : mode === 'moderated' ? 'Moderated' : 'Locked'}
                     </button>
                   ))}
@@ -862,23 +866,23 @@ export default function DiscussionRoom({ roomId, active = true }) {
                   <>
                     {imagePreview && (
                       <div className="mb-2 relative inline-block">
-                        <img src={imagePreview} alt="" className="h-20 rounded-xl object-cover border border-gray-200" />
+                        <img src={imagePreview} alt="" className="h-20 rounded-lg object-cover border border-gray-200" />
                         <button onClick={() => setImagePreview(null)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] font-bold flex items-center justify-center">X</button>
                       </div>
                     )}
                     {replyTo && (
-                      <div className="mb-2 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">
-                        <div className="w-0.5 h-8 bg-blue-400 rounded-full flex-shrink-0" />
+                      <div className="mb-2 flex items-center gap-2 bg-brand-50 border border-brand-200 rounded-lg px-3 py-2">
+                        <div className="w-0.5 h-8 bg-brand-400 rounded-full flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-blue-600">Replying to @{replyTo.username}</p>
-                          <p className="text-[11px] text-gray-500 truncate">{replyTo.content?.startsWith('http') ? '📷 Image' : replyTo.content}</p>
+                          <p className="text-[11px] font-bold text-brand-600">Replying to @{replyTo.username}</p>
+                          <p className="text-[11px] text-gray-500 truncate"><ImgLabel text={replyTo.content} /></p>
                         </div>
                         <button onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0" aria-label="Cancel reply"><svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
                       </div>
                     )}
-                    <div className="flex items-end gap-2 rounded-2xl bg-gray-100 border border-gray-100 focus-within:border-gray-200 transition-colors px-3 py-2">
+                    <div className="flex items-end gap-2 rounded-lg bg-gray-100 border border-gray-100 focus-within:border-gray-200 transition-colors px-3 py-2">
                       <button onClick={() => fileInputRef.current?.click()} className="w-8 h-8 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-200/70 transition-colors flex-shrink-0 flex items-center justify-center" title="Upload image">
-                        {uploadingImage ? <span className="block w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <PlusIcon className="w-5 h-5" sw={2} />}
+                        {uploadingImage ? <span className="block w-5 h-5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" /> : <PlusIcon className="w-5 h-5" sw={2} />}
                       </button>
                       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = ''; }} />
                       <textarea
@@ -893,12 +897,12 @@ export default function DiscussionRoom({ roomId, active = true }) {
                         maxLength={2000}
                       />
                       <button onClick={() => setShowGiphy(v => !v)} title="GIF"
-                        className={`h-8 px-2 rounded-md text-[10px] font-bold border transition-colors flex-shrink-0 flex items-center justify-center ${showGiphy ? 'border-blue-300 text-blue-600 bg-blue-50' : 'border-gray-300 text-gray-500 hover:text-gray-700'}`}>
+                        className={`h-8 px-2 rounded-md text-[10px] font-bold border transition-colors flex-shrink-0 flex items-center justify-center ${showGiphy ? 'border-brand-300 text-brand-600 bg-brand-50' : 'border-gray-300 text-gray-500 hover:text-gray-700'}`}>
                         GIF
                       </button>
                       {(input.trim() || imagePreview) && (
                         <button onClick={() => (imagePreview ? sendMessage(undefined, imagePreview) : sendMessage())} title="Send"
-                          className="w-8 h-8 flex items-center justify-center bg-blue-600 hover:bg-blue-700 rounded-full flex-shrink-0 transition-all active:scale-95 shadow-sm shadow-blue-500/20">
+                          className="w-8 h-8 flex items-center justify-center bg-brand-600 hover:bg-brand-700 rounded-full flex-shrink-0 transition-all active:scale-95 shadow-sm shadow-brand-500/20">
                           <SendIcon />
                         </button>
                       )}
@@ -913,7 +917,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
             ) : (
               <div className="text-center py-2">
                 <p className="text-xs font-bold text-gray-400">Discussion has ended</p>
-                <a href="/discussions" data-lexum className="text-xs text-blue-600 font-semibold mt-1 inline-block active:opacity-70">Browse more</a>
+                <a href="/discussions" data-lexum className="text-xs text-brand-600 font-semibold mt-1 inline-block active:opacity-70">Browse more</a>
               </div>
             )}
           </div>
@@ -922,7 +926,7 @@ export default function DiscussionRoom({ roomId, active = true }) {
       </div>
 
       {lightboxUrl && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setLightboxUrl(null)}>
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80" onClick={() => setLightboxUrl(null)}>
           <button onClick={() => setLightboxUrl(null)} className="absolute top-4 right-4 text-white/80 hover:text-white"><svg viewBox="0 0 24 24" className="w-8 h-8 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
           <img src={lightboxUrl} alt="" className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg" onClick={e => e.stopPropagation()} />
         </div>
@@ -930,12 +934,12 @@ export default function DiscussionRoom({ roomId, active = true }) {
 
       {/* about + members drawer for widths where the side panel is hidden */}
       {panelOpen && !wide && (
-        <div className="fixed inset-0 z-[998] flex bg-black/40 backdrop-blur-[2px]" onClick={() => setPanelOpen(false)}>
+        <div className="fixed inset-0 z-[998] flex bg-black/40" onClick={() => setPanelOpen(false)}>
           <div onClick={e => e.stopPropagation()}
             className="ml-auto w-80 max-w-[86vw] h-full bg-gray-50/95 overflow-y-auto scrollbar-thin shadow-2xl">
-            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white/95 backdrop-blur-xl border-b border-gray-200/60">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white/95 border-b border-gray-200/60">
               <p className="text-sm font-bold text-gray-900">About &amp; members</p>
-              <button onClick={() => setPanelOpen(false)} className="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" aria-label="Close">
+              <button onClick={() => setPanelOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" aria-label="Close">
                 <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>

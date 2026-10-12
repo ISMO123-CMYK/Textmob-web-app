@@ -50,7 +50,7 @@ export default function NotificationBanner() {
 
   return (
     <div style={{ zIndex: 9999 }} className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl flex flex-col max-h-[90vh]">
+      <div className="bg-white w-full max-w-lg rounded-lg shadow-xl flex flex-col max-h-[90vh]">
 
         <div className="p-6 text-center border-t border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-3">{currentStep.title}</h2>
@@ -61,7 +61,7 @@ export default function NotificationBanner() {
               value={feedbackText}
               onChange={e => setFeedbackText(e.target.value)}
               placeholder="What do you think about this? Any feedback?"
-              className="w-full border border-gray-300 rounded-lg p-3 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg p-3 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           )}
 
@@ -76,7 +76,7 @@ export default function NotificationBanner() {
 
           <button
             onClick={handleNext}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full font-medium transition-all duration-300"
+            className="w-full bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-full font-medium transition-all duration-300"
           >
             {currentIdx + 1 < steps.length ? 'Next' : 'Finish'}
           </button>

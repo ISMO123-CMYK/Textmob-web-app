@@ -122,7 +122,7 @@ export default function LoginForm({
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <div
             onClick={() => setRememberMe((v) => !v)}
-            className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${rememberMe ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}
+            className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${rememberMe ? 'bg-brand-600 border-brand-600' : 'bg-white border-gray-300'}`}
           >
             {rememberMe && (
               <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3">
@@ -132,12 +132,12 @@ export default function LoginForm({
           </div>
           <span className="text-xs text-gray-600 font-medium">Remember me</span>
         </label>
-        <button onClick={switchToForgotPassword} className="text-xs font-bold text-blue-600 active:opacity-70 transition-opacity">
+        <button onClick={switchToForgotPassword} className="text-xs font-bold text-brand-600 active:opacity-70 transition-opacity">
           Forgot password?
         </button>
       </div>
 
-      <button onClick={onSubmit} disabled={loading} className="w-full h-11 rounded-full bg-blue-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
+      <button onClick={onSubmit} disabled={loading} className="w-full h-11 rounded-full bg-brand-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
         {loading ? 'Signing in…' : 'Sign in'}
       </button>
 

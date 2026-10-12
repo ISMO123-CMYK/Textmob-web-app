@@ -567,7 +567,7 @@ function VerificationTab({ colors, username, isDark }: any) {
     ? Math.max(0, Math.ceil((new Date(status.verified_until).getTime() - Date.now()) / 86400000))
     : 0;
 
-  const waMessage = `I want to pay for the verified badge on Textmob. Username: @${username || ''} (Fee: ₦500)`;
+  const waMessage = `I want to pay for the verified badge on Textmob. Username: @${username || ''} (Fee: ₦1000)`;
   const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
   const waDisplay = waNumber === '2347057581322' ? '+234 705 758 1322' : '+234 708 742 1125';
 
@@ -585,7 +585,7 @@ function VerificationTab({ colors, username, isDark }: any) {
             {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : 'Expiring soon.'}
           </Text>
           <View style={{ backgroundColor: '#dbeafe', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 12 }}>
-            <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '600' }}>Renews at ₦500/month via WhatsApp</Text>
+            <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '600' }}>Renews at ₦1000/month via WhatsApp</Text>
           </View>
           <Ripple onPress={() => Linking.openURL(waLink)} style={{ backgroundColor: '#2563eb', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Renew via WhatsApp</Text>
@@ -615,7 +615,7 @@ function VerificationTab({ colors, username, isDark }: any) {
               </View>
               <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>Total</Text>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: '#2563eb' }}>₦500</Text>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#2563eb' }}>₦1000</Text>
               </View>
             </View>
 
@@ -624,7 +624,7 @@ function VerificationTab({ colors, username, isDark }: any) {
               style={{ width: '100%', height: 48, backgroundColor: '#2563eb', borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
             >
               <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Pay ₦500 via WhatsApp</Text>
+              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Pay ₦1000 via WhatsApp</Text>
             </Ripple>
             <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 8, textAlign: 'center' }}>
               You'll chat with {waDisplay}
@@ -1645,6 +1645,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
     followers: { inApp: true, email: true },
     newPost: { inApp: true, email: false },
     messages: { inApp: true, email: true },
+    discussions: { inApp: true, email: false },
     mobcoins: { inApp: true, email: true },
     events: { inApp: true, email: true },
   });
@@ -1678,6 +1679,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
         { id: 'followers', label: 'New followers', sub: 'When someone follows you' },
         { id: 'newPost', label: 'New posts', sub: 'Updates from people you follow' },
         { id: 'messages', label: 'Messages', sub: 'Direct messages' },
+        { id: 'discussions', label: 'Discussions', sub: 'New rooms and discussion messages' },
       ],
     },
     {

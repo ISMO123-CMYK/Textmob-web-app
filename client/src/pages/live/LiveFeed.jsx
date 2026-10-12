@@ -35,7 +35,7 @@ export default function LiveFeed() {
 
  if (loading) {
  return (
- <div className="flex flex-col w-full max-w-2xl mx-auto md:mt-4 bg-white md:rounded-2xl md:border border-gray-100 overflow-visible pb-20">
+ <div className="flex flex-col w-full max-w-2xl mx-auto md:mt-4 bg-white md:rounded-lg md:border border-gray-100 overflow-visible pb-20">
  {[0, 1].map(i => (
  <PostSkeleton key={i} />
  ))}
@@ -47,7 +47,7 @@ export default function LiveFeed() {
  return (
  <div className="p-6 text-center max-w-md mx-auto">
  <p className="text-sm text-red-500 mb-3">{error}</p>
- <button onClick={loadStreams} className="text-xs font-semibold text-blue-600 hover:underline">Try again</button>
+ <button onClick={loadStreams} className="text-xs font-semibold text-brand-600 hover:underline">Try again</button>
  </div>
  );
  }

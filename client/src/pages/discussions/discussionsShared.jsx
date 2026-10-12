@@ -66,7 +66,7 @@ export function renderMarkdown(text) {
     else if (match[4] || match[5]) parts.push(<em key={match.index}>{match[4] || match[5]}</em>);
     else if (match[6]) parts.push(<code key={match.index} className="bg-gray-100 px-1.5 py-0.5 rounded text-[13px] font-mono">{match[6]}</code>);
     else if (match[7]) parts.push(<del key={match.index}>{match[7]}</del>);
-    else if (match[8]) parts.push(<a key={match.index} href={match[8]} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{match[8]}</a>);
+    else if (match[8]) parts.push(<a key={match.index} href={match[8]} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">{match[8]}</a>);
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < text.length) parts.push(text.slice(lastIndex));
@@ -92,7 +92,7 @@ export function playMessageSound() {
   } catch { /* audio is best-effort (autoplay policies etc.) */ }
 }
 
-/* ── Profile pic / verified cache — shared across every discussions view so a
+/* ── Profile pic / verified cache - shared across every discussions view so a
    user is fetched at most once for the whole session, and updates fan out to
    every mounted view at once. ── */
 const userMetaCache = new Map();

@@ -1,6 +1,6 @@
 /**
  * Single default avatar for the whole Textmob app (including Messages).
- * Inline SVG data URI — always available, zero network dependency.
+ * Inline SVG data URI - always available, zero network dependency.
  */
 const SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">' +

@@ -79,7 +79,7 @@ export default function ForgotPasswordForm({ switchToLogin }) {
       {phase === 'request' && (
         <>
           <FormInput placeholder="Email, username, or phone" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
-          <button onClick={requestCode} disabled={loading} className="w-full h-11 rounded-full bg-blue-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
+          <button onClick={requestCode} disabled={loading} className="w-full h-11 rounded-full bg-brand-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
             {loading ? 'Sending…' : 'Send code'}
           </button>
         </>
@@ -89,8 +89,8 @@ export default function ForgotPasswordForm({ switchToLogin }) {
         <>
           <p>A 4 digit code has been sent to your inbox. ({maskedEmail})</p>
           <input type="text" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="0000" maxLength={4}
-            className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-center text-3xl font-black tracking-[0.5em] focus:outline-none focus:border-blue-400 transition-colors" />
-          <button onClick={verifyCode} disabled={loading} className="w-full h-11 rounded-full bg-blue-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
+            className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-lg text-center text-3xl font-black tracking-[0.5em] focus:outline-none focus:border-brand-400 transition-colors" />
+          <button onClick={verifyCode} disabled={loading} className="w-full h-11 rounded-full bg-brand-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
             {loading ? 'Verifying…' : 'Verify code'}
           </button>
         </>
@@ -103,7 +103,7 @@ export default function ForgotPasswordForm({ switchToLogin }) {
             {newPassword && <PasswordStrengthIndicator password={newPassword} />}
             <FormInput type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
           </div>
-          <button onClick={resetPassword} disabled={loading} className="w-full h-11 rounded-full bg-blue-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
+          <button onClick={resetPassword} disabled={loading} className="w-full h-11 rounded-full bg-brand-600 text-white text-sm font-bold active:scale-[0.98] disabled:opacity-50 transition-colors">
             {loading ? 'Resetting…' : 'Reset password'}
           </button>
         </>

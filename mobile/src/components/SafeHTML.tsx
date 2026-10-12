@@ -4,6 +4,7 @@ import RenderHTML from 'react-native-render-html';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { apiGet } from '../api/client';
+import { rnrhDefaultProps } from './rnrhDefaults';
 
 // Legacy usernames contain chars (spaces, emojis, accents...) that the standard
 // /@[\w.-]+/ mention regex cannot match. We fetch the exact list from the server
@@ -174,9 +175,10 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
     return () => { active = false; };
   }, []);
 
-  if (!text) return null;
-
+  // NOTE: no early return above this line — React requires the same hooks on
+  // every render, and `text` routinely flips between '' and a real value.
   const processed = useMemo(() => {
+    if (!text) return '';
     const hasMarkup = /<\/?[a-z][^>]*>/i.test(text);
     let p = text;
 
@@ -227,7 +229,15 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
       padding: 0,
     },
     strong: { fontWeight: '900' },
+    b: { fontWeight: '800' },
     em: { fontStyle: 'italic' },
+    i: { fontStyle: 'italic' },
+    u: { textDecorationLine: 'underline' },
+    del: { textDecorationLine: 'line-through' },
+    ins: { textDecorationLine: 'underline' },
+    mark: { backgroundColor: isDark ? '#854d0e' : '#fde68a' },
+    sub: { fontSize: 11 },
+    sup: { fontSize: 11 },
     s: { textDecorationLine: 'line-through' },
     code: {
       fontFamily: 'monospace',
@@ -237,9 +247,24 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
       paddingVertical: 1,
       borderRadius: 4,
     },
+    h1: { fontSize: 22, fontWeight: '900', marginVertical: 10, lineHeight: 28 },
     h2: { fontSize: 18, fontWeight: '800', marginVertical: 8, lineHeight: 24 },
     h3: { fontSize: 16, fontWeight: '700', marginVertical: 6, lineHeight: 22 },
     h4: { fontSize: 14, fontWeight: '700', marginVertical: 4, lineHeight: 20 },
+    h5: { fontSize: 13, fontWeight: '700', marginVertical: 4, lineHeight: 18 },
+    h6: {
+      fontSize: 12,
+      fontWeight: '700',
+      marginVertical: 4,
+      lineHeight: 16,
+      textTransform: 'uppercase',
+    },
+    pre: {
+      backgroundColor: isDark ? '#334155' : '#f3f4f6',
+      borderRadius: 8,
+      padding: 8,
+      marginVertical: 6,
+    },
     blockquote: {
       borderLeftWidth: 3,
       borderLeftColor: isDark ? '#4b5563' : '#d1d5db',
@@ -253,6 +278,8 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
     ol: { marginVertical: 4, paddingLeft: 20 },
     li: { marginVertical: 2, lineHeight: 20 },
   }), [colors, isDark, style]);
+
+  if (!text) return null;
 
   const navigateTo = (path: string) => {
     if (path.startsWith('/post/')) {
@@ -301,6 +328,7 @@ export default React.memo(function SafeHTML({ text, style }: { text: string; sty
 
   return (
     <RenderHTML
+      {...rnrhDefaultProps}
       contentWidth={width}
       source={{ html: `<body>${processed}</body>` }}
       tagsStyles={tagsStyles as any}

@@ -10,9 +10,9 @@ export default function Toggle({ checked, onChange, size = 'md', disabled = fals
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative inline-flex flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+        'relative inline-flex flex-shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
         size === 'sm' ? 'w-9 h-5' : 'w-11 h-6',
-        checked ? 'bg-blue-600' : 'bg-gray-300 hover:bg-gray-400',
+        checked ? 'bg-brand-600' : 'bg-gray-300 hover:bg-gray-400',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
     >

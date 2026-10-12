@@ -45,7 +45,7 @@ export default function EventsContent() {
  return (
  <div className="p-6 space-y-3">
  {[1, 2, 3].map(i => (
- <div key={i} className="h-20 bg-gray-50 rounded-2xl animate-pulse" />
+ <div key={i} className="h-20 bg-gray-50 rounded-lg animate-pulse" />
  ))}
  </div>
  );
@@ -54,7 +54,7 @@ export default function EventsContent() {
  return (
  <div className="min-h-screen bg-white pb-24 md:pb-8">
  {/* Header */}
- <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-4 flex items-center justify-between">
+ <div className="sticky top-0 z-10 bg-white/95 border-b border-gray-100 px-4 py-4 flex items-center justify-between">
  <div>
  <h1 className="text-sm font-bold text-gray-900 leading-none">Events</h1>
  <p className="text-xs text-gray-400 mt-0.5">Explore community meetups and events</p>
@@ -62,7 +62,7 @@ export default function EventsContent() {
  <a
  href="/events/new"
  data-lexum
- className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full transition-all duration-150 active:scale-95"
+ className="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-full transition-all duration-150 active:scale-95"
  >
  + Create
  </a>
@@ -95,7 +95,7 @@ export default function EventsContent() {
  className="w-full flex items-start justify-between px-4 py-4 text-left hover:bg-gray-50 transition-colors"
  >
  <div className="flex-1 min-w-0 pr-3">
- <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mb-1.5">
+ <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full mb-1.5">
  <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2">
  <rect x="3" y="4" width="18" height="18" rx="2" />
  <line x1="3" y1="10" x2="21" y2="10" />
@@ -113,7 +113,7 @@ export default function EventsContent() {
  t.stopPropagation();
  window.Lexum?.navigate(`/@${ev.username}`);
  }}
- className="text-blue-600 hover:underline cursor-pointer font-semibold"
+ className="text-brand-600 hover:underline cursor-pointer font-semibold"
  >
  @{ev.username}
  </span>
@@ -149,7 +149,7 @@ export default function EventsContent() {
  href={ev.registration_url}
  target="_blank"
  rel="noreferrer"
- className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline"
+ className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:underline"
  >
  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2">
  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -164,10 +164,10 @@ export default function EventsContent() {
  className={cn(
  "inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors",
  liked
- ? "bg-blue-600 text-white"
+ ? "bg-brand-600 text-white"
  : ended
  ? "bg-gray-100 text-gray-400 cursor-default"
- : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+ : "bg-brand-50 text-brand-600 hover:bg-brand-100"
  )}
  >
  <svg viewBox="0 0 24 24" className={cn("w-4 h-4", liked ? "fill-white" : "fill-none stroke-current")} strokeWidth="2">

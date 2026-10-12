@@ -2,9 +2,9 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/api';
 
 /* ---------------------------------------------------------
-   Textmob — Install onboarding (design-system rebuild)
+   Textmob - Install onboarding (design-system rebuild)
    Tokens: utilities/design-system/*.json
-   Colors #2563eb primary · #f8fafc bg · #ffffff card ·
+   Colors #2B3EE8 primary · #f8fafc bg · #ffffff card ·
    Outfit type · 4px spacing scale · 8px button radius.
    Interactive: animated download, live progress rail,
    per-step completion, keyboard nav, prominent guidelines.
@@ -159,7 +159,7 @@ const STEPS = [
     key: 'download',
     eyebrow: 'Step 1 of 4',
     title: 'Download the app file',
-    lead: "Textmob isn't on the Play Store yet, so you get the app file directly from us — the same file, just skipping the store.",
+    lead: "Textmob isn't on the Play Store yet, so you get the app file directly from us, the same file, just skipping the store.",
     notes: [
       {
         kind: 'blue',
@@ -171,7 +171,7 @@ const STEPS = [
         kind: 'gray',
         icon: Icon.folder,
         title: 'Where the file goes',
-        body: 'The file saves to your Downloads folder. If the download is interrupted, just tap the button again — it resumes where it left off.',
+        body: 'The file saves to your Downloads folder. If the download is interrupted, just tap the button again, it resumes where it left off.',
       },
     ],
     mock: MockDownloadBar,
@@ -183,7 +183,7 @@ const STEPS = [
     key: 'permission',
     eyebrow: 'Step 2 of 4',
     title: 'Let your phone know this is okay',
-    lead: "Android blocks app files that don't come from the Play Store by default. That's a safety setting — not a problem with Textmob — you just allow it once for your browser.",
+    lead: "Android blocks app files that don't come from the Play Store by default. That's a safety setting, not a problem with Textmob. You just allow it once for your browser.",
     notes: [
       {
         kind: 'blue',
@@ -207,7 +207,7 @@ const STEPS = [
     key: 'install',
     eyebrow: 'Step 3 of 4',
     title: 'Open the file and install',
-    lead: "Pull down your notification shade and tap the finished download — or open it from your Downloads folder.",
+    lead: "Pull down your notification shade and tap the finished download, or open it from your Downloads folder.",
     notes: [
       {
         kind: 'blue',
@@ -219,7 +219,7 @@ const STEPS = [
         kind: 'green',
         icon: Icon.refresh,
         title: 'Updating an older version?',
-        body: 'If you already had Textmob installed, the card says "Update" instead of "Install" — same thing, same tap.',
+        body: 'If you already had Textmob installed, the card says "Update" instead of "Install", same thing, same tap.',
       },
     ],
     mock: MockInstallConfirm,
@@ -231,7 +231,7 @@ const STEPS = [
     key: 'open',
     eyebrow: 'Step 4 of 4',
     title: "You're in",
-    lead: "That's it — Textmob is on your phone. Tap Open to jump straight in, or find the Textmob icon in your app drawer any time.",
+    lead: "That's it. Textmob is on your phone. Tap Open to jump straight in, or find the Textmob icon in your app drawer any time.",
     notes: [
       {
         kind: 'blue',
@@ -331,7 +331,7 @@ export default function InstallPage() {
           <span className="tm-eyebrow">Install on Android</span>
           <h1>Get Textmob on your phone</h1>
           <p className="tm-hero-sub">
-            Four short steps — about three minutes. We show you exactly what each screen looks like before you reach it.
+            Four short steps, about three minutes. We show you exactly what each screen looks like before you reach it.
           </p>
           <div className="tm-pillrow">
             {version && <span className="tm-pill">Version {version}</span>}
@@ -349,7 +349,7 @@ export default function InstallPage() {
           <span className="tm-progress-label">{done.size} of {STEPS.length} steps done</span>
         </div>
 
-        {/* Progress rail — jump to any step */}
+        {/* Progress rail - jump to any step */}
         <nav className="tm-rail" aria-label="Install steps">
           {STEPS.map((s, i) => {
             const state = i === current ? 'active' : done.has(i) ? 'done' : 'upcoming';
@@ -372,7 +372,7 @@ export default function InstallPage() {
         {done.size === STEPS.length && (
           <div className="tm-banner">
             <Icon.checkCircle className="w-5 h-5" />
-            All steps complete — Textmob is ready to use.
+            All steps complete. Textmob is ready to use.
           </div>
         )}
 
@@ -422,7 +422,7 @@ export default function InstallPage() {
                   </a>
                 ) : (
                   <button className="tm-btn tm-btn--primary" onClick={() => markDone(current)}>
-                    Done — next step
+                    Done: next step
                     <Icon.arrowRight className="w-4 h-4" />
                   </button>
                 )}
@@ -454,10 +454,10 @@ export default function InstallPage() {
         <section className="tm-note">
           <div className="tm-note-icon"><Icon.bell className="w-4 h-4" /></div>
           <div>
-            <div className="tm-note-title">Updates work the same way — automatically</div>
+            <div className="tm-note-title">Updates work the same way: automatically</div>
             <p>
               Textmob checks for a new version every time you open it. When one's ready, you get{' '}
-              {graceDays} days to update from inside the app — no need to come back here.
+              {graceDays} days to update from inside the app. No need to come back here.
               Old install files clear themselves out, so nothing piles up in your storage.
             </p>
           </div>
@@ -484,14 +484,14 @@ function Blobs() {
 }
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 .tm-root {
   /* ── design-system tokens (utilities/design-system) ── */
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-soft: rgba(37, 99, 235, 0.08);
-  --primary-soft-2: rgba(37, 99, 235, 0.14);
+  --primary: #2B3EE8;
+  --primary-hover: #2130CB;
+  --primary-soft: rgba(43, 62, 232, 0.08);
+  --primary-soft-2: rgba(43, 62, 232, 0.14);
   --bg: #f8fafc;
   --card: #ffffff;
   --border: #e5e7eb;
@@ -510,7 +510,7 @@ const CSS = `
   min-height: 100vh;
   background: var(--bg);
   color: var(--text-1);
-  font-family: 'Outfit', 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
   overflow-x: hidden;
 }
 .tm-root * { box-sizing: border-box; }
@@ -648,8 +648,8 @@ const CSS = `
 .tm-btn--ghost:hover { background: var(--bg); }
 .tm-btn--pulse { animation: pulse 2.2s ease-in-out infinite; }
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45); }
-  55% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(43, 62, 232, 0.45); }
+  55% { box-shadow: 0 0 0 10px rgba(43, 62, 232, 0); }
 }
 
 .tm-stepcard-visual {
@@ -705,7 +705,7 @@ const CSS = `
 .mock-toggle--on span { left: 16px; }
 
 .mock-app-badge {
-  width: 46px; height: 46px; border-radius: 13px; background: linear-gradient(135deg, var(--primary), #1e40af);
+  width: 46px; height: 46px; border-radius: 13px; background: linear-gradient(135deg, var(--primary), #1B28A3);
   color: #fff; display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 19px; margin-bottom: 10px;
 }

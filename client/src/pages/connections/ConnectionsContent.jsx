@@ -18,19 +18,19 @@ function ConnectionRow({ item, name, full, following, handleFollow }) {
  }, [item]);
 
  return (
- <div className="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 transition-colors">
+ <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
  {profilePic ? (
  <img src={profilePic} alt={name} className="w-11 h-11 rounded-full object-cover flex-shrink-0 border border-gray-100 " />
  ) : (
- <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+ <div className="w-11 h-11 rounded-full bg-gradient-to-br from-brand-400 to-indigo-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
  {(name || '?')[0].toUpperCase()}
  </div>
  )}
  <div className="flex-1 min-w-0">
- <a href={`/@${name}`} className="text-sm font-bold text-gray-900 hover:text-blue-600 truncate block">{full}</a>
+ <a href={`/@${name}`} className="text-sm font-bold text-gray-900 hover:text-brand-600 truncate block">{full}</a>
  <p className="text-xs text-gray-400 truncate">@{name}</p>
  </div>
- <button onClick={() => handleFollow(name)} className={`px-4 py-2 rounded-full text-xs font-bold transition-colors ${following.includes(name) ? 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+ <button onClick={() => handleFollow(name)} className={`px-4 py-2 rounded-full text-xs font-bold transition-colors ${following.includes(name) ? 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500' : 'bg-brand-600 text-white hover:bg-brand-700'}`}>
  {following.includes(name) ? 'Following' : 'Follow'}
  </button>
  </div>
@@ -98,18 +98,18 @@ export default function ConnectionsContent() {
  ];
  const list = tab === 'followers' ? followers : tab === 'following' ? following : suggestions;
 
- if (loading) return <div className="p-6 space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-2xl animate-pulse" />)}</div>;
+ if (loading) return <div className="p-6 space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse" />)}</div>;
 
  return (
  <div>
- <div className="hidden md:flex sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-100 px-6 h-14 items-center">
+ <div className="hidden md:flex sticky top-0 z-30 bg-white/95 border-b border-gray-100 px-6 h-14 items-center">
  <h1 className="text-lg font-black text-gray-900">Connections</h1>
  </div>
  <div className="border-b border-gray-100 flex">
  {tabs.map(t => (
- <button key={t.key} onClick={() => setTab(t.key)} className={`flex-1 py-3 text-sm font-bold text-center transition-colors relative ${tab === t.key ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+ <button key={t.key} onClick={() => setTab(t.key)} className={`flex-1 py-3 text-sm font-bold text-center transition-colors relative ${tab === t.key ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}>
  {t.label} <span className="text-xs ml-1 opacity-60">{t.count}</span>
- {tab === t.key && <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-blue-600 rounded-full" />}
+ {tab === t.key && <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-brand-600 rounded-full" />}
  </button>
  ))}
  </div>

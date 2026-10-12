@@ -45,7 +45,7 @@ const Lexum = (() => {
       loaderEl.className = 'fixed inset-0 bg-white z-50 hidden flex items-center justify-center';
       document.body.appendChild(loaderEl);
       spinnerEl = document.createElement('div');
-      spinnerEl.className = 'w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin';
+      spinnerEl.className = 'w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin';
       loaderEl.appendChild(spinnerEl);
       const style = document.createElement('style');
       style.textContent = `
@@ -197,7 +197,7 @@ const Lexum = (() => {
               fallback: React.createElement('div', {
                 className: 'flex items-center justify-center min-h-[60vh]',
               }, React.createElement('div', {
-                className: 'w-10 h-10 rounded-full border-2 border-gray-200 border-t-blue-600 animate-spin',
+                className: 'w-10 h-10 rounded-full border-2 border-gray-200 border-t-brand-600 animate-spin',
               })),
             },
             React.createElement(page.component, {

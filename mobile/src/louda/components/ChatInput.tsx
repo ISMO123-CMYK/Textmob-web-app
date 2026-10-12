@@ -114,6 +114,10 @@ export function ChatInput({
   const [favEmojis, setFavEmojis] = useState<string[]>([]);
   const [savedStickers, setSavedStickers] = useState<any[]>([]);
   const [inputHeight, setInputHeight] = useState(36);
+  // A press shorter than the arm window leaves no trace at all — surface a
+  // hint instead of swallowing the gesture.
+  const [holdHint, setHoldHint] = useState(false);
+  const holdHintTimerRef = useRef<any>(null);
 
   const stickerCache = useRef<Record<string, any[]>>({});
   const abortRef = useRef<AbortController | null>(null);
@@ -279,6 +283,15 @@ export function ChatInput({
   };
 
   // ─── Hold-to-record (LoudaApp.jsx:3371-3420) ───
+  const showHoldHint = () => {
+    setHoldHint(true);
+    if (holdHintTimerRef.current) clearTimeout(holdHintTimerRef.current);
+    holdHintTimerRef.current = setTimeout(() => {
+      holdHintTimerRef.current = null;
+      setHoldHint(false);
+    }, 2200);
+  };
+
   const startRecording = async () => {
     if (recordingRef.current) return;
     // The finger may already have lifted while we waited on the permission
@@ -347,9 +360,11 @@ export function ChatInput({
     const uri = recorder.uri;
     const elapsedMs = Date.now() - recStartRef.current;
     const duration = Math.round(elapsedMs / 1000);
-    // Too short to be a real take — WhatsApp discards silently, so do too.
+    // Too short to be a real take — discard it, but say why (the old
+    // behaviour was a silent no-op that looked like a broken button).
     if (!uri || elapsedMs < MIN_RECORD_MS) {
       haptic('warning');
+      showHoldHint();
       return;
     }
     setUploading(true);
@@ -399,6 +414,8 @@ export function ChatInput({
     if (armTimerRef.current) {
       clearTimeout(armTimerRef.current);
       armTimerRef.current = null;
+      // Released before the mic armed — the tap did nothing visible.
+      showHoldHint();
       return;
     }
     if (!recordingRef.current) return;
@@ -432,6 +449,7 @@ export function ChatInput({
       if (armTimerRef.current) clearTimeout(armTimerRef.current);
       if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
+      if (holdHintTimerRef.current) clearTimeout(holdHintTimerRef.current);
       if (recordingRef.current) {
         recordingRef.current = false;
         try { recorder.stop(); } catch {}
@@ -894,6 +912,21 @@ export function ChatInput({
         </View>
       )}
 
+      {/* ─── Hold-to-record hint ─── */}
+      {holdHint && !isRecording && (
+        <View
+          style={[
+            s.holdHint,
+            { backgroundColor: p.card, borderColor: p.borderLight },
+          ]}
+        >
+          <Icons.mic size={13} color={p.textMuted} />
+          <Text style={[s.holdHintText, { color: p.textSecondary }]}>
+            Hold the mic to record — a quick tap does nothing
+          </Text>
+        </View>
+      )}
+
       {/* ─── Main input bar ─── */}
       <View style={s.bar}>
         {isRecording ? (
@@ -1091,6 +1124,20 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
+  },
+  holdHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  holdHintText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   inputShell: {
     flex: 1,

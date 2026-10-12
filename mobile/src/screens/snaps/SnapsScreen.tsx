@@ -3,6 +3,7 @@ import {
   View, Text, FlatList, StyleSheet,
   ActivityIndicator, Dimensions, Image, Modal, Animated,
   TextInput, Alert, Share, RefreshControl,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,9 +20,9 @@ import { CATEGORIES } from '../../data/categories';
 import * as ImagePicker from 'expo-image-picker';
 import { apiGet, apiPost, uploadFile, API_BASE_URL } from '../../api/client';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
-import SafeHTML from '../../components/SafeHTML';
+import StickerComment from '../../components/StickerComment';
 import StickerPicker from '../../components/StickerPicker';
-import { makeStickerText, parseStickerText } from '../../utils/stickerUtils';
+import { withSticker } from '../../utils/stickerUtils';
 import { InAppCamera } from '../../louda/components/InAppCamera';
 import MentionAutocomplete from '../../components/MentionAutocomplete';
 import useProfileCache from '../../hooks/useProfileCache';
@@ -265,6 +266,20 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
   const mediaUrl = item.media?.[0] || '';
   const liked = item.likes?.includes(username || '');
   const initials = (profile?.fullname || item.username || '?').slice(0, 2).toUpperCase();
+  const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const raw = await AsyncStorage.getItem('textmob_saved_posts');
+        const ids: string[] = raw ? JSON.parse(raw) : [];
+        if (alive) setIsSaved(Array.isArray(ids) && ids.map(String).includes(String(item.id)));
+      } catch {}
+    })();
+    return () => { alive = false; };
+  }, [item.id]);
 
   return (
     <View style={[styles.snapContainer, { height: containerHeight }]}>
@@ -326,6 +341,7 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
           <Ionicons name="share-outline" size={24} color="#fff" />
         </Ripple>
         <Ripple style={styles.actionBtn} onPress={async () => {
+          if (!username) { Alert.alert('Log in', 'Log in to save snaps'); return; }
           try {
             const AsyncStorage = require('@react-native-async-storage/async-storage').default;
             const raw = await AsyncStorage.getItem('textmob_saved_posts');
@@ -336,10 +352,24 @@ const SnapItemView = React.memo(function SnapItemView({ item, isActive, username
             if (idx >= 0) ids.splice(idx, 1);
             else ids.push(idStr);
             await AsyncStorage.setItem('textmob_saved_posts', JSON.stringify(ids));
+            setIsSaved(idx < 0);
           } catch {}
         }}>
-          <Ionicons name="bookmark-outline" size={24} color="#fff" />
+          <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={24} color={isSaved ? '#3ecf8e' : '#fff'} />
+          <Text style={styles.actionCount} />
         </Ripple>
+        <View style={styles.actionBtn} pointerEvents="none">
+          <Ionicons name="eye-outline" size={24} color="#fff" />
+          <Text style={styles.actionCount}>
+            {(() => {
+              const v = item.view_count ?? (Array.isArray(item.views) ? item.views.length : 0);
+              const n = Number(v) || 0;
+              if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+              if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+              return String(n);
+            })()}
+          </Text>
+        </View>
       </View>
 
       {/* Bottom info */}
@@ -411,7 +441,7 @@ function CommentRow({ comment, snapUsername, onPress }: { comment: any; snapUser
             <Text style={styles.commentTime}>{timeAgo(comment.createdAt)}</Text>
           )}
         </View>
-        {(() => { const s = parseStickerText(comment.text); return s.isSticker ? <Image source={{ uri: s.url }} style={{ maxHeight: 128, borderRadius: 8, resizeMode: 'contain' }} /> : <SafeHTML text={comment.text} style={styles.commentText} />; })()}
+        <StickerComment text={comment.text} style={styles.commentText} />
       </View>
     </Ripple>
   );
@@ -441,6 +471,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
   const [showGift, setShowGift] = useState<any>(null);
   const [expandedText, setExpandedText] = useState<Record<string, boolean>>({});
   const [commentText, setCommentText] = useState('');
+  const [stickerUrl, setStickerUrl] = useState<string | null>(null);
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [commenting, setCommenting] = useState(false);
   const [reactingPost, setReactingPost] = useState<string | number | null>(null);
@@ -581,14 +612,25 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
 
   const handleComment = async (postId: string | number) => {
     if (!username) { Alert.alert('Sign in', 'Log in to comment'); return; }
-    if (!commentText.trim()) return;
+    const payload = withSticker(commentText, stickerUrl);
+    if (!payload) return;
+    // Optimistic: the old code only appended the comment after the API call
+    // resolved, so stickers/text looked like they "did nothing" until then.
+    const optimistic = { id: String(Date.now()), username: username || '', text: payload };
+    setSnaps(prev => prev.map(p => p.id === postId ? {
+      ...p, comments: [...(p.comments || []), optimistic]
+    } : p));
+    setCommentText('');
+    setStickerUrl(null);
     setCommenting(true);
-    const res = await addCommentAPI(String(postId), username, commentText.trim());
-    if (res.ok) {
+    const res = await addCommentAPI(String(postId), username, payload).catch(() => null);
+    if (!res?.ok) {
+      // Roll back so a failed send doesn't leave a phantom comment behind.
       setSnaps(prev => prev.map(p => p.id === postId ? {
-        ...p, comments: [...(p.comments || []), { id: String(Date.now()), username: username || '', text: commentText.trim() }]
+        ...p, comments: (p.comments || []).filter(c => c.id !== optimistic.id)
       } : p));
-      setCommentText('');
+      setCommentText(commentText);
+      setStickerUrl(stickerUrl);
     }
     setCommenting(false);
   };
@@ -881,7 +923,13 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
                           </View>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                             <Ionicons name="eye" size={11} color="#fff" />
-                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{Array.isArray(item.views) ? item.views.length : 0}</Text>
+                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{(() => {
+                              const v = item.view_count ?? (Array.isArray(item.views) ? item.views.length : 0);
+                              const n = Number(v) || 0;
+                              if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+                              if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+                              return String(n);
+                            })()}</Text>
                           </View>
                         </View>
                       </View>
@@ -1109,52 +1157,69 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
       {/* Comments modal */}
       <Modal visible={!!showComments} animationType="slide" onRequestClose={() => setShowComments(null)}>
         <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
-          <View style={[styles.commentHeader, { borderBottomColor: colors.border }]}>
-            <Ripple onPress={() => setShowComments(null)}>
-              <Text style={{ color: colors.textSecondary, fontSize: 16 }}>Close</Text>
-            </Ripple>
-            <Text style={[styles.commentHeaderTitle, { color: colors.textPrimary }]}>Comments</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          <FlatList
-            data={snaps.find(p => p.id === showComments)?.comments || []}
-            keyExtractor={(item, i) => item.id || String(i)}
-            renderItem={({ item: c }) => (
-              <CommentRow comment={c} snapUsername={snaps.find(p => p.id === showComments)?.username || ''} onPress={(u) => navigation.navigate('Profile', { username: u })} />
-            )}
-            ListEmptyComponent={
-              <View style={{ alignItems: 'center', paddingTop: 60 }}>
-                <Text style={{ color: colors.textSecondary, fontSize: 13 }}>No comments yet</Text>
-              </View>
-            }
-          />
-          <View style={[styles.commentInputRow, { borderTopColor: colors.border, backgroundColor: colors.card, position: 'relative' }]}>
-            <Ripple onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
-              <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
-            </Ripple>
-            <View style={{ flex: 1, position: 'relative' }}>
-              <TextInput ref={commentInputRef}
-                style={[styles.commentInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
-                placeholder="Add a comment..." placeholderTextColor={colors.textSecondary}
-                value={commentText} onChangeText={setCommentText}
-                onSelectionChange={(e) => setCommentCursor(e.nativeEvent.selection.start)}
-              />
-              <MentionAutocomplete
-                text={commentText}
-                cursorPosition={commentCursor}
-                onChangeText={setCommentText}
-                colors={colors}
-                isDark={isDark}
-              />
+          {/* Android's window resize does not apply inside a Modal, and iOS
+              never resizes for the keyboard — without this the input sits
+              behind the keyboard. */}
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <View style={[styles.commentHeader, { borderBottomColor: colors.border }]}>
+              <Ripple onPress={() => setShowComments(null)}>
+                <Text style={{ color: colors.textSecondary, fontSize: 16 }}>Close</Text>
+              </Ripple>
+              <Text style={[styles.commentHeaderTitle, { color: colors.textPrimary }]}>Comments</Text>
+              <View style={{ width: 40 }} />
             </View>
-            <Ripple style={[styles.commentSendBtn, commenting && { opacity: 0.5 }]}
-              onPress={() => showComments && handleComment(showComments)} disabled={commenting || !commentText.trim()}>
-              {commenting ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
-            </Ripple>
-          </View>
+            <FlatList
+              data={snaps.find(p => p.id === showComments)?.comments || []}
+              keyExtractor={(item, i) => item.id || String(i)}
+              renderItem={({ item: c }) => (
+                <CommentRow comment={c} snapUsername={snaps.find(p => p.id === showComments)?.username || ''} onPress={(u) => navigation.navigate('Profile', { username: u })} />
+              )}
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', paddingTop: 60 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13 }}>No comments yet</Text>
+                </View>
+              }
+              keyboardShouldPersistTaps="handled"
+            />
+            {stickerUrl ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.card }}>
+                <Image source={{ uri: stickerUrl }} style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: isDark ? '#0f172a' : '#e5e7eb' }} resizeMode="cover" />
+                <Ripple onPress={() => setStickerUrl(null)} style={{ padding: 4 }}>
+                  <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                </Ripple>
+              </View>
+            ) : null}
+            <View style={[styles.commentInputRow, { borderTopColor: colors.border, backgroundColor: colors.card, position: 'relative' }]}>
+              <Ripple onPress={() => setShowStickerPicker(true)} style={{ padding: 8 }}>
+                <Ionicons name="image-outline" size={20} color={colors.textSecondary} />
+              </Ripple>
+              <View style={{ flex: 1, position: 'relative' }}>
+                <TextInput ref={commentInputRef}
+                  style={[styles.commentInput, { backgroundColor: isDark ? '#1e293b' : '#f3f4f6', color: colors.textPrimary }]}
+                  placeholder="Add a comment..." placeholderTextColor={colors.textSecondary}
+                  value={commentText} onChangeText={setCommentText}
+                  onSelectionChange={(e) => setCommentCursor(e.nativeEvent.selection.start)}
+                />
+                <MentionAutocomplete
+                  text={commentText}
+                  cursorPosition={commentCursor}
+                  onChangeText={setCommentText}
+                  colors={colors}
+                  isDark={isDark}
+                />
+              </View>
+              <Ripple style={[styles.commentSendBtn, commenting && { opacity: 0.5 }]}
+                onPress={() => showComments && handleComment(showComments)} disabled={commenting || (!commentText.trim() && !stickerUrl)}>
+                {commenting ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" />}
+              </Ripple>
+            </View>
+          </KeyboardAvoidingView>
           <StickerPicker
             visible={showStickerPicker}
-            onSelect={(url) => { setCommentText(prev => prev + (prev ? ' ' : '') + makeStickerText(url)); setShowStickerPicker(false); commentInputRef.current?.focus(); }}
+            onSelect={(url) => { setStickerUrl(url); setShowStickerPicker(false); commentInputRef.current?.focus(); }}
             onClose={() => setShowStickerPicker(false)}
           />
         </SafeAreaView>

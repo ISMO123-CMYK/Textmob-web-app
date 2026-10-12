@@ -168,6 +168,7 @@ export default function ActivityScreen() {
     else if (path.startsWith('/@')) navigation.navigate('Profile', { username: path.replace('/@', '') });
     else if (path.startsWith('/snaps')) navigation.navigate('Snaps');
     else if (path.startsWith('/chats')) navigation.navigate('Chats');
+    else if (path.startsWith('/discussions/')) navigation.navigate('Discussions', { roomId: path.replace('/discussions/', '') });
     else if (path.startsWith('/halloffame')) navigation.navigate('HallOfFame');
     else if (path.startsWith('/wallet')) navigation.navigate('Wallet');
     else if (path.startsWith('/accountscenter')) navigation.navigate('AccountsCenter');

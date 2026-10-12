@@ -65,7 +65,7 @@ export default function MobileNav() {
             </div>
             <button
               onClick={() => { window.showAuthPrompt?.('Create an account to get started'); window.Lexum?.navigate('/auth'); }}
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all active:scale-[0.97]"
+              className="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all active:scale-[0.97]"
             >
               Sign up
             </button>
@@ -81,22 +81,22 @@ export default function MobileNav() {
       <div className="h-20 md:hidden" />
 
       {/* Bottom nav bar */}
-      <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 milky-glass border-t border-gray-200/50">
+      <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 panel-solid border-t border-gray-200/50">
         <div className="flex items-center h-16 px-1">
           {navItems.slice(0, 2).map((item) => {
             const active = item.to === '/' ? currentPath === '/' : currentPath.startsWith(item.to);
             return (
               <button key={item.name} onClick={() => window.Lexum?.navigate(item.to)} aria-label={item.name} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
-                {active && <span className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-7 bg-blue-50 rounded-full" />}
-                <item.icon className={cn('w-[22px] h-[22px] relative z-10 transition-colors', active ? 'text-blue-600' : 'text-gray-400')} />
-                <span className={cn('text-[10px] font-semibold relative z-10 transition-colors', active ? 'text-blue-600' : 'text-gray-400')}>{item.name}</span>
+                {active && <span className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-7 bg-brand-50 rounded-full" />}
+                <item.icon className={cn('w-[22px] h-[22px] relative z-10 transition-colors', active ? 'text-brand-600' : 'text-gray-400')} />
+                <span className={cn('text-[10px] font-semibold relative z-10 transition-colors', active ? 'text-brand-600' : 'text-gray-400')}>{item.name}</span>
               </button>
             );
           })}
 
           {/* Create button */}
           <div className="flex-1 flex items-center justify-center">
-            <button onClick={() => setShowCreate(true)} aria-label="Create" className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center active:scale-95 active:bg-blue-700 transition-all">
+            <button onClick={() => setShowCreate(true)} aria-label="Create" className="w-12 h-12 bg-brand-600 rounded-lg flex items-center justify-center active:scale-95 active:bg-brand-700 transition-all">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
               </svg>
@@ -107,9 +107,9 @@ export default function MobileNav() {
             const active = currentPath.startsWith(item.to) && item.to !== '/';
             return (
               <button key={item.name} onClick={() => window.Lexum?.navigate(item.to)} aria-label={item.name} className="flex-1 flex flex-col items-center justify-center gap-0.5 h-full relative">
-                {active && <span className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-7 bg-blue-50 rounded-full" />}
-                <item.icon className={cn('w-[22px] h-[22px] relative z-10 transition-colors', active ? 'text-blue-600' : 'text-gray-400')} />
-                <span className={cn('text-[10px] font-semibold relative z-10 transition-colors', active ? 'text-blue-600' : 'text-gray-400')}>{item.name}</span>
+                {active && <span className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-7 bg-brand-50 rounded-full" />}
+                <item.icon className={cn('w-[22px] h-[22px] relative z-10 transition-colors', active ? 'text-brand-600' : 'text-gray-400')} />
+                <span className={cn('text-[10px] font-semibold relative z-10 transition-colors', active ? 'text-brand-600' : 'text-gray-400')}>{item.name}</span>
                 {item.badge > 0 && (
                   <span className="absolute top-2 right-4 flex items-center justify-center min-w-[14px] h-[14px] px-1 bg-red-600 text-white text-[8px] font-black rounded-full ring-2 ring-white z-20">
                     {item.badge > 99 ? '99+' : item.badge}
@@ -129,12 +129,10 @@ export default function MobileNav() {
             className="fixed inset-0 bg-black/40 z-[100]"
             onClick={() => setShowCreate(false)}
             style={{
-              backdropFilter: 'blur(8px) saturate(150%)',
-              WebkitBackdropFilter: 'blur(8px) saturate(150%)'
-            }}
+              }}
           />
           <div
-            className="fixed bottom-0 left-0 right-0 z-[110] bg-white/95 backdrop-blur-2xl rounded-t-[2rem] border-t border-gray-200/50 shadow-2xl"
+            className="fixed bottom-0 left-0 right-0 z-[110] bg-white/95 rounded-t-lg border-t border-gray-200/50 shadow-2xl"
           >
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-9 h-1 rounded-full bg-gray-200" />
@@ -143,9 +141,9 @@ export default function MobileNav() {
               <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 text-center mb-4">Create</p>
               <div className="space-y-2">
                 {createItems.map((item) => (
-                  <button key={item.label} onClick={() => { setShowCreate(false); window.Lexum?.navigate(item.to); }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-colors text-left">
-                    <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', item.live ? 'bg-red-50' : 'bg-blue-50')}>
-                      <item.icon className={cn('w-5 h-5', item.live ? 'text-red-600' : 'text-blue-600')} />
+                  <button key={item.label} onClick={() => { setShowCreate(false); window.Lexum?.navigate(item.to); }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-lg bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-colors text-left">
+                    <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', item.live ? 'bg-red-50' : 'bg-brand-50')}>
+                      <item.icon className={cn('w-5 h-5', item.live ? 'text-red-600' : 'text-brand-600')} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

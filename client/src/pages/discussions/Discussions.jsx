@@ -13,6 +13,19 @@ const HashIcon = ({ className = 'w-5 h-5' }) => (
 const LockIcon = ({ className = 'w-4 h-4' }) => (
   <svg viewBox="0 0 24 24" className={`${className} fill-none stroke-current`} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
 );
+const ChatCountIcon = ({ className = 'w-3 h-3' }) => (
+  <svg viewBox="0 0 24 24" className={`${className} fill-none stroke-current`} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+);
+const fmtCount = (n) => {
+  n = Number(n) || 0;
+  if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(n);
+};
+const roomTags = (room) => {
+  if (Array.isArray(room.hashtags) && room.hashtags.length) return room.hashtags.map(t => String(t).toLowerCase().replace(/^#/, '')).slice(0, 4);
+  return (String(room.description || '').match(/#[\w-]+/g) || []).map(t => t.slice(1).toLowerCase()).slice(0, 4);
+};
 
 /* ═══════════════ entry ═══════════════ */
 export default function Discussions({ roomId, isActive = true }) {
@@ -26,9 +39,9 @@ const RoomCard = memo(function RoomCard({ room, variant, currentUser, unlocking,
 
   if (locked) {
     return (
-      <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:border-blue-200 transition-all">
+      <div className="bg-white border border-gray-100 rounded-lg p-4 hover:border-brand-200 transition-all">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
+          <div className="w-11 h-11 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
             <LockIcon className="w-5 h-5 text-gray-400" />
           </div>
           <div className="flex-1 min-w-0">
@@ -36,7 +49,7 @@ const RoomCard = memo(function RoomCard({ room, variant, currentUser, unlocking,
             <p className="text-xs text-gray-400 mt-0.5">@{room.host_username}</p>
           </div>
           {room.unlocked ? (
-            <a href={`/discussions/${room.id}`} data-lexum className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-full hover:bg-blue-700 transition-all active:scale-[0.98]">View</a>
+            <a href={`/discussions/${room.id}`} data-lexum className="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-full hover:bg-brand-700 transition-all active:scale-[0.98]">View</a>
           ) : (
             <button onClick={() => onUnlock(room.id)} disabled={unlocking === room.id}
               className="px-4 py-2 bg-yellow-500 text-white text-xs font-bold rounded-full hover:bg-yellow-600 transition-all active:scale-[0.98] disabled:opacity-50">
@@ -50,13 +63,13 @@ const RoomCard = memo(function RoomCard({ room, variant, currentUser, unlocking,
 
   const ended = room.status === 'ended';
   return (
-    <div className="group bg-white border border-gray-100 rounded-2xl p-4 hover:border-blue-200 hover:shadow-sm transition-all">
+    <div className="group bg-white border border-gray-100 rounded-lg p-4 hover:border-brand-200 hover:shadow-sm transition-all">
       <a href={`/discussions/${room.id}`} data-lexum className="flex items-start gap-3">
         <div className="relative shrink-0">
-          <div className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-colors ${ended ? 'bg-gray-50 border-gray-100' : 'bg-gray-50 border-gray-100 group-hover:bg-blue-50 group-hover:border-blue-100'}`}>
-            {ended ? <LockIcon className="w-5 h-5 text-gray-400" /> : <HashIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-500" />}
+          <div className={`w-11 h-11 rounded-lg border flex items-center justify-center transition-colors ${ended ? 'bg-gray-50 border-gray-100' : 'bg-gray-50 border-gray-100 group-hover:bg-brand-50 group-hover:border-brand-100'}`}>
+            {ended ? <LockIcon className="w-5 h-5 text-gray-400" /> : <HashIcon className="w-5 h-5 text-gray-400 group-hover:text-brand-500" />}
           </div>
-          {!ended && <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-blue-600 border-2 border-white rounded-full" />}
+          {!ended && <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-brand-600 border-2 border-white rounded-full" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -65,17 +78,28 @@ const RoomCard = memo(function RoomCard({ room, variant, currentUser, unlocking,
           </div>
           <p className="text-xs text-gray-400 mt-0.5">@{room.host_username}</p>
           {room.description && <p className="text-xs text-gray-400 mt-1 line-clamp-1">{room.description}</p>}
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-[10px] font-semibold text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">{room.category || 'general'}</span>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {roomTags(room).map(tag => (
+              <span key={tag} className="text-[10px] font-semibold text-brand-600 bg-brand-50 border border-brand-100 px-2 py-0.5 rounded-full">#{tag}</span>
+            ))}
+            <span className="flex items-center gap-1 text-[10px] text-gray-400" title="Total messages">
+              <ChatCountIcon className="w-3 h-3" />
+              {fmtCount(room.message_count || 0)}
+            </span>
             <span className="flex items-center gap-1 text-[10px] text-gray-400" title="Members">
               <svg viewBox="0 0 24 24" className="w-3 h-3 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>
               {room.participant_count || 0}
             </span>
           </div>
         </div>
-        <div className="shrink-0">
+        <div className="shrink-0 flex flex-col items-end gap-1">
+          {room.unreadCount > 0 && (
+            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center">
+              {room.unreadCount > 99 ? '99+' : room.unreadCount}
+            </span>
+          )}
           {!ended ? (
-            <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full">LIVE</span>
+            <span className="px-2.5 py-1 bg-brand-50 text-brand-600 text-[10px] font-bold rounded-full">LIVE</span>
           ) : (
             <span className="text-[10px] text-gray-300">{timeAgo(room.ended_at)}</span>
           )}
@@ -109,20 +133,24 @@ function CreateRoomModal({ onClose, onCreated }) {
     setLoading(false);
   };
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-[420px] max-w-[90vw] shadow-xl" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-lg p-6 w-[420px] max-w-[90vw] shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2 mb-4">
-          <span className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center"><HashIcon className="w-5 h-5 text-white" /></span>
+          <span className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center"><HashIcon className="w-5 h-5 text-white" /></span>
           <h2 className="text-lg font-bold text-gray-900">Start a Discussion</h2>
         </div>
         <input type="text" placeholder="Room title" value={title} onChange={e => setTitle(e.target.value.slice(0, 120))} maxLength={120}
-          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-colors mb-3" />
+          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors mb-3" />
         <textarea placeholder="What's the discussion about?" value={description} onChange={e => setDescription(e.target.value.slice(0, 500))} rows={2}
-          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-colors mb-3 resize-none" />
+          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors mb-2 resize-none" />
+        <p className="text-[11px] text-gray-400 mb-3 flex items-start gap-1.5">
+          <HashIcon className="w-3.5 h-3.5 mt-px text-brand-500 shrink-0" />
+          <span>Tip: add #hashtags in your description (e.g. #football #tech) — people who follow those topics will find your room in their suggestions.</span>
+        </p>
         <div className="flex flex-wrap gap-1.5 mb-4">
           {CATEGORIES.filter(c => c !== 'all').map(c => (
             <button key={c} onClick={() => setCategory(c)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${category === c ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+              className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all ${category === c ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}>
               {c.charAt(0).toUpperCase() + c.slice(1)}
             </button>
           ))}
@@ -130,7 +158,7 @@ function CreateRoomModal({ onClose, onCreated }) {
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-3 bg-gray-100 text-gray-600 text-sm font-bold rounded-full hover:bg-gray-200 transition-all active:scale-[0.98]">Cancel</button>
           <button onClick={handleCreate} disabled={!title.trim() || loading}
-            className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-full transition-all active:scale-[0.98] disabled:opacity-50 shadow-md shadow-blue-500/10">
+            className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-full transition-all active:scale-[0.98] disabled:opacity-50 shadow-md shadow-brand-500/10">
             {loading ? 'Starting...' : 'Go Live'}
           </button>
         </div>
@@ -167,7 +195,7 @@ function DiscussionsList({ active }) {
   const wide = useMediaQuery('(min-width: 1280px)');
 
   /* Loading is derived from "which query has been resolved" instead of being
-     flipped inside the effect — no cascading render when the tab changes. */
+     flipped inside the effect, no cascading render when the tab changes. */
   const query = search.trim();
   const listKey = query ? `q|${query}` : `t|${tab}|${category}`;
   const canLoad = tab !== 'my-archive' || !!currentUser;
@@ -188,7 +216,8 @@ function DiscussionsList({ active }) {
     } else if (tab === 'my-archive') {
       apiFetch(`/api/discussions/my-archive?username=${currentUser}`).then(resolve(setMyArchives));
     } else {
-      const url = category === 'all' ? '/api/discussions/active?limit=50' : `/api/discussions/active?category=${category}&limit=50`;
+      const base = category === 'all' ? '/api/discussions/active?limit=50' : `/api/discussions/active?category=${category}&limit=50`;
+      const url = currentUser ? `${base}&username=${encodeURIComponent(currentUser)}` : base;
       apiFetch(url).then(resolve(setRooms));
     }
     return () => { alive = false; };
@@ -200,6 +229,34 @@ function DiscussionsList({ active }) {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [ddOpen]);
+
+  // Live unread badges: bump/clear counts without refetching the lists
+  useEffect(() => {
+    const sock = window.socket;
+    if (!sock || !currentUser) return;
+    const bump = (list, roomId, delta) => list.map(r => (r.id === roomId ? { ...r, unreadCount: Math.max(0, (r.unreadCount || 0) + delta) } : r));
+    const onUnread = ({ roomId, delta = 1 }) => {
+      if (!roomId) return;
+      setRooms(prev => bump(prev, roomId, delta));
+      setArchives(prev => bump(prev, roomId, delta));
+      setMyArchives(prev => bump(prev, roomId, delta));
+      setSearchResults(prev => (prev ? bump(prev, roomId, delta) : prev));
+    };
+    const onRead = ({ roomId }) => {
+      if (!roomId) return;
+      const wipe = (list) => list.map(r => (r.id === roomId ? { ...r, unreadCount: 0 } : r));
+      setRooms(wipe);
+      setArchives(wipe);
+      setMyArchives(wipe);
+      setSearchResults(prev => (prev ? wipe(prev) : prev));
+    };
+    sock.on('discussion_unread', onUnread);
+    sock.on('discussion_read', onRead);
+    return () => {
+      sock.off('discussion_unread', onUnread);
+      sock.off('discussion_read', onRead);
+    };
+  }, [currentUser]);
 
   const selectTab = (id) => {
     setTab(id);
@@ -247,7 +304,7 @@ function DiscussionsList({ active }) {
         <div className="flex gap-2 overflow-x-auto pb-1 mb-4 scrollbar-thin scrollbar-thumb-rounded">
           {CATEGORIES.map(cat => (
             <button key={cat} onClick={() => setCategory(cat)}
-              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-[0.98] ${category === cat ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'}`}>
+              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-[0.98] ${category === cat ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/20' : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300'}`}>
               {cat.charAt(0).toUpperCase() + cat.slice(1)}
             </button>
           ))}
@@ -256,7 +313,7 @@ function DiscussionsList({ active }) {
 
       {/* archives banner */}
       {tab === 'archives' && (
-        <div className="bg-gray-900 rounded-2xl p-4 mb-4 flex items-center gap-3">
+        <div className="bg-gray-900 rounded-lg p-4 mb-4 flex items-center gap-3">
           <NavIcons.Wallet className="w-5 h-5 text-yellow-400 flex-shrink-0" />
           <p className="text-xs text-gray-300">Unlock archived discussions for <span className="text-yellow-400 font-bold">500 mobcoins</span>. Host gets 10%.</p>
         </div>
@@ -265,8 +322,8 @@ function DiscussionsList({ active }) {
       {loading ? (
         <div className="space-y-3">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-gray-100 animate-pulse" />
+            <div key={i} className="bg-white border border-gray-100 rounded-lg p-4 flex items-center gap-3">
+              <div className="w-11 h-11 rounded-lg bg-gray-100 animate-pulse" />
               <div className="flex-1 space-y-2">
                 <div className="h-3 bg-gray-100 rounded-full w-1/2 animate-pulse" />
                 <div className="h-2.5 bg-gray-100 rounded-full w-1/3 animate-pulse" />
@@ -295,7 +352,7 @@ function DiscussionsList({ active }) {
   );
 
   const tabBar = (
-    <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+    <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
       {LIST_TABS.map(t => (
         <button key={t.id} onClick={() => selectTab(t.id)}
           className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -309,15 +366,15 @@ function DiscussionsList({ active }) {
   const viewDropdown = (
     <div className="relative" ref={ddRef}>
       <button onClick={() => setDdOpen(v => !v)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-semibold text-gray-700 transition-colors">
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-semibold text-gray-700 transition-colors">
         {(LIST_TABS.find(t => t.id === tab) || LIST_TABS[0]).label}
         <svg viewBox="0 0 24 24" className={`w-3 h-3 fill-none stroke-current transition-transform duration-200 ${ddOpen ? 'rotate-180' : ''}`} strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
       </button>
       {ddOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50">
+        <div className="absolute left-0 top-full mt-1.5 w-44 bg-white rounded-lg shadow-xl border border-gray-100 py-1.5 z-50">
           {LIST_TABS.map(t => (
             <button key={t.id} onClick={() => selectTab(t.id)}
-              className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors ${tab === t.id ? 'text-blue-600 bg-blue-50/60' : 'text-gray-600 hover:bg-gray-50'}`}>
+              className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors ${tab === t.id ? 'text-brand-600 bg-brand-50/60' : 'text-gray-600 hover:bg-gray-50'}`}>
               {t.label}
             </button>
           ))}
@@ -327,7 +384,7 @@ function DiscussionsList({ active }) {
   );
 
   const searchBox = (
-    <div className="flex items-center gap-2 px-3 h-9 bg-white border border-gray-200 rounded-xl focus-within:border-gray-300 transition-colors">
+    <div className="flex items-center gap-2 px-3 h-9 bg-white border border-gray-200 rounded-lg focus-within:border-gray-300 transition-colors">
       <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0 fill-none stroke-gray-400" strokeWidth="2"><path strokeLinecap="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" /></svg>
       <input type="text" placeholder="Search discussions" value={searchInput} onChange={e => handleSearch(e.target.value)}
         className="flex-1 min-w-0 h-full bg-transparent text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none" />
@@ -341,7 +398,7 @@ function DiscussionsList({ active }) {
 
   const startBtn = currentUser ? (
     <button onClick={() => setShowCreate(true)}
-      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full transition-all active:scale-[0.98] shadow-md shadow-blue-500/10 whitespace-nowrap">
+      className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-full transition-all active:scale-[0.98] shadow-md shadow-brand-500/10 whitespace-nowrap">
       Start
     </button>
   ) : null;
@@ -360,11 +417,11 @@ function DiscussionsList({ active }) {
     >
       {desktop ? (
         <main className="flex-1 flex flex-col min-w-0 h-full">
-          <div className="h-14 shrink-0 px-5 flex items-center gap-4 border-b border-gray-200/70 bg-white/85 backdrop-blur-xl">
+          <div className="h-14 shrink-0 px-5 flex items-center gap-4 border-b border-gray-200/70 bg-white">
             <div className="flex items-center gap-2 shrink-0">
-              <NavIcons.Discussions className="w-5 h-5 text-blue-600" />
+              <NavIcons.Discussions className="w-5 h-5 text-brand-600" />
               <h1 className="font-bold text-gray-900 text-sm" style={{ fontFamily: 'var(--font-display)' }}>Discussions</h1>
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-600 animate-pulse" />
             </div>
             {viewDropdown}
             <div className="flex-1" />
@@ -376,14 +433,14 @@ function DiscussionsList({ active }) {
         </main>
       ) : (
         <div className="min-h-screen bg-[#f8fafc] pb-20 flex flex-col">
-          <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-white/85 backdrop-blur-xl border-b border-gray-200/60">
-            <button onClick={() => window.history.back()} className="p-1.5 -ml-1 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors" aria-label="Back">
+          <div className="sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200/60">
+            <button onClick={() => window.history.back()} className="p-1.5 -ml-1 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors" aria-label="Back">
               <NavIcons.ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex-1 flex items-center gap-2 min-w-0">
-              <HashIcon className="w-4 h-4 text-blue-600 shrink-0" />
+              <HashIcon className="w-4 h-4 text-brand-600 shrink-0" />
               <h1 className="text-base font-bold text-gray-900 truncate">Discussions</h1>
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-600 animate-pulse shrink-0" />
             </div>
             {startBtn}
           </div>

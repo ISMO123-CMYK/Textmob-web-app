@@ -39,7 +39,7 @@ export default function CoverPhotoEditor({ username, currentCover, onSaved, onRe
  <div className="flex items-center gap-2">
  <label className="cursor-pointer">
  <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
- <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-gray-100 text-[11px] font-bold text-gray-700 hover:bg-gray-200 transition-colors 
+ <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gray-100 text-[11px] font-bold text-gray-700 hover:bg-gray-200 transition-colors 
  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
  <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
  <circle cx="12" cy="13" r="4" />
@@ -48,7 +48,7 @@ export default function CoverPhotoEditor({ username, currentCover, onSaved, onRe
  </span>
  </label>
  {currentCover && (
- <button onClick={handleRemove} className="h-8 px-3 rounded-xl border border-red-200 text-[11px] font-bold text-red-500 hover:bg-red-50 transition-colors 
+ <button onClick={handleRemove} className="h-8 px-3 rounded-lg border border-red-200 text-[11px] font-bold text-red-500 hover:bg-red-50 transition-colors 
  Remove
  </button>
  )}

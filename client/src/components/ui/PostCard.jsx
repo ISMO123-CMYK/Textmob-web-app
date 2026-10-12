@@ -11,12 +11,46 @@ import GiftCoinsModal from './GiftCoinsModal';
 import StickerPicker from './StickerPicker';
 import { makeStickerText, withSticker } from '../../utils/stickerUtils';
 import { replaceTokenAt } from '../../utils/autocomplete';
-import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban, Image, Sticker } from 'lucide-react';
+// NB: lucide-react also exports an `Image` icon - importing it here would
+// shadow the DOM `Image` constructor and break `loadImage()` below
+// ("Image is not a constructor" on Download image).
+import { Heart, MessageCircle, Repeat2, Gift, SmilePlus, Eye, Bookmark, Link, Share2, ThumbsDown, EyeOff, Flag, Ban, Sticker } from 'lucide-react';
 
 /* ─── constants ─── */
 const DEFAULT_PIC = DEFAULT_AVATAR;
 const U = { navigate: path => window.Lexum ? window.Lexum.navigate(path) : (window.location.hash = path) };
 const isVideo = e => /\.(mp4|webm|ogg)$/i.test(String(e || ''));
+
+// View count formatting: 999, 1.2K, 1.5M
+const fmtViews = (v) => {
+  v = Number(v) || 0;
+  if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (v >= 1e3) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(v);
+};
+
+// Saved-posts helpers (shared key with SavedPostsFeed + mobile app)
+const SAVED_POSTS_KEY = 'textmob_saved_posts';
+function readIsSaved(id) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_POSTS_KEY) || '[]');
+    return Array.isArray(saved) && saved.map(String).includes(String(id));
+  } catch { return false; }
+}
+function toggleSavedPost(id) {
+  try {
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(SAVED_POSTS_KEY) || '[]'); } catch {}
+    if (!Array.isArray(saved)) saved = [];
+    const idStr = String(id);
+    const idx = saved.indexOf(idStr);
+    if (idx >= 0) saved.splice(idx, 1);
+    else saved.push(idStr);
+    localStorage.setItem(SAVED_POSTS_KEY, JSON.stringify(saved));
+    window.dispatchEvent(new CustomEvent('saved-posts-changed', { detail: { id: idStr, saved: idx < 0 } }));
+    return idx < 0;
+  } catch { return false; }
+}
 
 function wrapText(ctx, text, maxWidth) {
   const lines = [];
@@ -65,7 +99,7 @@ function roundRect(ctx, x, y, w, h, r) {
 /* ─── VerifiedBadge ─── */
 function VerifiedBadge({ className = "w-3.5 h-3.5" }) {
  return (
- <svg viewBox="0 0 24 24" className={cn("text-blue-500 fill-current", className)}>
+ <svg viewBox="0 0 24 24" className={cn("text-brand-500 fill-current", className)}>
  <path d="M22.5 12.5c0-1.58-.8-2.95-2.03-3.76.54-1.51.18-3.22-1.07-4.47-1.25-1.25-2.96-1.61-4.47-1.07C14.12 2.03 12.5 1.25 11 1.25c-1.5 0-3.12.78-3.93 1.95-1.51-.54-3.22-.18-4.47 1.07-1.25 1.25-1.61 2.96-1.07 4.47C.3 9.55-.5 10.92-.5 12.5c0 1.58.8 2.95 2.03 3.76-.54 1.51-.18 3.22 1.07 4.47 1.25 1.25 2.96 1.61 4.47 1.07.81 1.17 2.43 1.95 3.93 1.95 1.5 0 3.12-.78 3.93-1.95 1.51.54 3.22.18 4.47-1.07 1.25-1.25 1.61-2.96 1.07-4.47 1.23-.81 2.03-2.18 2.03-3.76zM11 18l-4.5-4.5 1.5-1.5L11 15l7-7 1.5 1.5L11 18z" />
  </svg>
  );
@@ -112,24 +146,17 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal, onGift, onD
     return () => document.head.removeChild(style);
   }, [open]);
  const isOwnPost = post.username === localStorage.currentUser;
- const [isSaved, setIsSaved] = useState(() => {
-   try {
-     const saved = JSON.parse(localStorage.getItem('textmob_saved_posts') || '[]');
-     return Array.isArray(saved) && saved.map(String).includes(String(post.id));
-   } catch { return false; }
- });
+ const [isSaved, setIsSaved] = useState(() => readIsSaved(post.id));
+
+ // Stay in sync with the action-bar bookmark button (shared event)
+ useEffect(() => {
+   const sync = () => setIsSaved(readIsSaved(post.id));
+   window.addEventListener('saved-posts-changed', sync);
+   return () => window.removeEventListener('saved-posts-changed', sync);
+ }, [post.id]);
 
  const toggleSave = () => {
-   try {
-     let saved = [];
-     try { saved = JSON.parse(localStorage.getItem('textmob_saved_posts') || '[]'); } catch {}
-     if (!Array.isArray(saved)) saved = [];
-     const idStr = String(post.id);
-     const idx = saved.indexOf(idStr);
-     if (idx >= 0) { saved.splice(idx, 1); setIsSaved(false); }
-     else { saved.push(idStr); setIsSaved(true); }
-     localStorage.setItem('textmob_saved_posts', JSON.stringify(saved));
-   } catch {}
+   setIsSaved(toggleSavedPost(post.id));
  };
 
   const canDownload = !post.type || post.type === 'post' || post.type === 'poll';
@@ -170,7 +197,7 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal, onGift, onD
  {open && (
    <div className="md:hidden fixed inset-0 z-50 flex items-end" onClick={() => setOpen(false)}>
      <div className="absolute inset-0 bg-black/40" />
-     <div className="relative w-full bg-white rounded-t-2xl shadow-2xl pb-safe" style={{ animation: 'sheetSlideUp 0.25s ease-out' }} onClick={e => e.stopPropagation()}>
+     <div className="relative w-full bg-white rounded-t-lg shadow-2xl pb-safe" style={{ animation: 'sheetSlideUp 0.25s ease-out' }} onClick={e => e.stopPropagation()}>
        <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mt-3" />
        <div className="py-2">
        {menuItems.map((item) => {
@@ -223,7 +250,7 @@ function PostMenu({ post, open, setOpen, navigate, onNegativeSignal, onGift, onD
  )}
  {/* Desktop: wider dropdown */}
  {open && (
-   <div className="hidden md:block absolute top-8 right-0 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-30 w-72" onMouseLeave={() => setOpen(false)}>
+   <div className="hidden md:block absolute top-8 right-0 bg-white border border-gray-100 rounded-lg shadow-xl overflow-hidden z-30 w-72" onMouseLeave={() => setOpen(false)}>
    {menuItems.map((item) => {
      if (item.type === 'divider') {
        return <div key={Math.random()} className="border-t border-gray-100 my-1" />;
@@ -327,7 +354,7 @@ function FollowButtonInline({ targetUsername, currentUsername, onUpdate }) {
  <button
  onClick={toggle}
  disabled={loading}
- className="text-xs font-bold text-blue-600 hover:underline disabled:opacity-50 mr-1"
+ className="text-xs font-bold text-brand-600 hover:underline disabled:opacity-50 mr-1"
  >
  {loading ? '...' : label}
  </button>
@@ -371,7 +398,7 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
  {groupInfo && (
  <Fragment>
  <span className="text-[14px] text-gray-500">in</span>
- <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/group/${groupId}`, 'Create an account to view groups'); }} className="text-[14px] font-semibold text-blue-600 hover:underline truncate">
+ <a href={`/group/${groupId}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/group/${groupId}`, 'Create an account to view groups'); }} className="text-[14px] font-semibold text-brand-600 hover:underline truncate">
  {groupInfo.name}
  </a>
  </Fragment>
@@ -393,7 +420,7 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
 
  if (!sticky) return row;
  return (
- <div className="sticky top-14 md:top-12 z-20 -mx-4 -mt-3 px-4 py-2.5 bg-white/95 backdrop-blur-md border-b border-gray-100 ">
+ <div className="sticky top-14 md:top-12 z-20 -mx-4 -mt-3 px-4 py-2.5 bg-white/95 border-b border-gray-100 ">
  {row}
  </div>
  );
@@ -416,7 +443,7 @@ function QuotedPost({ postId, navigate }) {
  return (
  <div
  onClick={(e) => { e.stopPropagation(); if (qpGuest) { window.showAuthPrompt?.('Create an account to view posts'); return; } navigate(`/post/${post.id}`); }}
- className="mt-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50 cursor-pointer hover:bg-gray-100/50 transition-colors"
+ className="mt-3 p-3 rounded-lg border border-gray-100 bg-gray-50/50 cursor-pointer hover:bg-gray-100/50 transition-colors"
  >
  <div className="flex items-center gap-2 mb-2">
  <img src={authorProfile.profile_pic || DEFAULT_PIC} className="w-5 h-5 rounded-full object-cover" alt="" />
@@ -446,7 +473,7 @@ function PostText({ text }) {
   <RichText html={display} />
   </div>
   {isLong && (
-  <button onClick={function (e) { e.stopPropagation(); setExpanded(!expanded); }} className="mt-0.5 text-[15px] font-normal text-blue-600 hover:underline">
+  <button onClick={function (e) { e.stopPropagation(); setExpanded(!expanded); }} className="mt-0.5 text-[15px] font-normal text-brand-600 hover:underline">
   {expanded ? 'Show less' : 'Show more'}
   </button>
   )}
@@ -472,7 +499,7 @@ function ReactionsBar({ postId, reactionCountsCache, reactionsOpenFor, setReacti
  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-xs leading-none border-2 border-white " key={emoji}>{emoji}</span>
  ))}
  </span>
- <span className={cn('text-xs font-semibold', userReaction ? 'text-blue-600 ' : 'text-gray-500 ')}>{totalReactions}</span>
+ <span className={cn('text-xs font-semibold', userReaction ? 'text-brand-600 ' : 'text-gray-500 ')}>{totalReactions}</span>
  </div>
  )}
 
@@ -482,12 +509,10 @@ function ReactionsBar({ postId, reactionCountsCache, reactionsOpenFor, setReacti
  <div
  className="absolute inset-0 bg-black/40"
  style={{
- backdropFilter: 'blur(8px) saturate(150%)',
- WebkitBackdropFilter: 'blur(8px) saturate(150%)'
  }}
  />
  <div
- className="relative bg-white/95 backdrop-blur-2xl border border-gray-200/50 rounded-t-2xl md:rounded-2xl w-full max-w-sm mx-auto p-4 pb-safe shadow-2xl"
+ className="relative bg-white/95 border border-gray-200/50 rounded-t-lg md:rounded-lg w-full max-w-sm mx-auto p-4 pb-safe shadow-2xl"
  onClick={e => e.stopPropagation()}
  onTouchMove={e => e.stopPropagation()}
  >
@@ -501,8 +526,8 @@ function ReactionsBar({ postId, reactionCountsCache, reactionsOpenFor, setReacti
  <button
  onClick={() => { handleReact(postId, item.r, item.t); setReactionsOpenFor(null); }}
  className={cn(
- 'flex flex-col items-center gap-1 p-2 rounded-xl transition-colors',
- isSelected ? 'bg-blue-600 text-white' : 'bg-gray-50 hover:bg-gray-100 '
+ 'flex flex-col items-center gap-1 p-2 rounded-lg transition-colors',
+ isSelected ? 'bg-brand-600 text-white' : 'bg-gray-50 hover:bg-gray-100 '
  )}
  key={item.r}
  >
@@ -526,14 +551,14 @@ function ReactionsBar({ postId, reactionCountsCache, reactionsOpenFor, setReacti
 function SuggestionDropdown({ items, onSelect, activeIndex }) {
  if (!items || items.length === 0) return null;
  return (
- <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+ <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
  {items.map((item, i) => (
  <button
  key={item.username || item.query || i}
  onClick={() => onSelect(item)}
  className={cn(
  'flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors',
- i === activeIndex ? 'bg-blue-50 ' : 'hover:bg-gray-50 '
+ i === activeIndex ? 'bg-brand-50 ' : 'hover:bg-gray-50 '
  )}
  >
  {item.type === 'user' && item.profile_pic && (
@@ -593,15 +618,24 @@ function useMentions(value, inputRef) {
 
 /* ─── Kn – action buttons (like, comment, view) ─── */
 function ActionButtons({ post, currentUser, handleLike, handleComment, showCommentInput, showViewButton, navigate, reactionsOpenFor, setReactionsOpenFor, authorProfile }) {
- const [showInput, setShowInput] = useState(false);
- const [text, setText] = useState('');
+  const [showInput, setShowInput] = useState(false);
+  const [text, setText] = useState('');
   const [showStickerPicker, setShowStickerPicker] = useState(false);
   const [stickerUrl, setStickerUrl] = useState(null);
+  const [isSaved, setIsSaved] = useState(() => readIsSaved(post.id));
+  // Stay in sync with the ⋯ menu's Save/Unsave item (shared event)
+  useEffect(() => {
+    const sync = () => setIsSaved(readIsSaved(post.id));
+    window.addEventListener('saved-posts-changed', sync);
+    return () => window.removeEventListener('saved-posts-changed', sync);
+  }, [post.id]);
   const liked = (post.likes || []).includes(currentUser);
- const inputRef = useRef(null);
- const { suggestions, setSuggestions, activeIndex, setActiveIndex, queryInfo, setQueryInfo } = useMentions(text, inputRef);
- const abGuest = !localStorage.currentUser;
- const abNavigate = (path, msg) => { if (abGuest) { window.showAuthPrompt?.(msg || 'Create an account'); return; } navigate(path); };
+  const inputRef = useRef(null);
+  const viewCount = post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0);
+  const { suggestions, setSuggestions, activeIndex, setActiveIndex, queryInfo, setQueryInfo } = useMentions(text, inputRef);
+  const abGuest = !localStorage.currentUser;
+  const abNavigate = (path, msg) => { if (abGuest) { window.showAuthPrompt?.(msg || 'Create an account'); return; } navigate(path); };
+  const onSaveClick = () => { if (!currentUser) { window.showAuthPrompt?.('Log in to save posts'); return; } setIsSaved(toggleSavedPost(post.id)); };
 
  function selectSuggestion(item) {
  let replacement = item.type === 'user' ? `@${item.username}` : item.query;
@@ -651,7 +685,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
  {/* Comment */}
  <button
  onClick={() => { if (!currentUser) { window.showAuthPrompt?.('Log in to comment'); return; } showCommentInput ? setShowInput(s => !s) : navigate(`/post/${post.id}`); }}
- className="tm-ripple flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] font-medium text-gray-500 hover:text-blue-500 hover:bg-blue-50  transition-colors"
+ className="tm-ripple flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] font-medium text-gray-500 hover:text-brand-500 hover:bg-brand-50  transition-colors"
  >
  <MessageCircle className="w-[18px] h-[18px] stroke-current" strokeWidth={2} />
  <span>{(post.comments || []).length}</span>
@@ -674,20 +708,29 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
  <SmilePlus className="w-[18px] h-[18px] stroke-current" strokeWidth={2} />
  </button>
 
- {/* View count — clickable */}
+ {/* Save / bookmark */}
+ <button
+ onClick={(e) => { e.stopPropagation(); onSaveClick(); }}
+ className={cn('tm-ripple p-2 rounded-full transition-colors', isSaved ? 'text-brand-600 hover:text-brand-700' : 'text-gray-500 hover:text-brand-500 hover:bg-brand-50')}
+ aria-label={isSaved ? 'Unsave post' : 'Save post'}
+ >
+ <Bookmark className={cn('w-[18px] h-[18px]', isSaved ? 'fill-brand-600 stroke-brand-600' : 'stroke-current')} strokeWidth={2} />
+ </button>
+
+ {/* View count - clickable */}
  <button
  onClick={() => navigate(`/post/${post.id}`)}
- className="tm-ripple ml-auto flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] font-medium text-gray-500 hover:text-blue-500 hover:bg-blue-50  transition-colors"
+ className="tm-ripple ml-auto flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] font-medium text-gray-500 hover:text-brand-500 hover:bg-brand-50  transition-colors"
  >
  <Eye className="w-[18px] h-[18px] stroke-current" strokeWidth={1.8} />
- <span>{(() => { const v = post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0); return v >= 1000 ? (v / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : v; })()}</span>
+ <span>{fmtViews(viewCount)}</span>
  </button>
  </div>
 
  {/* Comment input */}
  {showCommentInput && showInput && !currentUser && (
- <div className="mt-2 px-3 py-2.5 rounded-xl bg-gray-50 text-center text-xs text-gray-500 cursor-pointer" onClick={() => { setShowInput(false); window.showAuthPrompt?.('Log in to comment'); }}>
- <span className="font-semibold text-blue-600 ">Log in</span> to leave a comment
+ <div className="mt-2 px-3 py-2.5 rounded-lg bg-gray-50 text-center text-xs text-gray-500 cursor-pointer" onClick={() => { setShowInput(false); window.showAuthPrompt?.('Log in to comment'); }}>
+ <span className="font-semibold text-brand-600 ">Log in</span> to leave a comment
  </div>
  )}
   {showCommentInput && showInput && currentUser && (
@@ -702,7 +745,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
   )}
   <div className="flex items-center gap-2">
   <img src={localStorage.cached_profile_pic || `${DEFAULT_PIC}`} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
-  <div className="flex-1 flex items-center bg-gray-100 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-blue-100 transition-all relative">
+  <div className="flex-1 flex items-center bg-gray-100 rounded-full px-4 py-1.5 gap-2 focus-within:ring-2 focus-within:ring-brand-100 transition-all relative">
   <input
   ref={inputRef}
   autoFocus
@@ -718,7 +761,7 @@ function ActionButtons({ post, currentUser, handleLike, handleComment, showComme
   <Sticker className="w-4 h-4" strokeWidth={2} />
   </button>
   {(text.trim() || stickerUrl) && (
-  <button onClick={submitComment} className="text-blue-600 font-bold text-xs flex-shrink-0">Post</button>
+  <button onClick={submitComment} className="text-brand-600 font-bold text-xs flex-shrink-0">Post</button>
   )}
   </div>
   {showStickerPicker && (
@@ -751,9 +794,9 @@ function PollContent({ post, handlePollVote }) {
  className="relative w-full text-left px-4 py-2.5 rounded-full border border-gray-200 overflow-hidden transition-colors"
  key={opt.id}
  >
- <div className={cn('absolute inset-0 rounded-full', voted ? 'bg-blue-100 ' : 'bg-gray-100 ')} style={{ width: `${pct}%` }} />
+ <div className={cn('absolute inset-0 rounded-full', voted ? 'bg-brand-100 ' : 'bg-gray-100 ')} style={{ width: `${pct}%` }} />
  <div className="relative flex items-center justify-between">
- <span className={cn('text-sm font-medium', voted ? 'text-blue-700 ' : 'text-gray-700 ')}>{opt.text}</span>
+ <span className={cn('text-sm font-medium', voted ? 'text-brand-700 ' : 'text-gray-700 ')}>{opt.text}</span>
  <span className="text-xs text-gray-400 ml-2">{pct}%</span>
  </div>
  </button>
@@ -899,11 +942,11 @@ function VideoPlayer({ src, qualities = ['360p', '720p', '1080p'] }) {
  )}
 
  {/* Controls bar */}
- <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, opacity: showControls ? 1 : 0, transition: 'opacity 0.25s', background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', padding: '8px 8px 6px' }}>
+ <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, opacity: showControls ? 1 : 0, transition: 'opacity 0.25s', background: 'rgba(0,0,0,0.72)', padding: '8px 8px 6px' }}>
  {/* Progress bar */}
  <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center', marginBottom: 2 }}>
  <div style={{ position: 'absolute', left: 0, right: 0, height: 3, background: 'rgba(255,255,255,0.25)', borderRadius: 2 }} />
- <div style={{ position: 'absolute', left: 0, height: 3, background: '#3b82f6', borderRadius: 2, width: `${pct}%`, pointerEvents: 'none' }} />
+ <div style={{ position: 'absolute', left: 0, height: 3, background: '#4555F2', borderRadius: 2, width: `${pct}%`, pointerEvents: 'none' }} />
  <div style={{ position: 'absolute', width: 12, height: 12, background: '#fff', borderRadius: '50%', left: `calc(${pct}% - 6px)`, pointerEvents: 'none', boxShadow: '0 0 3px rgba(0,0,0,0.5)' }} />
  <input type="range" min="0" max={duration || 0} step="0.05" value={currentTime}
  onMouseDown={() => { seeking.current = true; }}
@@ -1056,7 +1099,7 @@ function MediaGallery({ media, poster }) {
  <Fragment>
  {isVideo(src)
  ? <div className="w-full"><VideoPlayer src={src} /></div>
- : <img src={src} alt="Post media" loading="lazy" onClick={() => openLB(0)} className="w-auto h-auto max-w-full max-h-[70vh] object-contain rounded-xl cursor-zoom-in mx-auto block" />
+ : <img src={src} alt="Post media" loading="lazy" onClick={() => openLB(0)} className="w-auto h-auto max-w-full max-h-[70vh] object-contain rounded-lg cursor-zoom-in mx-auto block" />
  }
  {lightboxIdx !== null && <MediaLightbox items={items} startIndex={lightboxIdx} onClose={closeLB} />}
  </Fragment>
@@ -1127,10 +1170,10 @@ function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, nav
  return (
  <div className="bg-white px-4 pt-4 pb-5 border-b border-gray-100 ">
  <PostHeader post={post} authorProfile={authorProfile} groupProfiles={{}} menuOpen={menuOpen} setMenuOpen={setMenuOpen} navigate={navigate} onNegativeSignal={onNegativeSignal} />
- <div className="rounded-2xl border border-gray-100 overflow-hidden">
- <div className="h-[3px] bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+ <div className="rounded-lg border border-gray-100 overflow-hidden">
+ <div className="h-[3px] bg-gradient-to-r from-brand-500 via-indigo-500 to-violet-500" />
  <div className="p-4">
- <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full mb-3">
+ <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full mb-3">
  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
  {dateStr}{ended && <span className="font-normal text-gray-400 ml-1">· Ended</span>}
  </div>
@@ -1147,7 +1190,7 @@ function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, nav
  disabled={ended}
  className={cn(
  'inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-colors',
- liked ? 'bg-blue-600 text-white' : ended ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 '
+ liked ? 'bg-brand-600 text-white' : ended ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-brand-50 text-brand-600 hover:bg-brand-100 '
  )}
  >
  <svg viewBox="0 0 24 24" className={cn('w-4 h-4', liked ? 'fill-white' : 'fill-none stroke-current')} strokeWidth="2">
@@ -1166,11 +1209,11 @@ function EventCard({ post, authorProfile, handleLike, menuOpen, setMenuOpen, nav
 function LiveEndedCard({ post, authorProfile }) {
  return (
  <div className="bg-white overflow-hidden pt-5">
- <div className="relative mx-4 rounded-2xl overflow-hidden">
+ <div className="relative mx-4 rounded-lg overflow-hidden">
  <img src={post.media?.[0] || authorProfile.profile_pic || '/assets/live-fallback.jpg'} alt="Live stream thumbnail" className="w-full h-48 object-cover grayscale" loading="lazy" />
  <div className="absolute inset-0 bg-black/50" />
  <div className="absolute inset-0 flex items-center justify-center">
- <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
+ <div className="flex items-center gap-2 bg-black/60 px-4 py-2 rounded-full">
  <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-gray-300"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" /></svg>
  <span className="text-white text-sm font-semibold">Live Ended</span>
  </div>
@@ -1216,14 +1259,14 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-600 text-white rounded-full text-xs font-bold">
  <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />LIVE
  </span>
- <span className="text-xs text-white bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full">{viewers} watching</span>
+ <span className="text-xs text-white bg-black/40 px-2.5 py-1 rounded-full">{viewers} watching</span>
  </div>
  <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end gap-2">
  <div className="min-w-0">
  <p className="text-white text-sm font-bold truncate">{post.text || 'Live now'}</p>
  <p className="text-gray-300 text-xs">{timeAgo(post.created_at)}</p>
  </div>
- <a onClick={e => { e.preventDefault(); lcNavigate(`/live/${post.id}`); }} className="flex-shrink-0 px-3 py-1.5 bg-white/10 border border-white/30 backdrop-blur-sm text-white text-xs font-semibold rounded-full hover:bg-white/20 transition-colors" role="button">Watch →</a>
+ <a onClick={e => { e.preventDefault(); lcNavigate(`/live/${post.id}`); }} className="flex-shrink-0 px-3 py-1.5 bg-white/10 border border-white/30 text-white text-xs font-semibold rounded-full hover:bg-white/20 transition-colors" role="button">Watch →</a>
  </div>
  </div>
  <div className="px-4 pt-3 flex items-center justify-between">
@@ -1244,7 +1287,7 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
  </svg>
  {post.likes.length}
  </button>
- <button onClick={() => lcNavigate(`/post/${post.id}`)} className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+ <button onClick={() => lcNavigate(`/post/${post.id}`)} className="flex items-center gap-1 hover:text-brand-500 transition-colors">
  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
  <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
  </svg>
@@ -1299,7 +1342,7 @@ export function PostSkeleton() {
  <div className="h-3 bg-gray-100 rounded-full animate-pulse" />
  <div className="h-3 bg-gray-100 rounded-full w-4/5 animate-pulse" />
  </div>
- <div className="w-full h-48 bg-gray-100 rounded-xl animate-pulse mb-4" />
+ <div className="w-full h-48 bg-gray-100 rounded-lg animate-pulse mb-4" />
  <div className="flex gap-2 border-t border-gray-100 pt-3">
  <div className="w-16 h-6 bg-gray-100 rounded-full animate-pulse" />
  <div className="w-16 h-6 bg-gray-100 rounded-full animate-pulse" />
@@ -1333,7 +1376,7 @@ function LinkPreview({ preview, navigate }) {
    target={isInternal ? undefined : '_blank'}
    rel="noopener noreferrer"
    data-no-nav
-   className="tm-ripple mt-3 mb-1 block rounded-2xl border border-gray-200 overflow-hidden hover:bg-gray-50 transition-colors group/lp"
+   className="tm-ripple mt-3 mb-1 block rounded-lg border border-gray-200 overflow-hidden hover:bg-gray-50 transition-colors group/lp"
  >
    {preview.image && (
    <div className="h-44 sm:h-52 bg-gray-100 overflow-hidden border-b border-gray-200 ">
@@ -1344,7 +1387,7 @@ function LinkPreview({ preview, navigate }) {
    <p className="text-[13px] text-gray-500 truncate">{host}</p>
    {preview.title && <p className="mt-0.5 text-[15px] font-bold text-gray-900 leading-snug truncate group-hover/lp:underline">{preview.title}</p>}
    {preview.description && <p className="mt-0.5 text-[14px] leading-[18px] text-gray-500 line-clamp-2">{preview.description}</p>}
-   {isInternal && <span className="mt-1 inline-block text-[12px] font-semibold text-blue-600 ">Open in Textmob</span>}
+   {isInternal && <span className="mt-1 inline-block text-[12px] font-semibold text-brand-600 ">Open in Textmob</span>}
    </div>
  </a>
  );
@@ -1379,7 +1422,7 @@ const PostCard = ({
   navigate(path);
   };
 
-  // Download post as image — text + image posts only
+  // Download post as image - text + image posts only
   const handleDownloadImage = async () => {
     const W = 1080, PAD = 60;
     const canvas = document.createElement('canvas');
@@ -1391,7 +1434,7 @@ const PostCard = ({
     const cleanText = tmpDiv.textContent || tmpDiv.innerText || '';
 
     // Measure text first
-    ctx.font = '32px "Space Grotesk", system-ui, sans-serif';
+    ctx.font = '32px "Inter", system-ui, sans-serif';
     const textLines = wrapText(ctx, cleanText, W - PAD * 2);
     const textHeight = cleanText ? textLines.length * 44 + 10 : 0;
 
@@ -1443,7 +1486,7 @@ const PostCard = ({
     const textX = PAD + picSize + 14;
     const isVerified = post.verified === true;
     ctx.fillStyle = '#111827';
-    ctx.font = 'bold 24px "Space Grotesk", system-ui, sans-serif';
+    ctx.font = 'bold 24px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'middle';
     const nameText = authorProfile?.fullname || post.username;
     ctx.fillText(nameText, textX, PAD + headerH / 2 - 12);
@@ -1453,7 +1496,7 @@ const PostCard = ({
       const vx = textX + nameWidth + 8;
       const vy = PAD + headerH / 2 - 12;
       const vr = 9;
-      ctx.fillStyle = '#2563eb';
+      ctx.fillStyle = '#2B3EE8';
       ctx.beginPath();
       ctx.arc(vx + vr, vy, vr, 0, Math.PI * 2);
       ctx.fill();
@@ -1466,7 +1509,7 @@ const PostCard = ({
       ctx.stroke();
     }
     ctx.fillStyle = '#9ca3af';
-    ctx.font = '20px "Space Grotesk", system-ui, sans-serif';
+    ctx.font = '20px "Inter", system-ui, sans-serif';
     ctx.fillText(`@${post.username} · ${dateStr} · ${timeStr}`, textX, PAD + headerH / 2 + 14);
 
     // Divider
@@ -1479,7 +1522,7 @@ const PostCard = ({
 
     // Post text
     ctx.fillStyle = '#111827';
-    ctx.font = '32px "Space Grotesk", system-ui, sans-serif';
+    ctx.font = '32px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'top';
     let y = PAD + headerH + 20;
     for (const line of textLines) {
@@ -1508,12 +1551,12 @@ const PostCard = ({
     ctx.lineTo(W - PAD, y);
     ctx.stroke();
     y += 30;
-    ctx.fillStyle = '#2563eb';
-    ctx.font = 'bold 22px "Space Grotesk", system-ui, sans-serif';
+    ctx.fillStyle = '#2B3EE8';
+    ctx.font = 'bold 22px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'middle';
     ctx.fillText('t..', PAD, y);
     ctx.fillStyle = '#9ca3af';
-    ctx.font = '18px "Space Grotesk", system-ui, sans-serif';
+    ctx.font = '18px "Inter", system-ui, sans-serif';
     ctx.fillText('textmob.web.app', PAD + 50, y);
 
     // Download
@@ -1554,7 +1597,7 @@ const PostCard = ({
  };
 
  const mediaBlock = (
- <div className={cn('mt-3 mb-2.5 overflow-hidden rounded-2xl border border-gray-200/70 ', stickyHeader && '-mx-4 md:mx-0')}>
+ <div className={cn('mt-3 mb-2.5 overflow-hidden rounded-lg border border-gray-200/70 ', stickyHeader && '-mx-4 md:mx-0')}>
    <MediaGallery media={post.media} poster={authorProfile.profile_pic} />
  </div>
  );
@@ -1584,7 +1627,7 @@ const PostCard = ({
      <div className="mt-2 mb-1 flex items-center gap-1 border-b border-gray-200  pb-2 text-[15px] text-gray-500">
      <span className="hover:underline">{timeAgo(post.created_at)}</span>
      <span>·</span>
-      <span>{(() => { const v = post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0); return v >= 1000 ? (v / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : v; })()} Views</span>
+      <span>{fmtViews(post.view_count ?? (Array.isArray(post.views) ? post.views.length : 0))} Views</span>
      </div>
      <ReactionsBar postId={post.id} reactionCountsCache={reactionCountsCache} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} handleReact={handleReact} />
      <ActionButtons post={post} currentUser={currentUser} handleLike={handleLike} handleComment={handleComment} showCommentInput={showCommentInput} showViewButton={showViewButton} navigate={navigate} reactionsOpenFor={reactionsOpenFor} setReactionsOpenFor={setReactionsOpenFor} authorProfile={authorProfile} />

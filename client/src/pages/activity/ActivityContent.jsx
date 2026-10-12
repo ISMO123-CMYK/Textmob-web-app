@@ -156,7 +156,7 @@ export default function ActivityContent({ onClose }) {
     return `${Math.floor(hours / 24)}d ago`;
   }
 
-  // Type badge — `variant="glyph"` is the bare X-style coloured icon used in
+  // Type badge - `variant="glyph"` is the bare X-style coloured icon used in
   // the list rows; the default chip keeps the small tinted circle.
   function TypeBadge({ type, variant }) {
     const icon = {
@@ -280,8 +280,8 @@ export default function ActivityContent({ onClose }) {
         mobcoins: 'bg-amber-100 text-amber-600',
         likes: 'bg-red-100 text-red-500',
         like: 'bg-red-100 text-red-500',
-        comments: 'bg-blue-100 text-blue-500',
-        comment: 'bg-blue-100 text-blue-500',
+        comments: 'bg-brand-100 text-brand-500',
+        comment: 'bg-brand-100 text-brand-500',
         mentions: 'bg-purple-100 text-purple-500',
         mention: 'bg-purple-100 text-purple-500',
         followers: 'bg-green-100 text-green-500',
@@ -294,7 +294,7 @@ export default function ActivityContent({ onClose }) {
         textmobai: 'bg-violet-100 text-violet-500',
         askify: 'bg-slate-100 text-slate-600',
         post: 'bg-indigo-100 text-indigo-500',
-        reply: 'bg-blue-100 text-blue-500',
+        reply: 'bg-brand-100 text-brand-500',
         friend: 'bg-green-100 text-emerald-600',
         messages: 'bg-green-100 text-green-600',
         statuses: 'bg-fuchsia-100 text-fuchsia-500',
@@ -373,7 +373,7 @@ export default function ActivityContent({ onClose }) {
         </button>
         {isOpen && (
           <div
-            className="absolute right-0 top-9 z-30 w-40 bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-lg shadow-black/5"
+            className="absolute right-0 top-9 z-30 w-40 bg-white border border-gray-100 rounded-lg overflow-hidden shadow-lg shadow-black/5"
             onClick={e => e.stopPropagation()}
           >
             {item.link && (
@@ -394,13 +394,13 @@ export default function ActivityContent({ onClose }) {
             )}
             {item.data?.replyable !== false && !!item.link && item.link.startsWith('/post/') && (
               <button
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 active:bg-blue-100 border-b border-gray-100 transition-colors text-left font-semibold"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-brand-600 hover:bg-brand-50 active:bg-brand-100 border-b border-gray-100 transition-colors text-left font-semibold"
                 onClick={() => {
                   setOpenMenuId(null);
                   replyAndMark(item);
                 }}
               >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-brand-400" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="9 17 4 12 9 7" />
                   <path d="M20 18v-2a4 4 0 00-4-4H4" />
                 </svg>
@@ -425,7 +425,7 @@ export default function ActivityContent({ onClose }) {
     );
   }
 
-  // Individual Notification Row — X layout: bare coloured type glyph, message,
+  // Individual Notification Row - X layout: bare coloured type glyph, message,
   // timestamp, post thumbnail on the right, overflow menu.
   function NotificationRow({ item }) {
     const type = item.type || '';
@@ -469,7 +469,7 @@ export default function ActivityContent({ onClose }) {
             <img
               src={mediaUri}
               alt=""
-              className="w-12 h-12 rounded-xl object-cover flex-shrink-0 bg-gray-100 border border-gray-100"
+              className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-gray-100 border border-gray-100"
             />
           )}
         </div>
@@ -501,7 +501,7 @@ export default function ActivityContent({ onClose }) {
   return (
     <div className="w-full max-w-2xl mx-auto bg-white min-h-screen flex flex-col font-sans antialiased">
       {/* X-style sticky header + filter tabs */}
-      <div className="sticky top-14 md:top-0 bg-white/85 backdrop-blur-xl z-10 border-b border-gray-200/70">
+      <div className="sticky top-14 md:top-0 bg-white z-10 border-b border-gray-200/70">
         <div className="flex items-center justify-between px-4 pt-3 pb-2 gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <h1 className="text-[20px] leading-6 font-extrabold text-gray-900 tracking-tight">Notifications</h1>
@@ -589,14 +589,14 @@ export default function ActivityContent({ onClose }) {
             <p className="text-sm text-gray-500 font-semibold">{error}</p>
             <button
               onClick={loadNotifications}
-              className="mt-2 h-8 px-4 rounded-full text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white active:scale-95 transition-colors shadow-md shadow-blue-500/15"
+              className="mt-2 h-8 px-4 rounded-full text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white active:scale-95 transition-colors shadow-md shadow-brand-500/15"
             >
               Retry
             </button>
           </div>
         ) : visible.length === 0 ? (
           <div className="px-4 py-24 flex flex-col items-center gap-3 text-center max-w-sm mx-auto">
-            <div className="w-16 h-16 rounded-3xl bg-gray-50 flex items-center justify-center mb-1">
+            <div className="w-16 h-16 rounded-lg bg-gray-50 flex items-center justify-center mb-1">
               <svg viewBox="0 0 24 24" className="w-8 h-8 text-gray-300 fill-none stroke-current" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.73 21a2 2 0 01-3.46 0" />

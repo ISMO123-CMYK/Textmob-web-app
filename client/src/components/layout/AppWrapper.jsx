@@ -11,10 +11,10 @@ const STYLES = {
   overlay: {
     position: 'fixed', inset: 0, zIndex: 99999,
     background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: "'Outfit', 'Inter', system-ui, sans-serif", padding: 24
+    fontFamily: "'Inter', system-ui, sans-serif", padding: 24
   },
   card: {
-    background: '#fff', borderRadius: 16, maxWidth: 480, width: '100%',
+    background: '#fff', borderRadius: 12, maxWidth: 480, width: '100%',
     boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06)',
     overflow: 'hidden'
   },
@@ -43,7 +43,7 @@ const STYLES = {
     fontSize: 14, lineHeight: 1.7, color: '#334155', marginBottom: 8
   },
   link: {
-    color: '#2563eb', fontWeight: 600, textDecoration: 'none', borderBottom: '1px solid rgba(37,99,235,0.2)'
+    color: '#2B3EE8', fontWeight: 600, textDecoration: 'none', borderBottom: '1px solid rgba(43, 62, 232,0.2)'
   },
   divider: {
     height: 1, background: '#e5e7eb', margin: '20px 0'
@@ -154,7 +154,7 @@ export default function AppWrapper({ children }) {
         if (existsRes.ok) {
           const existsData = await existsRes.json();
           if (existsData.exists === false) {
-            // User no longer exists on the server — drop the session cleanly.
+            // User no longer exists on the server - drop the session cleanly.
             localStorage.clear();
             try {
               if (!localStorage.getItem('pendingRedirect')) {
@@ -178,6 +178,17 @@ export default function AppWrapper({ children }) {
     verifyUser();
     const interval = setInterval(verifyUser, 10000);
     return () => clearInterval(interval);
+  }, [username]);
+
+  // Register this tab's socket so direct socket events (discussion_unread /
+  // discussion_read / new-notification) reach it - same as the mobile app.
+  useEffect(() => {
+    const sock = window.socket;
+    if (!sock || !username || username === 'undefined') return;
+    const register = () => { try { sock.emit('register', username); } catch { /* socket not ready */ } };
+    register();
+    sock.on('connect', register);
+    return () => sock.off('connect', register);
   }, [username]);
 
   const [toast, setToast] = useState({ show: false, title: '', message: '', type: 'info' });
@@ -207,21 +218,21 @@ export default function AppWrapper({ children }) {
       />
       {toast.show && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] max-w-sm w-[90vw]">
-          <div className={`rounded-2xl px-4 py-3 shadow-xl border flex items-start gap-3 ${
+          <div className={`rounded-lg px-4 py-3 shadow-xl border flex items-start gap-3 ${
             toast.type === 'error' ? 'bg-red-50 border-red-200' :
             toast.type === 'success' ? 'bg-emerald-50 border-emerald-200' :
-            'bg-blue-50 border-blue-200'
+            'bg-brand-50 border-brand-200'
           }`}>
             <div className="flex-1 min-w-0">
               {toast.title && <p className={`text-sm font-bold ${
                 toast.type === 'error' ? 'text-red-800' :
                 toast.type === 'success' ? 'text-emerald-800' :
-                'text-blue-800'
+                'text-brand-800'
               }`}>{toast.title}</p>}
               {toast.message && <p className={`text-xs mt-0.5 ${
                 toast.type === 'error' ? 'text-red-600' :
                 toast.type === 'success' ? 'text-emerald-600' :
-                'text-blue-600'
+                'text-brand-600'
               }`}>{toast.message}</p>}
             </div>
             <button onClick={() => setToast(t => ({ ...t, show: false }))} className="text-gray-400 hover:text-gray-600 flex-shrink-0">

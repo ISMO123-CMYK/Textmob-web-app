@@ -19,7 +19,7 @@ export default function FormInput({
         value={value}
         onChange={onChange}
         required={required}
-        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-colors pr-10"
+        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-400 focus:bg-white transition-colors pr-10"
       />
       {isPassword && (
         <button

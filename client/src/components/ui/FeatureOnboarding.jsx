@@ -20,7 +20,7 @@ function storeViewedKeys(keys) {
 
 function accentClasses(accent) {
  const styles = {
- blue: 'bg-blue-600 text-white',
+ blue: 'bg-brand-600 text-white',
  red: 'bg-red-600 text-white',
  violet: 'bg-violet-600 text-white',
  };
@@ -28,14 +28,14 @@ function accentClasses(accent) {
 }
 
 function IconBadge({ feature }) {
- const className = `w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center ${accentClasses(feature.accent)}`;
+ const className = `w-16 h-16 rounded-lg mx-auto mb-5 flex items-center justify-center ${accentClasses(feature.accent)}`;
 
  if (feature.type === 'install') {
  return (
  <div className={className}>
  <img
   src="https://res.cloudinary.com/dtln8gnxh/image/upload/v1789326672/profile-pictures/hjpbzboieesk1jfb6jrh.png"
- className="w-12 h-12 rounded-xl object-cover"
+ className="w-12 h-12 rounded-lg object-cover"
  alt="Textmob"
  />
  </div>
@@ -164,11 +164,11 @@ export default function FeatureOnboarding() {
  if (!show || !current || visibleFeatures.length === 0) return null;
 
  return (
- <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/30 backdrop-blur-sm">
- <div className="w-full max-w-[360px] rounded-2xl bg-white border border-gray-200 overflow-hidden shadow-2xl">
+ <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/30">
+ <div className="w-full max-w-[360px] rounded-lg bg-white border border-gray-200 overflow-hidden shadow-2xl">
  <div className="p-6 text-center">
  <IconBadge feature={current} />
- <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-600 mb-2">
+ <p className="text-[10px] font-black uppercase tracking-[0.22em] text-brand-600 mb-2">
  {current.eyebrow}
  </p>
  <h2 className="text-xl font-black text-slate-950 leading-tight mb-2">
@@ -183,7 +183,7 @@ export default function FeatureOnboarding() {
  <button
  key={feature.key}
  onClick={() => setIndex(i)}
- className={`h-1.5 rounded-full transition-all ${i === index ? 'w-6 bg-blue-600' : 'w-1.5 bg-slate-200 '}`}
+ className={`h-1.5 rounded-full transition-all ${i === index ? 'w-6 bg-brand-600' : 'w-1.5 bg-slate-200 '}`}
  aria-label={`Show ${feature.title}`}
  />
  ))}
@@ -193,7 +193,7 @@ export default function FeatureOnboarding() {
  <div className="px-5 pb-5 space-y-2">
  <button
  onClick={runPrimaryAction}
- className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-black active:scale-[0.98] transition-all"
+ className="w-full h-11 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-black active:scale-[0.98] transition-all"
  >
  {current.type === 'install' && isInstalled ? 'Installed' : current.primaryAction}
  </button>
@@ -201,21 +201,21 @@ export default function FeatureOnboarding() {
  <button
  onClick={() => setIndex(i => Math.max(0, i - 1))}
  disabled={index === 0}
- className="h-10 rounded-xl bg-slate-100 text-xs font-bold text-slate-500 disabled:opacity-40"
+ className="h-10 rounded-lg bg-slate-100 text-xs font-bold text-slate-500 disabled:opacity-40"
  >
  Back
  </button>
  {index < visibleFeatures.length - 1 ? (
  <button
  onClick={() => setIndex(i => Math.min(visibleFeatures.length - 1, i + 1))}
- className="h-10 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 "
+ className="h-10 rounded-lg bg-slate-100 text-xs font-bold text-slate-700 "
  >
  Next
  </button>
  ) : (
  <button
  onClick={() => close(true)}
- className="h-10 rounded-xl bg-slate-100 text-xs font-bold text-slate-700 "
+ className="h-10 rounded-lg bg-slate-100 text-xs font-bold text-slate-700 "
  >
  Done
  </button>

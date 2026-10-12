@@ -1,5 +1,5 @@
 export const CATEGORIES = [
-  { id: 'technology', name: 'Technology', color: '#3B82F6' },
+  { id: 'technology', name: 'Technology', color: '#4555F2' },
   { id: 'programming', name: 'Programming', color: '#10B981' },
   { id: 'science', name: 'Science', color: '#14B8A6' },
   { id: 'education', name: 'Education', color: '#84CC16' },
@@ -23,7 +23,7 @@ export const CATEGORIES = [
   { id: 'entertainment', name: 'Entertainment', color: '#EC4899' },
   { id: 'lifestyle', name: 'Lifestyle', color: '#78716C' },
   { id: 'pets', name: 'Pets & Animals', color: '#F97316' },
-  { id: 'automotive', name: 'Cars & Bikes', color: '#1E40AF' },
+  { id: 'automotive', name: 'Cars & Bikes', color: '#1B28A3' },
   { id: 'nature', name: 'Nature', color: '#16A34A' },
   { id: 'books', name: 'Books & Writing', color: '#A855F7' },
   { id: 'career', name: 'Career', color: '#0284C7' },

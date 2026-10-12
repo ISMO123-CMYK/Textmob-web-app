@@ -4,6 +4,7 @@ import { Ripple } from '../../components/Ripple';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { apiGet, apiPost } from '../../api/client';
+import { useSocket } from '../../context/SocketContext';
 import { playClick } from '../../utils/sound';
 import { useAuth } from '../../context/AuthContext';
 import { CATEGORIES, timeAgo, type Room } from './discussionsShared';
@@ -24,6 +25,7 @@ type Row =
 
 function ListView({ onBack, onProfile }: { onBack: () => void; onProfile: (u: string) => void }) {
   const { username: currentUser } = useAuth();
+  const { on, off } = useSocket();
   const [lists, setLists] = useState<{ active: Room[]; archives: Room[]; mine: Room[] }>({ active: [], archives: [], mine: [] });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,7 +45,7 @@ function ListView({ onBack, onProfile }: { onBack: () => void; onProfile: (u: st
     const asList = (r: { data?: unknown }): Room[] => (Array.isArray(r?.data) ? (r.data as Room[]) : []);
     (async () => {
       const [active, archives, mine] = await Promise.all([
-        apiGet('/api/discussions/active?limit=50').then(asList).catch(() => [] as Room[]),
+        apiGet(`/api/discussions/active?limit=50${currentUser ? `&username=${encodeURIComponent(currentUser)}` : ''}`).then(asList).catch(() => [] as Room[]),
         apiGet('/api/discussions/archives?limit=50').then(asList).catch(() => [] as Room[]),
         currentUser ? apiGet(`/api/discussions/my-archive?username=${currentUser}`).then(asList).catch(() => [] as Room[]) : Promise.resolve([] as Room[]),
       ]);
@@ -66,6 +68,42 @@ function ListView({ onBack, onProfile }: { onBack: () => void; onProfile: (u: st
       .finally(() => { if (alive) setSearching(false); });
     return () => { alive = false; };
   }, [search]);
+
+  /* Live unread badges - server emits discussion_unread (delta) / discussion_read (clear). */
+  useEffect(() => {
+    if (!currentUser) return;
+    const bump = (list: Room[], roomId: string, delta: number): Room[] =>
+      list.map(r => (r.id === roomId ? { ...r, unreadCount: Math.max(0, (r.unreadCount || 0) + delta) } : r));
+    const wipe = (list: Room[], roomId: string): Room[] =>
+      list.map(r => (r.id === roomId ? { ...r, unreadCount: 0 } : r));
+    const onUnread = (p: { roomId?: string; delta?: number }) => {
+      if (!p?.roomId) return;
+      const roomId = p.roomId;
+      const delta = Number(p.delta) || 1;
+      setLists(prev => ({
+        active: bump(prev.active, roomId, delta),
+        archives: bump(prev.archives, roomId, delta),
+        mine: bump(prev.mine, roomId, delta),
+      }));
+      setSearchResults(prev => (prev ? bump(prev, roomId, delta) : prev));
+    };
+    const onRead = (p: { roomId?: string }) => {
+      if (!p?.roomId) return;
+      const roomId = p.roomId;
+      setLists(prev => ({
+        active: wipe(prev.active, roomId),
+        archives: wipe(prev.archives, roomId),
+        mine: wipe(prev.mine, roomId),
+      }));
+      setSearchResults(prev => (prev ? wipe(prev, roomId) : prev));
+    };
+    on('discussion_unread', onUnread);
+    on('discussion_read', onRead);
+    return () => {
+      off('discussion_unread', onUnread);
+      off('discussion_read', onRead);
+    };
+  }, [currentUser, on, off]);
 
   const handleSearch = (val: string) => {
     setSearchInput(val);
@@ -155,8 +193,13 @@ function ListView({ onBack, onProfile }: { onBack: () => void; onProfile: (u: st
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text numberOfLines={1} style={[styles.channelTitle, locked && { color: '#6b7280' }]}>{room.title}</Text>
-          <Text numberOfLines={1} style={styles.channelSub}>@{room.host_username}{room.category && room.category !== 'general' ? ` · ${room.category}` : ''}</Text>
+          <Text numberOfLines={1} style={styles.channelSub}>@{room.host_username}{(() => { const n = Number(room.message_count) || 0; const cnt = !n ? '' : n >= 1e6 ? ` · ${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M msgs` : n >= 1e3 ? ` · ${(n / 1e3).toFixed(1).replace(/\.0$/, '')}K msgs` : ` · ${n} msg${n === 1 ? '' : 's'}`; const tags = (Array.isArray(room.hashtags) && room.hashtags.length ? room.hashtags : String(room.description || '').match(/#[\w-]+/g) || []).map((t: any) => String(t).toLowerCase().replace(/^#/, '')).slice(0, 2); return cnt + (tags.length ? ` · ${tags.map((t: string) => `#${t}`).join(' ')}` : ''); })()}</Text>
         </View>
+        {room.unreadCount ? (
+          <View style={styles.unreadPill}>
+            <Text style={styles.unreadPillText}>{room.unreadCount > 99 ? '99+' : room.unreadCount}</Text>
+          </View>
+        ) : null}
         {isMine ? (
           <Ripple onPress={() => handleDelete(room.id)} style={styles.rowAction} hitSlop={8}>
             <Ionicons name="trash-outline" size={15} color="#f87171" />
@@ -276,6 +319,7 @@ function CreateRoomForm({ onClose, onCreated, initialCategory = 'general' }: { o
     <View>
       <TextInput style={styles.createInput} placeholder="Room title" placeholderTextColor="#9ca3af" value={title} onChangeText={t => setTitle(t.slice(0, 120))} maxLength={120} />
       <TextInput style={[styles.createInput, { height: 64, textAlignVertical: 'top' }]} placeholder="What's the discussion about?" placeholderTextColor="#9ca3af" value={desc} onChangeText={t => setDesc(t.slice(0, 500))} maxLength={500} multiline />
+      <Text style={styles.createTip}>Tip: add #hashtags in your description (e.g. #football #gaming) so people with matching interests find your room.</Text>
       <View style={styles.catPicker}>
         {CATEGORIES.filter(c => c !== 'all').map(c => (
           <Ripple key={c} onPress={() => setCat(c)} style={[styles.catPill, cat === c && styles.catPillActive]}>
@@ -324,6 +368,8 @@ const styles = StyleSheet.create({
   livePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2563eb' },
   livePillText: { fontSize: 10, fontWeight: 'bold', color: '#2563eb' },
+  unreadPill: { minWidth: 20, height: 18, paddingHorizontal: 6, borderRadius: 999, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
+  unreadPillText: { fontSize: 10, fontWeight: 'bold', color: '#fff' },
   payChip: { backgroundColor: '#eab308', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   payChipText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
   rowAction: { padding: 6 },
@@ -335,6 +381,7 @@ const styles = StyleSheet.create({
   createCard: { backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '85%', maxWidth: 420 },
   createTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 16 },
   createInput: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, color: '#111827', marginBottom: 12 },
+  createTip: { fontSize: 11, color: '#6b7280', lineHeight: 15, marginTop: -4, marginBottom: 12, paddingHorizontal: 4 },
   catPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   catPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
   catPillActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },

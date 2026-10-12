@@ -51,9 +51,9 @@ export default function SaveCredentialsBanner() {
     <div
       style={{
         position: 'fixed', bottom: 20, right: 20, zIndex: 99999,
-        background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14,
+        background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12,
         padding: 14, boxShadow: '0 10px 40px rgba(0,0,0,0.15)', maxWidth: 320,
-        fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
+        fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
       <div style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', marginBottom: 2 }}>
@@ -65,7 +65,7 @@ export default function SaveCredentialsBanner() {
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button
           onClick={save}
-          style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 20, padding: '7px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          style={{ background: '#2B3EE8', color: '#fff', border: 'none', borderRadius: 12, padding: '7px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
         >
           Save
         </button>

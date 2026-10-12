@@ -8,7 +8,7 @@ export default function AutocompleteDropdown({ items, onSelect, activeIndex }) {
 
  return createPortal(
  <div className="fixed inset-0 z-[2147483647] pointer-events-none flex flex-col justify-end md:justify-start md:items-center">
- <div className="pointer-events-auto w-full md:w-[450px] md:mt-20 bg-white md:bg-white/95 md: md:backdrop-blur-xl rounded-t-[32px] md:rounded-2xl border-t md:border border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl overflow-hidden max-h-[60vh] md:max-h-[400px] flex flex-col transform transition-transform animate-in slide-in-from-bottom duration-300">
+ <div className="pointer-events-auto w-full md:w-[450px] md:mt-20 bg-white md:bg-white/95 rounded-t-lg md:rounded-lg border-t md:border border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] md:shadow-2xl overflow-hidden max-h-[60vh] md:max-h-[400px] flex flex-col transform transition-transform animate-in slide-in-from-bottom duration-300">
  <div className="p-4 md:p-3 space-y-0.5">
  {/* Mobile swipe handle indicator */}
  <div className="flex justify-center mb-4 md:hidden">
@@ -16,7 +16,7 @@ export default function AutocompleteDropdown({ items, onSelect, activeIndex }) {
  </div>
 
  <div className="flex items-center justify-between px-3 pb-2 border-b border-gray-50 mb-2">
- <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-600 ">
+ <p className="text-[10px] font-black uppercase tracking-[0.25em] text-brand-600 ">
  Suggestions
  </p>
  <span className="text-[9px] text-gray-400 uppercase font-black tracking-widest hidden md:block">
@@ -37,9 +37,9 @@ export default function AutocompleteDropdown({ items, onSelect, activeIndex }) {
  onSelect(item);
  }}
  className={cn(
- "flex items-center gap-3 px-4 py-3 md:py-2.5 rounded-xl cursor-pointer transition-all duration-200 group",
+ "flex items-center gap-3 px-4 py-3 md:py-2.5 rounded-lg cursor-pointer transition-all duration-200 group",
  active
- ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+ ? "bg-brand-600 text-white shadow-lg shadow-brand-600/20"
  : "hover:bg-gray-50 text-gray-800 "
  )}
  key={isUser ? `user-${item.username}-${idx}` : `term-${item.query || idx}-${idx}`}
@@ -63,12 +63,12 @@ export default function AutocompleteDropdown({ items, onSelect, activeIndex }) {
  {isUser ? `@${item.username}` : (item.query || '').replace(/^[#@]/, '')}
  </p>
  {isUser && item.fullname && (
- <p className={cn("text-[10px] truncate opacity-80", active ? "text-blue-100" : "text-gray-400 ")}>
+ <p className={cn("text-[10px] truncate opacity-80", active ? "text-brand-100" : "text-gray-400 ")}>
  {item.fullname}
  </p>
  )}
  {!isUser && item.count > 0 && item.type === 'hashtag' && (
- <p className={cn("text-[10px] truncate opacity-80 uppercase font-black tracking-widest", active ? "text-blue-100" : "text-gray-400")}>
+ <p className={cn("text-[10px] truncate opacity-80 uppercase font-black tracking-widest", active ? "text-brand-100" : "text-gray-400")}>
  Trending topic
  </p>
  )}

@@ -51,7 +51,7 @@ export default function HashtagContent({ tag }) {
 
         {loading && (
           <div className="space-y-4">
-            {[1,2,3].map(i => <div key={i} className="h-24 bg-gray-50 rounded-2xl animate-pulse" />)}
+            {[1,2,3].map(i => <div key={i} className="h-24 bg-gray-50 rounded-lg animate-pulse" />)}
           </div>
         )}
 
@@ -63,7 +63,7 @@ export default function HashtagContent({ tag }) {
 
         {!loading && !error && posts.length === 0 && (
           <div className="flex flex-col items-center py-16 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+            <div className="w-14 h-14 rounded-lg bg-gray-100 flex items-center justify-center mb-4">
               <span className="text-2xl text-gray-400 font-black">#</span>
             </div>
             <p className="text-sm font-bold text-gray-700 mb-1">No posts with #{tag} yet</p>

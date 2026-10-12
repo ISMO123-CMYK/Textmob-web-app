@@ -2,20 +2,20 @@
  * Textmob ↔ Louda global connector (src/bridge/connector.js)
  *
  * The ONE shared utility layer between the two frontends.
- * All cross-app communication goes through here IN-CODE —
+ * All cross-app communication goes through here IN-CODE -
  * no `?from=textmob&userId=` params, no iframe postMessage.
  *
  * v1 surface:
- *  identity  — getTextmobUser / getLoudaUserId / ensureLoudaSession
- *  intents   — openChatWith / sharePostToLouda / shareSnapToLouda / addLoudaContact
- *  live      — connectLoudaSocket / onLoudaUnread / getLoudaUnread
- *  nav       — navigateToLouda / navigateToTextmob
+ *  identity  - getTextmobUser / getLoudaUserId / ensureLoudaSession
+ *  intents   - openChatWith / sharePostToLouda / shareSnapToLouda / addLoudaContact
+ *  live      - connectLoudaSocket / onLoudaUnread / getLoudaUnread
+ *  nav       - navigateToLouda / navigateToTextmob
  *
  * Events emitted on window:
- *  'louda:unread'    { count }          — unread badge updates
- *  'louda:open-chat' { username }       — Louda UI should open/create DM
- *  'louda:share'     { kind, payload }  — Louda UI should prefill forward/compose
- *  'louda:session'   { loudaUserId }    — session established / cleared
+ *  'louda:unread'    { count }          - unread badge updates
+ *  'louda:open-chat' { username }       - Louda UI should open/create DM
+ *  'louda:share'     { kind, payload }  - Louda UI should prefill forward/compose
+ *  'louda:session'   { loudaUserId }    - session established / cleared
  */
 import { io } from 'socket.io-client';
 import { apiFetch } from '../config/api';
@@ -25,7 +25,7 @@ export const LOUDA_PROD_URL = 'https://louda-back-end.onrender.com';
 
 // Single backend: the real Louda API in every environment.
 // (Local override still possible via VITE_LOUDA_API_URL when hacking on
-// the Louda backend itself. Merging the two backends is out of scope —
+// the Louda backend itself. Merging the two backends is out of scope -
 // standalone Louda clients depend on this API.)
 export const LOUDA_API_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_LOUDA_API_URL) ||
@@ -33,7 +33,7 @@ export const LOUDA_API_URL =
 
 // Resolved base: local dev backend if reachable, else production fallback.
 // (Dev browsers point at localhost:3000, but the Louda backend usually isn't
-// running locally — retrying prod beats a dead "Failed to fetch".)
+// running locally - retrying prod beats a dead "Failed to fetch".)
 let loudaBaseOverride = null;
 function getLoudaBase() {
   return loudaBaseOverride || LOUDA_API_URL;
@@ -108,7 +108,7 @@ let sessionPromise = null;
 /**
  * Ensure the Textmob user has a linked Louda session.
  * Replaces the old `?from=textmob&userId=` iframe handshake.
- * Idempotent — concurrent callers share one in-flight request.
+ * Idempotent - concurrent callers share one in-flight request.
  */
 export function ensureLoudaSession() {
   if (sessionPromise) return sessionPromise;
@@ -164,7 +164,7 @@ export function ensureLoudaSession() {
   return sessionPromise;
 }
 
-/** Clear Louda session — call from Textmob logout / account switch. */export function clearLoudaSession() {
+/** Clear Louda session - call from Textmob logout / account switch. */export function clearLoudaSession() {
   disconnectLoudaSocket();
   try {
     localStorage.removeItem('userId');
@@ -176,7 +176,7 @@ export function ensureLoudaSession() {
 /**
  * Auto-provision + log in the Louda user for the current Textmob session.
  * Fire-and-forget: call after signup/login/switch; never throws.
- * The Louda identity is fully derived — there is no Louda logout.
+ * The Louda identity is fully derived - there is no Louda logout.
  */
 export function provisionLoudaSession() {
   try {
@@ -306,7 +306,7 @@ export async function refreshLoudaUnread() {
 }
 
 /**
- * Unviewed-status authors (excluding self) — same rule as Louda's own
+ * Unviewed-status authors (excluding self) - same rule as Louda's own
  * status badge. Folded into the Messages badge so statuses get seen.
  * Returns 0 when there is no linked session yet (never creates one here).
  */
@@ -339,7 +339,7 @@ function scheduleRefetch(ms = 500) {
 
 /**
  * Open the Louda realtime socket in the Textmob window.
- * Uses `window.loudaSocket` — NEVER touches `window.socket` (Textmob's).
+ * Uses `window.loudaSocket` - NEVER touches `window.socket` (Textmob's).
  */
 export async function connectLoudaSocket() {
   if (socketRef?.connected) return socketRef;

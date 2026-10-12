@@ -62,9 +62,9 @@ function urlAnchor(url) {
   const m = url.match(/^(?:https?:\/\/)?(?:www\.)?textmob\.web\.app(\/\S*)?/i);
   if (m) {
     const path = m[1] && m[1].length > 1 ? m[1] : '/';
-    return `<a data-lexum href="${path.replace(/"/g, '&quot;')}" class="text-blue-600 underline">${url}</a>`;
+    return `<a data-lexum href="${path.replace(/"/g, '&quot;')}" class="text-brand-600 underline">${url}</a>`;
   }
-  return `<a href="${url}" class="text-blue-600 underline" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  return `<a href="${url}" class="text-brand-600 underline" target="_blank" rel="noopener noreferrer">${url}</a>`;
 }
 
 function linkifySegment(segment, legacyNames, validSet) {
@@ -79,19 +79,19 @@ function linkifySegment(segment, legacyNames, validSet) {
   s = s.replace(
     /(^|[^\w#])(#[a-zA-Z0-9_-]+)/g,
     (_m, pre, tag) =>
-      `${pre}<a data-lexum href="/tag/${encodeURIComponent(tag)}" class="text-blue-500 font-semibold hover:underline">#${tag}</a>`
+      `${pre}<a data-lexum href="/tag/${encodeURIComponent(tag)}" class="text-brand-500 font-semibold hover:underline">#${tag}</a>`
   );
 
   s = s.replace(buildMentionRegex(legacyNames), (match, genericMatch) => {
     if (genericMatch !== undefined) {
-      // normal ([\w.-]+) mention — only link if the profile exists
+      // normal ([\w.-]+) mention - only link if the profile exists
       const lower = genericMatch.toLowerCase();
       if (!validSet.has(lower)) return match;
-      return `<a data-lexum href="/@${encodeURIComponent(lower)}" class="text-blue-600 font-bold hover:underline">@${genericMatch}</a>`;
+      return `<a data-lexum href="/@${encodeURIComponent(lower)}" class="text-brand-600 font-bold hover:underline">@${genericMatch}</a>`;
     }
-    // legacy exact-match mention — always a real user (exact stored casing)
+    // legacy exact-match mention - always a real user (exact stored casing)
     const uname = match.slice(1);
-    return `<a data-lexum href="/@${encodeURIComponent(uname)}" class="text-blue-600 font-bold hover:underline">${match}</a>`;
+    return `<a data-lexum href="/@${encodeURIComponent(uname)}" class="text-brand-600 font-bold hover:underline">${match}</a>`;
   });
 
   return s.replace(/\u0000(\d+)\u0000/g, (_m, i) => urlAnchor(urls[Number(i)]));
@@ -164,14 +164,14 @@ export default function RichText({ html, className }) {
       const legacyNames = await getLegacyUsernames();
       if (!active) return;
 
-      // Linkify each text node — including posts the composer saved as HTML,
+      // Linkify each text node - including posts the composer saved as HTML,
       // which previously rendered as inert text with no links.
       let result = segments
         .map(seg => (seg.type === 'text' && seg.linkable ? linkifySegment(seg.value, legacyNames, validSet) : seg.value))
         .join('');
 
       // Convert markdown (bold, italic, code, lists, headings, etc.)
-      // — only for plain posts; HTML posts already carry their own markup.
+      // - only for plain posts; HTML posts already carry their own markup.
       if (!isHTML && typeof window.marked !== 'undefined') {
         result = window.marked.parse(result, { gfm: true, breaks: true, mangle: false, headerIds: false });
       }
