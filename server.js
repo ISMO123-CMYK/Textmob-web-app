@@ -48,6 +48,17 @@ if (process.env.TEXTDB_ENABLED === 'false') {
   supabase = textDb.supabase;
   supabase2 = textDb.supabase; // single database — both legacy clients share one engine
   console.log('[db] TextDB active (single SQLite + B2 durability, supabase-compatible shim)');
+  // Loud guard: an empty DB on a deployed host almost always means the B2
+  // credentials are missing, so the snapshot was never restored (no logins).
+  textDb.ready.then(() => {
+    try {
+      const n = textDb.engines[0].engine.rawAll('SELECT COUNT(*) n FROM "users"')[0].n;
+      if (!n) console.error('[textdb] *** DATABASE IS EMPTY *** TEXTDB_B2_* env vars are probably missing on this host, so the B2 snapshot was not restored. Logins WILL fail. Set TEXTDB_B2_KEY_ID / TEXTDB_B2_APP_KEY / TEXTDB_B2_BUCKET and redeploy.');
+      else console.log('[textdb] restored/loaded OK — users: ' + n);
+    } catch (e) {
+      console.error('[textdb] *** could not verify users table:', e.message);
+    }
+  }).catch(() => {});
 }
 
 // Default avatar for the whole app (mirrors client/src/utils/defaultAvatar.js).
@@ -1449,7 +1460,9 @@ const upload = multer({
   },
 });
 app.get('/', function (req, res) {
-  res.sendFile(path.join(__dirname, 'public', 'newindex.html'))
+  const legacyIndex = path.join(__dirname, 'public', 'newindex.html');
+  if (require('fs').existsSync(legacyIndex)) return res.sendFile(legacyIndex);
+  res.status(200).json({ ok: true, service: 'textmob-api', db: 'textdb' });
 })
 
 // In-memory array to store reset codes
