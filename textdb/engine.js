@@ -104,6 +104,8 @@ class Engine {
   }
 
   rawRun(sql, params) {
+    // writes-only path (reads use rawGet/rawAll) → timestamp for snapshot-skipping
+    this.lastWriteAt = Date.now();
     return this.prepareCached(sql).run(...(params || []));
   }
 

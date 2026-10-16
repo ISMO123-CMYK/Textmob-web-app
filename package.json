@@ -2,7 +2,7 @@
   "name": "TheWeb",
   "version": "1.0.0",
   "description": "TextMob",
-  "main": "app.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",

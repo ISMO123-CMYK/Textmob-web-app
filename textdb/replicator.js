@@ -47,6 +47,13 @@ class Replicator {
   }
 
   async snapshotOne(engine, ns) {
+    // Skip if nothing changed since the last snapshot — saves a full gz upload
+    // (Render counts outbound traffic: an 11MB snapshot every 5 min = ~3GB/day).
+    const prev = this.lastSnapshot[ns];
+    const prevTs = prev ? Date.parse(prev.ts) || 0 : 0;
+    if (prevTs && engine.lastWriteAt && engine.lastWriteAt <= prevTs) {
+      return;
+    }
     const ts = new Date().toISOString();
     const tmpFile = path.join(this.tmpDir, ns + '-' + tsSlug() + '.db');
     try {

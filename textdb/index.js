@@ -88,6 +88,17 @@ function openTextDbSync(opts) {
       const engine = new Engine(dbPath);
       try { repairDoubleEncoded(engine); } catch (e) { console.error('[textdb] repair error:', e.message); }
       engines.push({ engine, ns, dbPath, restored });
+      // Seed the snapshot clock from the stored manifest so a clean boot
+      // (no local writes yet) skips its first snapshot upload.
+      if (!restored && !skipRestore) {
+        try {
+          const mbuf = await storage.get('manifest-' + ns + '.json');
+          if (mbuf) {
+            const m = JSON.parse(mbuf.toString('utf8'));
+            if (m && m.latest && m.ts) replicator.lastSnapshot[ns] = m;
+          }
+        } catch {}
+      }
     }
   })();
 
