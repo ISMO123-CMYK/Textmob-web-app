@@ -7,7 +7,7 @@ How to ship a new Android build and push it to every user in the app.
 | Piece | Where | What happens |
 | --- | --- | --- |
 | Version data | Supabase `app_versions` table (single `current` row) | Source of truth for what version is live |
-| Server | `server.js` on Render (`textmob-provider-api-99ii`) | Serves `GET /api/app-version`, `POST /api/admin/app-version`, and the APK at `/apk/` |
+| Server | `server.js` on Render (`asilfcismail`) | Serves `GET /api/app-version`, `POST /api/admin/app-version`, and the APK at `/apk/` |
 | Admin panel | `/asilfcismail` → **App Updates** tab | Publishes a new version |
 | App | `mobile/` (React Native/Expo) | Checks version on launch; warns users, then blocks updates |
 | APK file | `public/apk/thetextmobapp.apk` (committed to git) | Downloaded and installed by the app |
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.app_versions (
 );
 ```
 
-2. Verify the server sees it: open `https://textmob-provider-api-99ii.onrender.com/api/app-version` (or `http://localhost:5000/api/app-version`). It should return `{"version":null,...}` — not an empty/error page. `null` is fine; the table existing is what matters.
+2. Verify the server sees it: open `https://asilfcismail.onrender.com/api/app-version` (or `http://localhost:5000/api/app-version`). It should return `{"version":null,...}` — not an empty/error page. `null` is fine; the table existing is what matters.
 
 ---
 
@@ -84,14 +84,14 @@ git push
 
 **Constraints:**
 - APK must be **under 100 MB** (GitHub file-size limit). If EAS produces a bigger file, enable the shrink option in `mobile/eas.json` or remove `--profile production` assets — the app is currently < 100 MB.
-- The APK is served at `/apk/thetextmobapp.apk`. Verify after deploy: `https://textmob-provider-api-99ii.onrender.com/apk/thetextmobapp.apk` starts downloading.
+- The APK is served at `/apk/thetextmobapp.apk`. Verify after deploy: `https://asilfcismail.onrender.com/apk/thetextmobapp.apk` starts downloading.
 - Commit the version files **before** building the APK, so the APK's embedded version always matches the committed one.
 
 ---
 
 ## 4. Publish (make it live)
 
-1. Open the admin panel: `https://textmob-provider-api-99ii.onrender.com/asilfcismail` → **App Updates**.
+1. Open the admin panel: `https://asilfcismail.onrender.com/asilfcismail` → **App Updates**.
 2. Enter:
    - **New app version** — must be the same as the built version (e.g. `1.1`).
    - **Grace days** — usually `7`. Users get a dismissible reminder until this deadline.

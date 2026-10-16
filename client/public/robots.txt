@@ -11,4 +11,4 @@ Disallow: /logout
 Disallow: /chats
 Disallow: /wallet
 
-Sitemap: https://textmob-provider-api-99ii.onrender.com/sitemap.xml
+Sitemap: https://asilfcismail.onrender.com/sitemap.xml

@@ -2466,7 +2466,7 @@ export default function SnapsContent({ startSnapId }) {
 
  async function handleLike(snapId) {
  if (!currentUser) { window.showAuthPrompt?.('Log in to like snaps'); return; }
- const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/like-post' : 'https://textmob-provider-api-99ii.onrender.com/like-post';
+ const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/like-post' : 'https://asilfcismail.onrender.com/like-post';
  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: snapId, username: currentUser }), keepalive: true }).catch(() => {});
  }
 

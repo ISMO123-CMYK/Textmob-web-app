@@ -3,7 +3,7 @@ import { getMediaUrl } from '../utils/cloudinary';
 
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:5000'
-  : 'https://textmob-provider-api-99ii.onrender.com';
+  : 'https://asilfcismail.onrender.com';
 
 const READ_ENDPOINTS = [
   '/get-posts', '/snaps-feed', '/get-post', '/get-user-posts',

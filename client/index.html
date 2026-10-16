@@ -4,14 +4,14 @@
 <head>
   <script src="https://cdn.jsdelivr.net/npm/darkreader/darkreader.min.js"></script>
   <script>
-    window.VITE_API_URL = "https://textmob-provider-api-99ii.onrender.com";
+    window.VITE_API_URL = "https://asilfcismail.onrender.com";
     const user = localStorage.getItem("currentUser");
     if (user && user !== "undefined") {
       // Background verification
       (function () {
         const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
           ? 'http://localhost:5000'
-          : 'https://textmob-provider-api-99ii.onrender.com';
+          : 'https://asilfcismail.onrender.com';
         fetch(API_URL + '/api/verify-user?username=' + encodeURIComponent(user))
           .then(res => res.json())
           .then(data => {
@@ -946,7 +946,7 @@
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
     (function () {
-      var API_URL = window.VITE_API_URL || 'https://textmob-provider-api-99ii.onrender.com';
+      var API_URL = window.VITE_API_URL || 'https://asilfcismail.onrender.com';
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         API_URL = 'http://localhost:5000';
       }

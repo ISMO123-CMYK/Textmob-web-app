@@ -162,7 +162,7 @@ export function initTracking() {
   window.addEventListener('beforeunload', () => {
     const elapsed = sessionStart ? Math.floor((Date.now() - sessionStart) / 1000) : 0;
     if (elapsed > 0) {
-      const base = location.origin === 'http://localhost:5173' ? 'http://localhost:5000' : 'https://textmob-provider-api-99ii.onrender.com';
+      const base = location.origin === 'http://localhost:5173' ? 'http://localhost:5000' : 'https://asilfcismail.onrender.com';
       navigator.sendBeacon(base + '/tatu', JSON.stringify({
         username: username || getUsername(),
         event: 'app_close',

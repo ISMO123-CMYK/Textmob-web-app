@@ -7,7 +7,7 @@ export const LOUDA_API_URL =
   LOUDA_PROD_URL;
 
 // Textmob provider (for /api/louda-unread aggregation + profile lookup)
-export const TEXTMOB_API_URL = 'https://textmob-provider-api-99ii.onrender.com';
+export const TEXTMOB_API_URL = 'https://asilfcismail.onrender.com';
 
 export const DEFAULT_AVATAR =
   'data:image/svg+xml;utf8,' +

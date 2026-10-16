@@ -634,7 +634,7 @@ export default function HomeFeed({ propPosts }) {
  return { ...p, likes: liked ? p.likes.filter(u => u !== username) : [...p.likes, username] };
  });
  setPosts(updater);
- const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/like-post' : 'https://textmob-provider-api-99ii.onrender.com/like-post';
+ const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/like-post' : 'https://asilfcismail.onrender.com/like-post';
  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId, username }), keepalive: true }).catch(() => {});
  }
 

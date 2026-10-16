@@ -307,7 +307,18 @@ class Engine {
       allCols.filter(c => c !== conflictCol).map(c => ident(c) + ' = excluded.' + ident(c)).join(', ');
     const stmt = this.prepareCached(sql);
     for (const r of rows) {
-      stmt.run(...allCols.map(c => (r[c] === undefined ? null : r[c])));
+      // Sanitize: old B2 objects may hold raw arrays/objects/booleans that
+      // node:sqlite cannot bind ("Provided value cannot be bound"). Coerce to
+      // storage format instead of crashing the whole restore replay.
+      stmt.run(...allCols.map(c => {
+        const v = r[c];
+        if (v === undefined) return null;
+        if (typeof v === 'boolean') return v ? 1 : 0;
+        if (typeof v === 'object' && v !== null && !(v instanceof Uint8Array) && !Buffer.isBuffer(v)) {
+          try { return JSON.stringify(v); } catch { return null; }
+        }
+        return v;
+      }));
     }
     return rows.length;
   }

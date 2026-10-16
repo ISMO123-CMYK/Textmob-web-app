@@ -1028,7 +1028,7 @@ const domains = [
   'https://louda-back-end.onrender.com',
   'https://astrasearch-r1re.onrender.com',
   'https://mylex.onrender.com',
-  'https://textmob-provider-api-99ii.onrender.com'
+  'https://asilfcismail.onrender.com'
 ];
 
 // Function to ping domains
@@ -1055,7 +1055,7 @@ setInterval(pingDomains, 60000); // 60,000 milliseconds = 1 minute
 // Initial run immediately
 pingDomains();
 const pingInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
-const url = 'https://textmob-provider-api.onrender.com'; // Replace with your app URL
+const url = 'https://asilfcismail.onrender.com'; // Replace with your app URL
 // mailer.js
 const nodemailer = require("nodemailer");
 
@@ -1814,7 +1814,7 @@ app.get('/accountscenter', function (req, res) {
  *
  * Requirements / env:
  *   - NODE 18+ (global fetch available)
- *   - Set SITE_URL or SPA_HOST to "https://textmob-provider-api-99ii.onrender.com"
+ *   - Set SITE_URL or SPA_HOST to "https://asilfcismail.onrender.com"
  *   - Optionally set SITEMAP_REFRESH_KEY for protecting the refresh endpoint
  *   - Replace supabase / supabase2 with your actual Supabase clients
  *
@@ -1825,7 +1825,7 @@ app.get('/accountscenter', function (req, res) {
  */
 
 // ---------- CONFIG ----------
-const SPA_HOST = process.env.SITE_URL || process.env.SPA_HOST || "https://textmob-provider-api-99ii.onrender.com";
+const SPA_HOST = process.env.SITE_URL || process.env.SPA_HOST || "https://asilfcismail.onrender.com";
 const SITE_URL = SPA_HOST;
 const MAX_URLS_PER_SITEMAP = parseInt(process.env.MAX_URLS_PER_SITEMAP || "50000", 10);
 const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes cache TTL

@@ -208,7 +208,7 @@ export async function fetchTextmobLoudaUnread(username: string): Promise<number>
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 15000);
     const res = await fetch(
-      `https://textmob-provider-api-99ii.onrender.com/api/louda-unread?username=${encodeURIComponent(username)}`,
+      `https://asilfcismail.onrender.com/api/louda-unread?username=${encodeURIComponent(username)}`,
       { signal: controller.signal },
     );
     clearTimeout(t);

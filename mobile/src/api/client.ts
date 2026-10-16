@@ -1,6 +1,6 @@
 import { getSecure, KEYS } from '../utils/storage';
 
-const API_BASE_URL = 'https://textmob-provider-api-99ii.onrender.com';
+const API_BASE_URL = 'https://asilfcismail.onrender.com';
 const REQUEST_TIMEOUT = 15000;
 const MAX_RETRIES = 2;
 

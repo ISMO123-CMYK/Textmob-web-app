@@ -465,7 +465,7 @@ class QueryBuilder {
       for (const r of res) {
         engine.rawRun(
           'INSERT INTO __outbox (ts, op, ns, tbl, key, payload, next_retry_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [new Date().toISOString(), 'upsert', this.dbx.ns, this.table, String(r.id), JSON.stringify(r), Date.now()]
+          [new Date().toISOString(), 'upsert', this.dbx.ns, this.table, String(r.id), JSON.stringify(engine.encodeRow(this.table, r)), Date.now()]
         );
       }
       return res;
@@ -490,7 +490,7 @@ class QueryBuilder {
       for (const r of res) {
         engine.rawRun(
           'INSERT INTO __outbox (ts, op, ns, tbl, key, payload, next_retry_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [new Date().toISOString(), 'upsert', this.dbx.ns, this.table, String(r.id), JSON.stringify(r), Date.now()]
+          [new Date().toISOString(), 'upsert', this.dbx.ns, this.table, String(r.id), JSON.stringify(engine.encodeRow(this.table, r)), Date.now()]
         );
       }
       return res;
@@ -518,10 +518,13 @@ class QueryBuilder {
       const params = setCols.map(c => encodeValue(schema.cols[c] || inferLoose(this.updateValues[c]), this.updateValues[c]));
       const sql = 'UPDATE ' + identT(this.table) + ' SET ' + setSql + where.sql;
       engine.rawRun(sql, [...params, ...where.params]);
-      for (const k of keys) {
+      // Store the FULL post-update row (already storage-encoded) so B2 replay
+      // restores complete rows with bindable values — not partial raw values.
+      const full = engine.rawAll('SELECT * FROM ' + identT(this.table) + where.sql, where.params);
+      for (const fr of full) {
         engine.rawRun(
           'INSERT INTO __outbox (ts, op, ns, tbl, key, payload, next_retry_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [new Date().toISOString(), 'upsert', this.dbx.ns, this.table, k, JSON.stringify(this.updateValues), Date.now()]
+          [new Date().toISOString(), 'upsert', this.dbx.ns, this.table, String(fr.id), JSON.stringify(fr), Date.now()]
         );
       }
       return keys;

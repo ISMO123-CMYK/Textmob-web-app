@@ -2,7 +2,7 @@
   "expo": {
     "name": "Textmob",
     "slug": "mobile",
-    "version": "1.5",
+    "version": "1.6",
     "scheme": "textmob",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -19,7 +19,7 @@
         "backgroundColor": "#09090b"
       },
       "package": "com.bossprogrammer20.mobile",
-      "versionCode": 6,
+      "versionCode": 7,
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json"
     },
