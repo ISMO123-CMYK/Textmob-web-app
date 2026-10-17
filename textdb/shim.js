@@ -331,7 +331,7 @@ class QueryBuilder {
       const row = engine.rawGet(countSql, where.params);
       const count = row ? Number(row.c) : 0;
       if (this.headOnly) return { data: null, count, error: null };
-      const rows = this._fetchRows(where, schema);
+      const rows = this._fetchRows(where, schema, cols, embeds, star);
       const shaped = this._shape(rows, cols, embeds, star, schema);
       return { data: shaped, count, error: null };
     }
@@ -342,7 +342,7 @@ class QueryBuilder {
       return { data: null, count: row ? Number(row.c) : 0, error: null };
     }
 
-    const rows = this._fetchRows(where, schema);
+    const rows = this._fetchRows(where, schema, cols, embeds, star);
 
     if (this._maybeSingle) {
       if (rows.length === 0) return { data: null, error: null };
@@ -365,10 +365,20 @@ class QueryBuilder {
     return { data: this._shape(rows, cols, embeds, star, schema), error: null };
   }
 
-  _fetchRows(where, schema) {
+  _fetchRows(where, schema, selectCols, embeds, star) {
     const { engine } = this.dbx;
-    const cols = Object.keys(schema.cols);
-    const sel = cols.length ? cols.map(identT).join(', ') : '*';
+    // Project only the requested columns when it's safe (no embeds — embeds
+    // need key columns present on the row). Selecting fewer columns skips
+    // JSON.parse (reviveRow) on big unused json columns like media/comments.
+    let sel;
+    const allCols = Object.keys(schema.cols);
+    if (!star && (!embeds || embeds.length === 0) && selectCols && selectCols.length) {
+      const wanted = ['id'];
+      for (const c of selectCols) if (c !== 'id' && schema.cols[c]) wanted.push(c);
+      sel = wanted.map(identT).join(', ');
+    } else {
+      sel = allCols.length ? allCols.map(identT).join(', ') : '*';
+    }
     let sql = 'SELECT ' + sel + ' FROM ' + identT(this.table) + where.sql + buildOrderBy(engine, this.table, this.orders);
     const params = where.params.slice();
     if (this._range) {
@@ -530,8 +540,8 @@ class QueryBuilder {
       return keys;
     });
     if (lru) lru.invalidatePrefix(this.dbx.ns + '|' + this.table + '|');
-    const rows = this._fetchRows(where, schema);
     const { cols, embeds, star } = parseSelectColumns(this.selectArg);
+    const rows = this._fetchRows(where, schema, cols, embeds, star);
     const shaped = this._shape(rows, cols, embeds, star, schema);
     if (this._single) {
       if (!shaped.length) return { data: null, error: errObj('no rows updated', 'PGRST116') };

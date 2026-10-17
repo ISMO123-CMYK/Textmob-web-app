@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { apiFetch, isDataSaver } from '../../config/api';
 import { getMediaUrl } from '../../utils/cloudinary';
-import { isOfflineMode as getOfflineMode, setOfflineMode, isOnline, getCachedFiltered } from '../../utils/cache';
+import { isOfflineMode as getOfflineMode, setOfflineMode, isOnline, getCachedFiltered, getCached, cacheData } from '../../utils/cache';
 import { cn } from '../../utils/classNames';
 import useScrollDirection from '../../utils/useScrollDirection';
 import useProfileCache from '../../utils/useProfileCache';
@@ -628,14 +628,31 @@ export default function HomeFeed({ propPosts }) {
  function handleLike(postId) {
  if (!user.username) { window.showAuthPrompt?.('Log in to like posts'); return; }
  let username = user.username;
+ let wasLiked = false;
  let updater = prev => prev.map(p => {
  if (p.id !== postId) return p;
  let liked = p.likes.includes(username);
+ wasLiked = liked;
  return { ...p, likes: liked ? p.likes.filter(u => u !== username) : [...p.likes, username] };
  });
  setPosts(updater);
+ // Mirror the toggle into the localStorage read-cache so a remount (which
+ // restores from it and skips the network refetch) doesn't resurrect the
+ // pre-like state. Without this the like vanished on every navigation.
+ try {
+ const cached = getCached('/get-posts');
+ if (Array.isArray(cached)) {
+ const next = cached.map(p => {
+ if (String(p.id) !== String(postId)) return p;
+ return { ...p, likes: wasLiked ? (p.likes || []).filter(u => u !== username) : [...(p.likes || []), username] };
+ });
+ cacheData('/get-posts', next);
+ }
+ } catch {}
+ // Send the desired end state so a duplicate delivery is a no-op, not a
+ // toggle that flips the like back off server-side.
  const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:5000/like-post' : 'https://asilfcismail.onrender.com/like-post';
- fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId, username }), keepalive: true }).catch(() => {});
+ fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId, username, action: wasLiked ? 'unlike' : 'like' }), keepalive: true }).catch(() => {});
  }
 
  // Comment handler

@@ -12,7 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { LIVE_STREAMING_ENABLED } from '../../config/live';
 import { useSocket } from '../../context/SocketContext';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { getFeedPostsAPI, likePostAPI, addCommentAPI, reactPostAPI, getPostReactionsAPI, votePollAPI, Post } from '../../api/posts';
+import { getFeedPostsAPI, addCommentAPI, reactPostAPI, getPostReactionsAPI, votePollAPI, Post } from '../../api/posts';
 import { getLivePostsAPI } from '../../api/live';
 import PostCard, { PostSkeleton } from '../../components/PostCard';
 import { apiPost, apiGet, API_BASE_URL } from '../../api/client';
@@ -483,11 +483,13 @@ export default function HomeScreen() {
     await votePollAPI(String(postId), optionId, username).catch(() => {});
   }, [username]);
 
-  // Like
+  // Like — PostCard fires likePostAPI itself; this only mirrors the toggle into
+  // the feed array. Calling the API here too made every tap send /like-post
+  // twice, and since that endpoint is a toggle, the second request undid the
+  // first (like → unlike) — the like vanished on the next refetch.
   const handleLike = useCallback((postId: string | number) => {
     if (!username) return;
     setPosts(prev => prev.map(p => p.id === postId ? toggleViewerLike(p, username || '') : p));
-    likePostAPI(String(postId), username).catch(() => {});
   }, [username]);
 
   // Negative signal

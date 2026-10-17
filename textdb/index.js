@@ -87,6 +87,22 @@ function openTextDbSync(opts) {
       const restored = skipRestore ? false : await ensureRestored(storage, ns, dbPath);
       const engine = new Engine(dbPath);
       try { repairDoubleEncoded(engine); } catch (e) { console.error('[textdb] repair error:', e.message); }
+      // Hot-path secondary indexes. Without these every feed read
+      // (Posts ORDER BY created_at DESC LIMIT n) and every username lookup
+      // (users WHERE username = ?) is a full table scan + sort. Idempotent,
+      // one-time at boot (CREATE INDEX IF NOT EXISTS).
+      try {
+        engine.ensureIndexes([
+          { table: 'Posts', cols: ['created_at'], name: 'idx_posts_created_at' },
+          { table: 'Posts', cols: ['username', 'created_at'], name: 'idx_posts_username_created_at' },
+          { table: 'Posts', cols: ['type', 'created_at'], name: 'idx_posts_type_created_at' },
+          { table: 'users', cols: ['username'], name: 'idx_users_username' },
+          { table: 'users', cols: ['email'], name: 'idx_users_email' },
+          { table: 'Messages', cols: ['sender'], name: 'idx_messages_sender' },
+          { table: 'Messages', cols: ['receiver'], name: 'idx_messages_receiver' },
+          { table: 'Messages', cols: ['timestamp'], name: 'idx_messages_timestamp' },
+        ]);
+      } catch (e) { console.error('[textdb] ensureIndexes error:', e.message); }
       engines.push({ engine, ns, dbPath, restored });
       // Seed the snapshot clock from the stored manifest so a clean boot
       // (no local writes yet) skips its first snapshot upload.

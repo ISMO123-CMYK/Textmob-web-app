@@ -37,8 +37,9 @@ export default function EventsScreen() {
 
   const handleInterest = async (postId: string | number) => {
     if (!username) return;
+    const wasLiked = !!events.find(e => e.id === postId)?.likes?.includes(username);
     setEvents(prev => prev.map(e => e.id === postId ? { ...e, likes: e.likes?.includes(username) ? e.likes.filter((u: string) => u !== username) : [...(e.likes || []), username] } : e));
-    await likePostAPI(String(postId), username).catch(() => {});
+    await likePostAPI(String(postId), username, wasLiked ? 'unlike' : 'like').catch(() => {});
   };
 
   const s = makeStyles(colors, isDark);

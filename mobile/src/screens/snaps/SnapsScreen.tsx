@@ -589,9 +589,10 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
 
   const handleLike = useCallback(async (postId: string | number) => {
     if (!username) { Alert.alert('Sign in', 'Log in to like'); return; }
+    const wasLiked = !!snaps.find(p => p.id === postId)?.likes?.includes(username);
     setSnaps(prev => prev.map(p => p.id === postId ? { ...p, likes: p.likes?.includes(username) ? p.likes.filter(u => u !== username) : [...(p.likes || []), username] } : p));
-    await likePostAPI(String(postId), username).catch(() => { });
-  }, [username]);
+    await likePostAPI(String(postId), username, wasLiked ? 'unlike' : 'like').catch(() => { });
+  }, [username, snaps]);
 
   const handleNegativeSignal = (postId: string, signalType: string, contentType: string) => {
     if (!username) return;

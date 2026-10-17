@@ -6928,9 +6928,16 @@ io.on("connection", function (socket) {
 
 app.post("/like-post", async (req, res) => {
   try {
-    const { postId, username } = req.body;
+    const { postId, username, action: reqAction } = req.body;
     if (!postId || !username) return res.status(400).json({ error: "Post ID and username are required" });
     if (await isUserDisabled(username)) return res.status(403).json({ error: "Account disabled" });
+
+    // Optional `action: 'like' | 'unlike'` makes the endpoint idempotent: the
+    // client states its DESIRED end state instead of relying on a toggle. A
+    // duplicate delivery (retry, double-tap, two rapid taps) becomes a no-op
+    // instead of flipping the like back off. Absent action keeps old toggle
+    // semantics for clients that don't send it.
+    const wantsLike = reqAction === 'like' ? true : reqAction === 'unlike' ? false : null;
 
     // Fetch the post owner and type for notifications
     const { data: post, error: fetchError } = await supabase2
@@ -6947,6 +6954,7 @@ app.post("/like-post", async (req, res) => {
     let action;
     let success = false;
     let updatedLikes = [];
+    let newlyLiked = false; // true only when THIS call transitioned the like on
     for (let attempt = 0; attempt < 3; attempt++) {
       const { data: freshPost } = await supabase2
         .from("Posts")
@@ -6957,23 +6965,29 @@ app.post("/like-post", async (req, res) => {
       if (!freshPost) break;
 
       const currentLikes = freshPost.likes || [];
-      if (currentLikes.includes(username)) {
-        action = "unliked";
-        updatedLikes = currentLikes.filter(u => u !== username);
-        const { error: upErr } = await supabase2
-          .from("Posts")
-          .update({ likes: updatedLikes })
-          .eq("id", postId);
-        if (!upErr) { success = true; break; }
-      } else {
+      const isLiked = currentLikes.includes(username);
+      // Desired state: explicit action wins; otherwise toggle (legacy).
+      const likeNow = wantsLike === null ? !isLiked : wantsLike;
+      if (likeNow === isLiked) {
+        // Already in the desired state (duplicate/idempotent call) — done.
+        action = isLiked ? "liked" : "unliked";
+        updatedLikes = currentLikes;
+        success = true;
+        break;
+      }
+      if (likeNow) {
         action = "liked";
         updatedLikes = [...currentLikes, username];
-        const { error: upErr } = await supabase2
-          .from("Posts")
-          .update({ likes: updatedLikes })
-          .eq("id", postId);
-        if (!upErr) { success = true; break; }
+        newlyLiked = true;
+      } else {
+        action = "unliked";
+        updatedLikes = currentLikes.filter(u => u !== username);
       }
+      const { error: upErr } = await supabase2
+        .from("Posts")
+        .update({ likes: updatedLikes })
+        .eq("id", postId);
+      if (!upErr) { success = true; break; }
     }
     if (!success) {
       console.error("Failed to update likes after retries");
@@ -6987,8 +7001,9 @@ app.post("/like-post", async (req, res) => {
       }
     }
 
-    // Send notification only if it's a like and not the post owner's own like
-    if (username !== post.username && action === "liked") {
+    // Send notification only when THIS call newly liked (not an idempotent
+    // replay) and not the post owner's own like
+    if (username !== post.username && newlyLiked) {
       const type = (post.type === 'event') ? 'events' : 'likes';
       const msg = (post.type === 'event')
         ? `${username} is interested in your event: ${post.title}`
@@ -7023,7 +7038,7 @@ app.post("/like-post", async (req, res) => {
 
     // ── Hashtag affinity tracking (background, non-blocking) ──
     // When a user likes a post, boost the weight of that post's hashtags in their feed_prefs.
-    if (action === "liked") {
+    if (newlyLiked) {
       setImmediate(async () => {
         try {
           const { data: fullPost } = await supabase2
@@ -7063,7 +7078,7 @@ app.post("/like-post", async (req, res) => {
     // ── Milestone rewards (background, non-blocking) ──
     // Every exact 10-like milestone (10, 20, 30, ...) pays the author +5 Mobcoins.
     // No tables: pure check on the fresh like count. Unlikes never pay; self-likes never pay.
-    if (action === "liked" && username !== post.username && updatedLikes.length > 0 && updatedLikes.length % 10 === 0) {
+    if (newlyLiked && username !== post.username && updatedLikes.length > 0 && updatedLikes.length % 10 === 0) {
       const milestone = updatedLikes.length;
       const ownerName = post.username;
       setImmediate(async () => {

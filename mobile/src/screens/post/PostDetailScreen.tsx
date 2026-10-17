@@ -11,7 +11,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/build/MaterialCommunityIc
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
-import { getPostAPI, addCommentAPI, deleteCommentAPI, likePostAPI, getPostReactionsAPI, reactPostAPI, votePollAPI, Post, Comment } from '../../api/posts';
+import { getPostAPI, addCommentAPI, deleteCommentAPI, getPostReactionsAPI, reactPostAPI, votePollAPI, Post, Comment } from '../../api/posts';
 import { searchUsersAPI, UserProfile } from '../../api/users';
 import { getProfileAPI } from '../../api/auth';
 import useProfileCache from '../../hooks/useProfileCache';
@@ -220,11 +220,12 @@ export default function PostDetailScreen({ route, navigation }: { route: any; na
     addCommentAPI(postId, username, replyText.trim(), parentId).catch(() => {});
   }, [username, replyText, post, postId]);
 
+  // PostCard fires likePostAPI itself — calling it here too sent /like-post
+  // twice per tap and the toggle endpoint undid the first request.
   const handleLike = useCallback(() => {
     if (!username) return;
     setPost(prev => prev ? { ...prev, likes: prev.likes?.includes(username) ? prev.likes.filter(u => u !== username) : [...(prev.likes || []), username] } : prev);
-    likePostAPI(postId, username).catch(() => {});
-  }, [username, postId]);
+  }, [username]);
 
   const handleReact = useCallback((pid: string | number, reaction: string, etext: string) => {
     if (!username) return;

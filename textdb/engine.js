@@ -323,6 +323,18 @@ class Engine {
     return rows.length;
   }
 
+  ensureIndexes(specs) {
+    for (const s of specs) {
+      try {
+        if (!this.tableExists(s.table)) continue;
+        const cols = s.cols.map(ident).join(', ');
+        this.db.exec(
+          'CREATE INDEX IF NOT EXISTS ' + ident(s.name) + ' ON ' + ident(s.table) + ' (' + cols + ')'
+        );
+      } catch {}
+    }
+  }
+
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');
     try {

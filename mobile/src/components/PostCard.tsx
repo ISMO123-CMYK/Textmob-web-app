@@ -969,9 +969,12 @@ const PostCard = React.memo(function PostCard({
 
   const handleLike = () => {
     if (authGuard('Log in to like posts')) return;
+    const wasLiked = localLikes.includes(username!);
     setLocalLikes(prev => prev.includes(username!) ? prev.filter(u => u !== username!) : [...prev, username!]);
     onLike?.(post.id);
-    likePostAPI(String(post.id), username!).catch(() => setLocalLikes(seedLikes(post, username)));
+    // Send the desired end state so a duplicate/retried request is a no-op,
+    // not a toggle that flips the like back off.
+    likePostAPI(String(post.id), username!, wasLiked ? 'unlike' : 'like').catch(() => setLocalLikes(seedLikes(post, username)));
   };
 
   const handleComment = () => {

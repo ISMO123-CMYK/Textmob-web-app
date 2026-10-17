@@ -157,8 +157,11 @@ export async function deletePostAPI(postId: string) {
   return apiDelete(`/delete-post?postId=${encodeURIComponent(postId)}`);
 }
 
-export async function likePostAPI(postId: string, username: string) {
-  return apiPost<{ ok: boolean }>('/like-post', { postId, username });
+// `action` states the desired end state ('like' | 'unlike') so the server can
+// treat retries/duplicate deliveries as no-ops instead of toggling back off.
+// Omit it for legacy toggle semantics.
+export async function likePostAPI(postId: string, username: string, action?: 'like' | 'unlike') {
+  return apiPost<{ ok: boolean }>('/like-post', { postId, username, ...(action ? { action } : {}) });
 }
 
 export async function deleteCommentAPI(postId: string, commentId: string, username: string) {
