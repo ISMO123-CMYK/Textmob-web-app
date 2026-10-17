@@ -2700,8 +2700,16 @@ app.post("/signup", upload.single("profilePic"), async (req, res) => {
 class SmartSearchEngine {
   constructor() {
     this.docs = [];             // { id, text, metadata }
+    this.docsById = new Map();  // id -> doc (O(1) lookup + dedupe on re-index)
     this.tokenIndex = {};       // token -> Set<docId>
     this.prefixIndex = {};      // 1-4 char prefix -> Set<docId>
+  }
+
+  clear() {
+    this.docs = [];
+    this.docsById.clear();
+    this.tokenIndex = {};
+    this.prefixIndex = {};
   }
 
   tokenize(text) {
@@ -2709,7 +2717,17 @@ class SmartSearchEngine {
   }
 
   indexDocument(docId, text, metadata = {}) {
-    this.docs.push({ id: docId, text, metadata });
+    // Re-indexing the same id: replace in place — never push duplicates
+    // (the 10-min re-index loop used to append forever → heap OOM on Render).
+    const existing = this.docsById.get(docId);
+    if (existing) {
+      existing.text = text;
+      existing.metadata = metadata;
+      return;
+    }
+    const doc = { id: docId, text, metadata };
+    this.docs.push(doc);
+    this.docsById.set(docId, doc);
     const tokens = this.tokenize(text);
     tokens.forEach(token => {
       if (!this.tokenIndex[token]) this.tokenIndex[token] = new Set();
@@ -2783,7 +2801,7 @@ class SmartSearchEngine {
     const results = [];
 
     for (const docId of candidates) {
-      const doc = this.docs.find(d => d.id === docId);
+      const doc = this.docsById.get(docId);
       if (!doc) continue;
 
       let totalScore = 0;
@@ -2841,7 +2859,7 @@ async function indexUsers() {
 async function indexPosts() {
   const { data, error } = await supabase2
     .from('Posts')
-    .select('id, username, text, media, likes, comments, created_at, type, hashtags, categories');
+    .select('id, username, text, created_at, type, hashtags, categories');
 
   if (error) {
     console.error("Error fetching posts:", error);
