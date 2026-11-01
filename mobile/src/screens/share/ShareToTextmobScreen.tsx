@@ -228,8 +228,8 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
           {!username && (
-            <View style={[styles.loginPrompt, { backgroundColor: isDark ? '#1e293b' : '#eff6ff' }]}>
-              <Ionicons name="log-in-outline" size={18} color="#2563eb" />
+            <View style={[styles.loginPrompt, { backgroundColor: isDark ? '#1e293b' : '#EEF1FE' }]}>
+              <Ionicons name="log-in-outline" size={18} color="#2B3EE8" />
               <Text style={[styles.loginPromptText, { color: colors.textSecondary }]} numberOfLines={2}>
                 Log in to post this to your feed.
               </Text>
@@ -336,8 +336,8 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
                 onPress={goToComposer}
                 disabled={!canPost}
               >
-                <View style={[styles.optionIcon, { backgroundColor: '#eff6ff' }]}>
-                  <Ionicons name="create-outline" size={20} color="#2563eb" />
+                <View style={[styles.optionIcon, { backgroundColor: '#EEF1FE' }]}>
+                  <Ionicons name="create-outline" size={20} color="#2B3EE8" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.optionTitle, { color: colors.textPrimary }]}>Post as post</Text>
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, padding: 12, marginBottom: 16,
   },
   loginPromptText: { flex: 1, fontSize: 12, fontWeight: '600' },
-  loginBtn: { backgroundColor: '#2563eb', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 7 },
+  loginBtn: { backgroundColor: '#2B3EE8', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 7 },
   loginBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   emptyState: { alignItems: 'center', gap: 10, paddingVertical: 60 },
   emptyText: { fontSize: 14, fontWeight: '600' },
