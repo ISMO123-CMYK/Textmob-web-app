@@ -94,7 +94,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   logo: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#2563eb',
+    color: '#2B3EE8',
     letterSpacing: -0.8,
   },
   actions: {
