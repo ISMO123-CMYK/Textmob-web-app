@@ -15,11 +15,12 @@ export function ForwardModal({
   isOpen: boolean;
   onClose: () => void;
   chats: any[];
-  onForward: (targets: { id: string; isGroup: boolean }[]) => void;
+  onForward: (targets: { id: string; isGroup: boolean }[]) => Promise<boolean> | boolean;
 }) {
   const { p } = useLoudaTheme();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -30,15 +31,21 @@ export function ForwardModal({
     });
   };
 
-  const handleConfirm = () => {
-    if (selected.size === 0) return;
+  const handleConfirm = async () => {
+    if (selected.size === 0 || submitting) return;
     const targets = [...selected].map((id) => {
       const chat = chats.find((c) => c.id === id);
       return { id, isGroup: !!chat?.isGroup };
     });
-    onForward(targets);
-    setSelected(new Set());
-    onClose();
+    setSubmitting(true);
+    try {
+      const completed = await onForward(targets);
+      if (completed === false) return;
+      setSelected(new Set());
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredChats = chats.filter((chat) => {
@@ -55,7 +62,7 @@ export function ForwardModal({
       footer={
         <Ripple
           activeOpacity={0.85}
-          disabled={selected.size === 0}
+          disabled={selected.size === 0 || submitting}
           onPress={handleConfirm}
           style={[
             s.forwardBtn,
@@ -71,7 +78,7 @@ export function ForwardModal({
               { color: selected.size > 0 ? '#fff' : p.textMuted },
             ]}
           >
-            FORWARD ({selected.size})
+            {submitting ? 'FORWARDING…' : `FORWARD (${selected.size})`}
           </Text>
         </Ripple>
       }
