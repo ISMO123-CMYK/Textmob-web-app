@@ -17,7 +17,6 @@ import {
   Platform,
 } from 'react-native';
 import { Ripple } from '../../components/Ripple';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -47,11 +46,9 @@ import { useLoudaStore } from '../store';
 const FAV_KEY = 'louda:favEmojis';
 const SAVED_KEY = 'louda:savedStickers';
 
-// WhatsApp-style hold-to-record tuning.
-const HOLD_ARM_MS = 150;              // a tap this short must not start a recording
-const MIN_RECORD_MS = 1000;           // shorter than this and the take is discarded
-const MAX_RECORD_MS = 60 * 1000;      // matches InAppCamera's maxVideoSeconds
-const SLIDE_CANCEL_PX = 90;           // drag this far left to cancel
+// Recording must last at least one second; auto-stop after one minute.
+const MIN_RECORD_MS = 1000;
+const MAX_RECORD_MS = 60 * 1000;
 
 function haptic(style: 'light' | 'success' | 'warning') {
   try {
@@ -97,7 +94,6 @@ export function ChatInput({
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [slideCancel, setSlideCancel] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<'emoji' | 'sticker'>('emoji');
@@ -114,10 +110,8 @@ export function ChatInput({
   const [favEmojis, setFavEmojis] = useState<string[]>([]);
   const [savedStickers, setSavedStickers] = useState<any[]>([]);
   const [inputHeight, setInputHeight] = useState(36);
-  // A press shorter than the arm window leaves no trace at all — surface a
-  // hint instead of swallowing the gesture.
-  const [holdHint, setHoldHint] = useState(false);
-  const holdHintTimerRef = useRef<any>(null);
+  const [recordHint, setRecordHint] = useState(false);
+  const recordHintTimerRef = useRef<any>(null);
 
   const stickerCache = useRef<Record<string, any[]>>({});
   const abortRef = useRef<AbortController | null>(null);
@@ -125,14 +119,11 @@ export function ChatInput({
   const isCancelledRef = useRef(false);
   const enterSendRef = useRef(false);
 
-  // Hold-to-record bookkeeping. The gesture callbacks are memoised, so they
-  // read these refs (refreshed every render) instead of closing over state.
-  const holdingRef = useRef(false);
-  const armTimerRef = useRef<any>(null);
+  // Refs prevent duplicate recording starts while permissions are pending.
+  const startingRef = useRef(false);
   const maxTimerRef = useRef<any>(null);
   const recStartRef = useRef(0);
   const recordingRef = useRef(false);
-  const slideCancelRef = useRef(false);
 
   // Push-tap intent: open the thread with the caret already in the composer.
   useEffect(() => {
@@ -283,44 +274,32 @@ export function ChatInput({
   };
 
   // ─── Hold-to-record (LoudaApp.jsx:3371-3420) ───
-  const showHoldHint = () => {
-    setHoldHint(true);
-    if (holdHintTimerRef.current) clearTimeout(holdHintTimerRef.current);
-    holdHintTimerRef.current = setTimeout(() => {
-      holdHintTimerRef.current = null;
-      setHoldHint(false);
-    }, 2200);
+  const showRecordHint = () => {
+    setRecordHint(true);
+    if (recordHintTimerRef.current) clearTimeout(recordHintTimerRef.current);
+    recordHintTimerRef.current = setTimeout(() => {
+      recordHintTimerRef.current = null;
+      setRecordHint(false);
+    }, 2600);
   };
 
   const startRecording = async () => {
-    if (recordingRef.current) return;
-    // The finger may already have lifted while we waited on the permission
-    // prompt — don't start a recording nobody is holding.
-    if (!holdingRef.current) return;
+    if (recordingRef.current || startingRef.current || uploading) return;
     try {
       Keyboard.dismiss();
       setShowAttachMenu(false);
       setShowEmojiPicker(false);
       const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
-        holdingRef.current = false;
-        loudaAlert({ title: 'Error', message: 'Microphone access denied' });
+        loudaAlert({ title: 'Microphone required', message: 'Allow microphone access to record a voice note.' });
         return;
       }
-      if (!holdingRef.current) return;
       isCancelledRef.current = false;
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
       await recorder.prepareToRecordAsync();
-      if (!holdingRef.current) {
-        try { await recorder.stop(); } catch {}
-        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
-        return;
-      }
       recorder.record();
       recordingRef.current = true;
       recStartRef.current = Date.now();
-      slideCancelRef.current = false;
-      setSlideCancel(false);
       setIsRecording(true);
       setRecordingTime(0);
       haptic('light');
@@ -331,7 +310,6 @@ export function ChatInput({
         if (recordingRef.current) void finishRecording(false);
       }, MAX_RECORD_MS);
     } catch (error: any) {
-      holdingRef.current = false;
       recordingRef.current = false;
       setIsRecording(false);
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
@@ -348,8 +326,6 @@ export function ChatInput({
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (maxTimerRef.current) { clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
     setIsRecording(false);
-    setSlideCancel(false);
-    slideCancelRef.current = false;
     if (!started) return;
     isCancelledRef.current = cancelled;
     try {
@@ -365,11 +341,9 @@ export function ChatInput({
     const uri = recorder.uri;
     const elapsedMs = Date.now() - recStartRef.current;
     const duration = Math.round(elapsedMs / 1000);
-    // Too short to be a real take — discard it, but say why (the old
-    // behaviour was a silent no-op that looked like a broken button).
     if (!uri || elapsedMs < MIN_RECORD_MS) {
       haptic('warning');
-      showHoldHint();
+      showRecordHint();
       return;
     }
     setUploading(true);
@@ -402,59 +376,24 @@ export function ChatInput({
     }
   };
 
-  // ─── Gesture handlers (memoised; call through handlersRef) ───
-  const beginHold = () => {
-    if (uploading || showSend || recordingRef.current || armTimerRef.current) return;
-    holdingRef.current = true;
-    slideCancelRef.current = false;
-    setSlideCancel(false);
-    armTimerRef.current = setTimeout(() => {
-      armTimerRef.current = null;
-      void startRecording();
-    }, HOLD_ARM_MS);
-  };
-
-  const endHold = () => {
-    holdingRef.current = false;
-    if (armTimerRef.current) {
-      clearTimeout(armTimerRef.current);
-      armTimerRef.current = null;
-      // Released before the mic armed — the tap did nothing visible.
-      showHoldHint();
+  const toggleRecording = () => {
+    if (uploading || startingRef.current) return;
+    if (recordingRef.current) {
+      void finishRecording(false);
       return;
     }
-    if (!recordingRef.current) return;
-    void finishRecording(slideCancelRef.current);
+    startingRef.current = true;
+    void startRecording().finally(() => {
+      startingRef.current = false;
+    });
   };
 
-  const onSlide = (x: number) => {
-    const cancelled = x < -SLIDE_CANCEL_PX;
-    if (cancelled === slideCancelRef.current) return;
-    slideCancelRef.current = cancelled;
-    setSlideCancel(cancelled);
-    if (cancelled) haptic('light');
-  };
-
-  const holdHandlers = useRef({ beginHold, endHold, onSlide });
-  holdHandlers.current = { beginHold, endHold, onSlide };
-
-  const holdGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .onBegin(() => holdHandlers.current.beginHold())
-        .onUpdate((e) => holdHandlers.current.onSlide(e.translationX))
-        .onFinalize(() => holdHandlers.current.endHold()),
-    [],
-  );
-
-  // Unmount mid-hold would otherwise leave a live interval and a recorder
-  // running with no component left to stop it.
+  // Stop a recording cleanly when the composer leaves the screen.
   useEffect(() => {
     return () => {
-      if (armTimerRef.current) clearTimeout(armTimerRef.current);
       if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
-      if (holdHintTimerRef.current) clearTimeout(holdHintTimerRef.current);
+      if (recordHintTimerRef.current) clearTimeout(recordHintTimerRef.current);
       if (recordingRef.current) {
         recordingRef.current = false;
         try { recorder.stop(); } catch {}
@@ -632,7 +571,7 @@ export function ChatInput({
   };
 
   const hasContent = text.trim().length > 0 || previewMedia.length > 0;
-  const showSend = hasContent || !!editingMessage;
+  const showSend = hasContent || !!editingMessage || isRecording;
   const isTyping = text.trim().length > 0;
   const waitingForImages =
     isWaitingForImages && imagesLoadedCount < Math.min(stickerResults.length, 6);
@@ -912,7 +851,7 @@ export function ChatInput({
       )}
 
       {/* ─── Hold-to-record hint ─── */}
-      {holdHint && !isRecording && (
+      {recordHint && !isRecording && (
         <View
           style={[
             s.holdHint,
@@ -921,7 +860,7 @@ export function ChatInput({
         >
           <Icons.mic size={13} color={p.textMuted} />
           <Text style={[s.holdHintText, { color: p.textSecondary }]}>
-            Hold the mic to record — a quick tap does nothing
+            Record for at least one second, then tap send.
           </Text>
         </View>
       )}
@@ -945,7 +884,7 @@ export function ChatInput({
               {String(recordingTime % 60).padStart(2, '0')}
             </Text>
             <Text numberOfLines={1} style={s.recHint}>
-              {slideCancel ? 'Release to cancel' : 'Release to send'}
+              Tap send to finish recording
             </Text>
             <Ripple onPress={() => finishRecording(true)} style={s.recCancel}>
               <Text
@@ -1073,7 +1012,7 @@ export function ChatInput({
           <Ripple
             activeOpacity={0.85}
             disabled={uploading}
-            onPress={send}
+            onPress={() => isRecording ? finishRecording(false) : send()}
             style={[
               s.sendBtn,
               { backgroundColor: accent, shadowColor: accent, shadowOpacity: 0.3 },
@@ -1088,23 +1027,21 @@ export function ChatInput({
             )}
           </Ripple>
         ) : (
-          /* Hold to record, slide left to cancel, release to send. The tap-to-
-             toggle mic button used to make a stray tap look like a send. */
-          <GestureDetector gesture={holdGesture}>
-            <View
-              style={[
-                s.sendBtn,
-                { backgroundColor: isRecording ? '#ef4444' : accent },
-                !isRecording && { shadowColor: accent, shadowOpacity: 0.3 },
-              ]}
-            >
-              {uploading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Icons.mic size={20} color="#fff" />
-              )}
-            </View>
-          </GestureDetector>
+          <Ripple
+            activeOpacity={0.85}
+            disabled={uploading}
+            onPress={toggleRecording}
+            style={[
+              s.sendBtn,
+              { backgroundColor: accent, shadowColor: accent, shadowOpacity: 0.3 },
+            ]}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Icons.mic size={20} color="#fff" />
+            )}
+          </Ripple>
         )}
       </View>
     </View>
