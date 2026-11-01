@@ -35,7 +35,7 @@ const Stack = createNativeStackNavigator();
 function ScreenFallback() {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <ActivityIndicator size="large" color="#2563eb" />
+      <ActivityIndicator size="large" color="#2B3EE8" />
     </View>
   );
 }
