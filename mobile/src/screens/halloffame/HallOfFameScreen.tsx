@@ -12,7 +12,7 @@ import { apiGet } from '../../api/client';
 import { imageUrl } from '../../utils/cloudinary';
 import GiftCoinsModal from '../../components/GiftCoinsModal';
 
-const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
+const AVATAR_COLORS = ['#2B3EE8', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
 
 function avatarColor(username: string): string {
   let h = 0;
@@ -44,7 +44,7 @@ const MEDALS = [
 
 const TIPS = [
   { icon: 'heart-outline' as const, color: '#ec4899', title: 'Total likes', desc: 'Sum of likes on all your posts, all time.' },
-  { icon: 'people-outline' as const, color: '#2563eb', title: 'Followers', desc: 'Each follower adds +1 to your score.' },
+  { icon: 'people-outline' as const, color: '#2B3EE8', title: 'Followers', desc: 'Each follower adds +1 to your score.' },
   { icon: 'trophy-outline' as const, color: '#f59e0b', title: 'Score', desc: 'Rank = total likes + followers. Top 5 only.' },
 ];
 
@@ -143,7 +143,7 @@ export default function HallOfFameScreen({ navigation }: { navigation: any }) {
             <Text style={s.statLabel}>Likes</Text>
           </View>
           <View style={s.stat}>
-            <Ionicons name="people" size={11} color="#2563eb" />
+            <Ionicons name="people" size={11} color="#2B3EE8" />
             <Text style={s.statValue}>{formatCount(followersCount)}</Text>
             <Text style={s.statLabel}>Followers</Text>
           </View>
@@ -265,7 +265,7 @@ const makeStyles = () => StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0a1121' },
   header: { flexDirection: 'row', alignItems: 'center', height: 56, paddingHorizontal: 12, gap: 8, backgroundColor: '#0a1121' },
   backBtn: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  headerIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
+  headerIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 15, fontWeight: '800', color: '#fff', lineHeight: 18 },
   headerSub: { fontSize: 10, fontWeight: '500', color: '#64748b', lineHeight: 12, marginTop: 1 },
   headerBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
@@ -316,6 +316,6 @@ const makeStyles = () => StyleSheet.create({
   tipIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' },
   tipTitle: { fontSize: 12, fontWeight: '700', color: '#fff' },
 
-  acknowledgeBtn: { backgroundColor: '#2563eb', height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  acknowledgeBtn: { backgroundColor: '#2B3EE8', height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   acknowledgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });
