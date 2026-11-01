@@ -87,7 +87,7 @@ export default function StoriesScreen({ navigation }: { navigation: any }) {
         </Ripple>
         <Text style={[s.headerTitle, { color: colors.textPrimary }]}>Stories</Text>
         <Ripple onPress={() => setShowCreate(true)}>
-          <Ionicons name="add" size={24} color="#2563eb" />
+          <Ionicons name="add" size={24} color="#2B3EE8" />
         </Ripple>
       </View>
 
