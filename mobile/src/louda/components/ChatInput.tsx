@@ -565,12 +565,11 @@ export function ChatInput({
     });
   };
 
-  const pickFiles = async (audioOnly = false) => {
+  const pickFiles = async () => {
     try {
+      // Photos and videos use the media library; this picker is audio-only.
       const res = await DocumentPicker.getDocumentAsync({
-        type: audioOnly
-          ? ['audio/*']
-          : ['image/*', 'video/*', 'audio/*', 'application/pdf', 'text/*', '*/*'],
+        type: ['audio/*'],
         multiple: true,
         copyToCacheDirectory: true,
       });
@@ -581,46 +580,40 @@ export function ChatInput({
         mimeType: a.mimeType || '',
         fileSize: a.size,
       })) as any;
-      if (previewMedia.length + assets.length > 6) {
+      const audioAssets = assets.filter((asset) => asset.mimeType.startsWith('audio/'));
+      if (audioAssets.length < assets.length) {
+        loudaAlert({ title: 'Unsupported item', message: 'Only audio files can be attached here. Photos and videos use the media picker.' });
+      }
+      if (previewMedia.length + audioAssets.length > 6) {
         loudaAlert({ title: 'Notice', message: 'Maximum 6 media files allowed.' });
       }
       const room = 6 - previewMedia.length;
-      const list = assets.slice(0, Math.max(0, room));
+      const list = audioAssets.slice(0, Math.max(0, room));
       if (!list.length) return;
       setUploading(true);
       const media = [];
       for (const a of list) {
-        const isImg = a.mimeType.startsWith('image/');
         const size = a.fileSize || 0;
-        const maxSize = isImg ? 20 * 1024 * 1024 : 90 * 1024 * 1024;
-        if (size && size > maxSize) {
-          loudaAlert({
-            title: 'File Too Large',
-            message: `${a.name} exceeds the ${isImg ? '20MB' : '90MB'} limit.`,
-          });
+        if (size && size > 90 * 1024 * 1024) {
+          loudaAlert({ title: 'File Too Large', message: `${a.name} exceeds the 90MB limit.` });
           continue;
         }
-        const kind = isImg
-          ? 'image'
-          : a.mimeType.startsWith('video/')
-            ? 'video'
-            : 'file';
         try {
           const data = await uploadFile({
             uri: a.uri,
             name: withExtension(a.name, a.mimeType, a.uri),
-            type: a.mimeType || 'application/octet-stream',
-            kind,
+            type: a.mimeType || 'audio/mpeg',
+            kind: 'voice',
           });
           if (!data?.url) throw new Error('Upload failed');
-          media.push({ type: data.type || kind, url: data.url });
+          media.push({ type: data.type || 'voice', url: data.url });
         } catch (err: any) {
           loudaAlert({ title: 'Error', message: err?.message || 'Upload failed' });
         }
       }
       appendUploaded(media, 6);
     } catch (err: any) {
-      loudaAlert({ title: 'Error', message: err?.message || 'Failed to pick file' });
+      loudaAlert({ title: 'Error', message: err?.message || 'Failed to pick audio' });
     } finally {
       setUploading(false);
     }
@@ -893,7 +886,7 @@ export function ChatInput({
               icon: <Icons.audio size={24} color="#ea580c" />,
               label: 'Audio',
               bg: '#ffedd5',
-              onClick: () => pickFiles(true),
+              onClick: pickFiles,
             },
           ].map((item) => (
             <Ripple
