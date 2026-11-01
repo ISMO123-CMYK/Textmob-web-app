@@ -58,7 +58,7 @@ const REACTIONS = [
 const isVideo = (uri: string) => /\.(mp4|webm|ogg)$/i.test(uri);
 
 function VerifiedBadge({ size = 14 }: { size?: number }) {
-  return <Ionicons name="checkmark-circle" size={size} color="#2563eb" />;
+  return <Ionicons name="checkmark-circle" size={size} color="#2B3EE8" />;
 }
 
 import SafeHTML from './SafeHTML';
@@ -510,7 +510,7 @@ function PollContent({ post, onVote }: { post: Post; onVote: (postId: string | n
             style={[polStyles.option, { borderColor: colors.border }]}
             onPress={() => { if (!username) { Alert.alert('Sign in', 'Log in to vote in polls'); return; } onVote(post.id, opt.id); }}
           >
-            <View style={[polStyles.bar, voted ? { backgroundColor: isDark ? 'rgba(59,130,246,0.25)' : '#dbeafe' } : { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6' }, { width: `${pct}%` }]} />
+            <View style={[polStyles.bar, voted ? { backgroundColor: isDark ? 'rgba(110,124,247,0.25)' : '#DDE4FE' } : { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f3f4f6' }, { width: `${pct}%` }]} />
             <View style={polStyles.row}>
               <Text style={[polStyles.optText, voted && { color: colors.primary }]}>{opt.text}</Text>
               <Text style={[polStyles.optPct, { color: colors.textSecondary }]}>{pct}%</Text>
@@ -543,7 +543,7 @@ function EventCard({ post, onLike }: { post: Post; onLike: (id: string | number)
       <View style={{ borderRadius: 16, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
         <View style={{ height: 3, backgroundColor: '#6366f1' }} />
         <View style={{ padding: 14 }}>
-          <View style={[eStyles.dateBadge, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
+          <View style={[eStyles.dateBadge, { backgroundColor: isDark ? 'rgba(110,124,247,0.15)' : '#EEF1FE' }]}>
             <Ionicons name="calendar-outline" size={12} color={colors.primary} />
             <Text style={[eStyles.dateText, { color: colors.primary }]}>{dateStr}{ended ? ' · Ended' : ''}</Text>
           </View>
@@ -556,7 +556,7 @@ function EventCard({ post, onLike }: { post: Post; onLike: (id: string | number)
             </View>
           )}
           <Ripple
-            style={[eStyles.interestBtn, liked ? { backgroundColor: colors.primary } : ended ? { backgroundColor: colors.border } : { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
+            style={[eStyles.interestBtn, liked ? { backgroundColor: colors.primary } : ended ? { backgroundColor: colors.border } : { backgroundColor: isDark ? 'rgba(110,124,247,0.15)' : '#EEF1FE' }]}
             onPress={() => !ended && onLike(post.id)}
             disabled={ended}
           >
@@ -645,7 +645,7 @@ function LiveCard({ post, viewerCount, onLike, onWatch }: { post: Post; viewerCo
           <View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
               <Text style={[{ color: colors.textPrimary, fontSize: 13, fontWeight: '700' }]}>{authorProfile.fullname || post.username}</Text>
-              {authorProfile.verified && <Ionicons name="checkmark-circle" size={12} color="#2563eb" />}
+              {authorProfile.verified && <Ionicons name="checkmark-circle" size={12} color="#2B3EE8" />}
             </View>
             <Text style={{ color: '#dc2626', fontSize: 11, fontWeight: '600' }}>is live</Text>
           </View>
@@ -856,7 +856,7 @@ function SnapEmbed({ post, authorProfile, handleLike, liked, navigate, isActive 
             </Text>
           </View>
         </Ripple>
-        <Ripple onPress={() => navigation.navigate('Snaps')} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: '#2563eb' }}>
+        <Ripple onPress={() => navigation.navigate('Snaps')} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: '#2B3EE8' }}>
           <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>Watch Snaps</Text>
         </Ripple>
       </View>
@@ -1088,7 +1088,7 @@ const PostCard = React.memo(function PostCard({
               </View>
             ))}
           </View>
-          <Text style={[s.reactionTotal, userReaction && { color: '#2563eb' }]}>{totalReactions}</Text>
+          <Text style={[s.reactionTotal, userReaction && { color: '#2B3EE8' }]}>{totalReactions}</Text>
         </View>
       )}
 
@@ -1157,7 +1157,7 @@ const PostCard = React.memo(function PostCard({
                 <MaterialCommunityIcons name="sticker" size={22} color={colors.textSecondary} />
               </Ripple>
               <View style={{ flex: 1 }} />
-              <Ripple onPress={handleComment} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24, opacity: commentText.trim() || stickerUrl ? 1 : 0.4 }} disabled={!commentText.trim() && !stickerUrl}>
+              <Ripple onPress={handleComment} style={{ backgroundColor: '#2B3EE8', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 24, opacity: commentText.trim() || stickerUrl ? 1 : 0.4 }} disabled={!commentText.trim() && !stickerUrl}>
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Post</Text>
               </Ripple>
             </View>
@@ -1214,7 +1214,7 @@ const s = StyleSheet.create({
   menuOverlay: { position: 'absolute', top: 0, right: 0, zIndex: 100 },
   menuBg: { position: 'absolute', top: -100, right: -100, bottom: -100, left: -100 },
   postText: { fontSize: 15, lineHeight: 21 },
-  seeMore: { fontSize: 14, fontWeight: '600', color: '#2563eb', marginTop: 2 },
+  seeMore: { fontSize: 14, fontWeight: '600', color: '#2B3EE8', marginTop: 2 },
   reactionsBar: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, marginBottom: 4 },
   reactionPill: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 2, marginRight: -4 },
   reactionTotal: { fontSize: 13, fontWeight: '600', color: '#64748b' },
