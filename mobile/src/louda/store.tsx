@@ -1519,9 +1519,16 @@ export function LoudaStoreProvider({
       const rawFiles = Array.isArray(sharePayload.files) ? sharePayload.files : [];
       if (!rawFiles.length && !shareText) return;
 
-      let files = rawFiles;
+      const supportedFiles = rawFiles.filter((f: any) => {
+        const mime = typeof f.type === 'string' ? f.type : '';
+        return mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/');
+      });
+      if (supportedFiles.length < rawFiles.length) {
+        loudaAlert({ title: 'Notice', message: 'Documents and unsupported files cannot be sent. Use photos, videos, or audio.' });
+      }
+      let files = supportedFiles;
       if (files.length > 6) {
-        loudaAlert({ title: 'Notice', message: 'Only the first 6 files will be sent.' });
+        loudaAlert({ title: 'Notice', message: 'Only the first 6 media files will be sent.' });
         files = files.slice(0, 6);
       }
       const validFiles = files.filter((f: any) => f.size == null || f.size <= 10 * 1024 * 1024);
@@ -1557,11 +1564,11 @@ export function LoudaStoreProvider({
       try {
         const media: any[] = [];
         for (const f of validFiles) {
-          const kind = f.type?.startsWith('image/')
+          const kind = f.type.startsWith('image/')
             ? 'image'
-            : f.type?.startsWith('video/')
+            : f.type.startsWith('video/')
               ? 'video'
-              : 'file';
+              : 'voice';
           const data = await api.uploadFile({
             uri: f.uri,
             // Web appends a `type` field on every upload (LoudaApp.jsx:3480);
