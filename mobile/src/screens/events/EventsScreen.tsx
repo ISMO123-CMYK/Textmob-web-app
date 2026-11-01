@@ -76,8 +76,8 @@ export default function EventsScreen() {
               <View style={[s.eventRow, { borderBottomColor: colors.border }]}>
                 <Ripple onPress={() => setActiveId(expanded ? null : item.id)} style={s.rowClickable}>
                   <View style={{ flex: 1, paddingRight: 8 }}>
-                    <View style={[s.dateBadge, { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}>
-                      <Ionicons name="calendar-outline" size={11} color="#2563eb" />
+                    <View style={[s.dateBadge, { backgroundColor: isDark ? 'rgba(110,124,247,0.15)' : '#EEF1FE' }]}>
+                      <Ionicons name="calendar-outline" size={11} color="#2B3EE8" />
                       <Text style={s.dateText}>{dateStr}{ended ? ' · Ended' : ''}</Text>
                     </View>
                     <Text style={[s.eventTitle, { color: colors.textPrimary }]}>{item.title || item.text}</Text>
@@ -85,7 +85,7 @@ export default function EventsScreen() {
                       by{' '}
                       <Text
                         onPress={() => navigation.navigate('Profile', { username: item.username })}
-                        style={{ color: '#2563eb', fontWeight: '700' }}
+                        style={{ color: '#2B3EE8', fontWeight: '700' }}
                       >
                         @{item.username}
                       </Text>
@@ -105,17 +105,17 @@ export default function EventsScreen() {
                     )}
                     {item.registration_url && (
                       <Ripple style={s.registerLink} onPress={() => Linking.openURL(item.registration_url)}>
-                        <Ionicons name="open-outline" size={13} color="#2563eb" />
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563eb' }}>Register / Learn more</Text>
+                        <Ionicons name="open-outline" size={13} color="#2B3EE8" />
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#2B3EE8' }}>Register / Learn more</Text>
                       </Ripple>
                     )}
                     <Ripple
-                      style={[s.interestBtn, liked ? { backgroundColor: '#2563eb' } : ended ? { backgroundColor: isDark ? '#334155' : '#e5e7eb' } : { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
+                      style={[s.interestBtn, liked ? { backgroundColor: '#2B3EE8' } : ended ? { backgroundColor: isDark ? '#334155' : '#e5e7eb' } : { backgroundColor: isDark ? 'rgba(110,124,247,0.15)' : '#EEF1FE' }]}
                       onPress={() => !ended && handleInterest(item.id)}
                       disabled={ended}
                     >
-                      <Ionicons name={liked ? 'heart' : 'heart-outline'} size={14} color={liked ? '#fff' : ended ? colors.textSecondary : '#2563eb'} />
-                      <Text style={[s.interestText, { color: liked ? '#fff' : ended ? colors.textSecondary : '#2563eb' }]}>
+                      <Ionicons name={liked ? 'heart' : 'heart-outline'} size={14} color={liked ? '#fff' : ended ? colors.textSecondary : '#2B3EE8'} />
+                      <Text style={[s.interestText, { color: liked ? '#fff' : ended ? colors.textSecondary : '#2B3EE8' }]}>
                         {ended ? `${item.likes?.length || 0} attended` : liked ? `${item.likes?.length || 0} interested · remove` : `${item.likes?.length || 0} interested`}
                       </Text>
                     </Ripple>
@@ -140,14 +140,14 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   safe: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', height: 60, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   headerTitle: { fontSize: 18, fontWeight: '800' },
-  createBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, backgroundColor: '#2563eb' },
+  createBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, backgroundColor: '#2B3EE8' },
   createBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   skeleton: { height: 80, borderRadius: 16, marginBottom: 12 },
   listContent: { paddingBottom: 100 },
   eventRow: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 14 },
   rowClickable: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
   dateBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start', marginBottom: 6 },
-  dateText: { fontSize: 10, fontWeight: '700', color: '#2563eb' },
+  dateText: { fontSize: 10, fontWeight: '700', color: '#2B3EE8' },
   eventTitle: { fontSize: 14, fontWeight: '700' },
   byAuthor: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
   expandedBox: { paddingHorizontal: 16, marginTop: 10, gap: 10 },
