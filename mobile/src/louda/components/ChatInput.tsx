@@ -284,7 +284,7 @@ export function ChatInput({
   };
 
   const startRecording = async () => {
-    if (recordingRef.current || startingRef.current || uploading) return;
+    if (recordingRef.current || uploading) return;
     try {
       Keyboard.dismiss();
       setShowAttachMenu(false);
