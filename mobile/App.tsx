@@ -44,11 +44,11 @@ if (errorUtils && typeof errorUtils.setGlobalHandler === 'function') {
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-function AppNavigator() {
+function AppNavigator({ shareIntentState }: { shareIntentState: any }) {
   const { user, isChecking, isDisabled } = useAuth();
   const { isDark } = useTheme();
   const [appReady, setAppReady] = useState(false);
-  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+  const { hasShareIntent, shareIntent, resetShareIntent } = shareIntentState;
 
   useEffect(() => {
     if (!isChecking) {
@@ -103,6 +103,9 @@ function AppNavigator() {
 }
 
 export default function App() {
+  // Subscribe to native shares before the app's providers mount.
+  const shareIntentState = useShareIntent();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
@@ -111,7 +114,7 @@ export default function App() {
             <SocketProvider>
               <UploadProgressProvider>
                 <UpdateProvider>
-                  <AppNavigator />
+                  <AppNavigator shareIntentState={shareIntentState} />
                 </UpdateProvider>
               </UploadProgressProvider>
             </SocketProvider>
