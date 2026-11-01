@@ -26,6 +26,7 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [playbackError, setPlaybackError] = useState('');
   const [barWidth, setBarWidth] = useState(1);
   const playerRef = useRef<AudioPlayerInstance | null>(null);
 
@@ -35,17 +36,25 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
     setProgress(0);
     setDuration(0);
     setCurrentTime(0);
+    setPlaybackError('');
     let player: AudioPlayerInstance | null = null;
     let sub: { remove: () => void } | null = null;
     try {
       player = createAudioPlayer({ uri: getOptimizedMediaUrl(src, 'audio') });
     } catch {
       setPlaying(false);
+      setPlaybackError('Unable to load this audio.');
       return;
     }
     playerRef.current = player;
     sub = player.addListener('playbackStatusUpdate', (status) => {
+      if (status.error) {
+        setPlaying(false);
+        setPlaybackError('Unable to play this audio. Check your connection and try again.');
+        return;
+      }
       if (status.isLoaded) {
+        setPlaybackError('');
         setDuration(status.duration || 0);
         setCurrentTime(status.currentTime || 0);
         if (status.duration) {
@@ -87,6 +96,7 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
         setPlaying(true);
       } catch {
         setPlaying(false);
+        setPlaybackError('Audio playback failed. Please try again.');
       }
     }
   };
@@ -151,6 +161,11 @@ export const AudioPlayer = memo(function AudioPlayer({ src }: { src: string }) {
             {fmtTime(duration)}
           </Text>
         </View>
+        {!!playbackError && (
+          <Text style={[s.errorText, { color: p.danger }]} numberOfLines={2}>
+            {playbackError}
+          </Text>
+        )}
       </View>
     </Ripple>
   );
