@@ -887,7 +887,7 @@ export function ChatInput({
             <Ripple onPress={() => finishRecording(true)} style={s.recCancel}>
               <Text
                 style={{
-                  color: slideCancel ? '#ef4444' : '#6b7280',
+                  color: '#6b7280',
                   fontWeight: '800',
                   fontSize: 14,
                 }}
