@@ -152,6 +152,7 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
   const otherItems = content.otherItems;
   const images = mediaItems.filter(i => i.mime.startsWith('image/'));
   const videos = mediaItems.filter(i => i.mime.startsWith('video/'));
+  const audios = mediaItems.filter(i => i.mime.startsWith('audio/'));
 
   const hasText = content.text.trim().length > 0;
   const hasAnyMedia = mediaItems.length > 0;
@@ -267,6 +268,17 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={[styles.fileName, { color: colors.textPrimary }]} numberOfLines={1}>{v.name}</Text>
                       <Text style={[styles.fileMeta, { color: colors.textSecondary }]}>Video {v.size ? `· ${(v.size / (1024 * 1024)).toFixed(1)} MB` : ''}</Text>
+                    </View>
+                  </View>
+                ))}
+                {audios.map((audio, i) => (
+                  <View key={`a${i}`} style={styles.fileRow}>
+                    <View style={[styles.fileIcon, { backgroundColor: isDark ? '#27345a' : '#eef0ff' }]}>
+                      <Ionicons name="musical-notes" size={16} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={[styles.fileName, { color: colors.textPrimary }]} numberOfLines={1}>{audio.name}</Text>
+                      <Text style={[styles.fileMeta, { color: colors.textSecondary }]}>Audio {audio.size ? `· ${(audio.size / (1024 * 1024)).toFixed(1)} MB` : ''}</Text>
                     </View>
                   </View>
                 ))}
