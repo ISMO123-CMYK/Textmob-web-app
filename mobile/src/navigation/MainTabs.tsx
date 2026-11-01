@@ -40,10 +40,10 @@ const LazyMenu = (props: any) => <LazyTab Component={MenuScreen} {...props} />;
 const Tab = createBottomTabNavigator();
 
 const TAB_ITEMS = [
-  { label: 'Home', icon: 'home' as const, route: 'Home' },
+  { label: 'Feed', icon: 'home-outline' as const, route: 'Home' },
+  { label: 'Fame', icon: 'trophy-outline' as const, route: 'Fame' },
+  { label: 'Snaps', icon: 'videocam-outline' as const, route: 'Snaps' },
   { label: 'Messages', icon: 'chatbubbles-outline' as const, route: 'Chats', badge: 'messages' as const },
-  { label: 'Snaps', icon: 'videocam' as const, route: 'Snaps' },
-  { label: 'Alerts', icon: 'notifications-outline' as const, route: 'Activity', badge: 'notifications' as const },
 ];
 const LEFT_TABS = TAB_ITEMS.slice(0, 2);
 const RIGHT_TABS = TAB_ITEMS.slice(2);
@@ -91,17 +91,28 @@ function FloatingTabBar({ state, navigation, colors, isDark, insets, onCreate, b
   };
 
   return (
-    <View style={[floatingStyles.container, { bottom: insets.bottom + 12 }]}>
-      <View style={[floatingStyles.pill, { backgroundColor: isDark ? '#1c1c1e' : '#ffffff' }]}>
+    <View
+      style={[
+        floatingStyles.container,
+        {
+          paddingBottom: insets.bottom,
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+        },
+      ]}
+    >
+      <View style={floatingStyles.pill}>
         {LEFT_TABS.map(renderTab)}
 
-        <Ripple
-          style={[floatingStyles.createBtn, { backgroundColor: isDark ? '#fff' : '#111' }]}
-          onPress={onCreate}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={24} color={isDark ? '#111' : '#fff'} />
-        </Ripple>
+        <View style={floatingStyles.createSlot}>
+          <Ripple
+            style={[floatingStyles.createBtn, { backgroundColor: activeColor }]}
+            onPress={onCreate}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={24} color="#fff" />
+          </Ripple>
+        </View>
 
         {RIGHT_TABS.map(renderTab)}
       </View>
@@ -242,27 +253,37 @@ export default function MainTabs({ navigation }: { navigation: any }) {
 const floatingStyles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 20,
-    right: 20,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 100,
-    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   pill: {
+    width: '100%',
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 28,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
   },
   tabItem: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 7,
+    minHeight: 64,
     gap: 3,
   },
   tabIcon: {
     position: 'relative',
+  },
+  createSlot: {
+    flex: 1,
+    minHeight: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     position: 'absolute',
@@ -282,25 +303,19 @@ const floatingStyles = StyleSheet.create({
     fontWeight: '900',
   },
   tabItemActive: {
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-    borderRadius: 16,
+    backgroundColor: 'rgba(43, 62, 232, 0.08)',
+    borderRadius: 14,
   },
   tabLabel: {
     fontSize: 10,
     fontWeight: '700',
   },
   createBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 5,
   },
 });
 
