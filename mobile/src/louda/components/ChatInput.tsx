@@ -273,7 +273,7 @@ export function ChatInput({
     setShowEmojiPicker(false);
   };
 
-  // ─── Hold-to-record (LoudaApp.jsx:3371-3420) ───
+  // ─── Tap-to-record voice notes ───
   const showRecordHint = () => {
     setRecordHint(true);
     if (recordHintTimerRef.current) clearTimeout(recordHintTimerRef.current);
@@ -868,9 +868,7 @@ export function ChatInput({
       {/* ─── Main input bar ─── */}
       <View style={s.bar}>
         {isRecording ? (
-          /* Recording UI inline (was an absolute overlay that fell out of
-             bounds under the home-indicator inset). flex:1 pill in place of
-             the input shell; send button stops the recording. */
+          /* Keep recording status inside the composer; send finishes the take. */
           <View
             style={[
               s.inputShell,
