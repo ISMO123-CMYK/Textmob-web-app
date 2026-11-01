@@ -288,7 +288,7 @@ export type LoudaStoreValue = {
   archiveChat: (chat: any) => Promise<void>;
   unarchiveChat: (chat: any) => Promise<void>;
   handleForwardInitiate: (payload: any) => void;
-  handleConfirmForward: (targets: any[]) => Promise<void>;
+  handleConfirmForward: (targets: any[]) => Promise<boolean>;
   handleConfirmShareMedia: (targets: any[]) => Promise<void>;
   handleSave: (prefs: any) => Promise<void>;
   handleUpdateProfile: (updates: any) => Promise<void>;
@@ -1455,7 +1455,7 @@ export function LoudaStoreProvider({
 
   const handleConfirmForward = useCallback(
     async (targets: any[]) => {
-      if (!forwardPayload || !targets.length) return;
+      if (!forwardPayload || !targets.length) return false;
       try {
         const fp =
           forwardPayload.messages && forwardPayload.messages.length
@@ -1466,7 +1466,7 @@ export function LoudaStoreProvider({
               };
         if (!fp.messages.length) {
           loudaAlert({ title: 'Error', message: 'Nothing to forward' });
-          return;
+          return false;
         }
         const resolved: any[] = [];
         for (const t of targets) {
@@ -1479,7 +1479,7 @@ export function LoudaStoreProvider({
         }
         if (!resolved.length) {
           loudaAlert({ title: 'Error', message: 'Could not open the selected chat(s)' });
-          return;
+          return false;
         }
         const res: any = await api.bulkForwardMessages({
           userId: userRef.current?.id,
@@ -1488,7 +1488,7 @@ export function LoudaStoreProvider({
         });
         if (res?.error) {
           loudaAlert({ title: 'Error', message: res.error || 'Forwarding failed' });
-          return;
+          return false;
         }
         loudaAlert({
           title: 'Success',
@@ -1501,9 +1501,11 @@ export function LoudaStoreProvider({
         // path every other flow uses to pick up a new last message.
         loadContacts(userIdRef.current);
         loadGroups(userIdRef.current);
+        return true;
       } catch (e) {
         console.error('[Louda] forward failed', e);
         loudaAlert({ title: 'Error', message: 'Forwarding failed' });
+        return false;
       }
     },
     [forwardPayload, fetchChatId, loadContacts, loadGroups],
