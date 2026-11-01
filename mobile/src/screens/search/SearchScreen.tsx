@@ -35,7 +35,7 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
   return (
     <Text>
       {text.slice(0, idx)}
-      <Text style={{ fontWeight: '700', color: '#2563eb' }}>{text.slice(idx, idx + query.length)}</Text>
+      <Text style={{ fontWeight: '700', color: '#2B3EE8' }}>{text.slice(idx, idx + query.length)}</Text>
       {text.slice(idx + query.length)}
     </Text>
   );
@@ -200,7 +200,7 @@ export default function SearchScreen({ route }: { route?: { params?: { initialQu
     const type = getSuggestionType(item);
     const isUser = type === 'user';
     const iconName = isUser ? 'person-outline' : type === 'hashtag' ? 'pricetag-outline' : type === 'mention' ? 'at-outline' : 'search-outline';
-    const iconColor = isUser ? '#2563eb' : type === 'hashtag' ? '#7c3aed' : type === 'mention' ? '#059669' : '#d97706';
+    const iconColor = isUser ? '#2B3EE8' : type === 'hashtag' ? '#7c3aed' : type === 'mention' ? '#059669' : '#d97706';
     return (
       <Ripple
         style={[s.suggestRow, index === selectedIndex && { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
@@ -254,7 +254,7 @@ export default function SearchScreen({ route }: { route?: { params?: { initialQu
             <Text style={[s.userName, { color: colors.textPrimary }]} numberOfLines={1}>
               <HighlightMatch text={item.fullname || item.username} query={query} />
             </Text>
-            {isOrg && <Text style={{ fontSize: 9, fontWeight: '800', color: '#2563eb', borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>ORG</Text>}
+            {isOrg && <Text style={{ fontSize: 9, fontWeight: '800', color: '#2B3EE8', borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 }}>ORG</Text>}
           </View>
           <Text style={[s.userHandle, { color: colors.textSecondary }]}>
             <HighlightMatch text={`@${item.username}`} query={query} />
@@ -265,7 +265,7 @@ export default function SearchScreen({ route }: { route?: { params?: { initialQu
         </View>
         {!isOwn && (
           <Ripple
-            style={[s.followBtn, { backgroundColor: isConnected ? (isDark ? '#334155' : '#e5e7eb') : '#2563eb' }]}
+            style={[s.followBtn, { backgroundColor: isConnected ? (isDark ? '#334155' : '#e5e7eb') : '#2B3EE8' }]}
             onPress={() => handleRelationChange(item.username, actionName, item.profile_type)}
           >
             <Text style={[s.followText, { color: isConnected ? colors.textSecondary : '#fff' }]}>
@@ -372,14 +372,14 @@ export default function SearchScreen({ route }: { route?: { params?: { initialQu
         <>
           {/* Result tabs */}
           <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
-            <Ripple style={[s.tab, activeTab === 'people' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('people')}>
-              <Text style={[s.tabText, { color: activeTab === 'people' ? '#2563eb' : colors.textSecondary }]}>People ({searchResults.length})</Text>
+            <Ripple style={[s.tab, activeTab === 'people' && { borderBottomColor: '#2B3EE8', borderBottomWidth: 2 }]} onPress={() => setActiveTab('people')}>
+              <Text style={[s.tabText, { color: activeTab === 'people' ? '#2B3EE8' : colors.textSecondary }]}>People ({searchResults.length})</Text>
             </Ripple>
-            <Ripple style={[s.tab, activeTab === 'posts' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('posts')}>
-              <Text style={[s.tabText, { color: activeTab === 'posts' ? '#2563eb' : colors.textSecondary }]}>Posts ({postsResults.length})</Text>
+            <Ripple style={[s.tab, activeTab === 'posts' && { borderBottomColor: '#2B3EE8', borderBottomWidth: 2 }]} onPress={() => setActiveTab('posts')}>
+              <Text style={[s.tabText, { color: activeTab === 'posts' ? '#2B3EE8' : colors.textSecondary }]}>Posts ({postsResults.length})</Text>
             </Ripple>
-            <Ripple style={[s.tab, activeTab === 'discussions' && { borderBottomColor: '#2563eb', borderBottomWidth: 2 }]} onPress={() => setActiveTab('discussions')}>
-              <Text style={[s.tabText, { color: activeTab === 'discussions' ? '#2563eb' : colors.textSecondary }]}>Discussions ({discussionsResults.length})</Text>
+            <Ripple style={[s.tab, activeTab === 'discussions' && { borderBottomColor: '#2B3EE8', borderBottomWidth: 2 }]} onPress={() => setActiveTab('discussions')}>
+              <Text style={[s.tabText, { color: activeTab === 'discussions' ? '#2B3EE8' : colors.textSecondary }]}>Discussions ({discussionsResults.length})</Text>
             </Ripple>
           </View>
           {loadingResults ? (
@@ -446,7 +446,7 @@ export default function SearchScreen({ route }: { route?: { params?: { initialQu
           <View style={s.historyHeader}>
             <Text style={[s.historyTitle, { color: colors.textSecondary }]}>Recent</Text>
             <Ripple onPress={clearHistory}>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: '#2563eb' }}>Clear all</Text>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#2B3EE8' }}>Clear all</Text>
             </Ripple>
           </View>
           <View style={s.historyPills}>
@@ -517,7 +517,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   discussionHashText: { fontSize: 18, fontWeight: '800', color: colors.textSecondary },
   discussionCat: { fontSize: 10, fontWeight: '600' },
   liveTag: { backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  liveTagText: { fontSize: 10, fontWeight: '800', color: '#2563eb' },
+  liveTagText: { fontSize: 10, fontWeight: '800', color: '#2B3EE8' },
   followBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
   followText: { fontSize: 12, fontWeight: '700' },
   historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 },
@@ -530,10 +530,10 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   historyText: { flex: 1, fontSize: 14 },
   promoCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: isDark ? 'rgba(37,99,235,0.08)' : '#eff6ff', padding: 20, marginTop: 8, alignItems: 'flex-start' },
-  promoIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  promoIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   promoTitle: { fontSize: 15, fontWeight: '800' },
   promoSub: { fontSize: 13, lineHeight: 19, marginTop: 6 },
-  promoBtn: { marginTop: 14, backgroundColor: '#2563eb', paddingHorizontal: 18, paddingVertical: 11, borderRadius: 14 },
+  promoBtn: { marginTop: 14, backgroundColor: '#2B3EE8', paddingHorizontal: 18, paddingVertical: 11, borderRadius: 14 },
   promoBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   emptyState: { alignItems: 'center', paddingTop: 60 },
   emptyLabel: { fontSize: 14, marginTop: 8 },
