@@ -54,6 +54,7 @@ export default function MakePostContent(props) {
  let [quotedPostId, setQuotedPostId] = useState(props.quoteId || null);
  let [quotedPostData, setQuotedPostData] = useState(null);
  let [postCategories, setPostCategories] = useState([]);
+ const [isDragActive, setIsDragActive] = useState(false);
  const CATEGORIES = CATEGORY_LIST;
 
  useEffect(() => {
@@ -355,50 +356,73 @@ export default function MakePostContent(props) {
  }
  };
 
- let ze = (e) => {
- if (!e?.length || De) {
- return;
+ let ze = (files) => {
+ const incoming = Array.from(files || []);
+ if (!incoming.length || De) return;
+
+ const images = incoming.filter((file) => file.type && file.type.startsWith(`image/`));
+ const videos = incoming.filter((file) => file.type && file.type.startsWith(`video/`));
+ const unsupportedCount = incoming.length - images.length - videos.length;
+ const notices = [];
+
+ if (unsupportedCount > 0) notices.push(`Only photos and videos can be added. Unsupported items were skipped.`);
+ if (!images.length && !videos.length) { d(notices.join(` `)); return; }
+ if (images.length && videos.length) { d(`Add photos or one video at a time.`); return; }
+
+ const hasExistingVideo = i.some((file) => file.type.startsWith(`video/`));
+ const hasExistingImages = i.some((file) => file.type.startsWith(`image/`));
+ if (videos.length && (hasExistingVideo || hasExistingImages || videos.length > 1)) {
+ d(`A post can contain one video, without other media.`); return;
  }
+ if (images.length && hasExistingVideo) { d(`Remove the video before adding photos.`); return; }
 
- let t = i.some((e) => e.type.startsWith(`image`));
- let n = i.some((e) => e.type.startsWith(`video`));
+ const remainingImages = Math.max(0, 10 - i.length);
+ const candidates = videos.length ? videos.slice(0, 1) : images.slice(0, remainingImages);
+ if (!candidates.length) { d(`A post can contain up to 10 photos or one video.`); return; }
 
- let r = Array.from(e)
- .filter((e) => {
- let r = e.type.startsWith(`video`);
- let a = e.type.startsWith(`image`);
+ const oversized = candidates.filter((file) => file.size > 104857600);
+ const accepted = candidates.filter((file) => file.size <= 104857600);
+ if (oversized.length) notices.push(`Each photo or video must be 100MB or smaller.`);
+ if (images.length > remainingImages) notices.push(`A post can contain up to 10 photos.`);
+ if (!accepted.length) { d(notices.join(` `)); return; }
 
- if ((!a && !r) || e.size > 104857600 || (n && a) || (t && r)) {
- return false;
- } else if (r) {
- return i.length === 0;
- } else {
- return i.length < 10;
- }
- })
- .slice(0, n ? 0 : 10 - i.length);
-
- if (!r.length) {
- d(`Max 10 images or 1 video, 100MB limit.`);
- return;
- }
-
- let o = r.map((e) => ({
- file: e,
- url: URL.createObjectURL(e),
- type: e.type.startsWith(`video`) ? `video` : `image`,
- filter: `none`,
- text: ``,
- textColor: `#ffffff`,
- textFont: `Arial`,
- textSize: 24,
- textRotation: 0,
- textShadow: false
+ const previews = accepted.map((file) => ({
+ file, url: URL.createObjectURL(file),
+ type: file.type.startsWith(`video/`) ? `video` : `image`,
+ filter: `none`, text: ``, textColor: `#ffffff`, textFont: `Arial`,
+ textSize: 24, textRotation: 0, textShadow: false
  }));
+ a((previous) => [...previous, ...accepted]);
+ s((previous) => [...previous, ...previews]);
+ d(notices.join(` `));
+ };
 
- a((e) => [...e, ...r]);
- s((e) => [...e, ...o]);
- d(``);
+ const hasFileDrag = (event) => {
+ const types = event.dataTransfer && event.dataTransfer.types ? Array.from(event.dataTransfer.types) : [];
+ return types.includes(`Files`);
+ };
+ const handleComposerDragEnter = (event) => {
+ if (!hasFileDrag(event)) return;
+ event.preventDefault();
+ setIsDragActive(true);
+ };
+ const handleComposerDragOver = (event) => {
+ if (!hasFileDrag(event)) return;
+ event.preventDefault();
+ if (event.dataTransfer) event.dataTransfer.dropEffect = `copy`;
+ };
+ const handleComposerDragLeave = (event) => {
+ const nextTarget = event.relatedTarget;
+ if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+ setIsDragActive(false);
+ };
+ const handleComposerDrop = (event) => {
+ const droppedFiles = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : [];
+ if (!droppedFiles.length && !hasFileDrag(event)) return;
+ event.preventDefault();
+ event.stopPropagation();
+ setIsDragActive(false);
+ ze(droppedFiles);
  };
 
  let Be = (e) => {
@@ -636,7 +660,27 @@ export default function MakePostContent(props) {
  </button>
  </div>
 
- <div className={`flex-1 overflow-y-auto px-4 py-4`}>
+ <div
+ className={`relative flex-1 overflow-y-auto px-4 py-4`}
+ onDragEnter={handleComposerDragEnter}
+ onDragOver={handleComposerDragOver}
+ onDragLeave={handleComposerDragLeave}
+ onDrop={handleComposerDrop}
+ >
+ {isDragActive && (
+ <div className={`absolute inset-3 z-40 flex items-center justify-center rounded-2xl border-2 border-dashed border-brand-500 bg-brand-50/95 pointer-events-none`}>
+ <div className={`px-6 py-8 text-center`}>
+ <div className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm`}>
+ <svg viewBox={`0 0 24 24`} className={`h-7 w-7 fill-none stroke-current`} strokeWidth={`1.8`}>
+ <path strokeLinecap={`round`} strokeLinejoin={`round`} d={`M12 16V4m0 0L7 9m5-5 5 5`} />
+ <path strokeLinecap={`round`} strokeLinejoin={`round`} d={`M5 14v4a2 2 0 002 2h10a2 2 0 002-2v-4`} />
+ </svg>
+ </div>
+ <p className={`text-sm font-bold text-brand-700`}>Drop photos or videos here</p>
+ <p className={`mt-1 text-xs text-brand-600`}>Up to 10 photos or one video · 100MB maximum</p>
+ </div>
+ </div>
+ )}
  <div className={`flex items-start gap-3`}>
  <img
  src={localStorage.cached_profile_pic || `${DEFAULT_PIC}`}
@@ -842,7 +886,7 @@ export default function MakePostContent(props) {
  accept={`image/*,video/*`}
  className={`sr-only`}
  disabled={De || i.length >= 10}
- onChange={(e) => ze(e.target.files)}
+ onChange={(e) => { ze(e.target.files); e.target.value = ``; }}
  />
  <svg viewBox={`0 0 24 24`} className={`w-5 h-5 fill-none stroke-current`} strokeWidth={`2`}>
  <rect x={`3`} y={`3`} width={`18`} height={`18`} rx={`2`} />
