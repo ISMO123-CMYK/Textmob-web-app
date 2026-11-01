@@ -19,7 +19,7 @@ const MenuScreen = lazy(() => import('../screens/menu/MenuScreen'));
 function TabFallback() {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <ActivityIndicator size="small" color="#2563eb" />
+      <ActivityIndicator size="small" color="#2B3EE8" />
     </View>
   );
 }
@@ -49,7 +49,7 @@ const LEFT_TABS = TAB_ITEMS.slice(0, 2);
 const RIGHT_TABS = TAB_ITEMS.slice(2);
 
 function FloatingTabBar({ state, navigation, colors, isDark, insets, onCreate, badges }: any) {
-  const activeColor = colors.primary || '#2563eb';
+  const activeColor = colors.primary || '#2B3EE8';
   const inactiveColor = isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)';
   const currentRoute = state.routes[state.index]?.name;
   if (currentRoute === 'Snaps') return null;
