@@ -256,7 +256,7 @@ function ListView({ onBack, onProfile }: { onBack: () => void; onProfile: (u: st
 
       {busy ? (
         <View style={{ alignItems: 'center', paddingTop: 64 }}>
-          <ActivityIndicator color="#2563eb" />
+          <ActivityIndicator color="#2B3EE8" />
         </View>
       ) : (
         <FlatList
@@ -341,11 +341,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   backBtn: { padding: 6 },
-  headerHash: { width: 22, height: 22, borderRadius: 7, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
+  headerHash: { width: 22, height: 22, borderRadius: 7, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center' },
   headerHashText: { color: '#fff', fontSize: 13, fontWeight: 'bold', lineHeight: 15 },
   headerTitle: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
-  pulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563eb' },
-  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, shadowColor: '#2563eb', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  pulseDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2B3EE8' },
+  startBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#2B3EE8', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, shadowColor: '#2B3EE8', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   startBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   // Search
   searchOuter: { paddingHorizontal: 16, marginTop: 12 },
@@ -365,10 +365,10 @@ const styles = StyleSheet.create({
   channelTitle: { fontSize: 14, fontWeight: '600', color: '#1f2937' },
   channelSub: { fontSize: 11, color: '#9ca3af', marginTop: 1 },
   channelTime: { fontSize: 11, color: '#d1d5db' },
-  livePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#eff6ff', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2563eb' },
-  livePillText: { fontSize: 10, fontWeight: 'bold', color: '#2563eb' },
-  unreadPill: { minWidth: 20, height: 18, paddingHorizontal: 6, borderRadius: 999, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
+  livePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EEF1FE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2B3EE8' },
+  livePillText: { fontSize: 10, fontWeight: 'bold', color: '#2B3EE8' },
+  unreadPill: { minWidth: 20, height: 18, paddingHorizontal: 6, borderRadius: 999, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center' },
   unreadPillText: { fontSize: 10, fontWeight: 'bold', color: '#fff' },
   payChip: { backgroundColor: '#eab308', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
   payChipText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
@@ -384,12 +384,12 @@ const styles = StyleSheet.create({
   createTip: { fontSize: 11, color: '#6b7280', lineHeight: 15, marginTop: -4, marginBottom: 12, paddingHorizontal: 4 },
   catPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 16 },
   catPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb' },
-  catPillActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  catPillActive: { backgroundColor: '#2B3EE8', borderColor: '#2B3EE8' },
   catPillText: { fontSize: 11, fontWeight: '600', color: '#4b5563' },
   catPillTextActive: { color: '#fff' },
   createBtns: { flexDirection: 'row', gap: 12 },
   createCancelBtn: { flex: 1, paddingVertical: 12, backgroundColor: '#f3f4f6', borderRadius: 999, alignItems: 'center' },
   createCancelText: { fontSize: 14, fontWeight: 'bold', color: '#4b5563' },
-  createGoBtn: { flex: 1, paddingVertical: 12, backgroundColor: '#2563eb', borderRadius: 999, alignItems: 'center' },
+  createGoBtn: { flex: 1, paddingVertical: 12, backgroundColor: '#2B3EE8', borderRadius: 999, alignItems: 'center' },
   createGoText: { fontSize: 14, fontWeight: 'bold', color: '#fff' },
 });
