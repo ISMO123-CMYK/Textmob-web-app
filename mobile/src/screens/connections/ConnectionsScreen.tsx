@@ -72,7 +72,7 @@ export default function ConnectionsScreen({ route, navigation }: { route: any; n
         </View>
         {showFollow && username !== user.username && (
           <Ripple
-            style={[s.followBtn, { backgroundColor: isFollowing ? (isDark ? '#334155' : '#f3f4f6') : '#2563eb' }]}
+            style={[s.followBtn, { backgroundColor: isFollowing ? (isDark ? '#334155' : '#f3f4f6') : '#2B3EE8' }]}
             onPress={() => toggleFollow(user.username!)}
           >
             <Text style={[s.followText, { color: isFollowing ? colors.textSecondary : '#fff' }]}>
@@ -106,7 +106,7 @@ export default function ConnectionsScreen({ route, navigation }: { route: any; n
       <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
         {tabs.map(t => (
           <Ripple key={t.key} style={s.tab} onPress={() => setActiveTab(t.key)}>
-            <Text style={[s.tabText, { color: activeTab === t.key ? '#2563eb' : colors.textSecondary }]}>
+            <Text style={[s.tabText, { color: activeTab === t.key ? '#2B3EE8' : colors.textSecondary }]}>
               {t.label} <Text style={{ fontSize: 10, opacity: 0.6 }}>{t.count}</Text>
             </Text>
             {activeTab === t.key && <View style={s.activeIndicator} />}
@@ -141,7 +141,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '800', flex: 1, marginLeft: 4 },
   tabBar: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12, position: 'relative' },
-  activeIndicator: { position: 'absolute', bottom: 0, left: '25%', right: '25%', height: 2.5, backgroundColor: '#2563eb', borderRadius: 2 },
+  activeIndicator: { position: 'absolute', bottom: 0, left: '25%', right: '25%', height: 2.5, backgroundColor: '#2B3EE8', borderRadius: 2 },
   tabText: { fontSize: 13, fontWeight: '700' },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { paddingHorizontal: 16, paddingBottom: 100, paddingTop: 8 },
