@@ -19,7 +19,7 @@ import SafeHTML from '../../components/SafeHTML';
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
 
 // X uses its own accent for the active tab / unread tint.
-const X_BLUE = '#1d9bf0';
+const X_BLUE = '#2B3EE8';
 
 const TABS = [
   { id: 'all', label: 'All' },
@@ -45,9 +45,9 @@ function matchTab(n: AppNotification, tab: string) {
 const TYPE_COLORS: Record<string, string> = {
   like: '#ef4444',
   likes: '#ef4444',
-  comment: '#2563eb',
-  comments: '#2563eb',
-  reply: '#2563eb',
+  comment: '#2B3EE8',
+  comments: '#2B3EE8',
+  reply: '#2B3EE8',
   follow: '#10b981',
   followers: '#10b981',
   friend: '#10b981',
