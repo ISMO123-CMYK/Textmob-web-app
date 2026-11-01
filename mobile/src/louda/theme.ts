@@ -1,8 +1,8 @@
 // Louda design tokens — ported from client/src/louda/louda.css (--safari-green etc.)
 // and the Tailwind utility classes used throughout LoudaApp.jsx.
 
-export const LOUDA_ACCENT = '#2563eb';
-export const LOUDA_ACCENT_DARK = '#1d4ed8';
+export const LOUDA_ACCENT = '#2B3EE8';
+export const LOUDA_ACCENT_DARK = '#2130CB';
 export const LOUDA_BROWN = '#5D4037';
 export const LOUDA_ORANGE = '#E64A19';
 export const LOUDA_AMBER = '#FFB300';
