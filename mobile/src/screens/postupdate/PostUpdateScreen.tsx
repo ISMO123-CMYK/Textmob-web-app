@@ -68,7 +68,7 @@ export default function PostUpdateScreen({ route, navigation }: any) {
         <Ripple
           onPress={handleSave}
           disabled={saving}
-          style={[s.saveBtn, { backgroundColor: '#2563eb', opacity: saving ? 0.5 : 1 }]}
+          style={[s.saveBtn, { backgroundColor: '#2B3EE8', opacity: saving ? 0.5 : 1 }]}
         >
           <Text style={s.saveBtnText}>{saving ? 'Saving...' : 'Save'}</Text>
         </Ripple>
