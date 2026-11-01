@@ -201,8 +201,8 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
           <View style={s.actionsSection}>
             <View style={s.actionsGrid}>
               <Ripple style={[s.actionCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => setShowSendModal(true)}>
-                <View style={[s.actionIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff' }]}>
-                  <Ionicons name="send-outline" size={20} color="#2563eb" />
+                <View style={[s.actionIcon, { backgroundColor: isDark ? 'rgba(43,62,232,0.15)' : '#EEF1FE' }]}>
+                  <Ionicons name="send-outline" size={20} color="#2B3EE8" />
                 </View>
                 <Text style={[s.actionLabel, { color: colors.textPrimary }]}>Send</Text>
                 <Text style={[s.actionDesc, { color: colors.textSecondary }]}>Transfer coins</Text>
@@ -216,8 +216,8 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
               </Ripple>
             </View>
             <Ripple style={[s.learnCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]} onPress={() => setShowLearnModal(true)}>
-              <View style={[s.learnIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff' }]}>
-                <Ionicons name="bulb-outline" size={20} color="#2563eb" />
+              <View style={[s.learnIcon, { backgroundColor: isDark ? 'rgba(43,62,232,0.15)' : '#EEF1FE' }]}>
+                <Ionicons name="bulb-outline" size={20} color="#2B3EE8" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[s.learnTitle, { color: colors.textPrimary }]}>How to earn Mobcoins</Text>
@@ -239,7 +239,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
               </View>
             ) : (
               <>
-                <View style={[s.infoBox, { backgroundColor: isDark ? 'rgba(37,99,235,0.1)' : '#eff6ff', borderColor: isDark ? 'rgba(37,99,235,0.2)' : '#bfdbfe' }]}>
+                <View style={[s.infoBox, { backgroundColor: isDark ? 'rgba(43,62,232,0.1)' : '#EEF1FE', borderColor: isDark ? 'rgba(37,99,235,0.2)' : '#C1CBFD' }]}>
                   <Text style={[s.infoBoxTitle, { color: isDark ? '#93c5fd' : '#1e40af' }]}>How Redemption Works</Text>
                   <View style={s.infoRow}>
                     <Text style={[s.infoBullet, { color: isDark ? '#93c5fd' : '#1e40af' }]}>•</Text>
@@ -326,8 +326,8 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
 
         {/* Info Card */}
         <View style={[s.infoCard, { backgroundColor: isDark ? '#1e293b' : '#f9fafb' }]}>
-          <View style={[s.infoCardIcon, { backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : '#eff6ff' }]}>
-            <Ionicons name="information-circle-outline" size={20} color="#2563eb" />
+          <View style={[s.infoCardIcon, { backgroundColor: isDark ? 'rgba(43,62,232,0.15)' : '#EEF1FE' }]}>
+            <Ionicons name="information-circle-outline" size={20} color="#2B3EE8" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[s.infoCardTitle, { color: colors.textPrimary }]}>What are Mobcoins?</Text>
@@ -437,7 +437,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
                   <Ionicons name="close" size={22} color={colors.textSecondary} />
                 </Ripple>
               </View>
-              <View style={[s.estValueBox, { backgroundColor: isDark ? 'rgba(37,99,235,0.1)' : '#eff6ff' }]}>
+              <View style={[s.estValueBox, { backgroundColor: isDark ? 'rgba(43,62,232,0.1)' : '#EEF1FE' }]}>
                 <Text style={[s.estLabel, { color: colors.primary }]}>ESTIMATED VALUE</Text>
                 <Text style={[s.estAmount, { color: colors.primary }]}>₦{Number(Number(redeemAmount || 0) * 0.1).toLocaleString()}</Text>
                 <Text style={[s.estMin, { color: colors.primary }]}>Min. 2,000 Mobcoins (₦200)</Text>
@@ -548,7 +548,7 @@ export default function WalletScreen({ navigation }: { navigation: any }) {
           </View>
           <ScrollView>
             {[
-              { icon: 'trending-up', color: '#2563eb', bg: '#eff6ff', label: 'Hit milestones', sub: 'Every 10 likes on any post = +5 Mobcoins. 10, 20, 30... forever.' },
+              { icon: 'trending-up', color: '#2B3EE8', bg: '#EEF1FE', label: 'Hit milestones', sub: 'Every 10 likes on any post = +5 Mobcoins. 10, 20, 30... forever.' },
               { icon: 'heart-outline', color: '#ef4444', bg: '#fef2f2', label: 'Engage with others', sub: 'React to posts, leave comments, and grow your following.' },
               { icon: 'gift-outline', color: '#9333ea', bg: '#faf5ff', label: 'Send & receive gifts', sub: 'Gift Mobcoins to friends or receive them as support.' },
               { icon: 'people-outline', color: '#16a34a', bg: '#f0fdf4', label: 'Grow your audience', sub: 'More followers = more likes = more milestones hit.' },
@@ -596,7 +596,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: '800' },
   headerUser: { fontSize: 12, marginTop: 1 },
   balanceCard: {
-    marginHorizontal: 16, marginTop: 12, borderRadius: 20, backgroundColor: '#2563eb', overflow: 'hidden', position: 'relative',
+    marginHorizontal: 16, marginTop: 12, borderRadius: 20, backgroundColor: '#2B3EE8', overflow: 'hidden', position: 'relative',
   },
   balanceGridBg: {
     position: 'absolute', inset: 0, opacity: 0.06,
@@ -669,7 +669,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   amountRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 12, marginBottom: 12 },
   amountInput: { flex: 1, paddingVertical: 10, fontSize: 15 },
   messageText: { fontSize: 12, textAlign: 'center', marginBottom: 12, fontWeight: '600' },
-  primaryBtn: { backgroundColor: '#2563eb', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  primaryBtn: { backgroundColor: '#2B3EE8', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   primaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   cancelSheetBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
   cancelSheetText: { fontSize: 13, fontWeight: '600' },
