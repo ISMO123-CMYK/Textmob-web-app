@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2B3EE8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 11, marginTop: 2 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 10 },
   saveBtn: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2B3EE8',
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 7,
