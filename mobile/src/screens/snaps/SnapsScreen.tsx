@@ -45,7 +45,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width || 390;
 const SCREEN_HEIGHT = Dimensions.get('window').height || 800;
 const EMOJIS = ['❤️', '😂', '🔥', '👍', '😍', '😢', '😡', '🎉', '🙏', '💀', '🤣', '😭', '🥰', '😘', '😎', '🤩', '💯', '✨', '🫡', '🫶'];
 const DEFAULT_PIC = 'https://api.dicebear.com/10.x/adventurer-neutral/png?seed=textmob&backgroundColor=18181b';
-const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
+const AVATAR_COLORS = ['#2B3EE8', '#7c3aed', '#db2777', '#d97706', '#059669', '#0891b2', '#dc2626'];
 
 function avatarColor(username: string): string {
   let h = 0;
@@ -954,7 +954,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
             </View>
           ) : (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: isDark ? 'rgba(37,99,235,0.15)' : 'rgba(37,99,235,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: isDark ? 'rgba(43,62,232,0.15)' : 'rgba(43,62,232,0.1)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
                 <Ionicons name="search" size={28} color="#60a5fa" />
               </View>
               <Text style={{ color: colors.textSecondary, fontSize: 15, fontWeight: '600' }}>Discover snaps</Text>
@@ -1012,7 +1012,7 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
 
             {uploading ? (
               <View style={styles.uploadingInModal}>
-                <ActivityIndicator size="large" color="#2563eb" />
+                <ActivityIndicator size="large" color="#2B3EE8" />
                 <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '700', marginTop: 16 }}>
                   Uploading your snap…
                 </Text>
@@ -1033,12 +1033,12 @@ export default function SnapsScreen({ navigation, route }: { navigation: any; ro
               {[{ n: 1, l: 'Video' }, { n: 2, l: 'Caption' }, { n: 3, l: 'Category' }].map((s, i) => (
                 <React.Fragment key={s.n}>
                   <View style={styles.stepDotRow}>
-                    <View style={[styles.stepDot, wizardStep >= s.n ? styles.stepDotActive : styles.stepDotInactive, { borderColor: wizardStep >= s.n ? '#2563eb' : colors.border }]}>
+                    <View style={[styles.stepDot, wizardStep >= s.n ? styles.stepDotActive : styles.stepDotInactive, { borderColor: wizardStep >= s.n ? '#2B3EE8' : colors.border }]}>
                       <Text style={[styles.stepDotText, { color: wizardStep >= s.n ? '#fff' : colors.textSecondary }]}>{s.n}</Text>
                     </View>
                     <Text style={[styles.stepLabel, { color: wizardStep >= s.n ? colors.textPrimary : colors.textSecondary }]}>{s.l}</Text>
                   </View>
-                  {i < 2 && <View style={[styles.stepConnector, { backgroundColor: wizardStep > s.n ? '#2563eb' : colors.border }]} />}
+                  {i < 2 && <View style={[styles.stepConnector, { backgroundColor: wizardStep > s.n ? '#2B3EE8' : colors.border }]} />}
                 </React.Fragment>
               ))}
             </View>
@@ -1254,7 +1254,7 @@ const styles = StyleSheet.create({
   miniAvatarText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   snapFullname: { color: '#fff', fontSize: 14, fontWeight: '800' },
   snapUsername: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
-  miniVerified: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', marginLeft: 0 },
+  miniVerified: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center', marginLeft: 0 },
   followChip: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, borderWidth: 1, borderColor: '#fff' },
   followChipText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   snapText: { color: 'rgba(255,255,255,0.9)', fontSize: 13, lineHeight: 18, marginTop: 6, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
@@ -1280,20 +1280,20 @@ const styles = StyleSheet.create({
   commentAvatarText: { color: '#fff', fontSize: 11, fontWeight: '800' },
   commentFullname: { fontSize: 12, fontWeight: '700' },
   creatorBadge: { backgroundColor: 'rgba(37,99,235,.2)', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  creatorBadgeText: { fontSize: 9, fontWeight: '800', color: '#2563eb', letterSpacing: 0.5 },
-  commentVerifiedBadge: { backgroundColor: '#1d9bf0', borderRadius: 8, width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
+  creatorBadgeText: { fontSize: 9, fontWeight: '800', color: '#2B3EE8', letterSpacing: 0.5 },
+  commentVerifiedBadge: { backgroundColor: '#2B3EE8', borderRadius: 8, width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
   commentTime: { fontSize: 11, color: 'rgba(255,255,255,.35)', marginLeft: 'auto' },
   commentText: { fontSize: 13, marginTop: 3, lineHeight: 17 },
   commentInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderTopWidth: StyleSheet.hairlineWidth },
   commentInput: { flex: 1, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 13 },
-  commentSendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
+  commentSendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center' },
   uploadingInModal: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
   progressBarBg: { width: 200, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginTop: 8, overflow: 'hidden' },
-  progressBarFill: { height: '100%', borderRadius: 2, backgroundColor: '#2563eb' },
+  progressBarFill: { height: '100%', borderRadius: 2, backgroundColor: '#2B3EE8' },
   stepIndicator: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20, paddingHorizontal: 16 },
   stepDotRow: { alignItems: 'center', gap: 4 },
   stepDot: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-  stepDotActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  stepDotActive: { backgroundColor: '#2B3EE8', borderColor: '#2B3EE8' },
   stepDotInactive: { backgroundColor: 'transparent' },
   stepDotText: { fontSize: 12, fontWeight: '800' },
   stepLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
@@ -1311,7 +1311,7 @@ const styles = StyleSheet.create({
   createVideo: { width: '100%', height: '100%' },
   captionInput: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, minHeight: 80, textAlignVertical: 'top' },
   charCount: { fontSize: 11, textAlign: 'right', marginTop: 4, marginBottom: 12 },
-  postSnapBtn: { backgroundColor: '#2563eb', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
+  postSnapBtn: { backgroundColor: '#2B3EE8', paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
   postSnapBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
   seekTapArea: { position: 'absolute', top: 0, bottom: 0, width: '35%', zIndex: 5 },
   centerTapArea: { position: 'absolute', top: 0, bottom: 0, left: '35%', right: '35%', zIndex: 5 },
