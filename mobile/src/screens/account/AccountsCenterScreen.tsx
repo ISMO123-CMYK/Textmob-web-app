@@ -234,15 +234,15 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
   return (
     <ScrollView style={{ padding: 16 }}>
       {!profile?.verified && (
-        <Ripple onPress={() => setActiveSub('verification')} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#bfdbfe', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="checkmark-circle" size={22} color="#2563eb" />
+        <Ripple onPress={() => setActiveSub('verification')} style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: '#C1CBFD', marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EEF1FE', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="checkmark-circle" size={22} color="#2B3EE8" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary }}>Get verified</Text>
             <Text style={{ fontSize: 11, color: colors.textSecondary }}>Get a blue tick to increase trust</Text>
           </View>
-          <View style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
+          <View style={{ backgroundColor: '#2B3EE8', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Get Verified</Text>
           </View>
         </Ripple>
@@ -256,14 +256,14 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
             <Text style={{ fontWeight: '700', fontSize: 13, color: colors.textPrimary }}>Switch to Professional</Text>
             <Text style={{ fontSize: 11, color: colors.textSecondary }}>Unlock earnings & analytics</Text>
           </View>
-          <Ripple onPress={() => setActiveSub('profile')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
+          <Ripple onPress={() => setActiveSub('profile')} style={{ backgroundColor: '#2B3EE8', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>Switch</Text>
           </Ripple>
         </View>
       )}
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Dashboard</Text>
       <View style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
-        <View style={{ padding: 20, backgroundColor: isOrg ? '#7c3aed' : '#2563eb' }}>
+        <View style={{ padding: 20, backgroundColor: isOrg ? '#7c3aed' : '#2B3EE8' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <Image source={{ uri: profile?.profile_pic || DEFAULT_PIC }} style={{ width: 44, height: 44, borderRadius: 10, borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)' }} />
             <View style={{ flex: 1 }}>
@@ -288,7 +288,7 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
       </View>
       <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
         {[
-          { label: 'New Post', icon: 'add-circle', tab: 'composer', bg: '#eff6ff', color: '#2563eb' },
+          { label: 'New Post', icon: 'add-circle', tab: 'composer', bg: '#EEF1FE', color: '#2B3EE8' },
           { label: 'Earnings', icon: 'cash', tab: 'monetize', bg: '#ecfdf5', color: '#059669' },
           { label: 'Analytics', icon: 'bar-chart', tab: 'analytics', bg: '#faf5ff', color: '#9333ea' },
           { label: 'Profile', icon: 'person', tab: 'profile', bg: '#fff7ed', color: '#ea580c' },
@@ -328,7 +328,7 @@ function OverviewTab({ username, profile, profileData, stats, posts, isOrg, colo
 }
 
 function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, setActiveSub, posts }: any) {
-  const accentBg = isOrg ? '#7c3aed' : '#2563eb';
+  const accentBg = isOrg ? '#7c3aed' : '#2B3EE8';
   const [balance, setBalance] = useState(stats?.mobcoins || 0);
   const [payouts, setPayouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -375,15 +375,15 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
     return (
       <ScrollView style={{ padding: 16 }}>
         <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 24, alignItems: 'center' }}>
-          <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <Ionicons name="lock-closed" size={22} color="#2563eb" />
+          <View style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: '#EEF1FE', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Ionicons name="lock-closed" size={22} color="#2B3EE8" />
           </View>
           <Text style={{ fontWeight: '800', fontSize: 14, color: colors.textPrimary, marginBottom: 4 }}>Verification required</Text>
           <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18, maxWidth: 260 }}>
             Earnings and payouts are only available to verified accounts. Get your blue tick to unlock monetization.
           </Text>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 16, width: '100%' }}>
-            <Ripple onPress={() => setActiveSub?.('verification')} style={{ flex: 1, height: 44, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }}>
+            <Ripple onPress={() => setActiveSub?.('verification')} style={{ flex: 1, height: 44, borderRadius: 10, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>Get verified</Text>
             </Ripple>
             <Ripple onPress={() => Linking.openURL('https://wa.me/2347087421125')} style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' }}>
@@ -456,7 +456,7 @@ function MonetizationTab({ username, stats, isOrg, colors, isDark, verified, set
       <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 16 }]}>
         <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textPrimary, marginBottom: 10 }}>How earnings work</Text>
         {[
-          { icon: 'trending-up', color: '#2563eb', label: 'Milestone system', sub: 'Earn +5 Mobcoins every time any post hits 10, 20, 30... likes' },
+          { icon: 'trending-up', color: '#2B3EE8', label: 'Milestone system', sub: 'Earn +5 Mobcoins every time any post hits 10, 20, 30... likes' },
           { icon: 'gift', color: '#9333ea', label: 'Gifts', sub: 'Receive Mobcoins as gifts from friends' },
           { icon: 'checkmark-circle', color: '#059669', label: 'Cash out', sub: 'Convert to ₦ via bank or airtime (min 2,000 coins)' },
         ].map((item, i) => (
@@ -576,18 +576,18 @@ function VerificationTab({ colors, username, isDark }: any) {
       <Text style={[styles.subTitle, { color: colors.textPrimary }]}>Get Verified</Text>
 
       {isActive && (
-        <View style={[styles.cardBlock, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe', alignItems: 'center', paddingVertical: 24, marginBottom: 12 }]}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <Ionicons name="checkmark-circle" size={24} color="#2563eb" />
+        <View style={[styles.cardBlock, { backgroundColor: '#EEF1FE', borderColor: '#C1CBFD', alignItems: 'center', paddingVertical: 24, marginBottom: 12 }]}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#DDE4FE', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Ionicons name="checkmark-circle" size={24} color="#2B3EE8" />
           </View>
           <Text style={{ fontWeight: '700', fontSize: 14, color: '#1e40af', marginBottom: 4 }}>You're Verified!</Text>
-          <Text style={{ color: '#2563eb', fontSize: 12, textAlign: 'center', marginBottom: 8 }}>
+          <Text style={{ color: '#2B3EE8', fontSize: 12, textAlign: 'center', marginBottom: 8 }}>
             {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : 'Expiring soon.'}
           </Text>
-          <View style={{ backgroundColor: '#dbeafe', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 12 }}>
-            <Text style={{ color: '#2563eb', fontSize: 11, fontWeight: '600' }}>Renews at ₦1000/month via WhatsApp</Text>
+          <View style={{ backgroundColor: '#DDE4FE', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 12 }}>
+            <Text style={{ color: '#2B3EE8', fontSize: 11, fontWeight: '600' }}>Renews at ₦1000/month via WhatsApp</Text>
           </View>
-          <Ripple onPress={() => Linking.openURL(waLink)} style={{ backgroundColor: '#2563eb', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}>
+          <Ripple onPress={() => Linking.openURL(waLink)} style={{ backgroundColor: '#2B3EE8', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12 }}>
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Renew via WhatsApp</Text>
           </Ripple>
         </View>
@@ -596,8 +596,8 @@ function VerificationTab({ colors, username, isDark }: any) {
       {!isActive && !loading && (
         <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={{ alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16 }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <Ionicons name="checkmark-circle" size={28} color="#2563eb" />
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#EEF1FE', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Ionicons name="checkmark-circle" size={28} color="#2B3EE8" />
             </View>
             <Text style={{ fontWeight: '700', fontSize: 16, color: colors.textPrimary, marginBottom: 4 }}>Get Verified on Textmob</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 20 }}>
@@ -615,13 +615,13 @@ function VerificationTab({ colors, username, isDark }: any) {
               </View>
               <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>Total</Text>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: '#2563eb' }}>₦1000</Text>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: '#2B3EE8' }}>₦1000</Text>
               </View>
             </View>
 
             <Ripple
               onPress={() => Linking.openURL(waLink)}
-              style={{ width: '100%', height: 48, backgroundColor: '#2563eb', borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
+              style={{ width: '100%', height: 48, backgroundColor: '#2B3EE8', borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
             >
               <Ionicons name="logo-whatsapp" size={18} color="#fff" />
               <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>Pay ₦1000 via WhatsApp</Text>
@@ -638,7 +638,7 @@ function VerificationTab({ colors, username, isDark }: any) {
 
       {loading && (
         <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border, alignItems: 'center', paddingVertical: 32 }]}>
-          <ActivityIndicator size="large" color="#2563eb" />
+          <ActivityIndicator size="large" color="#2B3EE8" />
         </View>
       )}
 
@@ -651,7 +651,7 @@ function VerificationTab({ colors, username, isDark }: any) {
           'Visible credibility badge on posts',
         ].map((item, i) => (
           <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 10 }}>
-            <Ionicons name="checkmark" size={14} color="#2563eb" />
+            <Ionicons name="checkmark" size={14} color="#2B3EE8" />
             <Text style={{ fontSize: 13, color: colors.textSecondary }}>{item}</Text>
           </View>
         ))}
@@ -684,7 +684,7 @@ function AnalyticsTab({ posts, stats, profile, isOrg, colors }: any) {
       <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
           <View style={{ flex: 1, alignItems: 'center', padding: 12 }}>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: '#2563eb' }}>{likesCount}</Text>
+            <Text style={{ fontSize: 22, fontWeight: '800', color: '#2B3EE8' }}>{likesCount}</Text>
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>Likes</Text>
           </View>
           <View style={{ flex: 1, alignItems: 'center', padding: 12 }}>
@@ -758,7 +758,7 @@ function ComposerTab({ username, posts, setPosts, colors, isDark, setActiveSub }
           { key: 'post', label: 'Text' },
           { key: 'poll', label: 'Poll' },
         ].map(t => (
-          <Ripple key={t.key} onPress={() => setPostType(t.key)} style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: postType === t.key ? '#2563eb' : isDark ? '#1e293b' : '#f3f4f6' }}>
+          <Ripple key={t.key} onPress={() => setPostType(t.key)} style={{ paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8, backgroundColor: postType === t.key ? '#2B3EE8' : isDark ? '#1e293b' : '#f3f4f6' }}>
             <Text style={{ color: postType === t.key ? '#fff' : colors.textPrimary, fontWeight: '600', fontSize: 12 }}>{t.label}</Text>
           </Ripple>
         ))}
@@ -766,7 +766,7 @@ function ComposerTab({ username, posts, setPosts, colors, isDark, setActiveSub }
       <Ripple
         onPress={handleSubmit}
         disabled={submitting || !text.trim()}
-        style={{ backgroundColor: '#2563eb', paddingVertical: 14, borderRadius: 12, alignItems: 'center', opacity: (!text.trim() || submitting) ? 0.5 : 1 }}
+        style={{ backgroundColor: '#2B3EE8', paddingVertical: 14, borderRadius: 12, alignItems: 'center', opacity: (!text.trim() || submitting) ? 0.5 : 1 }}
       >
         {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Post</Text>}
       </Ripple>
@@ -874,7 +874,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
         </View>
         <Text style={{ fontWeight: '700', fontSize: 15, color: colors.textPrimary, marginBottom: 4 }}>No posts yet</Text>
         <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 16, textAlign: 'center' }}>Create your first post to get started.</Text>
-        <Ripple onPress={() => setActiveSub('composer')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 }}>
+        <Ripple onPress={() => setActiveSub('composer')} style={{ backgroundColor: '#2B3EE8', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 }}>
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>New post</Text>
         </Ripple>
       </ScrollView>
@@ -888,7 +888,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
           <Text style={[styles.subTitle, { color: colors.textPrimary, marginBottom: 0 }]}>My Posts</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 11 }}>{filtered.length} posts</Text>
         </View>
-        <Ripple onPress={() => setActiveSub('composer')} style={{ backgroundColor: '#2563eb', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
+        <Ripple onPress={() => setActiveSub('composer')} style={{ backgroundColor: '#2B3EE8', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 }}>
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 11 }}>New post</Text>
         </Ripple>
       </View>
@@ -906,7 +906,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 6 }}>
         {[{ k: 'newest', l: 'Newest' }, { k: 'liked', l: 'Most Liked' }, { k: 'closest-to-payout', l: 'Closest to Payout' }, { k: 'earned', l: 'Top Earned' }].map(s => (
-          <Ripple key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2563eb' : isDark ? '#374151' : '#e5e7eb' }}>
+          <Ripple key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2B3EE8' : isDark ? '#374151' : '#e5e7eb' }}>
             <Text style={{ color: sortBy === s.k ? '#fff' : colors.textSecondary, fontSize: 11, fontWeight: '600' }}>{s.l}</Text>
           </Ripple>
         ))}
@@ -954,7 +954,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
             <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
               👁️ {views}
             </Text>
-            {post.type === 'poll' && <Text style={{ color: '#2563eb', fontSize: 10, fontWeight: '600' }}>Poll</Text>}
+            {post.type === 'poll' && <Text style={{ color: '#2B3EE8', fontSize: 10, fontWeight: '600' }}>Poll</Text>}
           </View>
 
           {earned > 0 && (
@@ -1051,7 +1051,7 @@ function PostsTab({ posts, setPosts, username, colors, isDark, setActiveSub }: a
               <Ripple onPress={() => setEditingPost(null)} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
                 <Text style={{ color: colors.textSecondary, fontWeight: '600' }}>Cancel</Text>
               </Ripple>
-              <Ripple onPress={saveEdit} disabled={saving} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#2563eb', alignItems: 'center', opacity: saving ? 0.5 : 1 }}>
+              <Ripple onPress={saveEdit} disabled={saving} style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#2B3EE8', alignItems: 'center', opacity: saving ? 0.5 : 1 }}>
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '800' }}>Save</Text>}
               </Ripple>
             </View>
@@ -1105,7 +1105,7 @@ function SnapsTab({ posts, setPosts, colors, isDark }: any) {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }} contentContainerStyle={{ gap: 6 }}>
         {[{ k: 'newest', l: 'Newest' }, { k: 'liked', l: 'Most Liked' }, { k: 'viewed', l: 'Most Viewed' }, { k: 'earned', l: 'Top Earned' }].map(s => (
-          <Ripple key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2563eb' : isDark ? '#374151' : '#e5e7eb' }}>
+          <Ripple key={s.k} onPress={() => setSortBy(s.k)} style={{ paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10, backgroundColor: sortBy === s.k ? '#2B3EE8' : isDark ? '#374151' : '#e5e7eb' }}>
             <Text style={{ color: sortBy === s.k ? '#fff' : colors.textSecondary, fontSize: 11, fontWeight: '600' }}>{s.l}</Text>
           </Ripple>
         ))}
@@ -1547,16 +1547,16 @@ function EditProfileTab({ profile, setProfileData, username, isOrg, colors, isDa
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Switch account type</Text>
 
-            <View style={[styles.cardBlock, { borderColor: !isOrg ? '#bfdbfe' : colors.border, borderWidth: 2, backgroundColor: !isOrg ? '#eff6ff' : colors.card }]}>
+            <View style={[styles.cardBlock, { borderColor: !isOrg ? '#C1CBFD' : colors.border, borderWidth: 2, backgroundColor: !isOrg ? '#EEF1FE' : colors.card }]}>
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="person" size={18} color="#2563eb" />
+                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#DDE4FE', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="person" size={18} color="#2B3EE8" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: '700', color: colors.textPrimary, fontSize: 13 }}>Personal</Text>
                   <Text style={{ fontSize: 11, color: colors.textSecondary }}>Standard access for social discovery</Text>
                 </View>
-                {!isOrg && <Ionicons name="checkmark-circle" size={20} color="#2563eb" />}
+                {!isOrg && <Ionicons name="checkmark-circle" size={20} color="#2B3EE8" />}
               </View>
               {isOrg && (
                 <Ripple onPress={() => handleModeSwitch('Individual')} disabled={modeSaving} style={{ marginTop: 12, paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
@@ -1695,7 +1695,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
     <ScrollView style={{ padding: 16 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Text style={[styles.subTitle, { color: colors.textPrimary, marginBottom: 0 }]}>Preferences</Text>
-        {autoSaving && <Text style={{ color: '#2563eb', fontSize: 11 }}>Saving...</Text>}
+        {autoSaving && <Text style={{ color: '#2B3EE8', fontSize: 11 }}>Saving...</Text>}
       </View>
 
       <View style={[styles.cardBlock, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -1726,7 +1726,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
               setOfflineMode(next);
               try { AsyncStorage.setItem('tmob_offline_mode', next ? 'true' : 'false'); } catch (e) { /* ignore */ }
             }}
-            style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: offlineMode ? '#2563eb' : '#d1d5db', padding: 2, justifyContent: 'center' }}
+            style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: offlineMode ? '#2B3EE8' : '#d1d5db', padding: 2, justifyContent: 'center' }}
           >
             <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: offlineMode ? 'flex-end' : 'flex-start' }} />
           </Ripple>
@@ -1748,7 +1748,7 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
               setDataSaver(next);
               try { AsyncStorage.setItem('tmob_data_saver', next ? 'true' : 'false'); } catch (e) { /* ignore */ }
             }}
-            style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: dataSaver ? '#2563eb' : '#d1d5db', padding: 2, justifyContent: 'center' }}
+            style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: dataSaver ? '#2B3EE8' : '#d1d5db', padding: 2, justifyContent: 'center' }}
           >
             <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignSelf: dataSaver ? 'flex-end' : 'flex-start' }} />
           </Ripple>
@@ -1770,11 +1770,11 @@ function PrefsTab({ user, setProfileData, username, colors, isDark, accent }: an
                 <Text style={{ color: colors.textSecondary, fontSize: 11, marginBottom: 8 }}>{item.sub}</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {['inApp', 'email'].map(channel => (
-                    <Ripple key={channel} onPress={() => updateNotifPref(item.id, channel)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: prefVal[channel] ? '#eff6ff' : isDark ? '#1e293b' : '#f3f4f6', borderWidth: 1, borderColor: prefVal[channel] ? '#bfdbfe' : colors.border }}>
-                      <View style={{ width: 28, height: 16, borderRadius: 8, backgroundColor: prefVal[channel] ? '#2563eb' : '#d1d5db', padding: 2 }}>
+                    <Ripple key={channel} onPress={() => updateNotifPref(item.id, channel)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: prefVal[channel] ? '#EEF1FE' : isDark ? '#1e293b' : '#f3f4f6', borderWidth: 1, borderColor: prefVal[channel] ? '#C1CBFD' : colors.border }}>
+                      <View style={{ width: 28, height: 16, borderRadius: 8, backgroundColor: prefVal[channel] ? '#2B3EE8' : '#d1d5db', padding: 2 }}>
                         <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff', transform: [{ translateX: prefVal[channel] ? 12 : 0 }] }} />
                       </View>
-                      <Text style={{ fontSize: 11, fontWeight: '600', color: prefVal[channel] ? '#2563eb' : colors.textSecondary }}>{channel === 'inApp' ? 'In-app' : 'Email'}</Text>
+                      <Text style={{ fontSize: 11, fontWeight: '600', color: prefVal[channel] ? '#2B3EE8' : colors.textSecondary }}>{channel === 'inApp' ? 'In-app' : 'Email'}</Text>
                     </Ripple>
                   ))}
                 </View>
@@ -1872,7 +1872,7 @@ const styles = StyleSheet.create({
   cardHeader: { fontSize: 15, fontWeight: '700', marginBottom: 8 },
   metricRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
   metricItem: { alignItems: 'center', flex: 1 },
-  metricVal: { fontSize: 20, fontWeight: '800', color: '#2563eb' },
+  metricVal: { fontSize: 20, fontWeight: '800', color: '#2B3EE8' },
   statusBanner: { padding: 24, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   bannerText: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 8 },
   bannerSub: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 4, textAlign: 'center' },
