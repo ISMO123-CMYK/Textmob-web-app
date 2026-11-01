@@ -405,7 +405,7 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.centerFill}><ActivityIndicator color="#2563eb" /></View>
+        <View style={styles.centerFill}><ActivityIndicator color="#2B3EE8" /></View>
       </SafeAreaView>
     );
   }
@@ -512,7 +512,7 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
           </Text>
         </View>
         <Ripple onPress={() => { playClick(); setSheetTab('members'); setShowMembers(true); }} style={styles.headerIconBtn}>
-          <Ionicons name="people-outline" size={20} color={sheetTab === 'members' && showMembers ? '#2563eb' : '#6b7280'} />
+          <Ionicons name="people-outline" size={20} color={sheetTab === 'members' && showMembers ? '#2B3EE8' : '#6b7280'} />
         </Ripple>
         <Ripple onPress={() => setShowMenu(true)} style={styles.headerIconBtn}>
           <Ionicons name="ellipsis-vertical" size={18} color="#6b7280" />
@@ -649,7 +649,7 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
               )}
               {hasMore && messages.length > 0 && (
                 <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-                  {loadingMore ? <ActivityIndicator size="small" color="#2563eb" /> : (
+                  {loadingMore ? <ActivityIndicator size="small" color="#2B3EE8" /> : (
                     <Ripple onPress={loadMoreMessages}>
                       <Text style={styles.loadEarlier}>Load earlier messages</Text>
                     </Ripple>
@@ -746,7 +746,7 @@ export default function DiscussionRoomScreen({ roomId, onBack, onProfile }: Prop
                 )}
                 <View style={styles.inputRow}>
                   <Ripple onPress={pickImage} style={styles.addBtn}>
-                    {uploadingImage ? <ActivityIndicator size="small" color="#2563eb" /> : <Ionicons name="add-circle" size={26} color="#2563eb" />}
+                    {uploadingImage ? <ActivityIndicator size="small" color="#2B3EE8" /> : <Ionicons name="add-circle" size={26} color="#2B3EE8" />}
                   </Ripple>
                   <View style={styles.inputPill}>
                     <TextInput ref={inputRef} value={input} onChangeText={handleTyping}
@@ -863,7 +863,7 @@ const MessageRow = React.memo(function MessageRow({
           {!item.grouped && (
             <View style={styles.msgMetaRow}>
               <Ripple onPress={() => onProfile(msg.username)}><Text style={[styles.msgUsername, isMsgHost && styles.msgUsernameHost]}>{msg.username}</Text></Ripple>
-              {verified && <Ionicons name="checkmark-circle" size={13} color="#2563eb" />}
+              {verified && <Ionicons name="checkmark-circle" size={13} color="#2B3EE8" />}
               {isMsgHost && <View style={styles.hostBadge}><Text style={styles.hostBadgeText}>HOST</Text></View>}
               <Text style={styles.msgTime}>{timeAgo(msg.created_at)}</Text>
             </View>
@@ -930,9 +930,9 @@ function MemberRow({ username, isHost, pic, verified, onPress }: {
   return (
     <Ripple onPress={() => onPress(username)} style={styles.memberRow}>
       <Image source={{ uri: pic || DEFAULT_PIC }} style={styles.memberPic} />
-      <Text numberOfLines={1} style={[styles.memberName, isHost && { color: '#2563eb' }]}>{username}</Text>
+      <Text numberOfLines={1} style={[styles.memberName, isHost && { color: '#2B3EE8' }]}>{username}</Text>
       {isHost && <View style={styles.hostBadge}><Text style={styles.hostBadgeText}>HOST</Text></View>}
-      {verified && <Ionicons name="checkmark-circle" size={13} color="#2563eb" />}
+      {verified && <Ionicons name="checkmark-circle" size={13} color="#2B3EE8" />}
     </Ripple>
   );
 }
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   emptyHash: { width: 56, height: 56, borderRadius: 18, backgroundColor: '#eef2f7', alignItems: 'center', justifyContent: 'center' },
   emptyHashText: { fontSize: 28, fontWeight: 'bold', color: '#cbd5e1' },
   emptyText: { fontSize: 14, fontWeight: '600', color: '#9ca3af' },
-  linkText: { fontSize: 14, color: '#2563eb', fontWeight: 'bold' },
+  linkText: { fontSize: 14, color: '#2B3EE8', fontWeight: 'bold' },
   // Paywall
   paywallCard: { backgroundColor: '#fff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 320, alignItems: 'center', borderWidth: 1, borderColor: '#f3f4f6' },
   paywallIcon: { width: 56, height: 56, borderRadius: 16, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
   sheetHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   sheetTabs: { flexDirection: 'row', gap: 6 },
   sheetTab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: '#f3f4f6' },
-  sheetTabActive: { backgroundColor: '#2563eb' },
+  sheetTabActive: { backgroundColor: '#2B3EE8' },
   sheetTabText: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
   sheetTabTextActive: { color: '#fff' },
   aboutTitle: { fontSize: 16, fontWeight: 'bold', color: '#111827', marginTop: 4 },
@@ -999,13 +999,13 @@ const styles = StyleSheet.create({
   // Messages
   messagesContainer: { padding: 16, paddingBottom: 8 },
   welcome: { alignItems: 'flex-start', paddingVertical: 24, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', marginBottom: 8 },
-  welcomeHash: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  welcomeHash: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   welcomeHashText: { fontSize: 28, fontWeight: 'bold', color: '#fff', lineHeight: 31 },
   welcomeTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
   welcomeSub: { fontSize: 13, color: '#6b7280', marginTop: 6 },
   welcomeMeta: { fontSize: 12, color: '#9ca3af', marginTop: 10 },
   welcomeDesc: { fontSize: 13, color: '#4b5563', marginTop: 6, lineHeight: 19 },
-  loadEarlier: { fontSize: 12, color: '#2563eb', fontWeight: '600' },
+  loadEarlier: { fontSize: 12, color: '#2B3EE8', fontWeight: '600' },
   dateDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 14 },
   dateLine: { flex: 1, height: 1, backgroundColor: '#f3f4f6' },
   dateText: { fontSize: 11, fontWeight: 'bold', color: '#9ca3af' },
@@ -1018,9 +1018,9 @@ const styles = StyleSheet.create({
   msgAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f3f4f6' },
   msgMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' },
   msgUsername: { fontSize: 14, fontWeight: '700', color: '#1f2937' },
-  msgUsernameHost: { color: '#2563eb' },
-  hostBadge: { backgroundColor: '#dbeafe', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  hostBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#2563eb' },
+  msgUsernameHost: { color: '#2B3EE8' },
+  hostBadge: { backgroundColor: '#DDE4FE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  hostBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#2B3EE8' },
   msgTime: { fontSize: 11, color: '#9ca3af' },
   msgText: { fontSize: 14, color: '#1f2937', lineHeight: 20 },
   msgImage: { width: 220, height: 150, borderRadius: 8, backgroundColor: '#f3f4f6', marginTop: 4 },
@@ -1028,7 +1028,7 @@ const styles = StyleSheet.create({
   msgDeletedText: { fontSize: 11, color: '#d1d5db', fontStyle: 'italic' },
   msgMoreBtn: { padding: 6 },
   replyQuote: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#93c5fd' },
-  replyUser: { fontSize: 11, color: '#3b82f6', fontWeight: '600' },
+  replyUser: { fontSize: 11, color: '#6E7CF7', fontWeight: '600' },
   replyContent: { fontSize: 11, color: '#9ca3af', flex: 1 },
   reactionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
   reactionChip: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
@@ -1051,9 +1051,9 @@ const styles = StyleSheet.create({
   hostPanelTitle: { fontSize: 12, fontWeight: 'bold', color: '#111827' },
   hostPanelLabel: { fontSize: 10, color: '#9ca3af', fontWeight: 'bold', letterSpacing: 1, marginBottom: 8 },
   modeBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: 'transparent', marginBottom: 4 },
-  modeBtnActive: { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' },
+  modeBtnActive: { backgroundColor: '#EEF1FE', borderColor: '#C1CBFD' },
   modeBtnText: { fontSize: 12, fontWeight: '600', color: '#4b5563' },
-  modeBtnTextActive: { color: '#2563eb' },
+  modeBtnTextActive: { color: '#2B3EE8' },
   // Giphy
   giphyPanel: { marginHorizontal: 16, marginBottom: 8, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f3f4f6', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, elevation: 4, maxHeight: 260, overflow: 'hidden' },
   giphySearchWrap: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 8 },
@@ -1070,13 +1070,13 @@ const styles = StyleSheet.create({
   inputPill: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
   inputField: { flex: 1, fontSize: 14, color: '#111827', paddingVertical: 0, includeFontPadding: false, textAlignVertical: 'center' },
   gifLabel: { fontSize: 10, fontWeight: 'bold', color: '#9ca3af', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 2 },
-  sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#2B3EE8', alignItems: 'center', justifyContent: 'center' },
   previewImg: { height: 80, width: 120, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb' },
   previewX: { position: 'absolute', top: -6, right: 108, width: 20, height: 20, backgroundColor: '#ef4444', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   previewXText: { fontSize: 10, fontWeight: 'bold', color: '#fff' },
-  replyPreview: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 },
+  replyPreview: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#EEF1FE', borderWidth: 1, borderColor: '#C1CBFD', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 },
   replyPreviewBar: { width: 2, height: 32, backgroundColor: '#60a5fa', borderRadius: 1 },
-  replyPreviewUser: { fontSize: 11, fontWeight: 'bold', color: '#2563eb' },
+  replyPreviewUser: { fontSize: 11, fontWeight: 'bold', color: '#2B3EE8' },
   replyPreviewContent: { fontSize: 11, color: '#6b7280' },
   mentionBox: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#f3f4f6', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8, elevation: 3, marginBottom: 8, maxHeight: 192 },
   mentionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
