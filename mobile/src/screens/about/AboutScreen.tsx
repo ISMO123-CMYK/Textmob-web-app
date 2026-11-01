@@ -69,5 +69,5 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  linkText: { color: '#2563eb', fontSize: 15, fontWeight: '500' },
+  linkText: { color: '#2B3EE8', fontSize: 15, fontWeight: '500' },
 });
