@@ -37,11 +37,13 @@
           "androidIntentFilters": [
             "text/*",
             "image/*",
-            "video/*"
+            "video/*",
+            "audio/*"
           ],
           "androidMultiIntentFilters": [
             "image/*",
-            "video/*"
+            "video/*",
+            "audio/*"
           ]
         }
       ],
