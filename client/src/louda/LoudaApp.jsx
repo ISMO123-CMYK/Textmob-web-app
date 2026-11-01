@@ -3455,8 +3455,16 @@ const ChatInput = ({
   };
 
   const handleFileChange = async (e) => {
-  let files = Array.from(e.target.files);
+  let files = Array.from(e.target.files || []);
+  e.target.value = "";
   if (!files.length) return;
+  const supportedFiles = files.filter(f =>
+    f.type.startsWith("image/") || f.type.startsWith("video/") || f.type.startsWith("audio/")
+  );
+  if (supportedFiles.length < files.length) {
+    Lexum.alert({ title: "Unsupported item", message: "Only photos, videos, and audio can be attached." });
+  }
+  files = supportedFiles;
   if (previewMedia.length + files.length > 6) {
   Lexum.alert({ title: "Notice", message: "Maximum 6 media files allowed." });
   files = files.slice(0, 6 - previewMedia.length);
@@ -3477,11 +3485,12 @@ const ChatInput = ({
   for (const f of validFiles) {
   const fd = new FormData();
   fd.append("file", f);
-  fd.append("type", f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : "file");
+  const type = f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : "voice";
+  fd.append("type", type);
   const res = await fetch(`${API_BASE_URL}/api/upload`, { method: "POST", body: fd });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Upload failed");
-  media.push({ type: data.type, url: data.url });
+  media.push({ type: data.type || type, url: data.url });
   }
   setPreviewMedia(p => [...p, ...media]);
   setShowAttachMenu(false);
@@ -3851,7 +3860,7 @@ const ChatInput = ({
   </div>
   )}
 
-  <input type="file" ref={fileInputRef} multiple accept="*" className="hidden" onChange={handleFileChange} />
+  <input type="file" ref={fileInputRef} multiple accept="image/*,video/*,audio/*" className="hidden" onChange={handleFileChange} />
   <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
 
   {showCamera && createPortal(
@@ -8236,9 +8245,14 @@ const MobileHome = () => {
   const handleConfirmShareMedia = async (targets) => {
   if (!sharePayload || !sharePayload.files || !targets.length) return;
 
-  let files = sharePayload.files;
+  let files = sharePayload.files.filter(f =>
+    f.type && (f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/'))
+  );
+  if (files.length < sharePayload.files.length) {
+    Lexum.alert({ title: 'Notice', message: 'Documents and unsupported files cannot be forwarded. Use photos, videos, or audio.' });
+  }
   if (files.length > 6) {
-  Lexum.alert({ title: 'Notice', message: 'Only the first 6 files will be sent.' });
+  Lexum.alert({ title: 'Notice', message: 'Only the first 6 media files will be sent.' });
   files = files.slice(0, 6);
   }
 
@@ -8258,7 +8272,7 @@ const MobileHome = () => {
   for (const f of validFiles) {
   const fd = new FormData();
   fd.append('file', f);
-  fd.append('type', f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'file');
+  fd.append('type', f.type.startsWith('image/') ? 'image' : f.type.startsWith('video/') ? 'video' : 'voice');
   const res = await fetch(`${API_BASE_URL}/api/upload`, { method: 'POST', body: fd });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error);
