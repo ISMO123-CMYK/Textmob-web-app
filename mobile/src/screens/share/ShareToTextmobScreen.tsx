@@ -141,7 +141,7 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
         size: f.size ?? (f as any).fileSize ?? null,
       };
       fileIndex++;
-      if (mime.startsWith('image/') || mime.startsWith('video/')) items.push(item);
+      if (mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/')) items.push(item);
       else otherItems.push(item);
     }
     items.push(...urlMedia);
@@ -158,12 +158,12 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
   const hasOtherFiles = otherItems.length > 0;
   const hasAnything = hasText || hasAnyMedia || hasOtherFiles;
 
-  const canPost = hasText || hasAnyMedia;
+  const canPost = hasText || images.length > 0 || videos.length > 0;
   const canPostToSnaps = mediaItems.length === 1 && videos.length === 1;
 
   // Chat send limits (mirrored from the Louda store send path): 6 files,
   // 10 MB each — applied here so the user sees what gets dropped up front.
-  const allChatFiles = [...mediaItems, ...otherItems];
+  const allChatFiles = mediaItems;
   const chatFiles = allChatFiles
     .filter(f => f.size == null || f.size <= 10 * 1024 * 1024)
     .slice(0, 6);
@@ -270,17 +270,17 @@ export default function ShareToTextmobScreen({ intent, onDone }: { intent: Share
                     </View>
                   </View>
                 ))}
-                {otherItems.map((f, i) => (
-                  <View key={`f${i}`} style={styles.fileRow}>
+                {hasOtherFiles && (
+                  <View style={[styles.fileRow, { marginTop: 8 }]}>
                     <View style={[styles.fileIcon, { backgroundColor: isDark ? '#334155' : '#e2e8f0' }]}>
-                      <Ionicons name="document" size={16} color={isDark ? '#cbd5e1' : '#475569'} />
+                      <Ionicons name="alert-circle-outline" size={16} color={colors.textSecondary} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[styles.fileName, { color: colors.textPrimary }]} numberOfLines={1}>{f.name}</Text>
-                      <Text style={[styles.fileMeta, { color: colors.textSecondary }]}>File {f.size ? `· ${(f.size / (1024 * 1024)).toFixed(1)} MB` : ''}</Text>
+                      <Text style={[styles.fileName, { color: colors.textPrimary }]}>Some items aren't supported</Text>
+                      <Text style={[styles.fileMeta, { color: colors.textSecondary }]}>Share photos, videos, audio, or text instead of documents.</Text>
                     </View>
                   </View>
-                ))}
+                )}
               </View>
             </>
           )}
