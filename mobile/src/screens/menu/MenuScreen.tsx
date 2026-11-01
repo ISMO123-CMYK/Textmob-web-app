@@ -118,7 +118,7 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} style={{ flex: 1 }}>
         {/* Featured Card */}
-        <View style={[s.featuredCard, { borderColor: isDark ? '#1e3a8a' : '#dbeafe', backgroundColor: isDark ? '#172554' : '#eff6ff' }]}>
+        <View style={[s.featuredCard, { borderColor: isDark ? '#1e3a8a' : '#DDE4FE', backgroundColor: isDark ? '#172554' : '#EEF1FE' }]}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={s.featuredBadge}>YOUR NEXT MOVE</Text>
             <Text style={[s.featuredTitle, { color: colors.textPrimary }]}>Grow faster from here</Text>
@@ -126,16 +126,16 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
               Manage your profile, earnings, and account tools in one place.
             </Text>
           </View>
-          <View style={[s.featuredIconWrap, { backgroundColor: '#2563eb' }]}>
+          <View style={[s.featuredIconWrap, { backgroundColor: '#2B3EE8' }]}>
             <Ionicons name="settings-outline" size={24} color="#fff" />
           </View>
         </View>
         <View style={s.featuredButtons}>
-          <Ripple style={[s.featuredBtn, { backgroundColor: '#2563eb' }]} onPress={() => navigation.navigate('AccountsCenter')}>
+          <Ripple style={[s.featuredBtn, { backgroundColor: '#2B3EE8' }]} onPress={() => navigation.navigate('AccountsCenter')}>
             <Text style={s.featuredBtnText}>Accounts Center</Text>
           </Ripple>
-          <Ripple style={[s.featuredBtnSec, { borderColor: '#3b82f6' }]} onPress={() => navigation.navigate('Wallet')}>
-            <Text style={[s.featuredBtnSecText, { color: '#2563eb' }]}>View Wallet</Text>
+          <Ripple style={[s.featuredBtnSec, { borderColor: '#6E7CF7' }]} onPress={() => navigation.navigate('Wallet')}>
+            <Text style={[s.featuredBtnSecText, { color: '#2B3EE8' }]}>View Wallet</Text>
           </Ripple>
         </View>
 
@@ -199,14 +199,14 @@ export default function MenuScreen({ navigation }: { navigation: any }) {
                   <View key={acc.username} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }}>
                     <Ripple style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}
                       onPress={() => handleSwitchAccount(acc.username, acc.password)}>
-                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#dbeafe', alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ color: '#2563eb', fontWeight: '800', fontSize: 14 }}>{acc.username.slice(0, 2).toUpperCase()}</Text>
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#DDE4FE', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: '#2B3EE8', fontWeight: '800', fontSize: 14 }}>{acc.username.slice(0, 2).toUpperCase()}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 15 }}>@{acc.username}</Text>
-                        <Text style={{ color: '#2563eb', fontSize: 12, fontWeight: '600' }}>Tap to switch</Text>
+                        <Text style={{ color: '#2B3EE8', fontSize: 12, fontWeight: '600' }}>Tap to switch</Text>
                       </View>
-                      <Ionicons name="log-in-outline" size={18} color="#2563eb" />
+                      <Ionicons name="log-in-outline" size={18} color="#2B3EE8" />
                     </Ripple>
                     <Ripple onPress={() => removeSavedAccount(acc.username)} style={{ padding: 8 }}>
                       <Ionicons name="close" size={18} color={colors.textSecondary} />
@@ -230,7 +230,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   headerSubtitle: { fontSize: 12, marginTop: 1 },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e5e7eb' },
   featuredCard: { margin: 16, marginBottom: 8, borderRadius: 20, borderWidth: 1, padding: 16, flexDirection: 'row', alignItems: 'center' },
-  featuredBadge: { fontSize: 10, fontWeight: '800', color: '#3b82f6', letterSpacing: 1 },
+  featuredBadge: { fontSize: 10, fontWeight: '800', color: '#6E7CF7', letterSpacing: 1 },
   featuredTitle: { fontSize: 15, fontWeight: '800', marginTop: 4 },
   featuredDesc: { fontSize: 12, marginTop: 4, lineHeight: 16 },
   featuredIconWrap: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
