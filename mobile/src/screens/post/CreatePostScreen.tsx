@@ -354,10 +354,10 @@ export default function CreatePostScreen({ route }: { route: any }) {
               <Text style={[s.mdBtnText, { color: colors.textPrimary }]}>{'•'}</Text>
             </Ripple>
             <Ripple
-              style={[s.mdBtn, showPreview && { backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff' }]}
+              style={[s.mdBtn, showPreview && { backgroundColor: isDark ? 'rgba(110,124,247,0.15)' : '#EEF1FE' }]}
               onPress={() => setShowPreview(p => !p)}
             >
-              <Ionicons name={showPreview ? 'eye' : 'eye-off-outline'} size={16} color={showPreview ? '#2563eb' : colors.textSecondary} />
+              <Ionicons name={showPreview ? 'eye' : 'eye-off-outline'} size={16} color={showPreview ? '#2B3EE8' : colors.textSecondary} />
             </Ripple>
           </View>
 
@@ -372,15 +372,15 @@ export default function CreatePostScreen({ route }: { route: any }) {
           {/* Actions toolbar */}
           <View style={s.toolbar}>
             <Ripple
-              style={[s.toolbarItem, media.length > 0 && { backgroundColor: isDark ? 'rgba(37,99,235,0.12)' : '#eff6ff' }]}
+              style={[s.toolbarItem, media.length > 0 && { backgroundColor: isDark ? 'rgba(43,62,232,0.12)' : '#EEF1FE' }]}
               onPress={pickMedia}
               disabled={showPollBuilder}
             >
-              <Ionicons name="image-outline" size={20} color={showPollBuilder ? colors.border : media.length > 0 ? '#2563eb' : colors.textSecondary} />
-              <Text style={[s.toolbarLabel, { color: showPollBuilder ? colors.border : media.length > 0 ? '#2563eb' : colors.textSecondary }]}>Media</Text>
+              <Ionicons name="image-outline" size={20} color={showPollBuilder ? colors.border : media.length > 0 ? '#2B3EE8' : colors.textSecondary} />
+              <Text style={[s.toolbarLabel, { color: showPollBuilder ? colors.border : media.length > 0 ? '#2B3EE8' : colors.textSecondary }]}>Media</Text>
             </Ripple>
             <Ripple
-              style={[s.toolbarItem, selectedMood && { backgroundColor: isDark ? 'rgba(37,99,235,0.12)' : '#eff6ff' }]}
+              style={[s.toolbarItem, selectedMood && { backgroundColor: isDark ? 'rgba(43,62,232,0.12)' : '#EEF1FE' }]}
               onPress={() => setShowMoodPicker(true)}
             >
               {selectedMood ? (
@@ -388,15 +388,15 @@ export default function CreatePostScreen({ route }: { route: any }) {
               ) : (
                 <Ionicons name="happy-outline" size={20} color={colors.textSecondary} />
               )}
-              <Text style={[s.toolbarLabel, { color: selectedMood ? '#2563eb' : colors.textSecondary }]}>{selectedMood ? selectedMood.label : 'Feeling'}</Text>
+              <Text style={[s.toolbarLabel, { color: selectedMood ? '#2B3EE8' : colors.textSecondary }]}>{selectedMood ? selectedMood.label : 'Feeling'}</Text>
             </Ripple>
             <Ripple
-              style={[s.toolbarItem, showPollBuilder && { backgroundColor: isDark ? 'rgba(37,99,235,0.12)' : '#eff6ff' }]}
+              style={[s.toolbarItem, showPollBuilder && { backgroundColor: isDark ? 'rgba(43,62,232,0.12)' : '#EEF1FE' }]}
               onPress={() => setShowPollBuilder(!showPollBuilder)}
               disabled={media.length > 0}
             >
-              <Ionicons name="bar-chart-outline" size={20} color={media.length > 0 ? colors.border : showPollBuilder ? '#2563eb' : colors.textSecondary} />
-              <Text style={[s.toolbarLabel, { color: media.length > 0 ? colors.border : showPollBuilder ? '#2563eb' : colors.textSecondary }]}>Poll</Text>
+              <Ionicons name="bar-chart-outline" size={20} color={media.length > 0 ? colors.border : showPollBuilder ? '#2B3EE8' : colors.textSecondary} />
+              <Text style={[s.toolbarLabel, { color: media.length > 0 ? colors.border : showPollBuilder ? '#2B3EE8' : colors.textSecondary }]}>Poll</Text>
             </Ripple>
             <Ripple
               style={s.toolbarItem}
@@ -438,7 +438,7 @@ const makeStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   },
   headerBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 16, fontWeight: '700' },
-  postBtn: { backgroundColor: '#2563eb', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
+  postBtn: { backgroundColor: '#2B3EE8', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
   postBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   moodBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, alignSelf: 'flex-start', marginBottom: 8 },
   moodLabel: { fontSize: 12, fontWeight: '600' },
