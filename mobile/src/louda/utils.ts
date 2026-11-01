@@ -1,14 +1,8 @@
 import { LOUDA_API_URL, TTS_VOICES } from './constants';
 
-// ─── Cloudinary optimization (LoudaApp.jsx:62) ───
-export const getOptimizedMediaUrl = (url: string, type = 'auto', quality: string | null = null): string => {
-  if (!url || !url.includes('cloudinary.com')) return url;
-  const savedQuality = quality || 'auto';
-  const qualityMap: Record<string, string> = { low: 'q_30', medium: 'q_60', high: 'q_80', original: 'q_100', auto: 'q_auto' };
-  const q = qualityMap[savedQuality] || 'q_auto';
-  if (url.includes('/upload/') && !url.includes('q_')) {
-    return url.replace('/upload/', `/upload/${q},f_auto/`);
-  }
+// Preserve the exact media URL supplied by the upload service.
+// Cloudinary transformations are intentionally not appended or rewritten.
+export const getOptimizedMediaUrl = (url: string, _type = 'auto', _quality: string | null = null): string => {
   return url;
 };
 
