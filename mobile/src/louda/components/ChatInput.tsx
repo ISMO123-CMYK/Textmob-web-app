@@ -330,10 +330,15 @@ export function ChatInput({
       maxTimerRef.current = setTimeout(() => {
         if (recordingRef.current) void finishRecording(false);
       }, MAX_RECORD_MS);
-    } catch {
+    } catch (error: any) {
       holdingRef.current = false;
       recordingRef.current = false;
-      loudaAlert({ title: 'Error', message: 'Microphone access denied' });
+      setIsRecording(false);
+      await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
+      const message = error && /permission|denied/i.test(String(error.message || ''))
+        ? 'Please allow microphone access in your device settings.'
+        : 'Could not start voice recording. Please try again.';
+      loudaAlert({ title: 'Recording unavailable', message });
     }
   };
 
@@ -453,6 +458,7 @@ export function ChatInput({
       if (recordingRef.current) {
         recordingRef.current = false;
         try { recorder.stop(); } catch {}
+        void setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }).catch(() => {});
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
