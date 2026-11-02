@@ -497,11 +497,11 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
   const rank = stats?.rank ?? null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 md:space-y-6">
       {!profile?.verified && (
         <div
           onClick={() => setTab('verification')}
-          className="bg-white border border-brand-100 rounded-lg p-5 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer"
+          className="bg-white border border-brand-100 rounded-2xl p-5 md:p-6 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer"
         >
           <div className="w-12 h-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xl flex-shrink-0">
             {K.CheckCircle || K.Check}
@@ -519,7 +519,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
         </div>
       )}
       {!isOrg && (
-        <div className="bg-white border border-purple-100 rounded-lg p-5 flex items-center gap-4">
+        <div className="bg-white border border-purple-100 rounded-2xl p-5 md:p-6 flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xl">{K.Bolt}</div>
           <div className="flex-1">
             <p className="text-sm font-bold text-gray-900">Switch to Professional</p>
@@ -530,7 +530,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       )}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
+          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-gray-900">Dashboard</h2>
           <p className="text-xs text-gray-400 mt-0.5">Your performance at a glance</p>
         </div>
         <button
@@ -542,12 +542,12 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       </div>
 
       {/* Hero card */}
-      <div style={{ background: isOrg ? 'linear-gradient(135deg, #2B3EE8, #6d28d9)' : 'linear-gradient(135deg, #2B3EE8, #1B28A3)' }} className='rounded-lg p-5 text-white'>
+      <div style={{ background: isOrg ? 'linear-gradient(135deg, #2B3EE8, #6d28d9)' : 'linear-gradient(135deg, #2B3EE8, #1B28A3)' }} className='rounded-2xl md:rounded-[28px] p-6 md:p-8 text-white shadow-xl shadow-brand-600/15 border border-white/10'>
         <div className="flex items-center gap-3 mb-5">
           <img
             src={profile?.profile_pic || DEFAULT_AVATAR}
             alt=""
-            className="w-12 h-12 rounded-lg object-cover border-2 border-white/20 flex-shrink-0"
+            className="w-12 h-12 md:w-14 md:h-14 rounded-2xl object-cover border-2 border-white/25 flex-shrink-0"
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -557,13 +557,13 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
             <p className="text-brand-100 text-xs opacity-80">@{profile?.username || 'user'}</p>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
             { label: 'Followers', value: followers.toLocaleString() },
             { label: 'Balance', value: `₦${ngnValue}` },
             { label: 'Interactions', value: totalInteractions.toLocaleString() },
           ].map(stat => (
-            <div key={stat.label} className="bg-white/10 rounded-lg p-3 border border-white/10">
+            <div key={stat.label} className="bg-white/10 rounded-2xl p-4 border border-white/15 backdrop-blur-sm">
               <p className="text-[10px] text-brand-100 mb-1">{stat.label}</p>
               <p className="text-lg font-bold">{stat.value}</p>
             </div>
@@ -572,14 +572,14 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'New Post', icon: K.Plus, tab: 'composer', color: 'bg-brand-50 text-brand-600' },
           { label: 'Earnings', icon: K.Coin, tab: 'monetize', color: 'bg-emerald-50 text-emerald-600' },
           { label: 'Analytics', icon: K.Chart, tab: 'analytics', color: 'bg-purple-50 text-purple-600' },
           { label: 'Profile', icon: K.Profile, tab: 'profile', color: 'bg-orange-50 text-orange-600' },
         ].map(a => (
-          <button key={a.tab} onClick={() => setTab(a.tab)} className="flex flex-col items-center gap-2 p-3 rounded-lg bg-white border border-gray-200 hover:border-brand-200 transition-colors">
+          <button key={a.tab} onClick={() => setTab(a.tab)} className="flex flex-col items-center gap-2.5 p-4 md:p-5 rounded-2xl bg-white border border-[#E7EAF2] shadow-sm hover:border-brand-200 hover:shadow-md transition-all">
             <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", a.color)}>{a.icon}</div>
             <p className="text-[10px] font-medium text-gray-700">{a.label}</p>
           </button>
@@ -587,7 +587,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       </div>
 
       {/* Engagement bar */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="bg-white border border-[#E7EAF2] rounded-2xl p-5 md:p-6 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-medium text-gray-700">Avg. interactions per post</p>
           <span className={cn('text-base font-bold', accentText)}>{avgInteractions}</span>
@@ -600,7 +600,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
 
       {/* Rank */}
       {rank && (
-        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg px-4 py-3">
+        <div className="flex items-center gap-3 bg-white border border-[#E7EAF2] rounded-2xl px-4 py-4 shadow-sm">
           <div className="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center text-yellow-500 flex-shrink-0">{K.Crown}</div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900">#{rank} on the leaderboard</p>
