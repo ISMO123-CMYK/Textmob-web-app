@@ -652,7 +652,7 @@ export default function MakePostContent(props) {
  onClick={qe}
  disabled={c || (!n.trim() && i.length === 0)}
  className={cn(
- `px-4 py-1.5 rounded-full text-xs font-bold transition-colors`,
+ `px-4 py-1.5 md:px-5 md:py-2.5 rounded-full md:rounded-xl text-xs md:text-sm font-bold transition-colors`,
  c ? `bg-gray-100 text-gray-400 cursor-not-allowed` : `bg-brand-600 text-white hover:opacity-90`
  )}
  >
