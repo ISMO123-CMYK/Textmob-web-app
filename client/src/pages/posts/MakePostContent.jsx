@@ -113,8 +113,8 @@ export default function MakePostContent(props) {
  (async () => {
  try {
  let res = await apiFetch(`/search-users?q=${encodeURIComponent(mentionMatch[1])}&currentUsername=${localStorage.currentUser || ''}`);
- if (res.ok) {
- let data = await res.json();
+ let data = res.ok ? await res.json() : [];
+ if (requestId === suggestionRequestRef.current) {
  xe((Array.isArray(data) ? data : []).map(u => ({ type: 'user', ...u })));
  Ce(0);
  }
@@ -127,10 +127,18 @@ export default function MakePostContent(props) {
  (async () => {
  try {
  let res = await apiFetch(`/search-suggest?query=${encodeURIComponent(q)}&currentUsername=${localStorage.currentUser || ''}`);
- if (res.ok) {
- xe((await res.json()) || []);
- Ce(0);
+ let data = res.ok ? await res.json() : [];
+ if (requestId !== suggestionRequestRef.current) return;
+ let items = Array.isArray(data) ? data : [];
+ let cleanTag = q.replace(/^#+/, '').toLowerCase();
+ let hasExactTag = items.some(item =>
+ String(item.query || '').replace(/^#+/, '').toLowerCase() === cleanTag
+ );
+ if (!hasExactTag && cleanTag) {
+ items.push({ type: 'hashtag', query: '#' + cleanTag, count: 0, isNew: true });
  }
+ xe(items.slice(0, 9));
+ Ce(0);
  } catch { }
  })();
  } else {
@@ -145,8 +153,8 @@ export default function MakePostContent(props) {
  }
 
  let t = e.type === `user` ? `@${e.username}` : String(e.query || ``);
- if (we.symbol === `#` && t.charAt(0) !== `#`) t = `#` + t;
- if (we.symbol === `@` && t.charAt(0) !== `@`) t = `@` + t;
+ if (we.symbol === `#`) t = `#` + t.replace(/^#+/, ``);
+ if (we.symbol === `@`) t = `@` + t.replace(/^@+/, ``);
  let i = we.start;
  let el = ge.current;
  if (!el) return;
