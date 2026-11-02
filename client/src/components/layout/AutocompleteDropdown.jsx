@@ -67,9 +67,9 @@ export default function AutocompleteDropdown({ items, onSelect, activeIndex }) {
  {item.fullname}
  </p>
  )}
- {!isUser && item.count > 0 && item.type === 'hashtag' && (
- <p className={cn("text-[10px] truncate opacity-80 uppercase font-black tracking-widest", active ? "text-brand-100" : "text-gray-400")}>
- Trending topic
+ {!isUser && item.type === 'hashtag' && (
+ <p className={cn("text-[10px] truncate font-semibold", active ? "text-brand-100" : "text-gray-400")}>
+ {item.isNew ? 'New hashtag · Add to post' : item.count > 0 ? `Used in ${item.count} recent posts` : 'Hashtag'}
  </p>
  )}
  </div>
