@@ -631,12 +631,12 @@ export default function MakePostContent(props) {
  </div>
 
  {e && (
- <div className={`fixed inset-0 z-50 bg-white flex flex-col md:bg-black/40 md:items-center md:justify-center`}>
+ <div className={`fixed inset-0 z-50 bg-white flex flex-col md:bg-slate-950/40 md:backdrop-blur-sm md:items-center md:justify-center`}>
  <div
- className={`flex flex-col w-full h-full md:h-auto md:max-h-[90vh] md:max-w-2xl md:rounded-lg md:border border-gray-100 bg-white overflow-hidden`}
+ className={`flex flex-col w-full h-full md:h-auto md:max-h-[90vh] md:max-w-3xl md:rounded-3xl md:border border-gray-100 md:border-[#E7EAF2] bg-white overflow-hidden md:shadow-2xl`}
  onClick={(e) => e.stopPropagation()}
  >
- <div className={`flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0`}>
+ <div className={`flex items-center justify-between px-4 py-3 md:px-7 md:py-5 border-b border-gray-100 flex-shrink-0`}>
  <button
  onClick={() => t(false)}
  className={`w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors`}
@@ -646,7 +646,7 @@ export default function MakePostContent(props) {
  </svg>
  </button>
 
- <p className={`text-sm font-bold text-gray-900 `}>{`Create post`}</p>
+ <p className={`text-sm md:text-lg font-extrabold text-gray-900 tracking-tight`}>{`Create post`}</p>
 
  <button
  onClick={qe}
@@ -661,14 +661,14 @@ export default function MakePostContent(props) {
  </div>
 
  <div
- className={`relative flex-1 overflow-y-auto px-4 py-4`}
+ className={`relative flex-1 overflow-y-auto px-4 py-4 md:px-8 md:py-7`}
  onDragEnter={handleComposerDragEnter}
  onDragOver={handleComposerDragOver}
  onDragLeave={handleComposerDragLeave}
  onDrop={handleComposerDrop}
  >
  {isDragActive && (
- <div className={`absolute inset-3 z-40 flex items-center justify-center rounded-2xl border-2 border-dashed border-brand-500 bg-brand-50/95 pointer-events-none`}>
+ <div className={`absolute inset-3 md:inset-5 z-40 flex items-center justify-center rounded-2xl border-2 border-dashed border-brand-500 bg-brand-50/95 backdrop-blur-sm pointer-events-none`}>
  <div className={`px-6 py-8 text-center`}>
  <div className={`mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm`}>
  <svg viewBox={`0 0 24 24`} className={`h-7 w-7 fill-none stroke-current`} strokeWidth={`1.8`}>
@@ -676,7 +676,7 @@ export default function MakePostContent(props) {
  <path strokeLinecap={`round`} strokeLinejoin={`round`} d={`M5 14v4a2 2 0 002 2h10a2 2 0 002-2v-4`} />
  </svg>
  </div>
- <p className={`text-sm font-bold text-brand-700`}>Drop photos or videos here</p>
+ <p className={`text-sm md:text-base font-bold text-brand-700`}>Drop photos or videos here</p>
  <p className={`mt-1 text-xs text-brand-600`}>Up to 10 photos or one video · 100MB maximum</p>
  </div>
  </div>
@@ -684,7 +684,7 @@ export default function MakePostContent(props) {
  <div className={`flex items-start gap-3`}>
  <img
  src={localStorage.cached_profile_pic || `${DEFAULT_PIC}`}
- className={`w-10 h-10 rounded-full object-cover`}
+ className={`w-10 h-10 md:w-12 md:h-12 rounded-full object-cover ring-2 ring-gray-100`}
  alt={`Profile`}
  />
 
@@ -700,7 +700,7 @@ export default function MakePostContent(props) {
  contentEditable={true}
  onDragOver={(e) => e.preventDefault()}
  data-placeholder={`What's on your mind?`}
- className={`min-h-[140px] text-sm leading-relaxed text-gray-800 focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300 `}
+ className={`min-h-[140px] md:min-h-[220px] text-sm md:text-base leading-relaxed text-gray-800 focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300 `}
  style={{
  wordBreak: `break-word`,
  overflowWrap: `break-word`,
