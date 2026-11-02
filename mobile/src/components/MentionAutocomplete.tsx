@@ -117,7 +117,7 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
         const tags = await loadTrendingHashtags();
         if (requestId !== requestIdRef.current) return;
         const needle = query.toLowerCase();
-        const matches = tags
+        const matches: Suggestion[] = tags
           .filter(t => t.toLowerCase().indexOf(needle) === 0)
           .slice(0, 5)
           .map(t => ({
