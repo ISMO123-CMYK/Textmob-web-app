@@ -194,16 +194,16 @@ export default function AccountsCenter() {
   }
 
   const renderNav = (onItemClick) => NAV.map((section, si) => (
-    <div key={si} className="mb-3">
-      <p className="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-widest">{section.section}</p>
+    <div key={si} className="mb-5">
+      <p className="px-4 mb-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-[0.18em]">{section.section}</p>
       <div className="space-y-0.5">
         {section.items.map(tab => (
           <button
             key={tab.key}
             onClick={() => { setActiveTab(tab.key); onItemClick?.(); }}
             className={cn(
-              'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-              activeTab === tab.key ? cn(accentLight) : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
+              'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+              activeTab === tab.key ? cn('bg-[#EEF1FE] border-brand-100 text-brand-700 shadow-sm', accentLight) : 'border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             )}
           >
             <span className={activeTab === tab.key ? accentText : 'text-gray-400'}>{tab.icon}</span>
@@ -215,7 +215,7 @@ export default function AccountsCenter() {
   ));
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="accounts-center-page min-h-screen bg-[#F7F8FC] flex text-slate-900">
       {alertModal.open && (
         <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4" onClick={() => setAlertModal({ ...alertModal, open: false })}>
           <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -226,8 +226,17 @@ export default function AccountsCenter() {
         </div>
       )}
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 bg-white border-r border-gray-200 sticky top-0 h-screen overflow-y-auto">
-        <div className="flex items-center gap-2.5 px-3 py-3 border-b border-gray-200">
+      <aside className="hidden lg:flex flex-col w-[264px] flex-shrink-0 bg-white border-r border-[#E7EAF2] sticky top-0 h-screen overflow-y-auto z-30 shadow-[1px_0_0_rgba(15,23,42,0.02)]">
+        <div className="px-5 pt-6 pb-5 border-b border-[#E7EAF2]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white text-xl font-black shadow-lg shadow-brand-600/20">T</div>
+            <div className="min-w-0">
+              <p className="text-base font-extrabold tracking-tight text-gray-900 leading-none">TextMob</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-brand-600 mt-1.5">Account Center</p>
+            </div>
+          </div>
+        </div>
+        <div className="mx-4 mt-4 mb-2 flex items-center gap-3 rounded-2xl border border-[#E7EAF2] bg-[#F8F9FD] p-3">
           <img src={profile?.profile_pic || defaultPic} alt="" className="w-9 h-9 rounded-full object-cover border border-gray-200 flex-shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
@@ -237,7 +246,14 @@ export default function AccountsCenter() {
             <p className="text-xs text-gray-400 truncate">@{username}</p>
           </div>
         </div>
-        <nav className="flex-1 py-3 px-2">{renderNav()}</nav>
+        <nav className="flex-1 py-5 px-3">{renderNav()}</nav>
+        <div className="px-4 py-4 border-t border-[#E7EAF2]">
+          <a href="/" data-lexum className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-brand-600 transition-colors">
+            <span className="text-brand-600">{K.Home}</span>
+            Back to TextMob
+          </a>
+          <p className="px-3 mt-2 text-[10px] text-slate-400">Your space to manage and grow.</p>
+        </div>
       </aside>
 
       {/* Mobile sidebar */}
@@ -265,17 +281,34 @@ export default function AccountsCenter() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-3 py-2.5 border-b border-gray-200 bg-white">
+        <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-[#E7EAF2] bg-white/95 backdrop-blur">
           <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
           </button>
-          <p className="text-sm font-semibold text-gray-900">
-            {NAV.flatMap(s => s.items).find(t => t.key === activeTab)?.label}
-          </p>
+          <div className="text-center min-w-0">
+            <p className="text-sm font-extrabold text-gray-900">{NAV.flatMap(s => s.items).find(t => t.key === activeTab)?.label}</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-brand-600">Account Center</p>
+          </div>
           <img src={profile?.profile_pic || defaultPic} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-200" />
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 max-w-2xl w-full mx-auto">
+        <header className="hidden lg:flex sticky top-0 z-20 h-[76px] items-center justify-between gap-6 px-8 xl:px-10 border-b border-[#E7EAF2] bg-white/90 backdrop-blur">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-600">Creator workspace</p>
+            <p className="text-sm font-semibold text-slate-500 mt-1">Manage your identity, content and growth in one place.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden xl:block text-right">
+              <p className="text-xs font-bold text-slate-800">{profile?.fullname || username}</p>
+              <p className="text-[11px] text-slate-400">@{username}</p>
+            </div>
+            <img src={profile?.profile_pic || defaultPic} alt="" className="w-9 h-9 rounded-full object-cover border border-[#E7EAF2]" />
+            <a href={username ? `/@${encodeURIComponent(username)}` : '/'} data-lexum className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-sm shadow-brand-600/20 transition-all">View profile</a>
+          </div>
+        </header>
+
+        <main className="flex-1 min-w-0 overflow-y-auto w-full px-4 py-5 sm:px-6 lg:px-8 xl:px-10">
+          <div className="mx-auto w-full max-w-[1160px] pb-12">
           {activeTab === 'home' && <OverviewTab profile={profile} stats={stats} posts={posts} setTab={setActiveTab} isOrg={isOrg} accent={accent} accentText={accentText} />}
           {activeTab === 'monetize' && <MonetizationTab username={username} stats={stats} posts={posts} isOrg={isOrg} accent={accent} verified={!!profile?.verified} setTab={setActiveTab} showAlert={showAlert} />}
           {activeTab === 'analytics' && <AnalyticsTab posts={posts} stats={stats} profile={profile} isOrg={isOrg} accentText={accentText} />}
@@ -293,6 +326,7 @@ export default function AccountsCenter() {
               <p className="text-sm font-semibold text-gray-400">Leaderboard coming soon</p>
             </div>
           )}
+          </div>
         </main>
       </div>
     </div>
