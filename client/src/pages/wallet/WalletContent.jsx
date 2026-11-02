@@ -225,7 +225,7 @@ export default function WalletContent() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5 md:space-y-6">
         {alertModal.open && (
           <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4" onClick={() => setAlertModal({ ...alertModal, open: false })}>
             <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -274,11 +274,11 @@ export default function WalletContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-white pb-28 md:pb-12">
-      <div className="max-w-2xl mx-auto px-4 pt-6 space-y-6">
+    <div className="min-h-screen bg-white md:bg-[#F7F8FC] pb-28 md:pb-12">
+      <div className="max-w-2xl md:max-w-5xl mx-auto px-4 md:px-8 pt-6 md:pt-10 space-y-6 md:space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-gray-900 leading-tight">Wallet</h1>
+            <h1 className="text-lg md:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">Wallet</h1>
             <p className="text-xs text-gray-400">{user.username ? `@${user.username}` : ''}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -291,19 +291,19 @@ export default function WalletContent() {
           </div>
         </div>
 
-        <div className="relative rounded-lg bg-brand-600 overflow-hidden">
+        <div className="relative rounded-2xl md:rounded-[28px] bg-gradient-to-br from-[#2B3EE8] via-[#3448F0] to-[#1B278F] overflow-hidden shadow-xl shadow-[#2B3EE8]/15">
           <div className="absolute inset-0 opacity-[0.06]" style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px)',
             backgroundSize: '28px 28px'
           }} />
-          <div className="relative p-6">
+          <div className="relative p-6 md:p-10">
             <div className="flex items-end justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-brand-300 mb-2">
                   {walletMode === 'live' ? 'Wallet Value (NGN)' : 'Mobcoins Balance'}
                 </p>
                 <div className="flex items-center gap-2.5">
-                  <span className="text-5xl font-black text-white tracking-tight leading-none">
+                  <span className="text-5xl md:text-6xl font-black text-white tracking-tight leading-none">
                     {!showBalance ? '·····' : (walletMode === 'live' ? `₦${(balance * 0.1).toLocaleString()}` : balance.toLocaleString())}
                   </span>
                 </div>
@@ -329,7 +329,7 @@ export default function WalletContent() {
           </div>
         </div>
 
-        <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+        <div className="flex gap-2 p-1.5 bg-white border border-[#E7EAF2] rounded-2xl shadow-sm">
           <button
             onClick={() => setActiveTab('actions')}
             className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'actions' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
@@ -355,7 +355,7 @@ export default function WalletContent() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => openModal('send')}
-                className="flex items-center gap-3 px-4 py-4 rounded-lg bg-gray-50 hover:bg-gray-100 active:scale-[0.97] transition-all text-left"
+                className="flex items-center gap-3 px-5 py-5 rounded-2xl border border-[#E7EAF2] bg-white shadow-sm hover:shadow-md hover:border-brand-200 active:scale-[0.99] transition-all text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center text-brand-600 flex-shrink-0">
                   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
@@ -369,7 +369,7 @@ export default function WalletContent() {
               </button>
               <button
                 onClick={() => setShowEarnModal(true)}
-                className="flex items-center gap-3 px-4 py-4 rounded-lg bg-gray-50 hover:bg-gray-100 active:scale-[0.97] transition-all text-left relative"
+                className="flex items-center gap-3 px-5 py-5 rounded-2xl border border-[#E7EAF2] bg-white shadow-sm hover:shadow-md active:scale-[0.99] transition-all text-left relative"
               >
                 <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center text-yellow-500 flex-shrink-0">
                   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="1.5">
@@ -387,7 +387,7 @@ export default function WalletContent() {
 
             <button
               onClick={() => setShowLearnModal(true)}
-              className="w-full flex items-center justify-between px-4 py-4 rounded-lg bg-gray-50 hover:bg-gray-100 active:scale-[0.98] transition-all text-left"
+              className="w-full flex items-center justify-between px-5 py-5 rounded-2xl border border-[#E7EAF2] bg-white shadow-sm hover:shadow-md active:scale-[0.99] transition-all text-left"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center text-brand-600 flex-shrink-0">
