@@ -248,10 +248,10 @@ export default function HallOfFameContent() {
                     isGold
                       ? "bg-[#0b101e] md:bg-white border border-amber-500/40 md:border-amber-200 shadow-[0_0_30px_-8px_rgba(245,158,11,0.18)] md:shadow-md hover:border-amber-500/60"
                       : isSilver
-                      ? "bg-[#0b101e] border border-slate-700/60 shadow-[0_0_20px_-10px_rgba(148,163,184,0.12)] hover:border-slate-600"
+                      ? "bg-[#0b101e] md:bg-white border border-slate-700/60 md:border-[#E7EAF2] shadow-[0_0_20px_-10px_rgba(148,163,184,0.12)] md:shadow-sm hover:border-slate-600 md:hover:border-slate-300"
                       : isBronze
-                      ? "bg-[#0b101e] border border-amber-800/40 shadow-[0_0_20px_-10px_rgba(217,119,6,0.12)] hover:border-amber-700/60"
-                       : "bg-[#0b101e] md:bg-white border border-gray-800/60 md:border-[#E7EAF2] hover:border-gray-700/80 md:hover:border-brand-200"
+                      ? "bg-[#0b101e] md:bg-white border border-amber-800/40 md:border-orange-200 shadow-[0_0_20px_-10px_rgba(217,119,6,0.12)] md:shadow-sm hover:border-amber-700/60"
+                      : "bg-[#0b101e] md:bg-white border border-gray-800/60 md:border-[#E7EAF2] hover:border-gray-700/80 md:hover:border-brand-200"
                   )}
                 >
                   {/* Top Row on Mobile / Left Group on Desktop: Rank Badge + Avatar + User Info + Mobile Menu */}
