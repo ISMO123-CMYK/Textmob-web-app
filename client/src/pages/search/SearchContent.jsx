@@ -260,14 +260,14 @@ export default function SearchContent() {
   const isDropdownVisible = focused && ((query.trim() && (suggestions.length > 0 || loadingSuggestions)) || (!query.trim() && history.length > 0));
 
   return (
-    <div className="min-h-screen bg-white pb-24 md:pb-8">
-      <div className="max-w-2xl mx-auto px-4">
+    <div className="min-h-screen bg-white md:bg-[#F7F8FC] pb-24 md:pb-8">
+      <div className="max-w-2xl md:max-w-5xl mx-auto px-4 md:px-8">
         <div className="pt-6 pb-4">
-          <h1 className="text-lg font-bold text-gray-900">Search</h1>
+          <h1 className="text-lg md:text-3xl font-extrabold tracking-tight text-gray-900">Search</h1>
         </div>
         <div className="flex items-center gap-2 mb-5">
           <div className="relative flex-1 min-w-0">
-            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors ${focused ? 'border-brand-500 bg-white' : 'border-gray-200 bg-gray-50'}`}>
+            <div className={`flex items-center gap-3 px-5 py-3.5 md:py-4 rounded-2xl border transition-all shadow-sm ${focused ? 'border-brand-400 bg-white ring-4 ring-brand-50' : 'border-[#E1E5EF] bg-white'}`}>
               <svg viewBox="0 0 24 24" className="w-4 h-4 text-gray-400 flex-shrink-0 fill-none stroke-current" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" /></svg>
               <input
                 ref={inputRef}
@@ -417,7 +417,7 @@ export default function SearchContent() {
           </div>
           <button
             onClick={() => runSearch(query)}
-            className="flex-shrink-0 w-11 h-11 rounded-lg bg-brand-600 hover:bg-brand-700 active:scale-[0.96] transition-colors flex items-center justify-center"
+            className="flex-shrink-0 w-12 h-12 rounded-2xl bg-brand-600 hover:bg-brand-700 active:scale-[0.96] transition-colors flex items-center justify-center shadow-sm shadow-brand-500/20"
             aria-label="Run search"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-white" strokeWidth="2.5"><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" /></svg>
@@ -459,7 +459,7 @@ export default function SearchContent() {
 
 
             {/* Discussions promo banner */}
-            <div className="rounded-lg p-5 bg-gradient-to-br from-brand-50 via-white to-gray-50 border border-brand-100/80 shadow-sm">
+            <div className="rounded-2xl p-6 md:p-7 bg-gradient-to-br from-[#EEF1FE] via-white to-[#F7F8FC] border border-[#DDE3FF] shadow-sm">
               <div className="flex items-start gap-3.5">
                 <div className="w-11 h-11 shrink-0 rounded-lg bg-brand-600 text-white flex items-center justify-center shadow-md shadow-brand-500/25">
                   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 12c0 4.552-3.653 8.25-8.17 8.25a9.6 9.6 0 01-2.6-.35L5.25 21l1.2-3.51a7.94 7.94 0 01-1.68-4.86C4.77 7.92 8.42 4.5 12.84 4.5c4.517 0 8.16 3.698 8.16 7.5z" /></svg>
@@ -541,7 +541,7 @@ export default function SearchContent() {
 
         {/* Users Results list tab */}
         {!loadingResults && activeTab === 'users' && usersResults.length > 0 && (
-          <div className="rounded-lg overflow-hidden bg-gray-50">
+          <div className="rounded-2xl overflow-hidden bg-white border border-[#E7EAF2] shadow-sm">
             {usersResults.map((t, idx) => {
               let isOrg = (t.profile_type || '').toLowerCase() === 'organisation';
               let isConnected = t.relation === 'following' || t.relation === 'friended';
