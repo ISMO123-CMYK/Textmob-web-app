@@ -269,10 +269,10 @@ export default function MenuContent() {
 
   return (
     <div className="min-h-full bg-white text-gray-900">
-      <div className="sticky top-0 z-30 border-b border-gray-200/80 bg-white/90">
-        <div className="flex h-14 items-center justify-between px-4 sm:px-6">
+      <div className="sticky top-0 z-30 border-b border-[#E7EAF2] bg-white/95 backdrop-blur">
+        <div className="flex h-14 md:h-20 items-center justify-between px-4 sm:px-6 md:px-8">
           <div>
-            <h1 className="text-base font-semibold tracking-tight">Menu</h1>
+            <h1 className="text-base md:text-2xl font-extrabold tracking-tight">Menu</h1>
             {username ? (
               <p className="text-xs text-gray-500">@{username}</p>
             ) : (
@@ -286,10 +286,10 @@ export default function MenuContent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-xl space-y-5 px-4 py-4 sm:px-6">
-        <FeaturedCard username={username} />
+      <div className="mx-auto max-w-xl md:max-w-5xl space-y-5 md:space-y-0 md:grid md:grid-cols-2 md:gap-5 px-4 py-4 sm:px-6 md:px-8 md:py-8">
+        <div className="md:col-span-2"><FeaturedCard username={username} /></div>
 
-        <div className="rounded-lg border border-gray-200/80 bg-gray-50/70 p-3">
+        <div className="rounded-2xl border border-[#E7EAF2] bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700">
               <NavIcons.User className="h-5 w-5" />
@@ -306,7 +306,7 @@ export default function MenuContent() {
         </div>
 
         {sections.map((section) => (
-          <section key={section.title} className="space-y-2">
+          <section key={section.title} className="space-y-3">
             <div className="px-1 text-[11px] font-medium uppercase tracking-[0.18em] text-gray-400">
               {section.title}
             </div>
