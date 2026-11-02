@@ -8,15 +8,27 @@
 // in the box makes that impossible.
 export function replaceTokenAt(text, start, token) {
   const str = String(text ?? '');
-  const tok = String(token ?? '');
+  let tok = String(token ?? '');
   if (!tok) return str;
 
-  const s = Number.isFinite(start) ? Math.max(0, Math.min(start, str.length)) : 0;
   const symbol = tok.charAt(0);
+  if (symbol === '#') tok = '#' + tok.replace(/^#+/, '');
+  if (symbol === '@') tok = '@' + tok.replace(/^@+/, '');
+
+  let s = Number.isFinite(start) ? Math.max(0, Math.min(start, str.length)) : 0;
+
+  // Recover a doubled trigger instead of leaving one behind.
+  if (symbol === '#') {
+    while (s > 0 && str.charAt(s - 1) === '#') s -= 1;
+  }
+
   const rest = str.slice(s);
-  const re = symbol === '@' ? /^@[\w.-]*/ : /^#[\w-]*/;
+  const re = symbol === '@' ? /^@+[\w.-]*/ : /^#+[\w-]*/;
   const m = rest.match(re);
   const end = s + (m ? m[0].length : rest.charAt(0) === symbol ? 1 : 0);
+  const suffix = str.slice(end);
 
-  return `${str.slice(0, s)}${tok} ${str.slice(end)}`;
+  // Keep exactly one separator after the selected token.
+  const cleanSuffix = suffix.charAt(0) === ' ' ? suffix.slice(1) : suffix;
+  return `${str.slice(0, s)}${tok} ${cleanSuffix}`;
 }
