@@ -52,17 +52,17 @@ export default function EventsContent() {
  }
 
  return (
- <div className="min-h-screen bg-white pb-24 md:pb-8">
+ <div className="min-h-screen bg-white md:bg-[#F7F8FC] pb-24 md:pb-8">
  {/* Header */}
- <div className="sticky top-0 z-10 bg-white/95 border-b border-gray-100 px-4 py-4 flex items-center justify-between">
+ <div className="sticky top-0 md:static z-10 max-w-5xl mx-auto md:mt-8 bg-white md:rounded-2xl md:border md:border-[#E7EAF2] md:shadow-sm border-b border-gray-100 md:border-b-0 px-4 md:px-8 py-4 md:py-6 flex items-center justify-between">
  <div>
- <h1 className="text-sm font-bold text-gray-900 leading-none">Events</h1>
- <p className="text-xs text-gray-400 mt-0.5">Explore community meetups and events</p>
+ <h1 className="text-sm md:text-2xl font-extrabold text-gray-900 leading-none tracking-tight">Events</h1>
+ <p className="text-xs md:text-sm text-gray-500 mt-1">Explore community meetups and events</p>
  </div>
  <a
  href="/events/new"
  data-lexum
- className="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-full transition-all duration-150 active:scale-95"
+ className="px-4 md:px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs md:text-sm font-bold rounded-xl transition-all duration-150 active:scale-95 shadow-sm shadow-brand-500/20"
  >
  + Create
  </a>
@@ -70,8 +70,8 @@ export default function EventsContent() {
 
  {/* Events list */}
  {events.length > 0 ? (
- <div className="flex flex-col">
- <div className="px-4 py-3 border-b border-gray-100 ">
+ <div className="max-w-5xl mx-auto px-4 md:px-0 mt-4 md:mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+ <div className="lg:col-span-2 px-4 py-3 rounded-xl border border-[#E7EAF2] bg-white text-gray-500">
  <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 ">
  Events · {events.length}
  </p>
@@ -89,10 +89,10 @@ export default function EventsContent() {
  });
 
  return (
- <div className="border-b border-gray-100 " key={ev.id}>
+ <div className="rounded-2xl border border-[#E7EAF2] bg-white shadow-sm hover:shadow-md overflow-hidden transition-shadow" key={ev.id}>
  <button
  onClick={() => toggleAccordion(ev.id)}
- className="w-full flex items-start justify-between px-4 py-4 text-left hover:bg-gray-50 transition-colors"
+ className="w-full flex items-start justify-between px-5 py-5 md:px-6 md:py-6 text-left hover:bg-[#FAFBFE] transition-colors"
  >
  <div className="flex-1 min-w-0 pr-3">
  <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full mb-1.5">
@@ -132,7 +132,7 @@ export default function EventsContent() {
  </button>
 
  {open && (
- <div className="px-4 pb-4 space-y-3">
+ <div className="px-5 md:px-6 pb-5 md:pb-6 space-y-3 border-t border-[#EEF0F5] pt-4">
  {ev.text && (
  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{ev.text}</p>
  )}
@@ -183,7 +183,7 @@ export default function EventsContent() {
  })}
  </div>
  ) : (
- <div className="px-4 py-8 text-center text-sm text-gray-400 ">
+ <div className="max-w-5xl mx-auto mt-6 px-4 py-20 rounded-2xl border border-dashed border-[#D9DEEA] bg-white text-center text-sm text-gray-400 ">
  No upcoming events.
  </div>
  )}
