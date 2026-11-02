@@ -5223,7 +5223,7 @@ app.get('/search-suggest', async (req, res) => {
             const parsed = JSON.parse(storedTags);
             storedTags = Array.isArray(parsed) ? parsed : storedTags.split(/[ ,]+/);
           } catch (_) {
-            storedTags = storedTags.split(/[,s]+/);
+            storedTags = storedTags.split(/[ ,]+/);
           }
         }
 
@@ -9127,9 +9127,9 @@ app.get("/trending-hashtags", async (req, res) => {
       if (typeof storedTags === 'string') {
         try {
           const parsed = JSON.parse(storedTags);
-          storedTags = Array.isArray(parsed) ? parsed : storedTags.split(/[,s]+/);
+          storedTags = Array.isArray(parsed) ? parsed : storedTags.split(/[ ,]+/);
         } catch (_) {
-          storedTags = storedTags.split(/[,s]+/);
+          storedTags = storedTags.split(/[ ,]+/);
         }
       }
 
