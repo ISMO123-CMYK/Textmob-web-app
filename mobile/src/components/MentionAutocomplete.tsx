@@ -12,6 +12,7 @@ interface Suggestion {
   type: 'user' | 'hashtag';
   username?: string;
   avatar?: string;
+  isNew?: boolean;
 }
 
 // /trending-hashtags scans a few hundred posts server-side, and the endpoint the
@@ -28,7 +29,7 @@ async function loadTrendingHashtags(): Promise<string[]> {
     const res = await apiGet<Array<{ tag?: string }>>('/trending-hashtags');
     const tags =
       res.ok && Array.isArray(res.data)
-        ? res.data.map(t => (t && t.tag) || '').filter(Boolean)
+        ? res.data.map(t => String((t && t.tag) || '').replace(/^#+/, '').trim().toLowerCase()).filter(Boolean)
         : (trendingTagsCache?.tags || []);
     trendingTagsCache = { at: Date.now(), tags };
     return tags;
@@ -50,9 +51,11 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [trigger, setTrigger] = useState<{ type: '@' | '#'; query: string; start: number } | null>(null);
   const timerRef = useRef<any>(null);
+  const requestIdRef = useRef(0);
   const lastInsertRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current;
     if (timerRef.current) clearTimeout(timerRef.current);
     // Selecting a suggestion rewrites the whole string while the parent still
     // reports the pre-insert caret, so `before` would match a token in the
@@ -72,7 +75,7 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
       return;
     }
     const before = text.slice(0, cursorPosition);
-    const match = before.match(/[@#][a-zA-Z0-9_]*$/);
+    const match = before.match(/[@#][a-zA-Z0-9_-]*$/);
     if (match) {
       const token = match[0];
       const type = token[0] as '@' | '#';
@@ -81,7 +84,12 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
       setTrigger({ type, query, start });
       if (timerRef.current) clearTimeout(timerRef.current);
       if (query.length >= 1) {
-        timerRef.current = setTimeout(() => fetchSuggestions(type, query), 200);
+        if (type === '#') {
+          setSuggestions([{ id: 'new:' + query.toLowerCase(), label: '#' + query, type: 'hashtag', isNew: true }]);
+        } else {
+          setSuggestions([]);
+        }
+        timerRef.current = setTimeout(() => fetchSuggestions(type, query, requestId), 200);
       } else {
         setSuggestions([]);
       }
@@ -92,11 +100,11 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [text, cursorPosition]);
 
-  const fetchSuggestions = async (type: '@' | '#', query: string) => {
+  const fetchSuggestions = async (type: '@' | '#', query: string, requestId: number) => {
     try {
       if (type === '@') {
         const res = await searchUsersAPI(query, 6);
-        if (res.ok && Array.isArray(res.data)) {
+        if (requestId === requestIdRef.current && res.ok && Array.isArray(res.data)) {
           setSuggestions(res.data.map((u: any) => ({
             id: u.username || u.id,
             label: `@${u.username}`,
@@ -107,36 +115,53 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
         }
       } else {
         const tags = await loadTrendingHashtags();
+        if (requestId !== requestIdRef.current) return;
         const needle = query.toLowerCase();
-        setSuggestions(
-          tags
-            .filter(t => t.toLowerCase().includes(needle))
-            .slice(0, 6)
-            .map(t => ({
-              id: t,
-              label: `#${t}`,
-              type: 'hashtag' as const,
-            }))
-        );
+        const matches = tags
+          .filter(t => t.toLowerCase().indexOf(needle) === 0)
+          .slice(0, 5)
+          .map(t => ({
+            id: t,
+            label: `#${t}`,
+            type: 'hashtag' as const,
+          }));
+        const hasExact = matches.some(item => item.label.toLowerCase() === '#' + needle);
+        if (!hasExact) {
+          matches.push({
+            id: 'new:' + needle,
+            label: '#' + needle,
+            type: 'hashtag' as const,
+            isNew: true,
+          });
+        }
+        setSuggestions(matches.slice(0, 6));
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { /* keep the typed hashtag suggestion available */ }
   };
 
   const handleSelect = (s: Suggestion) => {
     if (!trigger) return;
-    // `cursorPosition` comes from onSelectionChange, which can lag a keystroke
-    // (and is unreliable on Android). Re-derive the token's end from the text
-    // itself so the typed fragment is always fully replaced — otherwise its
-    // tail survives and you get "#football #foo".
-    const rest = text.slice(trigger.start);
-    const m = rest.match(/^[@#][a-zA-Z0-9_]*/);
-    const end = trigger.start + (m ? m[0].length : rest.charAt(0) === trigger.type ? 1 : 0);
-    const before = text.slice(0, trigger.start);
-    const after = text.slice(end);
-    const insertion = s.type === 'user' ? `@${s.username} ` : `${s.label} `;
-    const newText = before + insertion + after;
-    // Block the effect below from re-opening the sheet against a cursor that
-    // has not moved yet — that was a second insert of the same token.
+    requestIdRef.current += 1;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    // Re-derive the whole token because selection offsets can lag.
+    let tokenStart = trigger.start;
+    if (trigger.type === '#') {
+      while (tokenStart > 0 && text.charAt(tokenStart - 1) === '#') tokenStart -= 1;
+    }
+    const rest = text.slice(tokenStart);
+    const tokenPattern = trigger.type === '#'
+      ? /^#+[a-zA-Z0-9_-]*/
+      : /^@+[a-zA-Z0-9_.]*/;
+    const m = rest.match(tokenPattern);
+    const end = tokenStart + (m ? m[0].length : rest.charAt(0) === trigger.type ? 1 : 0);
+    const before = text.slice(0, tokenStart);
+    const suffix = text.slice(end);
+    const after = suffix.charAt(0) === ' ' ? suffix.slice(1) : suffix;
+    const label = s.type === 'user'
+      ? `@${s.username}`
+      : '#' + s.label.replace(/^#+/, '');
+    const newText = before + label + ' ' + after;
+    // Keep the picker closed until the user types again.
     lastInsertRef.current = newText;
     onChangeText(newText);
     setSuggestions([]);
@@ -158,7 +183,10 @@ export default function MentionAutocomplete({ text, cursorPosition, onChangeText
             <View style={[styles.avatar, { backgroundColor: item.type === 'hashtag' ? (isDark ? '#374151' : '#f3f4f6') : '#e0e7ff' }]}>
               <Text style={styles.avatarText}>{item.type === 'hashtag' ? '#' : '@'}</Text>
             </View>
-            <Text style={[styles.suggestionLabel, { color: colors.textPrimary }]} numberOfLines={1}>{item.label}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.suggestionLabel, { color: colors.textPrimary }]} numberOfLines={1}>{item.label}</Text>
+              {item.isNew && <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 2 }}>Add this new hashtag</Text>}
+            </View>
           </Ripple>
         )}
       />
