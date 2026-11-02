@@ -87,6 +87,7 @@ export default function MakePostContent(props) {
 
  let Ae = (e) => {
  let requestId = ++suggestionRequestRef.current;
+ xe([]);
  let t = e.currentTarget.innerHTML;
  r(t);
 
