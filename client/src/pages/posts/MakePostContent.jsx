@@ -51,6 +51,7 @@ export default function MakePostContent(props) {
  let [be, xe] = useState([]);
  let [Se, Ce] = useState(0);
  let [we, Te] = useState(null);
+ let suggestionRequestRef = useRef(0);
  let [quotedPostId, setQuotedPostId] = useState(props.quoteId || null);
  let [quotedPostData, setQuotedPostData] = useState(null);
  let [postCategories, setPostCategories] = useState([]);
@@ -85,6 +86,7 @@ export default function MakePostContent(props) {
  let ke = k || i.length >= 10;
 
  let Ae = (e) => {
+ let requestId = ++suggestionRequestRef.current;
  let t = e.currentTarget.innerHTML;
  r(t);
 
