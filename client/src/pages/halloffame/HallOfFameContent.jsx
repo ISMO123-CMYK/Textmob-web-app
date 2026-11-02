@@ -169,8 +169,8 @@ export default function HallOfFameContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#050811] text-gray-100 pb-24 md:pb-12 selection:bg-brand-600 selection:text-white">
-      <div className="max-w-3xl mx-auto px-4 pt-6 md:pt-10">
+    <div className="min-h-screen bg-[#050811] md:bg-[#F7F8FC] text-gray-100 md:text-gray-900 pb-24 md:pb-12 selection:bg-brand-600 selection:text-white">
+      <div className="max-w-3xl md:max-w-5xl mx-auto px-4 md:px-8 pt-6 md:pt-10">
 
         {/* Header Section */}
         <div className="flex items-center justify-between mb-8">
@@ -181,8 +181,8 @@ export default function HallOfFameContent() {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">Hall of Fame</h1>
-              <p className="text-xs md:text-sm text-gray-400 mt-0.5 font-medium">Top 5 • by likes + followers • all time</p>
+              <h1 className="text-2xl md:text-3xl font-black text-white md:text-gray-900 tracking-tight">Hall of Fame</h1>
+              <p className="text-xs md:text-sm text-gray-400 md:text-gray-500 mt-0.5 font-medium">Top 5 • by likes + followers • all time</p>
             </div>
           </div>
 
@@ -191,7 +191,7 @@ export default function HallOfFameContent() {
               onClick={() => fetchLeaderboard(true)}
               disabled={refreshing}
               title="Refresh"
-              className="w-10 h-10 rounded-full bg-[#101524] border border-gray-800 flex items-center justify-center text-gray-400 hover:text-white hover:border-gray-700 transition-all active:scale-95 disabled:opacity-40 shadow-sm"
+              className="w-10 h-10 rounded-full bg-[#101524] md:bg-white border border-gray-800 md:border-[#E7EAF2] flex items-center justify-center text-gray-400 md:text-gray-500 hover:text-white md:hover:text-gray-900 hover:border-gray-700 md:hover:border-brand-200 transition-all active:scale-95 disabled:opacity-40 shadow-sm"
             >
               <svg viewBox="0 0 24 24" className={cn("w-4 h-4 fill-none stroke-current", refreshing && "animate-spin")} strokeWidth="2.2">
                 <polyline points="23 4 23 10 17 10" />
@@ -200,7 +200,7 @@ export default function HallOfFameContent() {
             </button>
             <button
               onClick={() => setShowRankTips(true)}
-              className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#101524] border border-brand-900/60 text-xs font-bold text-brand-400 hover:bg-brand-950/40 hover:border-brand-700/60 active:scale-95 transition-all shadow-sm"
+              className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#101524] md:bg-white border border-brand-900/60 md:border-brand-100 text-xs font-bold text-brand-400 md:text-brand-600 hover:bg-brand-950/40 md:hover:bg-brand-50 hover:border-brand-700/60 active:scale-95 transition-all shadow-sm"
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
@@ -214,11 +214,11 @@ export default function HallOfFameContent() {
 
         {/* Content Body */}
         {loading ? (
-          <div className="space-y-3.5">
+          <div className="space-y-4 md:space-y-5">
             {[0, 1, 2, 3, 4].map(idx => <SkeletonCard key={idx} />)}
           </div>
         ) : errorMessage ? (
-          <div className="bg-[#0b101e] border border-red-900/40 rounded-lg p-6 text-center">
+          <div className="bg-[#0b101e] md:bg-white border border-red-900/40 md:border-red-100 rounded-2xl p-6 text-center shadow-sm">
             <p className="text-sm text-red-400 font-semibold">{errorMessage}</p>
             <button
               onClick={() => fetchLeaderboard(true)}
@@ -228,7 +228,7 @@ export default function HallOfFameContent() {
             </button>
           </div>
         ) : leaders.length === 0 ? (
-          <div className="bg-[#0b101e] border border-gray-800/60 rounded-lg px-4 py-20 text-center">
+          <div className="bg-[#0b101e] md:bg-white border border-gray-800/60 md:border-[#E7EAF2] rounded-2xl px-4 py-20 text-center shadow-sm">
             <p className="text-sm font-medium text-gray-400">No entries recorded yet. Be the first to claim the top spot!</p>
           </div>
         ) : (
@@ -244,14 +244,14 @@ export default function HallOfFameContent() {
                 <div
                   key={user.id || user.username || idx}
                   className={cn(
-                    "rounded-lg p-3.5 md:p-4.5 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 transition-all duration-200 relative",
+                    "rounded-2xl p-3.5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-5 transition-all duration-200 relative shadow-sm md:shadow-md",
                     isGold
-                      ? "bg-[#0b101e] border border-amber-500/40 shadow-[0_0_30px_-8px_rgba(245,158,11,0.18)] hover:border-amber-500/60"
+                      ? "bg-[#0b101e] md:bg-white border border-amber-500/40 md:border-amber-200 shadow-[0_0_30px_-8px_rgba(245,158,11,0.18)] md:shadow-md hover:border-amber-500/60"
                       : isSilver
                       ? "bg-[#0b101e] border border-slate-700/60 shadow-[0_0_20px_-10px_rgba(148,163,184,0.12)] hover:border-slate-600"
                       : isBronze
                       ? "bg-[#0b101e] border border-amber-800/40 shadow-[0_0_20px_-10px_rgba(217,119,6,0.12)] hover:border-amber-700/60"
-                      : "bg-[#0b101e] border border-gray-800/60 hover:border-gray-700/80"
+                       : "bg-[#0b101e] md:bg-white border border-gray-800/60 md:border-[#E7EAF2] hover:border-gray-700/80 md:hover:border-brand-200"
                   )}
                 >
                   {/* Top Row on Mobile / Left Group on Desktop: Rank Badge + Avatar + User Info + Mobile Menu */}
@@ -305,7 +305,7 @@ export default function HallOfFameContent() {
                           <a
                             href={`/@${user.username}`}
                             data-lexum={true}
-                            className="text-sm md:text-base font-bold text-white truncate hover:underline hover:text-brand-400 transition-colors"
+                            className="text-sm md:text-base font-bold text-white md:text-gray-900 truncate hover:underline hover:text-brand-400 md:hover:text-brand-600 transition-colors"
                           >
                             {user.fullname || user.username}
                           </a>
@@ -325,7 +325,7 @@ export default function HallOfFameContent() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs md:text-sm text-gray-400 truncate mt-0.5 font-mono">
+                        <p className="text-xs md:text-sm text-gray-400 md:text-gray-500 truncate mt-0.5 font-mono">
                           @{user.username}
                         </p>
                       </div>
@@ -380,10 +380,10 @@ export default function HallOfFameContent() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                         </svg>
                         <div>
-                          <div className="text-xs md:text-sm font-bold text-white leading-tight">
+                          <div className="text-xs md:text-sm font-bold text-white md:text-gray-900 leading-tight">
                             {formatStat(user.totalLikes)}
                           </div>
-                          <div className="text-[10px] text-gray-400 font-medium leading-none mt-0.5">
+                          <div className="text-[10px] text-gray-400 md:text-gray-500 font-medium leading-none mt-0.5">
                             Likes
                           </div>
                         </div>
@@ -451,7 +451,7 @@ export default function HallOfFameContent() {
         )}
 
         {/* Bottom Banner Section */}
-        <div className="mt-5 bg-gradient-to-r from-brand-950/40 via-[#0a1224] to-brand-950/20 border border-brand-900/40 rounded-lg p-4 md:p-5 flex items-center justify-between gap-4">
+        <div className="mt-5 bg-gradient-to-r from-brand-950/40 via-[#0a1224] to-brand-950/20 md:from-white md:via-[#F1F3FF] md:to-white border border-brand-900/40 md:border-brand-100 rounded-2xl p-4 md:p-6 flex items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-lg bg-brand-600/20 border border-brand-500/30 flex items-center justify-center text-brand-400 flex-shrink-0">
               <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current" strokeWidth="2">
@@ -460,10 +460,10 @@ export default function HallOfFameContent() {
               </svg>
             </div>
             <div>
-              <p className="text-xs md:text-sm font-bold text-brand-400">
+              <p className="text-xs md:text-sm font-bold text-brand-400 md:text-brand-700">
                 Ranking is based on total likes and followers.
               </p>
-              <p className="text-[11px] md:text-xs text-gray-400 mt-0.5">
+              <p className="text-[11px] md:text-xs text-gray-400 md:text-gray-500 mt-0.5">
                 Consistent engagement. Quality content. Real impact.
               </p>
             </div>
