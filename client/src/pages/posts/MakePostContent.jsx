@@ -125,13 +125,14 @@ export default function MakePostContent(props) {
  let q = hashMatch[0];
  let start = absOffset - q.length;
  Te({ symbol: '#', start, end: absOffset, query: q });
+ let cleanTag = q.replace(/^#+/, '').toLowerCase();
+ xe([{ type: 'hashtag', query: '#' + cleanTag, count: 0, isNew: true }]);
  (async () => {
  try {
  let res = await apiFetch(`/search-suggest?query=${encodeURIComponent(q)}&currentUsername=${localStorage.currentUser || ''}`);
  let data = res.ok ? await res.json() : [];
  if (requestId !== suggestionRequestRef.current) return;
  let items = Array.isArray(data) ? data : [];
- let cleanTag = q.replace(/^#+/, '').toLowerCase();
  let hasExactTag = items.some(item =>
  String(item.query || '').replace(/^#+/, '').toLowerCase() === cleanTag
  );
@@ -152,6 +153,7 @@ export default function MakePostContent(props) {
  if (!we) {
  return;
  }
+ suggestionRequestRef.current += 1;
 
  let t = e.type === `user` ? `@${e.username}` : String(e.query || ``);
  if (we.symbol === `#`) t = `#` + t.replace(/^#+/, ``);
