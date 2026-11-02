@@ -571,8 +571,9 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
       {/* Quick actions */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-2 gap-3">
         {[
           { label: 'New Post', icon: K.Plus, tab: 'composer', color: 'bg-brand-50 text-brand-600' },
           { label: 'Earnings', icon: K.Coin, tab: 'monetize', color: 'bg-emerald-50 text-emerald-600' },
@@ -586,6 +587,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
         ))}
       </div>
 
+      <div className="space-y-4">
       {/* Engagement bar */}
       <div className="bg-white border border-[#E7EAF2] rounded-2xl p-5 md:p-6 shadow-sm">
         <div className="flex items-center justify-between mb-2">
@@ -609,6 +611,8 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
           <button onClick={() => window.Lexum?.navigate('/halloffame')} className={cn('text-xs font-semibold', accentText)}>View</button>
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }
