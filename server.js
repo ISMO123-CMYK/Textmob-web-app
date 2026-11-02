@@ -5205,32 +5205,49 @@ app.get('/search-suggest', async (req, res) => {
     const results = [];
     const isMention = q.startsWith('@');
     const isHashtag = q.startsWith('#');
-    const qClean = q.replace(/^[@#]/, '');
+    const qClean = q.replace(/^[@#]+/, '').replace(/[^a-z0-9_-]/g, '');
 
     if (isHashtag) {
       const { data: recentPosts } = await supabase2
         .from('Posts')
-        .select('hashtags')
-        .not('hashtags', 'is', null)
+        .select('hashtags, text')
         .order('created_at', { ascending: false })
         .limit(500);
 
       const counts = {};
-      (recentPosts || []).forEach(p => {
-        if (Array.isArray(p.hashtags)) {
-          p.hashtags.forEach(tag => {
-            const t = tag.toLowerCase();
-            if (t.includes(qClean)) {
-              counts[t] = (counts[t] || 0) + 1;
-            }
-          });
+      (recentPosts || []).forEach(post => {
+        let storedTags = post.hashtags;
+
+        if (typeof storedTags === 'string') {
+          try {
+            const parsed = JSON.parse(storedTags);
+            storedTags = Array.isArray(parsed) ? parsed : storedTags.split(/[,s]+/);
+          } catch (_) {
+            storedTags = storedTags.split(/[,s]+/);
+          }
         }
+
+        let tags = Array.isArray(storedTags)
+          ? storedTags.map(tag => String(tag || '').replace(/^#+/, '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')).filter(Boolean)
+          : [];
+
+        // Older posts can have an empty hashtags column despite tagged text.
+        if (tags.length === 0 && typeof post.text === 'string') {
+          tags = (post.text.match(/#[a-z0-9_-]+/gi) || [])
+            .map(tag => tag.replace(/^#+/, '').toLowerCase());
+        }
+
+        Array.from(new Set(tags)).forEach(tag => {
+          if (qClean && tag.indexOf(qClean) === 0) {
+            counts[tag] = (counts[tag] || 0) + 1;
+          }
+        });
       });
 
       const tags = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .slice(0, 9)
-        .map(([tQuery, count]) => ({ query: '#' + tQuery, count, type: 'hashtag' }));
+        .map(([tag, count]) => ({ query: '#' + tag, count, type: 'hashtag' }));
 
       results.push(...tags);
     } else {
@@ -6003,11 +6020,11 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
     }
 
     // Hashtags
-    var hashtags = [];
-    var rawHashtags = text.match(/#[\w-]+/g);
-    if (rawHashtags && Array.isArray(rawHashtags)) {
-      hashtags = rawHashtags;
-    }
+    var rawHashtags = text.match(/#[\w-]+/g) || [];
+    // Keep the existing #prefix format, but normalize case and duplicates.
+    var hashtags = Array.from(new Set(rawHashtags.map(function (tag) {
+      return tag.toLowerCase();
+    })));
 
     // Mentions (@username), sanitized
     var rawMentions = text.match(/@\w+/g) || [];
@@ -9091,49 +9108,52 @@ const SummarizerManager = require("node-summarizer").SummarizerManager;
 // -------------------------------------------------------------
 app.get("/trending-hashtags", async (req, res) => {
   try {
-    const TREND_LIMIT = 4;
+    const TREND_LIMIT = 10;
     const { data: posts, error } = await supabase2
       .from("Posts")
       .select("hashtags, created_at, text")
       .order("created_at", { ascending: false })
-      .limit(300);
+      .limit(500);
 
-    if (error || !posts || posts.length === 0) {
-      return res.json([
-        { tag: "textmob", count: 15 },
-        { tag: "africanvoice", count: 12 },
-        { tag: "hidden_gem", count: 8 },
-        { tag: "tech", count: 5 }
-      ].slice(0, TREND_LIMIT));
-    }
+    if (error) throw error;
+    if (!posts || posts.length === 0) return res.json([]);
 
     const counts = {};
     const hashtagRegex = /#([a-zA-Z0-9_-]+)/g;
 
-    posts.forEach(p => {
-      let tags = [];
-      if (Array.isArray(p.hashtags)) {
-        tags = p.hashtags.map(t => t.replace(/^#/, ''));
-      } else if (p.text) {
-        let match;
-        while ((match = hashtagRegex.exec(p.text)) !== null) {
-          if (match[1]) tags.push(match[1]);
+    posts.forEach(post => {
+      let storedTags = post.hashtags;
+
+      if (typeof storedTags === 'string') {
+        try {
+          const parsed = JSON.parse(storedTags);
+          storedTags = Array.isArray(parsed) ? parsed : storedTags.split(/[,s]+/);
+        } catch (_) {
+          storedTags = storedTags.split(/[,s]+/);
         }
       }
-      tags.forEach(t => {
-        const lower = t.toLowerCase();
-        counts[lower] = (counts[lower] || 0) + 1;
+
+      let tags = Array.isArray(storedTags)
+        ? storedTags.map(tag => String(tag || '').replace(/^#+/, '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')).filter(Boolean)
+        : [];
+
+      // Fall back to the post text when legacy hashtag arrays are empty.
+      if (tags.length === 0 && post.text) {
+        let match;
+        while ((match = hashtagRegex.exec(post.text)) !== null) {
+          if (match[1]) tags.push(match[1].toLowerCase());
+        }
+      }
+
+      Array.from(new Set(tags)).forEach(tag => {
+        counts[tag] = (counts[tag] || 0) + 1;
       });
     });
 
     const sortedTags = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([tag, count]) => ({ tag, count }))
       .slice(0, TREND_LIMIT);
-
-    if (sortedTags.length === 0) {
-      return res.json([{ tag: "textmob", count: 1 }]);
-    }
 
     res.json(sortedTags);
   } catch (err) {
