@@ -18,7 +18,7 @@ function ConnectionRow({ item, name, full, following, handleFollow }) {
  }, [item]);
 
  return (
- <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+ <div className="flex items-center gap-3 p-4 lg:p-5 rounded-2xl border border-[#E7EAF2] bg-white shadow-sm hover:shadow-md hover:border-brand-200 transition-all">
  {profilePic ? (
  <img src={profilePic} alt={name} className="w-11 h-11 rounded-full object-cover flex-shrink-0 border border-gray-100 " />
  ) : (
@@ -102,20 +102,20 @@ export default function ConnectionsContent() {
 
  return (
  <div>
- <div className="hidden md:flex sticky top-0 z-30 bg-white/95 border-b border-gray-100 px-6 h-14 items-center">
- <h1 className="text-lg font-black text-gray-900">Connections</h1>
+ <div className="hidden md:flex sticky top-0 z-30 bg-white/95 border-b border-[#E7EAF2] px-8 h-20 items-center">
+ <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">Connections</h1>
  </div>
- <div className="border-b border-gray-100 flex">
+ <div className="border-b border-[#E7EAF2] bg-white flex px-3 md:px-8">
  {tabs.map(t => (
- <button key={t.key} onClick={() => setTab(t.key)} className={`flex-1 py-3 text-sm font-bold text-center transition-colors relative ${tab === t.key ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'}`}>
+ <button key={t.key} onClick={() => setTab(t.key)} className={`flex-1 py-3 text-sm font-bold text-center transition-colors relative ${tab === t.key ? 'text-brand-600' : 'text-gray-400 hover:text-gray-700'}`}>
  {t.label} <span className="text-xs ml-1 opacity-60">{t.count}</span>
  {tab === t.key && <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 bg-brand-600 rounded-full" />}
  </button>
  ))}
  </div>
- <div className="p-4 lg:p-6 space-y-2">
+ <div className="max-w-5xl mx-auto p-4 lg:p-8 grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4">
  {list.length === 0 ? (
- <div className="text-center py-16"><p className="text-sm font-bold text-gray-900">No {tab} yet</p><p className="text-xs text-gray-400 mt-1">Start connecting with people</p></div>
+ <div className="md:col-span-2 rounded-2xl border border-dashed border-[#D9DEEA] bg-white text-center py-20"><p className="text-sm font-bold text-gray-900">No {tab} yet</p><p className="text-xs text-gray-400 mt-1">Start connecting with people</p></div>
  ) : list.map((item, i) => {
  const name = typeof item === 'string' ? item : (item.username || '');
  const full = typeof item === 'object' ? (item.fullname || name) : name;
