@@ -437,8 +437,8 @@ export default function ActivityContent({ onClose }) {
     const unread = !item.read;
     return (
       <li
-        className={`group relative flex gap-3 px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors ${
-          unread ? 'bg-sky-50/70 hover:bg-sky-100/60' : 'hover:bg-gray-50'
+        className={`group relative flex gap-3 px-4 py-3 md:px-6 md:py-5 border-b border-[#EEF0F5] cursor-pointer transition-colors ${
+          unread ? 'bg-[#F1F3FF] hover:bg-[#E9ECFF]' : 'hover:bg-[#F8F9FC]'
         }`}
         onClick={() => navigateAndMark(item)}
       >
@@ -459,7 +459,7 @@ export default function ActivityContent({ onClose }) {
               )}
             </p>
             {tags.length > 0 && (
-              <p className="text-[13px] font-semibold text-sky-500 mt-1 truncate">
+              <p className="text-[13px] font-semibold text-brand-600 mt-1 truncate">
                 {tags.slice(0, 5).map(t => (String(t).startsWith('#') ? t : '#' + t)).join('  ')}
               </p>
             )}
@@ -499,12 +499,12 @@ export default function ActivityContent({ onClose }) {
   const visible = notifications.filter(n => matchTab(n, tab));
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white min-h-screen flex flex-col font-sans antialiased">
+    <div className="w-full max-w-2xl md:max-w-4xl mx-auto bg-white min-h-screen flex flex-col font-sans antialiased md:my-8 md:min-h-[calc(100vh-4rem)] md:rounded-2xl md:border md:border-[#E7EAF2] md:shadow-sm md:overflow-hidden">
       {/* X-style sticky header + filter tabs */}
-      <div className="sticky top-14 md:top-0 bg-white z-10 border-b border-gray-200/70">
+      <div className="sticky top-14 md:top-0 bg-white z-10 border-b border-[#E7EAF2]">
         <div className="flex items-center justify-between px-4 pt-3 pb-2 gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <h1 className="text-[20px] leading-6 font-extrabold text-gray-900 tracking-tight">Notifications</h1>
+            <h1 className="text-[20px] md:text-2xl leading-6 font-extrabold text-gray-900 tracking-tight">Notifications</h1>
             {unreadCount > 0 && (
               <span className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-sky-500 text-white text-[11px] font-bold flex items-center justify-center">
                 {unreadCount}
@@ -515,7 +515,7 @@ export default function ActivityContent({ onClose }) {
             {notifications.length > 0 && !clearing && (
               <button
                 onClick={() => setShowConfirm(true)}
-                className="h-8 px-3 rounded-full text-[13px] font-bold text-sky-500 hover:bg-sky-50 active:scale-95 transition-all"
+                className="h-9 px-4 rounded-full text-[13px] font-bold text-brand-600 hover:bg-brand-50 active:scale-95 transition-all"
               >
                 Clear all
               </button>
@@ -538,7 +538,7 @@ export default function ActivityContent({ onClose }) {
               >
                 {t.label}
                 {active && (
-                  <span className="absolute inset-x-4 bottom-0 h-1 rounded-full bg-sky-500" />
+                  <span className="absolute inset-x-4 bottom-0 h-1 rounded-full bg-brand-600" />
                 )}
               </button>
             );
