@@ -1999,38 +1999,16 @@ function ToggleBtn({ active, label, onClick, accent }) {
 }
 
 // ─── 10. Log Out / Danger ─────────────────────────────────────────────────────
-function DangerTab({ username }) {
-  const [confirmVal, setConfirmVal] = useState('');
-  const [deactivating, setDeactivating] = useState(false);
-
-  // Log out
+function DangerTab() {
   function handleLogout() {
     if (!confirm('Are you sure you want to log out?')) return;
     localStorage.clear();
     window.Lexum ? window.Lexum.navigate('/auth') : (window.location.href = '/auth');
   }
 
-  // Deactivate
-  async function handleDeactivate() {
-    if (confirmVal !== username) return;
-    setDeactivating(true);
-    try {
-      const res = await apiFetch('/deactivate-account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username }),
-      });
-      if (!res.ok) throw new Error('Deactivation failed');
-      localStorage.clear();
-      window.Lexum ? window.Lexum.navigate('/auth') : (window.location.href = '/auth');
-    } catch (err) { alert(err.message); setDeactivating(false); }
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <h2 className="text-xl font-bold text-gray-900">Account</h2>
-
-      {/* Log out */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">{K.Logout}</div>
@@ -2040,24 +2018,6 @@ function DangerTab({ username }) {
           </div>
         </div>
         <button onClick={handleLogout} className="h-9 px-4 rounded-lg bg-gray-100 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">Log out</button>
-      </div>
-
-      {/* Danger zone */}
-      <div className="bg-white border-2 border-red-100 rounded-lg p-4 space-y-4">
-        <div className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
-          <span className="text-red-500 mt-0.5">{K.Danger}</span>
-          <div>
-            <p className="text-sm font-semibold text-red-900">Delete account</p>
-            <p className="text-xs text-red-700 mt-1 leading-relaxed">This will permanently delete your account, all your posts, and your followers list. This cannot be undone.</p>
-          </div>
-        </div>
-        <div>
-          <label className="text-xs font-medium text-gray-600 block mb-1">Type <strong>@{username}</strong> to confirm</label>
-          <input type="text" placeholder={`@${username}`} value={confirmVal} onChange={e => setConfirmVal(e.target.value)} className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:border-red-400 focus:bg-white transition-all" />
-        </div>
-        <button onClick={handleDeactivate} disabled={confirmVal !== username || deactivating} className="w-full h-11 bg-red-600 text-white rounded-lg text-sm font-semibold disabled:opacity-30 transition-all">
-          {deactivating ? 'Deleting...' : 'Delete my account permanently'}
-        </button>
       </div>
     </div>
   );
