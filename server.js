@@ -3277,7 +3277,7 @@ app.get("/profile-pic/:username", async (req, res) => {
       return res.json({ profile_pic: null });
     }
 
-    res.json({ profile_pic: data.profile_pic, verified: !!data.verified });
+    res.json({ profile_pic: data.profile_pic, verified: data.verified === true || String(data.verified).toLowerCase() === "true" });
   } catch (error) {
     console.error("Profile Pic Error:", error);
     res.status(500).json({ error: "Server Error" });
@@ -3347,7 +3347,7 @@ app.get("/profile/:username", async (req, res) => {
       console.error("[profile total_likes] error:", e?.message);
     }
 
-    res.json({ ...user, post_count: countRes.count || 0, total_likes });
+    res.json({ ...user, verified: user.verified === true || String(user.verified).toLowerCase() === "true", post_count: countRes.count || 0, total_likes });
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -5035,7 +5035,7 @@ app.post("/snaps-feed", express.json(), async (req, res) => {
 
       if (authors) {
         const verifiedMap = {};
-        authors.forEach(u => verifiedMap[u.username] = u.verified || false);
+        authors.forEach(u => verifiedMap[u.username] = u.verified === true || String(u.verified).toLowerCase() === "true");
         batch.forEach(s => s.verified = verifiedMap[s.username] || false);
       }
     }
@@ -5126,6 +5126,22 @@ app.get("/snaps-search", async (req, res) => {
       comments: Array.isArray(s.comments) ? s.comments : []
     }));
 
+    const searchAuthors = [...new Set(result.map(function(snap){return snap.username;}).filter(Boolean))];
+    if (searchAuthors.length) {
+      const { data: authors, error: authorError } = await supabase
+        .from("users")
+        .select("username, verified")
+        .in("username", searchAuthors);
+      if (authorError) throw authorError;
+      const verifiedMap = {};
+      (authors || []).forEach(function(author){
+        verifiedMap[author.username] = author.verified === true || String(author.verified).toLowerCase() === "true";
+      });
+      result.forEach(function(snap){
+        snap.verified = verifiedMap[snap.username] === true;
+      });
+    }
+
     res.json({ snaps: result, page, hasMore: result.length >= limit });
   } catch (err) {
     console.error("Snaps search error:", err);
@@ -5161,7 +5177,7 @@ app.get("/get-snap/:id", async (req, res) => {
 
     if (!userError && user) {
       snap.profile_pic = user.profile_pic;
-      snap.verified = user.verified;
+      snap.verified = user.verified === true || String(user.verified).toLowerCase() === "true";
       snap.author_fullname = user.fullname;
       snap.profile_type = user.profile_type;
     } else {
@@ -9461,21 +9477,17 @@ app.post("/get-posts", express.json(), async (req, res) => {
     // Used by both /get-posts and /snaps-feed
     const isVideo = file => /\.(mp4|webm|ogg)$/i.test(String(file || ''));
 
-    async function attachPlusAuthorFlags(posts) {
+    async function attachVerifiedAuthorFlags(posts) {
       const names = Array.from(new Set((posts || []).map(function(post){return post && post.username;}).filter(Boolean)));
       if (!names.length) return posts || [];
-      const { data: authors, error: authorError } = await supabase.from("users").select("id, username, verified").in("username", names);
+      const { data: authors, error: authorError } = await supabase.from("users").select("username, verified").in("username", names);
       if (authorError) throw authorError;
-      const eligible = (authors || []).filter(function(user){return user.verified === true || String(user.verified) === "true";});
-      const userIds = eligible.map(function(user){return user.id;});
-      let activeIds = new Set();
-      if (userIds.length) {
-        const { data: memberships, error: membershipError } = await supabase.from("verification_requests").select("user_id").in("user_id", userIds).eq("status", "ACCEPTED").gt("verified_until", new Date().toISOString());
-        if (membershipError) throw membershipError;
-        activeIds = new Set((memberships || []).map(function(row){return row.user_id;}));
-      }
-      const plusNames = new Set(eligible.filter(function(user){return activeIds.has(user.id);}).map(function(user){return user.username;}));
-      return (posts || []).map(function(post){return Object.assign({}, post, { __plusVerified:plusNames.has(post.username) });});
+      const verifiedNames = new Set((authors || []).filter(function(user){
+        return user.verified === true || String(user.verified).toLowerCase() === "true";
+      }).map(function(user){return user.username;}));
+      return (posts || []).map(function(post){
+        return Object.assign({}, post, { verified:verifiedNames.has(post.username) });
+      });
     }
     function computeScore(post, ctx) {
       const ageHours = Math.max(0.1, ctx.ageHours);
@@ -9486,7 +9498,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
 
       // Plus gets modest feed discovery weighting, not guaranteed reach.
       let verifiedBoost = 0;
-      let plusReachMultiplier = post.__plusVerified === true ? 1.12 : 1.0;
+      let plusReachMultiplier = post.verified === true ? 1.12 : 1.0;
       if (memoryDb && memoryDb.isReady && post.username) {
         const author = memoryDb.findUser(post.username);
         if (author && String(author.verified) === "true") verifiedBoost = 5.0;
@@ -9666,7 +9678,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const now = Date.now();
       const HOUR = 3600000;
 
-      const plusPool = await attachPlusAuthorFlags(pool);
+      const plusPool = await attachVerifiedAuthorFlags(pool);
       const scored = plusPool.map(p => {
         const ageMs = now - new Date(p.created_at).getTime();
         return {
@@ -9803,7 +9815,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
         if (!posts) return res.json([]);
         const filtered = posts.filter(p => p && p.id && p.username && !(p.disabled === true) && !(p.disabled_for_now === true));
         const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
-        const plusFiltered = await attachPlusAuthorFlags(filtered);
+        const plusFiltered = await attachVerifiedAuthorFlags(filtered);
         const scored = plusFiltered.map(p => ({
           ...p,
           _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
@@ -9836,7 +9848,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const filtered = posts.filter(p => p && p.id && p.username && !(p.type || '').toLowerCase().startsWith('group') && !(p.disabled === true) && !(p.disabled_for_now === true));
 
       const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
-      const plusFilteredFollowing = await attachPlusAuthorFlags(filtered);
+      const plusFilteredFollowing = await attachVerifiedAuthorFlags(filtered);
       const scored = plusFilteredFollowing.map(p => ({
         ...p,
         _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
@@ -9907,7 +9919,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
 
     const ctx = await buildUserContext(username, 'foryou', seenIds, pg, limit);
 
-    const plusEligible = await attachPlusAuthorFlags(eligible);
+    const plusEligible = await attachVerifiedAuthorFlags(eligible);
     const scoredPosts = plusEligible.map(p => ({
       ...p,
       _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
