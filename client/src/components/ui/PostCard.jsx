@@ -97,9 +97,15 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function isActivePlusBadge(post, profile) {
-  if (post && typeof post.__plusVerified === 'boolean') return post.__plusVerified;
-  return !!((post && post.verified === true) || (profile && profile.verified === true));
+function isVerifiedFlag(value) {
+  return value === true || String(value).toLowerCase() === 'true';
+}
+
+function isVerifiedBadge(post, profile) {
+  if (post && post.verified !== undefined && post.verified !== null) {
+    return isVerifiedFlag(post.verified);
+  }
+  return isVerifiedFlag(profile && profile.verified);
 }
 
 /* ─── VerifiedBadge ─── */
@@ -394,7 +400,7 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
  <a href={`/@${post.username}`} data-lexum onClick={e => { e.preventDefault(); phNavigate(`/@${post.username}`, 'Create an account to view profiles'); }} className="font-bold text-gray-900 hover:underline truncate max-w-[14rem]">
  {authorProfile.fullname || post.username}
  </a>
- { isActivePlusBadge(post, authorProfile) && <VerifiedBadge /> }
+ { isVerifiedBadge(post, authorProfile) && <VerifiedBadge /> }
  {(post.boost_score || 0) > 0 && (
  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full">
  <BoostedBadge className="w-3 h-3" />
@@ -415,7 +421,6 @@ function PostHeader({ post, authorProfile, groupProfiles, menuOpen, setMenuOpen,
  </div>
  <div className="flex items-center gap-1 text-[14px] leading-4 text-gray-500 truncate">
  <span className="truncate">@{post.username}</span>
-  <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold", String(authorProfile.profile_type || "individual").toLowerCase() === "organisation" ? "bg-brand-50 text-brand-700" : "bg-gray-100 text-gray-500")}>{String(authorProfile.profile_type || "individual").toLowerCase() === "organisation" ? "Organisation" : "Individual"}</span>
  <span>·</span>
  <span className="whitespace-nowrap hover:underline">{timeAgo(post.created_at)}</span>
  </div>
@@ -455,7 +460,7 @@ function QuotedPost({ postId, navigate }) {
  <div className="flex items-center gap-2 mb-2">
  <img src={authorProfile.profile_pic || DEFAULT_PIC} className="w-5 h-5 rounded-full object-cover" alt="" />
  <span className="text-xs font-bold text-gray-900 truncate max-w-[120px]">{authorProfile.fullname || post.username}</span>
- {isActivePlusBadge(post, authorProfile) && <VerifiedBadge className="w-3 h-3" />}
+ {isVerifiedBadge(post, authorProfile) && <VerifiedBadge className="w-3 h-3" />}
  <span className="text-[10px] text-gray-400">· {timeAgo(post.created_at)}</span>
  </div>
  <RichText html={post.text} contentFormat={post.content_format} postId={post.id} className="text-xs text-gray-700 line-clamp-3 mb-2" />
@@ -1238,7 +1243,7 @@ function LiveEndedCard({ post, authorProfile }) {
  <img src={authorProfile.profile_pic} alt={post.username} className="w-9 h-9 rounded-full object-cover border border-gray-200 " loading="lazy" />
  <div className="flex items-center gap-1">
  <span className="text-sm font-semibold text-gray-800 ">{authorProfile.fullname}</span>
- {isActivePlusBadge(post, authorProfile) && <VerifiedBadge className="w-3 h-3" />}
+ {isVerifiedBadge(post, authorProfile) && <VerifiedBadge className="w-3 h-3" />}
  <span className="text-sm text-gray-400"> was live</span>
  </div>
  </div>
@@ -1283,7 +1288,7 @@ function LiveCard({ post, authorProfile, liveCounts, handleLike, navigate }) {
  <div className="flex flex-col">
  <div className="flex items-center gap-1">
  <span className="text-sm font-bold text-gray-900 ">{authorProfile.fullname}</span>
- {isActivePlusBadge(post, authorProfile) && <VerifiedBadge className="w-3 h-3" />}
+ {isVerifiedBadge(post, authorProfile) && <VerifiedBadge className="w-3 h-3" />}
  </div>
  <span className="text-xs font-semibold text-red-500">is live</span>
  </div>
@@ -1492,7 +1497,7 @@ const PostCard = ({
 
     // Name + verified badge + time
     const textX = PAD + picSize + 14;
-    const isVerified = isActivePlusBadge(post, authorProfile);
+    const isVerified = isVerifiedBadge(post, authorProfile);
     ctx.fillStyle = '#111827';
     ctx.font = 'bold 24px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'middle';
