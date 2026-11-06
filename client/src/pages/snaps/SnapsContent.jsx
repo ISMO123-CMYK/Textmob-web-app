@@ -1508,7 +1508,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  }}
  >
  {profileInfo?.fullname || currentSnap?.username}
- {currentSnap?.verified === true && (
+ {(typeof currentSnap?.__plusVerified === 'boolean' ? currentSnap.__plusVerified : currentSnap?.verified === true || profileInfo?.verified === true) && (
  <div className="flex-shrink-0 flex items-center justify-center p-0.5 rounded-full bg-brand-500/20 ml-1">
  <VerifiedBadge className="w-3.5 h-3.5 text-brand-400" />
  </div>
@@ -2124,10 +2124,10 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  >
  @{snap.username}
  {(() => {
- console.log(`[Snap Badge Debug] Username: ${snap.username}, snap.verified: ${snap.verified}`);
- return snap.verified === true && <VerifiedBadge className="w-3 h-3 text-brand-400" />;
+ return (typeof snap.__plusVerified === 'boolean' ? snap.__plusVerified : snap.verified === true || profileInfo?.verified === true) && <VerifiedBadge className="w-3 h-3 text-brand-400" />;
  })()}
- </p>
+ 
+  {String(snap.profile_type || profileInfo?.profile_type || "").toLowerCase() === "organisation" && <span className="rounded-full bg-brand-500/20 px-1.5 py-0.5 text-[8px] font-bold text-blue-100">ORG</span>}</p>
  <p
  style={{
  color: 'rgba(255,255,255,.4)',
@@ -2219,7 +2219,7 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  </div>
  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,.85))', padding: '32px 8px 8px' }}>
   <p style={{ color: '#fff', fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{snap.username}</p>
-  {snap.verified && <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#6E7CF7', flexShrink: 0 }}><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+  {(typeof snap.__plusVerified === 'boolean' ? snap.__plusVerified : snap.verified === true) && <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#4555F2', flexShrink: 0 }}><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
   <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
   <svg viewBox="0 0 24 24" style={{ width: 11, height: 11, fill: '#fff' }}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg>
