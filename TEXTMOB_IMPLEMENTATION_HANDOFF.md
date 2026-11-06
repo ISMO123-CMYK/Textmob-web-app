@@ -23,8 +23,12 @@ The implementation was pushed directly to main, following the project instructio
 
 | Commit | Summary |
 | --- | --- |
-| 2b2efb46997e2bbbb7589c46c01a2cc0e623548b | Applied the Textmob Plus, Markdown-first composer, MobUI, earnings, membership and related server changes. Also corrected hashtag extraction, content-format handling, Plus badge state and the earnings balance display. |
+| 2b2efb46997e2bbbb7589c46c01a2cc0e623548b | Applied the Textmob Plus, Markdown-first composer, MobUI, earnings, membership and related server changes. Also corrected hashtag extraction, content-format handling and the earnings balance display. |
 | 399668c27c74803215731a3ca8d03e6c0dd188b8 | Removed the account-deletion panel and action from Accounts Center, leaving the logout action. |
+| fc99c7e69eaf8af17d4bb83311933a35085ed881 | Standardized post and Snap author badge data on the existing users.verified status and normalized API values to booleans. |
+| 854b58794a25c7c7704fb57aad3abeb936a2c757 | Removed Individual/Organisation pills from post cards and returned post cards to the canonical blue-tick status. |
+| 33a3039c16dbedb3f14229fb110dd4527d749021 | Applied the canonical verified status to Snap surfaces and removed the ORG pill from Snap cards. |
+| 9c10ca0dc49bf6d9102df035ab7ccd12fb9fb63e | Normalized users.verified values in the shared profile cache. |
 
 Commit links:
 - https://github.com/ISMO123-CMYK/Textmob-web-app/commit/2b2efb46997e2bbbb7589c46c01a2cc0e623548b
@@ -219,13 +223,15 @@ The Snap reward path must be implemented and tested before saying that each five
 
 ### Organisation and Individual labels
 
-Account-type labels have been added to relevant Accounts Center and post-author areas. Post cards distinguish Organisation and Individual accounts.
+Account type remains part of account and eligibility settings, but Individual/Organisation labels are not displayed on post cards or Snap cards. The pills were removed from the post author header and Snap author surface.
 
-### Active Plus badges
+### Verified badges and Textmob Plus branding
 
-Post cards and Snap views use the server-supplied __plusVerified value when it is present. This avoids relying only on a stale verified boolean for content returned by the feed. The relevant badge rendering was updated across post and Snap surfaces.
+The blue tick display uses the existing users.verified field that powers Textmob's original verification tracking. Textmob Plus is the product-facing name in the frontend; it does not use a separate __plusVerified badge field.
 
-The feed attaches active Plus status to author records and applies the modest discovery multiplier described above.
+The post feed enriches post authors with a normalized boolean verified value from the users table. The Snap feed, Snap search, single-Snap endpoint, profile endpoint and profile-picture endpoint also normalize the value so boolean and string database representations render consistently.
+
+The existing Plus lifecycle remains tracked through verification_requests.verified_until, the users.verified flag and the expiry cleanup. The discovery multiplier uses the canonical verified status.
 
 ### Account deletion
 
