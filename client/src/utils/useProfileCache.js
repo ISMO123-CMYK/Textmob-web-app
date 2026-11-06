@@ -33,7 +33,7 @@ async function fetchProfile(username) {
       let profile = {
         fullname: data.fullname || username,
         profile_pic: data.profile_pic || DEFAULT_PIC,
-        verified: data.verified || false,
+        verified: data.verified === true || String(data.verified).toLowerCase() === 'true',
         profile_type: data.profile_type || 'individual',
         bio: data.bio || '',
         followers: data.followers || [],
