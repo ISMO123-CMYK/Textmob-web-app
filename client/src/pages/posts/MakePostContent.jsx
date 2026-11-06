@@ -11,6 +11,8 @@ import Ye from '../../components/ui/BottomSheet';
 import AutocompleteDropdown from '../../components/layout/AutocompleteDropdown';
 import { CATEGORIES as CATEGORY_LIST, CATEGORY_IDS } from '../../data/categories';
 import { replaceTokenAt } from '../../utils/autocomplete';
+import MobUIBuilder from '../../components/ui/MobUIBuilder';
+import MobUIRenderer from '../../components/ui/MobUIRenderer';
 
 // Import fabric.js from CDN or global fabric variable
 
@@ -57,6 +59,14 @@ export default function MakePostContent(props) {
  let [postCategories, setPostCategories] = useState([]);
  const [isDragActive, setIsDragActive] = useState(false);
  const CATEGORIES = CATEGORY_LIST;
+ const isPlus = !!props.isPlus;
+ const [mobuiOpen, setMobuiOpen] = useState(false);
+ const [previewOpen, setPreviewOpen] = useState(false);
+ const [aiOpen, setAiOpen] = useState(false);
+ const [aiPrompt, setAiPrompt] = useState('');
+ const [aiTone, setAiTone] = useState('natural');
+ const [aiMode, setAiMode] = useState('mobui');
+ const [aiBusy, setAiBusy] = useState(false);
 
  useEffect(() => {
  if (quotedPostId) {
@@ -85,121 +95,35 @@ export default function MakePostContent(props) {
  let Oe = Ee;
  let ke = k || i.length >= 10;
 
- let Ae = (e) => {
- let requestId = ++suggestionRequestRef.current;
- xe([]);
- let t = e.currentTarget.innerHTML;
- r(t);
-
- let n = window.getSelection();
- if (!n || !n.focusNode || !n.rangeCount) {
- return;
- }
-
- let range = n.getRangeAt(0);
- let preCaretRange = range.cloneRange();
- preCaretRange.selectNodeContents(e.currentTarget);
- preCaretRange.setEnd(range.endContainer, range.endOffset);
- let absOffset = preCaretRange.toString().length;
-
- let fullText = e.currentTarget.textContent || ``;
- let before = fullText.slice(0, absOffset);
- let mentionMatch = before.match(/@([\w.]*)$/);
- let hashMatch = before.match(/#([\w-]*)$/);
-
- if (mentionMatch && mentionMatch[1].length >= 1) {
- let q = mentionMatch[0];
- let start = absOffset - q.length;
- Te({ symbol: '@', start, end: absOffset, query: q });
- (async () => {
- try {
- let res = await apiFetch(`/search-users?q=${encodeURIComponent(mentionMatch[1])}&currentUsername=${localStorage.currentUser || ''}`);
- let data = res.ok ? await res.json() : [];
- if (requestId === suggestionRequestRef.current) {
- xe((Array.isArray(data) ? data : []).map(u => ({ type: 'user', ...u })));
- Ce(0);
- }
- } catch { }
- })();
- } else if (hashMatch && hashMatch[1].length >= 1) {
- let q = hashMatch[0];
- let start = absOffset - q.length;
- Te({ symbol: '#', start, end: absOffset, query: q });
- let cleanTag = q.replace(/^#+/, '').toLowerCase();
- xe([{ type: 'hashtag', query: '#' + cleanTag, count: 0, isNew: true }]);
- (async () => {
- try {
- let res = await apiFetch(`/search-suggest?query=${encodeURIComponent(q)}&currentUsername=${localStorage.currentUser || ''}`);
- let data = res.ok ? await res.json() : [];
- if (requestId !== suggestionRequestRef.current) return;
- let items = Array.isArray(data) ? data : [];
- let hasExactTag = items.some(item =>
- String(item.query || '').replace(/^#+/, '').toLowerCase() === cleanTag
- );
- if (!hasExactTag && cleanTag) {
- items.push({ type: 'hashtag', query: '#' + cleanTag, count: 0, isNew: true });
- }
- xe(items.slice(0, 9));
- Ce(0);
- } catch { }
- })();
- } else {
- xe([]);
- Te(null);
- }
+ let Ae = (event) => {
+  const requestId = ++suggestionRequestRef.current;
+  const value = String(event.currentTarget.value || '');
+  const cursor = typeof event.currentTarget.selectionStart === 'number' ? event.currentTarget.selectionStart : value.length;
+  r(value); xe([]);
+  const before = value.slice(0,cursor);
+  const mention = before.match(/@([\w.]*)$/);
+  const hashtag = before.match(/#([\w-]*)$/);
+  if (mention && mention[1].length >= 1) {
+   const token=mention[0];Te({symbol:'@',start:cursor-token.length,end:cursor,query:token});
+   (async function(){try{const response=await apiFetch('/search-users?q='+encodeURIComponent(mention[1])+'&currentUsername='+encodeURIComponent(localStorage.currentUser||''));const data=response.ok?await response.json():[];if(requestId===suggestionRequestRef.current){xe((Array.isArray(data)?data:[]).map(user=>Object.assign({type:'user'},user)));Ce(0);}}catch(_){}})();
+  } else if (hashtag && hashtag[1].length >= 1) {
+   const token=hashtag[0];const cleanTag=token.replace(/^#+/,'').toLowerCase();Te({symbol:'#',start:cursor-token.length,end:cursor,query:token});xe([{type:'hashtag',query:'#'+cleanTag,count:0,isNew:true}]);
+   (async function(){try{const response=await apiFetch('/search-suggest?query='+encodeURIComponent(token)+'&currentUsername='+encodeURIComponent(localStorage.currentUser||''));const data=response.ok?await response.json():[];if(requestId!==suggestionRequestRef.current)return;const items=Array.isArray(data)?data:[];const exists=items.some(item=>String(item.query||'').replace(/^#+/,'').toLowerCase()===cleanTag);if(!exists&&cleanTag)items.push({type:'hashtag',query:'#'+cleanTag,count:0,isNew:true});xe(items.slice(0,9));Ce(0);}catch(_){}})();
+  } else { xe([]); Te(null); }
  };
-
- let je = (e) => {
- if (!we) {
- return;
- }
- suggestionRequestRef.current += 1;
-
- let t = e.type === `user` ? `@${e.username}` : String(e.query || ``);
- if (we.symbol === `#`) t = `#` + t.replace(/^#+/, ``);
- if (we.symbol === `@`) t = `@` + t.replace(/^@+/, ``);
- let i = we.start;
- let el = ge.current;
- if (!el) return;
-
- let sel = window.getSelection();
- let fullText = el.textContent || ``;
- // `we.end` was captured on the last input event and can lag the click, which
- // left the typed fragment behind the replacement ("#football #foo"). The
- // helper re-derives the end from the text that is actually in the box.
- let newText = replaceTokenAt(fullText, i, t);
-
- // Replace content while preserving cursor
- let childTextNodes = [];
- let walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
- while (walker.nextNode()) childTextNodes.push(walker.currentNode);
-
- el.textContent = newText;
-
- if (ge.current) {
- r(ge.current.innerHTML);
- }
-
- // Place cursor after inserted text
- let cursorPos = i + t.length + 1;
- let firstTextNode = el.firstChild;
- if (firstTextNode && firstTextNode.nodeType === 3) {
- try {
- let range = document.createRange();
- range.setStart(firstTextNode, Math.min(cursorPos, (firstTextNode.textContent || ``).length));
- range.collapse(true);
- sel.removeAllRanges();
- sel.addRange(range);
- } catch (err) {
- console.warn(`Failed reset range`, err);
- }
- }
-
- xe([]);
- Te(null);
+  let je = (item) => {
+  if(!we)return;
+  suggestionRequestRef.current+=1;
+  let token=item.type==='user'?'@'+item.username:String(item.query||'');
+  if(we.symbol==='#')token='#'+token.replace(/^#+/,'');
+  if(we.symbol==='@')token='@'+token.replace(/^@+/,'');
+  const element=ge.current;if(!element)return;
+  const next=replaceTokenAt(String(element.value||''),we.start,token);
+  r(next);xe([]);Te(null);
+  const cursor=we.start+token.length;
+  window.setTimeout(function(){if(!ge.current)return;ge.current.focus();ge.current.setSelectionRange(cursor,cursor);},0);
  };
-
- let Me = (e) => {
+  let Me = (e) => {
  if (be.length > 0) {
  if (e.key === `ArrowDown`) {
  e.preventDefault();
@@ -218,7 +142,42 @@ export default function MakePostContent(props) {
  }
  };
 
- let Ne = [
+ function insertAtCursor(value) {
+  const element=ge.current;const source=String(n||'');
+  const start=element&&typeof element.selectionStart==='number'?element.selectionStart:source.length;
+  const end=element&&typeof element.selectionEnd==='number'?element.selectionEnd:start;
+  r(source.slice(0,start)+value+source.slice(end));
+  const cursor=start+value.length;
+  window.setTimeout(function(){if(!ge.current)return;ge.current.focus();ge.current.setSelectionRange(cursor,cursor);},0);
+ }
+
+ function insertMarkdown(before,after) {
+  const element=ge.current;const source=String(n||'');
+  const start=element&&typeof element.selectionStart==='number'?element.selectionStart:source.length;
+  const end=element&&typeof element.selectionEnd==='number'?element.selectionEnd:start;
+  const selected=source.slice(start,end)||'text';const replacement=before+selected+after;
+  r(source.slice(0,start)+replacement+source.slice(end));
+  const cursor=start+replacement.length;
+  window.setTimeout(function(){if(!ge.current)return;ge.current.focus();ge.current.setSelectionRange(cursor,cursor);},0);
+ }
+
+ function openMobUI() {
+  if(!isPlus){if(typeof props.onPlusClick==='function')props.onPlusClick();else if(window.Lexum)window.Lexum.navigate('/accountscenter');else window.location.href='/accountscenter';return;}
+  setMobuiOpen(value=>!value);
+ }
+
+ async function handleAiWrite() {
+  if(!isPlus){openMobUI();return;}
+  if(!aiPrompt.trim()&&!String(n||'').trim()){d('Add a topic or draft first.');return;}
+  setAiBusy(true);d('');
+  try{
+   const response=await apiFetch('/api/plus/ai-post',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:localStorage.currentUser||'',prompt:aiPrompt,draft:n,tone:aiTone,mode:aiMode})});
+   const result=await response.json();if(!response.ok)throw new Error(result.error||'AI writing failed.');
+   if(result.text)r(result.text);setMobuiOpen(false);setPreviewOpen(true);setAiOpen(false);
+  }catch(error){d(error.message||'AI writing is unavailable.');}
+  finally{setAiBusy(false);}
+ }
+  let Ne = [
  { name: `Happy`, emoji: `😊` },
  { name: `Sad`, emoji: `😢` },
  { name: `Excited`, emoji: `🎉` },
@@ -351,23 +310,6 @@ export default function MakePostContent(props) {
  }, [I, L, re, R, z, ce, ue, fe, me, ae]);
 
  useEffect(() => () => o.forEach((e) => URL.revokeObjectURL(e.url)), []);
-
- let Le = (e) => {
- e.preventDefault();
- let t = e.clipboardData.getData(`text/plain`);
- document.execCommand(`insertText`, false, t);
- if (ge.current) {
- r(ge.current.innerHTML);
- }
- };
-
- let Re = (e, t = null) => {
- if (ge.current) {
- document.execCommand(e, false, t);
- r(ge.current.innerHTML);
- ge.current.focus();
- }
- };
 
  let ze = (files) => {
  const incoming = Array.from(files || []);
@@ -511,9 +453,7 @@ export default function MakePostContent(props) {
  }
  };
 
- let Ke = async (e) => {
- // Write with AI removed
- };
+ let Ke = async () => { await handleAiWrite(); };
 
  let qe = async (e) => {
  e?.stopPropagation();
@@ -526,30 +466,13 @@ export default function MakePostContent(props) {
  l(true);
  d(``);
 
- let c = ge.current
- ? (() => {
- let e = document.createElement(`div`);
- e.innerHTML = ge.current.innerHTML;
- e.querySelectorAll(`img.emoji`).forEach((e) => e.replaceWith(e.alt || ``));
- return window.DOMPurify ? window.DOMPurify.sanitize(e.innerHTML) : e.innerHTML;
- })()
- : ``;
-
- let u = window.twemoji
- ? window.twemoji.parse(c, {
- folder: `svg`,
- ext: `.svg`,
- base: `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/`
- })
- : c;
-
- let f = new FormData();
- f.append(`username`, localStorage.currentUser || `Guest`);
- f.append(`text`, c);
- f.append(`parsed`, u);
- f.append(`visib`, `public`);
-
- if (quotedPostId) {
+ let c = String(n || '').trim();
+let f = new FormData();
+f.append(`username`, localStorage.currentUser || `Guest`);
+f.append(`text`, c);
+f.append(`content_format`, `markdown`);
+f.append(`visib`, `public`);
+if (quotedPostId) {
  f.append(`quoted_post_id`, quotedPostId);
  }
 
@@ -596,9 +519,7 @@ export default function MakePostContent(props) {
  { id: 2, text: ``, votes: [] }
  ]);
 
- if (ge.current) {
- ge.current.innerHTML = ``;
- }
+ r(``);
 
  setTimeout(() => {
  t(false);
@@ -617,7 +538,7 @@ export default function MakePostContent(props) {
  }
  };
 
- let Je = n.replace(/<[^>]+>/g, ``).length;
+ let Je = n.length;
 
  return (
  <Fragment>
@@ -702,26 +623,42 @@ export default function MakePostContent(props) {
  />
 
  <div className={`flex-1 min-w-0`}>
- <div
+ <textarea
  ref={ge}
- onPaste={Le}
- onInput={(e) => {
- r(e.currentTarget.innerHTML);
- Ae(e);
- }}
+ value={n}
+ onChange={Ae}
  onKeyDown={Me}
- contentEditable={true}
- onDragOver={(e) => e.preventDefault()}
- data-placeholder={`What's on your mind?`}
- className={`min-h-[140px] md:min-h-[220px] text-sm md:text-base leading-relaxed text-gray-800 focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-300 `}
- style={{
- wordBreak: `break-word`,
- overflowWrap: `break-word`,
- whiteSpace: `pre-wrap`
- }}
- />
+ rows={6}
+ maxLength={10000}
+ placeholder="Write your post. Use the B button for basic formatting."
+ className="w-full min-h-[150px] md:min-h-[180px] resize-y bg-transparent text-sm md:text-base leading-6 text-gray-800 placeholder:text-gray-300 focus:outline-none"
+/>
+  <AutocompleteDropdown items={be} onSelect={je} activeIndex={Se} />
+  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-2">
+   <div className="flex flex-wrap items-center gap-1">
+    <button type="button" onClick={() => insertMarkdown("**","**")} className="h-7 rounded-md border border-gray-200 px-2 text-xs font-bold text-gray-600 hover:bg-gray-50">B</button>
+    {isPlus && <>
+      <button type="button" onClick={() => insertMarkdown("*","*")} className="h-7 rounded-md border border-gray-200 px-2 text-xs italic text-gray-600 hover:bg-gray-50">I</button>
+      <button type="button" onClick={() => insertMarkdown("~~","~~")} className="h-7 rounded-md border border-gray-200 px-2 text-xs line-through text-gray-600 hover:bg-gray-50">S</button>
+      <button type="button" onClick={() => insertMarkdown(String.fromCharCode(96),String.fromCharCode(96))} className="h-7 rounded-md border border-gray-200 px-2 text-xs font-mono text-gray-600 hover:bg-gray-50">Code</button>
+      <button type="button" onClick={() => insertMarkdown("- ","")} className="h-7 rounded-md border border-gray-200 px-2 text-xs text-gray-600 hover:bg-gray-50">List</button>
+      <button type="button" onClick={() => insertMarkdown("> ","")} className="h-7 rounded-md border border-gray-200 px-2 text-xs text-gray-600 hover:bg-gray-50">Quote</button>
+    </>}
+   </div>
+   <div className="flex items-center gap-1">
+    <button type="button" onClick={() => setPreviewOpen(value=>!value)} className="h-7 rounded-md bg-gray-100 px-2.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-200">{previewOpen ? "Edit" : "Preview"}</button>
+    <button type="button" onClick={openMobUI} className="h-7 rounded-md border border-brand-200 bg-brand-50 px-2.5 text-[11px] font-semibold text-brand-700 hover:bg-brand-100">{isPlus ? "Use MobUI" : "MobUI · Plus"}</button>
+    <button type="button" onClick={() => { if (!isPlus) { openMobUI(); return; } setAiOpen(value=>!value); }} className="h-7 rounded-md bg-brand-600 px-2.5 text-[11px] font-semibold text-white hover:bg-brand-700">AI helper</button>
+   </div>
+  </div>
+  {previewOpen && <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3"><p className="mb-2 text-[9px] font-bold uppercase tracking-wide text-gray-400">Post preview</p><MobUIRenderer content={n}/></div>}
+  {mobuiOpen && isPlus && <div className="mt-3"><MobUIBuilder onClose={() => setMobuiOpen(false)} onInsert={value => { insertAtCursor(value); setMobuiOpen(false); setPreviewOpen(true); }}/></div>}
+  {aiOpen && isPlus && <div className="mt-3 rounded-lg border border-brand-100 bg-brand-50/60 p-3 space-y-2">
+   <div className="flex items-center justify-between"><p className="text-xs font-bold text-gray-900">Textmob Plus AI writer</p><span className="text-[10px] text-brand-700">Markdown + MobUI</span></div>
+   <textarea value={aiPrompt} onChange={event=>setAiPrompt(event.target.value)} rows={2} placeholder="Describe the post you want, for example an interactive water cycle lesson with a quiz." className="w-full rounded-lg border border-gray-200 bg-white p-2.5 text-xs outline-none focus:border-brand-400"/>
+   <div className="flex flex-wrap items-center gap-2"><select value={aiMode} onChange={event=>setAiMode(event.target.value)} className="h-8 flex-1 rounded-md border border-gray-200 bg-white px-2 text-xs"><option value="mobui">Interactive MobUI post</option><option value="markdown">Normal Markdown post</option></select><select value={aiTone} onChange={event=>setAiTone(event.target.value)} className="h-8 rounded-md border border-gray-200 bg-white px-2 text-xs"><option value="natural">Natural</option><option value="professional">Professional</option><option value="friendly">Friendly</option><option value="thoughtful">Thoughtful</option><option value="playful">Playful</option></select><button type="button" onClick={Ke} disabled={aiBusy} className="h-8 rounded-md bg-brand-600 px-3 text-xs font-semibold text-white disabled:opacity-50">{aiBusy ? "Writing…" : "Generate"}</button></div>
+  </div>}
 
- <AutocompleteDropdown items={be} onSelect={je} activeIndex={Se} />
 
  {quotedPostData && (
  <div className={`mt-3 p-3 rounded-lg border border-gray-100 bg-gray-50 relative`}>

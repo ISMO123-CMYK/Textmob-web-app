@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { profileCache, fetchProfile } from '../../utils/useProfileCache';
 import { apiFetch } from '../../config/api';
+import MobUIRenderer from './MobUIRenderer';
+import { hasMobUIBlocks, isLegacyHtmlContent, renderMobMarkdown, sanitizeMobHtml } from '../../utils/mobui';
 
 // Legacy usernames contain chars (spaces, emojis, accents...) that the standard
 // /@[\w.-]+/ mention regex cannot match. We fetch the exact list from the server
@@ -44,19 +46,22 @@ function splitOutsideAnchors(html) {
   const parts = html.split(/(<[^>]*>)/g);
   const segments = [];
   let anchorDepth = 0;
+  let codeDepth = 0;
+
   for (const part of parts) {
     if (!part) continue;
     if (part.startsWith('<')) {
       if (/^<a[\s>]/i.test(part)) anchorDepth++;
       else if (/^<\/a\s*>/i.test(part)) anchorDepth = Math.max(0, anchorDepth - 1);
-      segments.push({ type: 'tag', value: part });
+      if (/^<(?:pre|code)[\s>]/i.test(part)) codeDepth++;
+      else if (/^<\/(?:pre|code)\s*>/i.test(part)) codeDepth = Math.max(0, codeDepth - 1);
+      segments.push({ type:'tag', value:part });
     } else {
-      segments.push({ type: 'text', value: part, linkable: anchorDepth === 0 });
+      segments.push({ type:'text', value:part, linkable:anchorDepth===0 && codeDepth===0 });
     }
   }
   return segments;
 }
-
 function urlAnchor(url) {
   // Same-site links become relative hrefs so LexumRouter opens them in-app
   const m = url.match(/^(?:https?:\/\/)?(?:www\.)?textmob\.web\.app(\/\S*)?/i);
@@ -116,89 +121,87 @@ function renderStickers(text) {
   return parts;
 }
 
-// Rn – RichText component: parses @mentions, #hashtags, URLs and stickers
-export default function RichText({ html, className }) {
+// RichText uses Markdown as the canonical web post format.
+// Old HTML posts remain supported through the legacy branch.
+export default function RichText({ html, className, contentFormat, postId }) {
   const [parsed, setParsed] = useState('');
-
-  const stickerParts = renderStickers(html);
+  const text = String(html || '');
+  const isMarkdown = contentFormat === 'markdown' || (!contentFormat && !isLegacyHtmlContent(text));
+  const sourceText = isMarkdown ? text.replace(STICKER_REGEX, '![]($1)') : text;
+  const hasInteractive = isMarkdown && hasMobUIBlocks(sourceText);
+  const stickerParts = !isMarkdown ? renderStickers(text) : null;
 
   useEffect(() => {
     let active = true;
 
-    async function process(text) {
-      if (!text) return;
-
-      const isHTML = /<\/?[a-z][\s\S]*>/i.test(text);
-      const segments = splitOutsideAnchors(text);
-      const linkable = segments.filter(s => s.type === 'text' && s.linkable);
-
-      const mentionRx = /@([\w.-]+)/g;
-      const usernames = [];
-      linkable.forEach(s => {
-        for (const m of s.value.matchAll(mentionRx)) usernames.push(m[1].toLowerCase());
-      });
-      const unique = Array.from(new Set(usernames));
-      const validSet = new Set();
-
-      // Fetch profiles for unknown mentions
-      const toFetch = unique.filter(u => !profileCache.has(u));
-      if (toFetch.length > 0) {
-        await Promise.allSettled(
-          toFetch.map(async u => {
-            try {
-              let p = await fetchProfile(u);
-              if (p && !p.error) validSet.add(u);
-            } catch {}
-          })
-        );
+    async function process() {
+      if (!sourceText) {
+        if (active) setParsed('');
+        return;
       }
 
-      // Check all against cache
-      unique.forEach(u => {
-        let p = profileCache.get(u);
-        if (p && !p.error) validSet.add(u);
+      // Markdown is parsed before we decorate mentions and hashtags.
+      const rendered = isMarkdown ? renderMobMarkdown(sourceText) : sourceText;
+      const segments = splitOutsideAnchors(rendered);
+      const linkable = segments.filter(segment => segment.type === 'text' && segment.linkable);
+      const mentionRx = /@([\w.-]+)/g;
+      const usernames = [];
+
+      linkable.forEach(segment => {
+        for (const match of segment.value.matchAll(mentionRx)) usernames.push(match[1].toLowerCase());
+      });
+
+      const unique = Array.from(new Set(usernames));
+      const validSet = new Set();
+      const toFetch = unique.filter(name => !profileCache.has(name));
+
+      if (toFetch.length) {
+        await Promise.allSettled(toFetch.map(async name => {
+          try {
+            const profile = await fetchProfile(name);
+            if (profile && !profile.error) validSet.add(name);
+          } catch (_) {}
+        }));
+      }
+
+      unique.forEach(name => {
+        const profile = profileCache.get(name);
+        if (profile && !profile.error) validSet.add(name);
       });
 
       if (!active) return;
-
       const legacyNames = await getLegacyUsernames();
       if (!active) return;
 
-      // Linkify each text node - including posts the composer saved as HTML,
-      // which previously rendered as inert text with no links.
-      let result = segments
-        .map(seg => (seg.type === 'text' && seg.linkable ? linkifySegment(seg.value, legacyNames, validSet) : seg.value))
-        .join('');
+      const linked = segments.map(segment => (
+        segment.type === 'text' && segment.linkable
+          ? linkifySegment(segment.value, legacyNames, validSet)
+          : segment.value
+      )).join('');
 
-      // Convert markdown (bold, italic, code, lists, headings, etc.)
-      // - only for plain posts; HTML posts already carry their own markup.
-      if (!isHTML && typeof window.marked !== 'undefined') {
-        result = window.marked.parse(result, { gfm: true, breaks: true, mangle: false, headerIds: false });
-      }
+      const safeResult = sanitizeMobHtml(linked);
 
-      // Sanitize if DOMPurify is available
-      if (typeof window.DOMPurify !== 'undefined') {
-        result = window.DOMPurify.sanitize(result, { ADD_ATTR: ['data-lexum'] });
-      }
-
-      setParsed(result);
+      if (active) setParsed(safeResult);
     }
 
-    process(html);
+    process();
     return () => { active = false; };
-  }, [html]);
+  }, [sourceText, isMarkdown]);
+
+  if (hasInteractive) {
+    return <MobUIRenderer content={sourceText} className={className} postId={postId} />;
+  }
 
   if (stickerParts) {
     return (
-      <div className={`flex flex-wrap items-end gap-1 ${className || ''}`}>
-        {stickerParts.map((part, i) =>
-          part.type === 'sticker'
-            ? <img key={i} src={part.url} alt="sticker" className="max-h-32 rounded-lg object-contain" loading="lazy" />
-            : <span key={i}>{part.value}</span>
-        )}
+      <div className={"flex flex-wrap items-end gap-1 " + (className || "")}>
+        {stickerParts.map((part, index) => part.type === 'sticker'
+          ? <img key={index} src={part.url} alt="sticker" className="max-h-32 rounded-lg object-contain" loading="lazy" />
+          : <span key={index}>{part.value}</span>)}
       </div>
     );
   }
 
-  return <div className={`prose markdown max-w-none ${className || ''}`} dangerouslySetInnerHTML={{ __html: parsed }} />;
+  return <div className={"prose markdown max-w-none " + (className || "")} dangerouslySetInnerHTML={{__html:parsed}} />;
 }
+

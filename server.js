@@ -5958,12 +5958,33 @@ async function triggerAskifyReply(content, postId, parentType, parentUser) {
 // --- CREATE POST ---
 app.post("/create-post", upload.array("media", 10), async (req, res) => {
   try {
-    const { username, text, visib, activities, quoted_post_id, category, categories } = req.body;
+    const { username, text, visib, activities, quoted_post_id, category, categories, content_format } = req.body;
     let { options } = req.body;
     if (await isUserDisabled(username)) return res.status(403).json({ error: "Account disabled" });
 
     if (!username || !text) {
       return res.status(400).json({ error: "Missing required fields" });
+    }    const mobUiBlocks = extractMobUIBlocks(text);
+    if (mobUiBlocks.length) {
+      const { data: author, error: authorError } = await supabase.from("users")
+        .select("id, verified, profile_type").eq("username", username).single();
+      if (authorError || !author) return res.status(404).json({ error: "User not found." });
+      if (String(author.profile_type || "").toLowerCase() !== "organisation") {
+        return res.status(403).json({ error: "Interactive MobUI is a Textmob Plus member feature. Basic Markdown remains free." });
+      }
+      const { data: activePlus, error: plusError } = await supabase.from("verification_requests")
+        .select("id").eq("user_id", author.id).eq("status", "ACCEPTED")
+        .gt("verified_until", new Date().toISOString()).order("verified_until", { ascending:false }).limit(1).maybeSingle();
+      if (plusError) throw plusError;
+      if (!author.verified || !activePlus) return res.status(403).json({ error: "Join Textmob Plus to publish interactive MobUI blocks." });
+      const allowed = ["quiz","chart","flowchart","table","calculator","timeline","checklist","decision","accordion","poll","flashcards","cards","callout","slides","code","palette"];
+      for (const block of mobUiBlocks) {
+        if (!block.closed) return res.status(400).json({ error:"A MobUI component is missing its closing marker." });
+        if (allowed.indexOf(block.type) === -1) return res.status(400).json({ error:"Unsupported MobUI component: " + block.type });
+        if (block.raw.length > 16000) return res.status(400).json({ error:"MobUI component is too large." });
+        try { const value=JSON.parse(block.raw); if(!value || typeof value!=="object" || Array.isArray(value)) throw new Error("invalid"); }
+        catch (_) { return res.status(400).json({ error:"MobUI component data is invalid." }); }
+      }
     }
 
     // Support both single `category` (legacy) and `categories` array (JSON string from FormData)
@@ -6054,6 +6075,7 @@ app.post("/create-post", upload.array("media", 10), async (req, res) => {
       .insert([{
         username: username,
         text: text,
+        content_format: content_format === "markdown" ? "markdown" : "legacy",
         media: mediaUrls,
         likes: [],
         comments: [],
@@ -7092,23 +7114,26 @@ app.post("/like-post", async (req, res) => {
       });
     }
 
-    // ── Milestone rewards (background, non-blocking) ──
-    // Every exact 10-like milestone (10, 20, 30, ...) pays the author +5 Mobcoins.
-    // No tables: pure check on the fresh like count. Unlikes never pay; self-likes never pay.
-    if (newlyLiked && username !== post.username && updatedLikes.length > 0 && updatedLikes.length % 10 === 0) {
+    // Each five genuine likes earns 100 Mobcoins, one time per post milestone.
+    if (newlyLiked && username !== post.username && updatedLikes.length > 0 && updatedLikes.length % 5 === 0) {
       const milestone = updatedLikes.length;
-      const ownerName = post.username;
+      const ownerName = String(post.username).split("@").pop().trimEnd();
+      const rewardId = "post_" + String(postId).replace(/[^a-zA-Z0-9_-]/g, "_") + "_" + milestone;
       setImmediate(async () => {
+        let balanceUpdated = false;
         try {
-          await updateMobcoins(
-            String(ownerName).split("@").pop().trimEnd(),
-            +5,
-            true,
-            `You earned 5 Mobcoins — your post hit ${milestone} likes!`,
-            `/post/${postId}`
-          );
+          const claim = await supabase.from("mobcoin_reward_events").insert({ id:rewardId, post_id:String(postId), author_username:ownerName, milestone_likes:milestone, amount:100, status:"pending", created_at:new Date().toISOString() });
+          if (claim.error) {
+            if (!/constraint|unique|duplicate|primary key/i.test(claim.error.message || "")) console.error("[like-post] reward ledger error:", claim.error.message);
+            return;
+          }
+          await updateMobcoins(ownerName, 100, true, "You earned 100 Mobcoins — your post reached " + milestone + " likes!", "/post/" + postId);
+          balanceUpdated = true;
+          const { error: paidError } = await supabase.from("mobcoin_reward_events").update({ status:"paid", paid_at:new Date().toISOString() }).eq("id", rewardId);
+          if (paidError) console.error("[like-post] Mobcoins credited but ledger status failed:", paidError.message);
         } catch (e) {
-          console.error("[like-post] milestone mobcoins error:", e && e.message);
+          if (!balanceUpdated) await supabase.from("mobcoin_reward_events").delete().eq("id", rewardId).catch(function () {});
+          console.error("[like-post] milestone Mobcoins error:", e && e.message);
         }
       });
     }
@@ -7348,21 +7373,42 @@ app.get("/get-user-posts", async (req, res) => {
 
 app.all("/edit-post", async (req, res) => {
   try {
-    const { postId, content, text, title, comments, likes } = req.body;
+    const { postId, content, text, title, username } = req.body;
     if (!postId) {
       return res.status(400).json({ error: "postId is required" });
     }
 
-    // Build update object. Only include fields that are provided.
+    const { data: ownerPost, error: ownerError } = await supabase2.from("Posts").select("id, username, text").eq("id", postId).single();
+    if (ownerError || !ownerPost) return res.status(404).json({ error: "Post not found." });
+    if (!username || String(ownerPost.username) !== String(username)) return res.status(403).json({ error: "You can only edit your own posts." });
+
+    // Build content-only update object.
     const updateFields = {};
     const bodyText = content !== undefined ? content : text;
+    const nextBlocks = bodyText !== undefined ? extractMobUIBlocks(bodyText) : [];
+    const previousBlocks = extractMobUIBlocks(ownerPost.text);
+    const nextSource = nextBlocks.map(block => block.type + "\n" + block.raw + "\n" + block.closed).join("\n---\n");
+    const previousSource = previousBlocks.map(block => block.type + "\n" + block.raw + "\n" + block.closed).join("\n---\n");
+    if (nextBlocks.length && nextSource !== previousSource) {
+      const { data: author, error: authorError } = await supabase.from("users").select("id, verified, profile_type").eq("username", username).single();
+      if (authorError || !author) return res.status(404).json({ error: "User not found." });
+      if (String(author.profile_type || "").toLowerCase() !== "organisation") return res.status(403).json({ error: "Interactive MobUI is a Textmob Plus member feature." });
+      const { data: activePlus, error: plusError } = await supabase.from("verification_requests").select("id").eq("user_id", author.id).eq("status", "ACCEPTED").gt("verified_until", new Date().toISOString()).order("verified_until", { ascending:false }).limit(1).maybeSingle();
+      if (plusError) throw plusError;
+      if (!author.verified || !activePlus) return res.status(403).json({ error: "An active Textmob Plus membership is required to add or change interactive MobUI." });
+    }
+    const allowedMobUI = ["quiz","chart","flowchart","table","calculator","timeline","checklist","decision","accordion","poll","flashcards","cards","callout","slides","code","palette"];
+    for (const block of nextBlocks) {
+      if (!block.closed || allowedMobUI.indexOf(block.type) === -1 || block.raw.length > 16000) return res.status(400).json({ error:"A MobUI component is invalid or unsupported." });
+      try { const value = JSON.parse(block.raw); if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("invalid"); }
+      catch (_) { return res.status(400).json({ error:"MobUI component data is invalid." }); }
+    }
     if (bodyText !== undefined) {
       updateFields.text = bodyText;
+      updateFields.content_format = "markdown";
       updateFields.hashtags = bodyText.match(/#[\w-]+/g) || [];
     }
     if (title !== undefined) updateFields.title = title;
-    if (comments !== undefined) updateFields.comments = comments;
-    if (likes !== undefined) updateFields.likes = likes;
 
     const { data, error } = await supabase2
       .from("Posts")
@@ -7525,7 +7571,7 @@ app.post("/add-comment", async (req, res) => {
     const isSelfComment = commenterUsername === ownerUsername;
 
     // Mobcoin rewards are milestone-based only (see /like-post worker).
-    // No coins for comments — likes milestones (every 10 likes = 5 Mobcoins) only.
+    // No coins for comments. Posts earn 100 Mobcoins per five-like milestone.
 
     // If replying to a specific comment, notify that comment's author
     if (parentId && repliedUsername && repliedUsername !== commenterUsername && repliedUsername !== ownerUsername) {
@@ -7827,11 +7873,17 @@ app.post("/api/redeem", async (req, res) => {
     // Fetch user by username to get UUID and current balance
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, mobcoins, username')
+      .select('id, mobcoins, username, profile_type, verified')
       .eq('username', userId)
       .single();
 
     if (userError || !user) return res.status(404).json({ error: "User not found" });
+    if (String(user.profile_type || "").toLowerCase() !== "organisation") return res.status(403).json({ error: "An Organisation account is required to withdraw earnings." });
+    const { data: activePlus, error: plusError } = await supabase.from("verification_requests")
+      .select("id").eq("user_id", user.id).eq("status", "ACCEPTED")
+      .gt("verified_until", now.toISOString()).order("verified_until", { ascending: false }).limit(1).maybeSingle();
+    if (plusError) throw plusError;
+    if (!user.verified || !activePlus) return res.status(403).json({ error: "An active Textmob Plus membership is required before withdrawing." });
 
     // Check for existing pending or recent completed requests (once a week rule)
     const sevenDaysAgo = new Date(now);
@@ -8371,6 +8423,116 @@ async function generateAIResponse(messages, mediaUrl, mediaType) {
 }
 
 
+app.post("/api/plus/ai-post", async (req, res) => {
+  try {
+    const username = String(req.body && req.body.username || "").trim();
+    const prompt = String(req.body && req.body.prompt || "").trim().slice(0, 3000);
+    const draft = String(req.body && req.body.draft || "").trim().slice(0, 12000);
+    const tone = String(req.body && req.body.tone || "natural").trim().slice(0, 40);
+    const mode = req.body && req.body.mode === "mobui" ? "mobui" : "markdown";
+    if (!username || (!prompt && !draft)) return res.status(400).json({ error: "Add a topic or draft first." });
+    if (await isUserDisabled(username)) return res.status(403).json({ error: "Account disabled" });
+    const { data: user, error: userError } = await supabase.from("users").select("id, verified, profile_type").eq("username", username).single();
+    if (userError || !user) return res.status(404).json({ error: "User not found." });
+    if (String(user.profile_type || "").toLowerCase() !== "organisation") return res.status(403).json({ error: "Textmob Plus is available to Organisation accounts." });
+    const { data: activePlus, error: plusError } = await supabase.from("verification_requests").select("id").eq("user_id", user.id).eq("status", "ACCEPTED").gt("verified_until", new Date().toISOString()).order("verified_until", { ascending: false }).limit(1).maybeSingle();
+    if (plusError) throw plusError;
+    if (!user.verified || !activePlus) return res.status(403).json({ error: "Join Textmob Plus to use the AI writing helper." });
+    const systemPrompt = "You are Textmob MobUI AI. Return publish-ready Markdown and valid :::mobui blocks. Never return HTML, JavaScript, JSX, scripts, iframes or external embeds. Supported JSON block types: quiz {question,options:string[],answerIndex:number,explanation}; chart {title,unit,data:[{label:string,value:number}]}; flowchart {title,steps:string[]}; table {title,columns:string[],rows:string[][]}; calculator {title,label,min:number,max:number,step:number,multiplier:number,suffix:string}; timeline {title,events:[{date,title,description}]}; checklist {title,items:string[]}; decision {question,options:[{label,result}]}; accordion {title,content}; poll {question,options:string[]}; flashcards {title,cards:[{front,back}]}; cards {title,items:[{title,description}]}; callout {title,body,tone}; slides {title,slides:[{heading,body}]}; code {title,language,source}; palette {title,colors:[{name,hex}]}. Every component must be wrapped in :::mobui type, then one valid JSON object, then :::. Use regular Markdown for headings, lists, paragraphs, tables and links. Do not fabricate statistics, charts, quotations or sources. Normal writing requests must return Markdown only. Interactive requests should use only components that help the reader. Keep the author intent, clear language and mobile-first structure.";
+    const generated = await groqChat([{ role: "system", content: systemPrompt }, { role: "user", content: "Mode: " + mode + "\nTone: " + tone + "\nPrompt: " + prompt + "\nExisting draft: " + draft + "\nWrite the completed post now." }], { temperature: 0.55, max_tokens: 1500 });
+    if (!generated) return res.status(503).json({ error: "The AI writer returned an empty draft. Try again." });
+    return res.json({ text: String(generated).trim(), content_format: "markdown" });
+  } catch (err) {
+    console.error("[Textmob Plus AI writer] error:", err && err.message);
+    return res.status(500).json({ error: "AI writing is temporarily unavailable." });
+  }
+});
+function extractMobUIBlocks(source) {
+  const lines = String(source || "").split(/\r?\n/);
+  const blocks = [];
+  let insideFence = false;
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (/^\s*(\x60{3}|~~~)/.test(line)) { insideFence = !insideFence; index += 1; continue; }
+    const start = insideFence ? null : line.match(/^:::mobui\s+([a-z][a-z0-9-]*)\s*$/i);
+    if (!start) { index += 1; continue; }
+    const type = start[1].toLowerCase();
+    const content = [];
+    let closed = false;
+    index += 1;
+    while (index < lines.length) {
+      if (/^\s*:::\s*$/.test(lines[index])) { closed = true; index += 1; break; }
+      content.push(lines[index]);
+      index += 1;
+    }
+    blocks.push({ type:type, raw:content.join("\n"), closed:closed });
+  }
+  return blocks;
+}
+function parseMobUIPollBlock(source, blockId) {
+  const blocks = extractMobUIBlocks(source);
+  let pollIndex = 0;
+  for (const block of blocks) {
+    if (block.type !== "poll") continue;
+    const currentId = "poll-" + pollIndex++;
+    if (currentId !== blockId || !block.closed) continue;
+    try {
+      const data = JSON.parse(block.raw);
+      const options = Array.isArray(data.options) ? data.options.slice(0, 12) : [];
+      return options.length >= 2 ? { question:String(data.question || ""), options:options.map(String) } : null;
+    } catch (_) { return null; }
+  }
+  return null;
+}
+app.get("/api/mobui/poll-results", async (req, res) => {
+  try {
+    const postId = String(req.query.postId || "");
+    const blockId = String(req.query.blockId || "");
+    const username = String(req.query.username || "").trim();
+    if (!postId || !blockId) return res.status(400).json({ error: "Post and poll are required." });
+    const { data: post, error: postError } = await supabase2.from("Posts").select("id, text").eq("id", postId).single();
+    if (postError || !post) return res.status(404).json({ error: "Post not found." });
+    const block = parseMobUIPollBlock(post.text, blockId);
+    if (!block) return res.status(404).json({ error: "Poll not found." });
+    const { data: votes, error: votesError } = await supabase.from("mobui_poll_votes").select("option_index, username").eq("post_id", postId).eq("block_id", blockId);
+    if (votesError) throw votesError;
+    const counts = new Array(block.options.length).fill(0);
+    let selected = null;
+    (votes || []).forEach(function (vote) { const index=Number(vote.option_index); if (index>=0 && index<counts.length) counts[index] += 1; if (username && vote.username===username) selected=index; });
+    return res.json({ counts:counts, total:counts.reduce((sum,value)=>sum+value,0), selected:selected });
+  } catch (err) {
+    console.error("[MobUI poll results] error:", err && err.message);
+    return res.status(500).json({ error: "Could not load poll results." });
+  }
+});
+
+app.post("/api/mobui/poll-vote", async (req, res) => {
+  try {
+    const postId = String(req.body && req.body.postId || "");
+    const blockId = String(req.body && req.body.blockId || "");
+    const username = String(req.body && req.body.username || "").trim();
+    const optionIndex = Number(req.body && req.body.optionIndex);
+    if (!postId || !blockId || !username || !Number.isInteger(optionIndex)) return res.status(400).json({ error: "Post, poll, account and option are required." });
+    if (await isUserDisabled(username)) return res.status(403).json({ error: "Account disabled" });
+    const { data: post, error: postError } = await supabase2.from("Posts").select("id, text").eq("id", postId).single();
+    if (postError || !post) return res.status(404).json({ error: "Post not found." });
+    const block = parseMobUIPollBlock(post.text, blockId);
+    if (!block || optionIndex < 0 || optionIndex >= block.options.length) return res.status(400).json({ error: "That poll option is not available." });
+    const clean = function (value) { return String(value).replace(/[^a-zA-Z0-9_-]/g, "_"); };
+    const voteId = "vote_" + clean(postId) + "_" + clean(blockId) + "_" + clean(username);
+    const { error: voteError } = await supabase.from("mobui_poll_votes").upsert({ id:voteId, post_id:postId, block_id:blockId, username:username, option_index:optionIndex, updated_at:new Date().toISOString() }, { onConflict:"id" });
+    if (voteError) throw voteError;
+    const { data: votes, error: resultsError } = await supabase.from("mobui_poll_votes").select("option_index").eq("post_id", postId).eq("block_id", blockId);
+    if (resultsError) throw resultsError;
+    const counts = new Array(block.options.length).fill(0);
+    (votes || []).forEach(function (vote) { const index=Number(vote.option_index); if (index>=0 && index<counts.length) counts[index] += 1; });
+    return res.json({ counts:counts, total:counts.reduce((sum,value)=>sum+value,0) });
+  } catch (err) {
+    console.error("[MobUI poll vote] error:", err && err.message);
+    return res.status(500).json({ error: "Could not save your vote." });
+  }
+});
 app.post('/chat', async (req, res) => {
   try {
     const messages = req.body.messages;
@@ -9271,6 +9433,22 @@ app.post("/get-posts", express.json(), async (req, res) => {
     // Used by both /get-posts and /snaps-feed
     const isVideo = file => /\.(mp4|webm|ogg)$/i.test(String(file || ''));
 
+    async function attachPlusAuthorFlags(posts) {
+      const names = Array.from(new Set((posts || []).map(function(post){return post && post.username;}).filter(Boolean)));
+      if (!names.length) return posts || [];
+      const { data: authors, error: authorError } = await supabase.from("users").select("id, username, verified").in("username", names);
+      if (authorError) throw authorError;
+      const eligible = (authors || []).filter(function(user){return user.verified === true || String(user.verified) === "true";});
+      const userIds = eligible.map(function(user){return user.id;});
+      let activeIds = new Set();
+      if (userIds.length) {
+        const { data: memberships, error: membershipError } = await supabase.from("verification_requests").select("user_id").in("user_id", userIds).eq("status", "ACCEPTED").gt("verified_until", new Date().toISOString());
+        if (membershipError) throw membershipError;
+        activeIds = new Set((memberships || []).map(function(row){return row.user_id;}));
+      }
+      const plusNames = new Set(eligible.filter(function(user){return activeIds.has(user.id);}).map(function(user){return user.username;}));
+      return (posts || []).map(function(post){return Object.assign({}, post, { __plusVerified:plusNames.has(post.username) });});
+    }
     function computeScore(post, ctx) {
       const ageHours = Math.max(0.1, ctx.ageHours);
       const likes = (post.likes || []).length;
@@ -9278,8 +9456,9 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const reactions = (post.reactions || []).length;
       const contentType = post.type || 'post';
 
-      // Verified author boost: +5.0 if author is verified
+      // Plus gets modest feed discovery weighting, not guaranteed reach.
       let verifiedBoost = 0;
+      let plusReachMultiplier = post.__plusVerified === true ? 1.12 : 1.0;
       if (memoryDb && memoryDb.isReady && post.username) {
         const author = memoryDb.findUser(post.username);
         if (author && String(author.verified) === "true") verifiedBoost = 5.0;
@@ -9372,7 +9551,7 @@ app.post("/get-posts", express.json(), async (req, res) => {
         videoLengthBonus +
         viewsBoost +
         verifiedBoost
-      ) * followNudge * typeWeight * seenPenalty * likedPenalty * selfPenalty * negPenalty * catWeight * hashtagBoost;
+      ) * followNudge * typeWeight * seenPenalty * likedPenalty * selfPenalty * negPenalty * catWeight * hashtagBoost * plusReachMultiplier;
 
       if (ctx.username && post.id && process.env.LOG_SCORES) {
         console.log(`[score] user=${ctx.username} post=${post.id} score=${score.toFixed(4)} freshness=${freshness.toFixed(4)} velocity=${velocity.toFixed(4)} followNudge=${followNudge} typeWeight=${typeWeight} seenPenalty=${seenPenalty} negPenalty=${negPenalty} catWeight=${catWeight}`);
@@ -9459,7 +9638,8 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const now = Date.now();
       const HOUR = 3600000;
 
-      const scored = pool.map(p => {
+      const plusPool = await attachPlusAuthorFlags(pool);
+      const scored = plusPool.map(p => {
         const ageMs = now - new Date(p.created_at).getTime();
         return {
           ...p,
@@ -9595,7 +9775,8 @@ app.post("/get-posts", express.json(), async (req, res) => {
         if (!posts) return res.json([]);
         const filtered = posts.filter(p => p && p.id && p.username && !(p.disabled === true) && !(p.disabled_for_now === true));
         const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
-        const scored = filtered.map(p => ({
+        const plusFiltered = await attachPlusAuthorFlags(filtered);
+        const scored = plusFiltered.map(p => ({
           ...p,
           _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
         }));
@@ -9627,7 +9808,8 @@ app.post("/get-posts", express.json(), async (req, res) => {
       const filtered = posts.filter(p => p && p.id && p.username && !(p.type || '').toLowerCase().startsWith('group') && !(p.disabled === true) && !(p.disabled_for_now === true));
 
       const ctx = await buildUserContext(username, tab, seenIds, pg, limit);
-      const scored = filtered.map(p => ({
+      const plusFilteredFollowing = await attachPlusAuthorFlags(filtered);
+      const scored = plusFilteredFollowing.map(p => ({
         ...p,
         _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
       }));
@@ -9697,7 +9879,8 @@ app.post("/get-posts", express.json(), async (req, res) => {
 
     const ctx = await buildUserContext(username, 'foryou', seenIds, pg, limit);
 
-    const scoredPosts = eligible.map(p => ({
+    const plusEligible = await attachPlusAuthorFlags(eligible);
+    const scoredPosts = plusEligible.map(p => ({
       ...p,
       _score: computeScore(p, { ...ctx, ageHours: Math.max(0.1, (NOW - new Date(p.created_at).getTime()) / HOUR) })
     }));
@@ -13888,10 +14071,13 @@ app.post("/api/admin/user/set-verified", async (req, res) => {
 
     const { data: user, error: fetchErr } = await supabase
       .from("users")
-      .select("id, username, fullname")
+      .select("id, username, fullname, profile_type")
       .eq("id", userId)
       .single();
     if (fetchErr) throw fetchErr;
+    if (verified && String(user.profile_type || "").toLowerCase() !== "organisation") {
+      return res.status(403).json({ error: "Only Organisation accounts can become Textmob Plus members." });
+    }
 
     const { error: updateErr } = await supabase
       .from("users")
@@ -13941,9 +14127,10 @@ app.post("/api/admin/user/set-verified", async (req, res) => {
 
     if (verified && user) {
       await triggerNotification(user.username, 'verification', {
-        msg: `Congratulations @${user.username}! You have been verified by the admin.${verifiedUntil ? ` Your badge is active until ${verifiedUntil.toLocaleDateString()}.` : ""}`,
-        subject: "You're Verified on Textmob!",
-        html: `Hi ${user.fullname || user.username},<br><br>You have been verified by the Textmob admin team. Enjoy your verified badge!${verifiedUntil ? `<br><br>Your blue tick is active until <strong>${verifiedUntil.toLocaleDateString()}</strong> (30 days). Renew via WhatsApp from the Accounts Center.` : ""}`,
+        msg: `Welcome to Textmob Plus, @${user.username}.${verifiedUntil ? ` Your membership is active until ${verifiedUntil.toLocaleDateString()}.` : ""}`,
+        title: "Welcome to Textmob Plus",
+        subject: "Welcome to Textmob Plus",
+        html: `Hi ${user.fullname || user.username},<br><br>Your Textmob Plus membership is active. Enjoy your verified badge and Plus tools.${verifiedUntil ? `<br><br>Your membership is active until <strong>${verifiedUntil.toLocaleDateString()}</strong>. Renew from the Accounts Center.` : ""}`,
         link: "/accountscenter"
       });
     }
@@ -14301,10 +14488,11 @@ app.post("/api/devpay/checkout", express.json(), async (req, res) => {
     // Check if user already has active verification
     const { data: user, error: userErr } = await supabase
       .from("users")
-      .select("id, verified, username")
+      .select("id, verified, username, profile_type")
       .eq("username", username)
       .single();
     if (userErr || !user) return res.status(404).json({ error: "User not found" });
+    if (String(user.profile_type || "").toLowerCase() !== "organisation") return res.status(403).json({ error: "Create or switch to an Organisation account before joining Textmob Plus." });
 
     // Check for existing active verification request
     const now = new Date().toISOString();
@@ -14318,7 +14506,7 @@ app.post("/api/devpay/checkout", express.json(), async (req, res) => {
 
     if (activeReq) {
       return res.status(400).json({
-        error: "Already verified",
+        error: "Already a Textmob Plus member",
         verified_until: activeReq.verified_until,
       });
     }
@@ -14326,12 +14514,12 @@ app.post("/api/devpay/checkout", express.json(), async (req, res) => {
     // Generate secure checkout URL
     // Slug must match the "Configuration Anchor" created in DevPay Dashboard
     const checkoutUrl = devpay.generateSecureCheckoutUrl("textmob-verified", {
-      amount: 500.00,
-      description: "Textmob Verified Badge (1 Month)",
+      amount: 1000.00,
+      description: "Textmob Plus membership (1 Month)",
       metadata: {
         username: user.username,
         textmob_user_id: user.id,
-        type: "verification",
+        type: "textmob_plus",
       },
     });
 
@@ -14368,13 +14556,27 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
       return res.status(200).send('OK');
     }
 
-    if (type !== "verification") {
+    const { data: paidUser, error: paidUserError } = await supabase
+      .from("users")
+      .select("username, profile_type")
+      .eq("id", textmob_user_id)
+      .single();
+    if (paidUserError || !paidUser || paidUser.username !== username) {
+      console.warn("[DEVPAy WEBHOOK] Account metadata did not match a Textmob user.");
+      return res.status(200).send("OK");
+    }
+    if (String(paidUser.profile_type || "").toLowerCase() !== "organisation") {
+      console.warn("[DEVPAy WEBHOOK] Textmob Plus requires an Organisation account.");
+      return res.status(200).send("OK");
+    }
+
+    if (type !== "textmob_plus") {
       console.warn(`[DEVPAy WEBHOOK] Unexpected metadata type: ${type}`);
       return res.status(200).send('OK');
     }
 
-    // Verify amount is exactly 500
-    if (parseFloat(amount) < 500) {
+    // Verify the selected membership payment amount.
+    if (Number(amount) !== 1000) {
       console.warn(`[DEVPAy WEBHOOK] Insufficient amount: ${amount}`);
       return res.status(200).send('OK');
     }
@@ -14422,18 +14624,18 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
 
     // Send notification
     await triggerNotification(username, "verification", {
-      msg: `Congratulations! You are now verified on Textmob. Your verification is active until ${verifiedUntil.toLocaleDateString()}.`,
-      title: 'You are verified',
+      msg: `Welcome to Textmob Plus. Your membership is active until ${verifiedUntil.toLocaleDateString()}.`,
+      title: 'Welcome to Textmob Plus',
       data: { kind: 'system' },
-      subject: "You're Verified!",
+      subject: "Welcome to Textmob Plus",
       html: `<p>Hi <strong>@${username}</strong>,</p>
-             <p>Congratulations! Your Textmob account is now <strong>verified</strong>.</p>
-             <p>Your blue tick is active until <strong>${verifiedUntil.toLocaleDateString()}</strong>.</p>
+             <p>Your Textmob Plus membership is now active.</p>
+             <p>Your verified badge and Plus tools are available until <strong>${verifiedUntil.toLocaleDateString()}</strong>.</p>
              <p>You can renew monthly from the Accounts Center.</p>`,
       link: "/accountscenter",
     });
 
-    console.log(`[DEVPAy WEBHOOK] ✅ @${username} verified until ${verifiedUntil.toISOString()}`);
+    console.log(`[DEVPAy WEBHOOK] ✅ Textmob Plus active for @${username} until ${verifiedUntil.toISOString()}`);
   } catch (err) {
     console.error("[DEVPAy WEBHOOK] Error processing payment:", err);
   }
@@ -14449,7 +14651,7 @@ app.get("/api/devpay/verification-status", async (req, res) => {
 
     const { data: user, error: userErr } = await supabase
       .from("users")
-      .select("id, verified")
+      .select("id, verified, profile_type")
       .eq("username", username)
       .single();
     if (userErr || !user) return res.status(404).json({ error: "User not found" });
@@ -14465,10 +14667,11 @@ app.get("/api/devpay/verification-status", async (req, res) => {
       .limit(1)
       .single();
 
+    const isPlus = !!activeReq && !!user.verified;
     res.json({
-      verified: !!activeReq,
-      verified_until: activeReq?.verified_until || null,
-      started_at: activeReq?.created_at || null,
+      plus: isPlus, verified: isPlus, profile_type: user.profile_type || "individual",
+      verified_until: activeReq && activeReq.verified_until ? activeReq.verified_until : null,
+      started_at: activeReq && activeReq.created_at ? activeReq.created_at : null
     });
   } catch (err) {
     console.error("[DEVPAy VERIFICATION-STATUS ERROR]", err);

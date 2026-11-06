@@ -34,6 +34,7 @@ async function fetchProfile(username) {
         fullname: data.fullname || username,
         profile_pic: data.profile_pic || DEFAULT_PIC,
         verified: data.verified || false,
+        profile_type: data.profile_type || 'individual',
         bio: data.bio || '',
         followers: data.followers || [],
         following: data.following || [],
@@ -47,6 +48,7 @@ async function fetchProfile(username) {
         fullname: username,
         profile_pic: DEFAULT_PIC,
         verified: false,
+        profile_type: 'individual',
         notifications: []
       };
       profileCache.set(username, fallback);
@@ -100,6 +102,7 @@ export default function useProfileCache(username) {
     fullname: username || 'Loading...',
     profile_pic: DEFAULT_PIC,
     verified: false,
+    profile_type: 'individual',
     notifications: []
   };
 }

@@ -1508,7 +1508,7 @@ function SnapItem({ snap, username, isActive, onLike, onProfileClick, onOpenComm
  }}
  >
  {profileInfo?.fullname || currentSnap?.username}
- {currentSnap?.verified === true && (
+ {(currentSnap?.verified === true || profileInfo?.verified === true) && (
  <div className="flex-shrink-0 flex items-center justify-center p-0.5 rounded-full bg-brand-500/20 ml-1">
  <VerifiedBadge className="w-3.5 h-3.5 text-brand-400" />
  </div>
@@ -2124,10 +2124,10 @@ function SnapsCarousel({ snaps: initialSnaps, startIndex = 0, onClose, username,
  >
  @{snap.username}
  {(() => {
- console.log(`[Snap Badge Debug] Username: ${snap.username}, snap.verified: ${snap.verified}`);
- return snap.verified === true && <VerifiedBadge className="w-3 h-3 text-brand-400" />;
+ return (snap.verified === true || profileInfo?.verified === true) && <VerifiedBadge className="w-3 h-3 text-brand-400" />;
  })()}
- </p>
+ 
+  {String(snap.profile_type || profileInfo?.profile_type || "").toLowerCase() === "organisation" && <span className="rounded-full bg-brand-500/20 px-1.5 py-0.5 text-[8px] font-bold text-blue-100">ORG</span>}</p>
  <p
  style={{
  color: 'rgba(255,255,255,.4)',
