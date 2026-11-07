@@ -14698,7 +14698,7 @@ app.post("/webhooks/devpay", express.json(), async (req, res) => {
 });
 
 // GET /api/devpay/verification-status — Check a user's verification status
-app.get("/api/devpay/verification-status", async (req, res) => {
+app.get(["/api/devpay/verification-status", "/api/textmob-plus/status"], async (req, res) => {
   try {
     const { username } = req.query;
     if (!username) return res.status(400).json({ error: "Username required" });
@@ -14721,15 +14721,18 @@ app.get("/api/devpay/verification-status", async (req, res) => {
       .limit(1)
       .single();
 
-    const isPlus = !!activeReq && !!user.verified;
+    const userIsVerified = user.verified === true || String(user.verified).toLowerCase() === "true";
+    const isPlus = !!activeReq && userIsVerified;
     res.json({
-      plus: isPlus, verified: isPlus, profile_type: user.profile_type || "individual",
+      plus: isPlus,
+      verified: isPlus,
+      profile_type: user.profile_type || "individual",
       verified_until: activeReq && activeReq.verified_until ? activeReq.verified_until : null,
       started_at: activeReq && activeReq.created_at ? activeReq.created_at : null
     });
   } catch (err) {
-    console.error("[DEVPAy VERIFICATION-STATUS ERROR]", err);
-    res.status(500).json({ error: "Failed to check verification status" });
+    console.error("[TEXTMOB PLUS STATUS ERROR]", err);
+    res.status(500).json({ error: "Failed to check Textmob Plus status" });
   }
 });
 
