@@ -60,9 +60,8 @@ const NAV = [
   },
   {
     section: 'Content', items: [
-      { key: 'composer', label: 'New Post', icon: K.Plus },
+      { key: 'composer', label: 'Create', icon: K.Plus },
       { key: 'posts', label: 'My Posts', icon: K.Posts },
-      { key: 'snaps', label: 'Snaps Studio', icon: K.Snaps },
     ]
   },
   {
@@ -73,7 +72,7 @@ const NAV = [
   },
   {
     section: 'Settings', items: [
-      { key: 'verification', label: 'Textmob Plus', icon: K.CheckCircle },
+      { key: 'verification', label: 'Textmob Plus', icon: K.Crown },
       { key: 'profile', label: 'Edit Profile', icon: K.Profile },
       { key: 'prefs', label: 'Preferences', icon: K.Prefs },
       { key: 'danger', label: 'Log Out', icon: K.Logout },
@@ -180,8 +179,8 @@ export default function AccountsCenter() {
   }, [sidebarOpen]);
 
   const isOrg = (profile?.profile_type || '').toLowerCase() === 'organisation';
-  const accent = isOrg ? 'bg-brand-600' : 'bg-brand-600';
-  const accentText = isOrg ? 'text-brand-600' : 'text-brand-600';
+  const accent = 'bg-brand-600';
+  const accentText = 'text-brand-600';
   const accentLight = isOrg ? 'bg-brand-50 text-brand-600' : 'bg-brand-50 text-brand-600';
   const defaultPic = DEFAULT_AVATAR;
 
@@ -312,11 +311,11 @@ export default function AccountsCenter() {
           {activeTab === 'home' && <OverviewTab profile={profile} stats={stats} posts={posts} setTab={setActiveTab} isOrg={isOrg} accent={accent} accentText={accentText} />}
           {activeTab === 'monetize' && <MonetizationTab username={username} stats={stats} posts={posts} isOrg={isOrg} accent={accent} verified={!!profile?.verified} setTab={setActiveTab} showAlert={showAlert} />}
           {activeTab === 'analytics' && <AnalyticsTab posts={posts} stats={stats} profile={profile} isOrg={isOrg} accentText={accentText} />}
-          {activeTab === 'composer' && <ComposerTab username={username} setTab={setActiveTab} isOrg={isOrg} accent={accent} isPlus={!!profile?.verified && isOrg} />}
+          {activeTab === 'composer' && <CreateWorkspaceTab username={username} posts={posts} setPosts={setPosts} setTab={setActiveTab} isOrg={isOrg} isPlus={!!profile?.verified} />}
           {activeTab === 'profile' && <EditProfileTab profile={profile} setProfile={setProfile} username={username} isOrg={isOrg} accent={accent} accentText={accentText} />}
           {activeTab === 'verification' && <VerificationTab username={username} profile={profile} accent={accent} setTab={setActiveTab} />}
           {activeTab === 'posts' && <PostsTab posts={posts} setPosts={setPosts} username={username} setTab={setActiveTab} />}
-          {activeTab === 'snaps' && <SnapsTab posts={posts} setPosts={setPosts} username={username} setTab={setActiveTab} isOrg={isOrg} accent={accent} accentText={accentText} />}
+          {activeTab === 'snaps' && <CreateWorkspaceTab initialTab='snaps' username={username} posts={posts} setPosts={setPosts} setTab={setActiveTab} isOrg={isOrg} isPlus={!!profile?.verified} />}
           {activeTab === 'grow' && <GrowTab stats={stats} profile={profile} username={username} isOrg={isOrg} setTab={setActiveTab} accent={accent} />}
           {activeTab === 'prefs' && <PrefsTab user={profile} setProfile={setProfile} accent={accent} accentText={accentText} />}
           {activeTab === 'danger' && <DangerTab username={username} />}
@@ -337,170 +336,110 @@ export default function AccountsCenter() {
 function VerificationTab({ username, profile, accent, setTab }) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
-  const isOrg = String(profile && profile.profile_type || '').toLowerCase() === 'organisation';
-  // Manual WhatsApp route: randomly split traffic between support lines on load.
   const [waNumber, setWaNumber] = useState(() =>
     Math.random() < 0.5 ? '2347057581322' : '2347087421125'
   );
+  const isOrg = String(profile && profile.profile_type || "").toLowerCase() === "organisation";
 
   useEffect(() => {
-    async function checkStatus() {
+    let active = true;
+    async function load() {
       if (!username) { setLoading(false); return; }
       try {
-        const res = await apiFetch(`/api/textmob-plus/status?username=${encodeURIComponent(username)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setStatus(data);
+        const response = await apiFetch("/api/textmob-plus/status?username=" + encodeURIComponent(username));
+        if (response.ok) {
+          const data = await response.json();
+          if (active) setStatus(data);
         }
-      } catch (e) {
-        console.error('Verification status fetch error:', e);
+      } catch (error) {
+        console.error("Textmob Plus status:", error);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
-    checkStatus();
+    load();
+    return () => { active = false; };
   }, [username]);
 
-  const isActive = status?.verified;
-  const daysLeft = status?.verified_until
+  const isPlus = !!(status && status.verified);
+  const daysLeft = status && status.verified_until
     ? Math.max(0, Math.ceil((new Date(status.verified_until).getTime() - Date.now()) / 86400000))
     : 0;
+  const waMessage = "I want to " + (isPlus ? "renew" : "join") + " Textmob Plus. Username: @" + (username || "") + ". Monthly fee: ₦1,000.";
+  const waLink = "https://wa.me/" + waNumber + "?text=" + encodeURIComponent(waMessage);
+  const waDisplay = waNumber === "2347057581322" ? "+234 705 758 1322" : "+234 708 742 1125";
 
-  const waMessage = `I want to join Textmob Plus on Textmob. Username: @${username || ''} (Fee: ₦1000)`;
-  const waLink = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
-  const waDisplay = waNumber === '2347057581322' ? '+234 705 758 1322' : '+234 708 742 1125';
+  if (loading) {
+    return <div className="rounded-lg border border-gray-200 bg-white p-5 text-xs text-gray-500">Checking Textmob Plus membership…</div>;
+  }
 
   if (!isOrg) {
     return (
-      <div className="space-y-4">
+      <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Textmob Plus</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Available to Organisation accounts</p>
+          <h2 className="text-base font-bold text-gray-900">Textmob Plus</h2>
+          <p className="mt-1 text-xs text-gray-500">Plus membership is available to Organisation accounts.</p>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-900">Switch to an Organisation account to join Plus.</p>
-          <p className="text-xs text-gray-500">Your existing profile content will remain on your account.</p>
-          <button onClick={() => setTab('profile')} className="h-9 px-4 rounded-lg bg-brand-600 text-white text-xs font-bold">Open account settings</button>
-        </div>
-      </div>
+        <p className="text-xs leading-relaxed text-gray-600">Switch this profile to an Organisation account before joining Plus. Your existing content remains on your account.</p>
+        <button onClick={() => setTab("profile")} className="h-9 rounded-lg bg-brand-600 px-4 text-xs font-bold text-white">Set up Organisation account</button>
+      </section>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Textmob Plus</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Get your blue tick and Plus creator tools on Textmob</p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Textmob Plus</h2>
+          <p className="text-xs text-gray-500">A membership for creators who want more from Textmob.</p>
+        </div>
+        {isPlus && <span className="rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-[10px] font-bold text-brand-700">Plus member</span>}
       </div>
 
-      {loading ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-12 flex flex-col items-center justify-center">
-          <div className="w-8 h-8 border-3 border-brand-600 border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-xs font-semibold text-gray-500">Checking verification status...</p>
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        {isPlus ? (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-bold text-brand-700">You are a Textmob Plus member</p>
+              <p className="mt-1 text-xs text-gray-600">{daysLeft > 0 ? daysLeft + " days remaining." : "Your membership is nearing expiry."} Your verified blue tick and Plus tools are active.</p>
+            </div>
+            <a href={waLink} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center justify-center rounded-lg bg-brand-600 px-4 text-xs font-bold text-white hover:bg-brand-700">Renew through WhatsApp · ₦1,000</a>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-bold text-gray-900">Join Textmob Plus</p>
+              <p className="mt-1 text-[11px] text-gray-500">Manual activation through our team on WhatsApp.</p>
+              <p className="mt-1 text-lg font-black text-brand-600">₦1,000 <span className="text-[10px] font-medium text-gray-400">/ month</span></p>
+            </div>
+            <a href={waLink} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 px-4 text-xs font-bold text-white hover:bg-brand-700">Continue on WhatsApp</a>
+          </div>
+        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 text-[10px] text-gray-500">
+          <span>WhatsApp support: <strong className="text-gray-700">{waDisplay}</strong></span>
+          <button type="button" onClick={() => setWaNumber(function(previous){ return previous === "2347057581322" ? "2347087421125" : "2347057581322"; })} className="font-semibold text-brand-600 hover:underline">Use other line</button>
+          <span className="w-full text-gray-400">Our team confirms payment manually and activates your membership and blue tick for 30 days.</span>
         </div>
-      ) : isActive ? (
-        <div className="bg-brand-50 border border-brand-200 rounded-lg p-6 text-center space-y-3">
-          <div className="w-14 h-14 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center mx-auto shadow-inner">
-            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-brand-900">You're a Textmob Plus member!</h3>
-            <p className="text-xs text-brand-700 mt-1 font-medium">
-              {daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining.` : 'Expiring soon.'}
-            </p>
-          </div>
-          <span className="inline-block bg-brand-100/80 text-brand-800 text-xs font-bold px-3 py-1 rounded-full">
-            Textmob Plus · ₦1,000 / month via WhatsApp
-          </span>
-          <div>
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-11 px-6 rounded-lg bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all items-center justify-center gap-2"
-            >
-              Renew Textmob Plus via WhatsApp
-            </a>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
-          <div className="text-center space-y-2">
-            <div className="w-14 h-14 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center mx-auto">
-              <svg viewBox="0 0 24 24" className="w-7 h-7 fill-none" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Join Textmob Plus</h3>
-            <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
-              Get a blue tick on your profile and access Plus creator tools. Our team will confirm your payment through WhatsApp.
-            </p>
-          </div>
-
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 space-y-3">
-            <div className="flex justify-between text-xs text-gray-600 font-medium">
-              <span>Textmob Plus badge</span>
-              <span className="font-bold text-gray-900">Blue Tick</span>
-            </div>
-            <div className="flex justify-between text-xs text-gray-600 font-medium">
-              <span>Duration</span>
-              <span className="font-bold text-gray-900">1 Month</span>
-            </div>
-            <div className="border-t border-gray-200 pt-3 flex justify-between items-baseline">
-              <span className="text-sm font-semibold text-gray-900">Total</span>
-              <span className="text-2xl font-black text-brand-600">₦1000</span>
-            </div>
-          </div>
-
-          <a
-            href={waLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full h-12 rounded-lg bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
-          >
-            <span>Join Textmob Plus · ₦1,000 via WhatsApp</span>
-          </a>
-
-          <div className="flex items-center justify-center gap-2 text-[11px] text-gray-500">
-            <span>You'll chat with <strong className="text-gray-700">{waDisplay}</strong></span>
-            <button
-              type="button"
-              onClick={() => setWaNumber(prev => (prev === '2347057581322' ? '2347087421125' : '2347057581322'))}
-              className="text-brand-600 font-semibold hover:underline"
-            >
-              Use other line
-            </button>
-          </div>
-
-          <p className="text-[11px] text-gray-400 text-center">
-            Manual activation: our team confirms your WhatsApp payment and activates Textmob Plus and your blue tick for 30 days.
-          </p>
-        </div>
-      )}
-
-      <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-3">
-        <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">What you get</h4>
-        <ul className="space-y-2.5">
-          {[
-            'Blue verified tick badge on your profile and next to your name in feeds',
-            'Increased trust and credibility in the African creator community',
-            'Priority placement in search and topic discovery feeds',
-            'Eligibility for creator reward boosts and special perks',
-          ].map((perk, i) => (
-            <li key={i} className="flex items-start gap-2.5 text-xs text-gray-600 leading-relaxed">
-              <span className="text-brand-600 font-bold mt-0.5">✓</span>
-              <span>{perk}</span>
-            </li>
-          ))}
-        </ul>
       </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {[
+          ["Verified badge", "A verified blue tick on your profile and posts."],
+          ["MobUI Studio", "Create interactive quizzes, charts, diagrams, tables and more."],
+          ["AI writing helper", "Turn a plain-language prompt into a complete post or interactive experience."],
+          ["Enhanced discovery", "A modest feed-discovery weight, not a promise of reach."]
+        ].map(function(item) {
+          return <div key={item[0]} className="rounded-lg border border-gray-200 bg-white p-3">
+            <p className="text-xs font-semibold text-gray-900">{item[0]}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-gray-500">{item[1]}</p>
+          </div>;
+        })}
+      </div>
+      <p className="text-[11px] text-gray-400">Plus does not exempt an account from reports, moderation or account restrictions. All members follow the same Textmob rules.</p>
     </div>
   );
 }
 
-// ─── 1. Overview ──────────────────────────────────────────────────────────────
 function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText }) {
   const followers = (Array.isArray(profile?.followers) ? profile.followers : []).length;
   const likesCount = posts.reduce((acc, p) => acc + (p.likes?.length || 0), 0);
@@ -513,7 +452,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
   const rank = stats?.rank ?? null;
 
   return (
-    <div className="space-y-5 md:space-y-6">
+    <div className="space-y-4">
       {!profile?.verified && (
         <div
           onClick={() => setTab('verification')}
@@ -524,7 +463,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-gray-900">Unlock your potential</p>
-            <p className="text-xs text-gray-500">Get a blue tick and access Textmob Plus creator tools.</p>
+            <p className="text-xs text-gray-500">Get a blue tick to increase trust and visibility.</p>
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); setTab('verification'); }}
@@ -538,7 +477,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
         <div className="bg-white border border-brand-100 rounded-2xl p-5 md:p-6 flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-xl">{K.Bolt}</div>
           <div className="flex-1">
-            <p className="text-sm font-bold text-gray-900">Switch to Professional</p>
+            <p className="text-sm font-bold text-gray-900">Switch to Organisation</p>
             <p className="text-xs text-gray-500">Unlock monetization, analytics, and more.</p>
           </div>
           <button onClick={() => setTab('profile')} className="h-12 px-8 bg-brand-600 text-white rounded-full text-sm font-bold hover:bg-brand-700 transition-all">Switch Now</button>
@@ -558,7 +497,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       </div>
 
       {/* Hero card */}
-      <div style={{ background: isOrg ? 'linear-gradient(135deg, #2B3EE8, #6d28d9)' : 'linear-gradient(135deg, #2B3EE8, #1B28A3)' }} className='rounded-2xl md:rounded-[28px] p-6 md:p-8 text-white shadow-xl shadow-brand-600/15 border border-white/10'>
+      <div className='rounded-xl md:rounded-2xl p-4 md:p-5 text-white bg-brand-600 shadow-sm border border-brand-700/20'>
         <div className="flex items-center gap-3 mb-5">
           <img
             src={profile?.profile_pic || DEFAULT_AVATAR}
@@ -568,7 +507,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="font-bold text-base leading-tight truncate">{profile?.fullname || '-'}</p>
-              {isOrg && <span className="text-[9px] font-bold bg-white/20 rounded px-1.5 py-px border border-white/10 flex-shrink-0">PRO</span>}
+              {isOrg && <span className="text-[9px] font-bold bg-white/20 rounded px-1.5 py-px border border-white/10 flex-shrink-0">ORG</span>}
             </div>
             <p className="text-brand-100 text-xs opacity-80">@{profile?.username || 'user'}</p>
           </div>
@@ -592,7 +531,7 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-2 gap-3">
         {[
           { label: 'New Post', icon: K.Plus, tab: 'composer', color: 'bg-brand-50 text-brand-600' },
-          { label: 'Earnings', icon: K.Coin, tab: 'monetize', color: 'bg-emerald-50 text-emerald-600' },
+          { label: 'Earnings', icon: K.Coin, tab: 'monetize', color: 'bg-brand-50 text-brand-700' },
           { label: 'Analytics', icon: K.Chart, tab: 'analytics', color: 'bg-brand-50 text-brand-600' },
           { label: 'Profile', icon: K.Profile, tab: 'profile', color: 'bg-orange-50 text-orange-600' },
         ].map(a => (
@@ -635,218 +574,126 @@ function OverviewTab({ profile, stats, posts, setTab, isOrg, accent, accentText 
 
 // ─── 2. Monetization ─────────────────────────────────────────────────────────
 function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified, setTab, showAlert }) {
-  const [balance, setBalance] = useState(stats?.mobcoins || 0);
+  const [balance, setBalance] = useState(stats && stats.mobcoins || 0);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showRedeem, setShowRedeem] = useState(false);
-  const [redeemType, setRedeemType] = useState('CASH');
-  const [redeemAmount, setRedeemAmount] = useState('');
-  const [details, setDetails] = useState({ bank: '', account_no: '', name: '', network: 'MTN', phone: '' });
+  const [redeemType, setRedeemType] = useState("CASH");
+  const [redeemAmount, setRedeemAmount] = useState("");
+  const [details, setDetails] = useState({ bank:"", account_no:"", name:"", network:"MTN", phone:"" });
   const [status, setStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [view, setView] = useState("overview");
+  const [plusActive, setPlusActive] = useState(false);
 
   useEffect(() => {
-    async function load() {
-      if (!username) return;
-      const res = await apiFetch(`/api/user/payouts?userId=${encodeURIComponent(username)}`);
-      if (res.ok) setPayouts(await res.json());
-      setLoading(false);
+    let current = true;
+    async function checkMembership() {
+      try {
+        const response = await apiFetch("/api/textmob-plus/status?username=" + encodeURIComponent(username));
+        const data = response.ok ? await response.json() : null;
+        if (current) setPlusActive(!!(isOrg && data && String(data.profile_type || "").toLowerCase() === "organisation" && (data.plus || data.verified)));
+      } catch (error) { if (current) setPlusActive(false); }
     }
-    load();
+    if (username) checkMembership(); else setPlusActive(false);
+    return () => { current = false; };
+  }, [username, isOrg]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadBalance() {
+      try {
+        const response = await apiFetch("/api/user/stats?username=" + encodeURIComponent(username));
+        if (response.ok) {
+          const result = await response.json();
+          if (active) setBalance(Number(result.mobcoins) || 0);
+        }
+      } catch (error) { console.error("Earnings balance:", error); }
+    }
+    if (username) loadBalance();
+    return () => { active = false; };
   }, [username]);
 
-  const handleRedeem = async () => {
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const response = await apiFetch("/api/user/payouts?userId=" + encodeURIComponent(username));
+        if (response.ok) { const result = await response.json(); if (active) setPayouts(Array.isArray(result) ? result : []); }
+      } catch (error) { console.error("Payout history:", error); }
+      finally { if (active) setLoading(false); }
+    }
+    if (username) load(); else setLoading(false);
+    return () => { active = false; };
+  }, [username]);
+
+  async function handleRedeem() {
     const amount = Number(redeemAmount);
-    if (amount < 2000) return setStatus({ ok: false, text: 'Minimum 2,000 coins required' });
-    if (amount > balance) return setStatus({ ok: false, text: 'Not enough coins' });
+    if (amount < 2000) { setStatus({ ok:false, text:"Minimum 2,000 Mobcoins required." }); return; }
+    if (amount > balance) { setStatus({ ok:false, text:"Not enough Mobcoins." }); return; }
     setSubmitting(true);
     try {
-      const res = await apiFetch('/api/redeem', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: localStorage.currentUser, amount, type: redeemType, details: redeemType === 'CASH' ? { bank: details.bank, account_no: details.account_no, name: details.name } : { network: details.network, phone: details.phone } })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setStatus({ ok: true, text: 'Request sent!' });
-        setBalance(prev => prev - amount);
-        setTimeout(() => setShowRedeem(false), 2000);
-      } else throw new Error(data.error || 'Request failed');
-    } catch (err) { setStatus({ ok: false, text: err.message }); }
+      const response = await apiFetch("/api/redeem", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ userId:localStorage.currentUser, amount:amount, type:redeemType, details:redeemType==="CASH" ? { bank:details.bank, account_no:details.account_no, name:details.name } : { network:details.network, phone:details.phone } }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Withdrawal request failed.");
+      setStatus({ ok:true, text:"Withdrawal request submitted." });
+      setBalance(previous => previous - amount);
+      const latest = await apiFetch("/api/user/payouts?userId=" + encodeURIComponent(username));
+      if (latest.ok) setPayouts(await latest.json());
+      setTimeout(() => setShowRedeem(false), 1400);
+    } catch (error) { setStatus({ ok:false, text:error.message || "Withdrawal request failed." }); }
     finally { setSubmitting(false); }
-  };
+  }
 
-  if (!verified) {
-    return (
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Earnings</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Creator monetization & rewards</p>
-        </div>
+  const mine = (posts || []).filter(post => post.disabled_for_now !== true && post.disabled !== true);
+  const likes = mine.reduce((sum,post) => sum + (Array.isArray(post.likes) ? post.likes.length : 0), 0);
+  const milestones = mine.reduce((sum,post) => sum + Math.floor((post.likes && post.likes.length || 0) / 5), 0);
+  const postMilestones = mine.filter(post => post.type !== "snap").reduce((sum,post) => sum + Math.floor((post.likes && post.likes.length || 0) / 5), 0);
+  const snapMilestones = mine.filter(post => post.type === "snap").reduce((sum,post) => sum + Math.floor((post.likes && post.likes.length || 0) / 5), 0);
 
-        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center flex flex-col items-center justify-center space-y-4">
-          <div className="w-14 h-14 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shadow-inner">
-            <svg viewBox="0 0 24 24" className="w-7 h-7 fill-none" stroke="currentColor" strokeWidth="2.5">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0110 0v4" />
-            </svg>
-          </div>
-          <div className="space-y-1.5 max-w-sm mx-auto">
-            <h3 className="text-lg font-bold text-gray-900">Verification Required</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Earnings, creator rewards, and payouts are only accessible to verified accounts. Get your blue tick to unlock monetization.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2.5 w-full max-w-xs pt-2">
-            <button
-              onClick={() => setTab?.('verification')}
-              className="flex-1 h-11 bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
-            >
-              Textmob Plus Now
-            </button>
-            <a
-              href="https://wa.me/2347087421125"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 h-11 border border-gray-200 hover:bg-gray-50 active:scale-[0.98] text-gray-700 text-xs font-semibold rounded-lg flex items-center justify-center transition-all"
-            >
-              Contact Support
-            </a>
-          </div>
-          <p className="text-[11px] text-gray-400">
-            Verified users can cash out MobCoins directly to bank accounts and airtime.
-          </p>
-        </div>
-      </div>
-    );
+  function beginWithdrawal() {
+    if (!isOrg) { setTab("profile"); return; }
+    if (!plusActive) { setTab("verification"); return; }
+    if (balance < 2000) { showAlert("Minimum balance", "You need at least 2,000 Mobcoins before withdrawing."); return; }
+    setStatus(null); setShowRedeem(true);
   }
 
   return (
-    <div className="space-y-4">
-      {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #059669, #065f46)' }} className="rounded-lg p-5 text-white">
-        <p className="text-xs text-emerald-100 mb-1">Total balance</p>
-        <p className="text-3xl font-bold mb-1">₦{(balance * 0.1).toLocaleString()}</p>
-        <p className="text-xs text-emerald-100 opacity-80">= {balance.toLocaleString()} coins</p>
-        <div className="mt-4 flex gap-3">
-          <button
-            disabled={!isOrg || balance < 2000}
-            onClick={() => isOrg ? setShowRedeem(true) : showAlert('Access Restricted', 'Switch to Professional account in Edit Profile to redeem earnings.')}
-            className="flex-1 h-11 bg-white text-emerald-700 rounded-lg text-sm font-semibold transition-all disabled:opacity-40"
-          >
-            {isOrg ? 'Cash out' : 'Upgrade to cash out'}
-          </button>
-          <div className="flex-1 px-3 flex flex-col justify-center border-l border-white/10">
-            <p className="text-[10px] text-emerald-100 mb-0.5">Minimum payout</p>
-            <p className="text-sm font-semibold">2,000 coins</p>
-          </div>
-        </div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-gray-900">Earnings</h2><p className="text-xs text-gray-500">Manage your Mobcoins, performance and withdrawals.</p></div><span className="rounded-full bg-brand-50 px-2 py-1 text-[10px] font-semibold text-brand-700">Creator balance</span></div>
+      <div className="rounded-lg border border-brand-700/20 bg-brand-600 p-4 text-white">
+        <div className="flex items-end justify-between gap-3"><div><p className="text-[11px] text-blue-100">Available balance</p><p className="mt-1 text-2xl font-bold">₦{(balance * 0.1).toLocaleString()}</p><p className="text-[11px] text-blue-100">{balance.toLocaleString()} Mobcoins</p></div><div className="text-right"><p className="text-[10px] text-blue-100">Minimum withdrawal</p><p className="text-sm font-semibold">2,000 coins</p></div></div>
+        <button onClick={beginWithdrawal} className="mt-3 h-9 w-full rounded-lg bg-white px-3 text-xs font-bold text-brand-700 hover:bg-blue-50">{!isOrg ? "Set up an Organisation account" : !plusActive ? "Join Textmob Plus to withdraw" : "Manage withdrawal"}</button>
       </div>
-      {/* Milestone earnings breakdown */}
-      {(() => {
-        const mine = (posts || []).filter(p => p.disabled_for_now !== true && p.disabled !== true);
-        const likes = mine.reduce((s, p) => s + (p.likes?.length || 0), 0);
-        const milestones = mine.reduce((s, p) => s + Math.floor((p.likes?.length || 0) / 10), 0);
-        const fromPosts = mine.filter(p => p.type !== 'snap').reduce((s, p) => s + Math.floor((p.likes?.length || 0) / 10) * 5, 0);
-        const fromSnaps = mine.filter(p => p.type === 'snap').reduce((s, p) => s + Math.floor((p.likes?.length || 0) / 10) * 5, 0);
-        return (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">Milestone earnings</p>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-gray-50 border border-gray-100 rounded-lg py-3 px-1">
-                <p className="text-lg font-black text-gray-900">{likes.toLocaleString()}</p>
-                <p className="text-[10px] font-medium text-gray-400 mt-0.5">Total likes</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-100 rounded-lg py-3 px-1">
-                <p className="text-lg font-black text-gray-900">{milestones.toLocaleString()}</p>
-                <p className="text-[10px] font-medium text-gray-400 mt-0.5">Milestones hit</p>
-              </div>
-              <div className="bg-emerald-50 border border-emerald-100 rounded-lg py-3 px-1">
-                <p className="text-lg font-black text-emerald-600">{(fromPosts + fromSnaps).toLocaleString()}</p>
-                <p className="text-[10px] font-medium text-emerald-600/70 mt-0.5">Coins from likes</p>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-2 text-[11px] font-semibold">
-              <span className="flex-1 bg-brand-50 text-brand-700 rounded-lg px-3 py-2 text-center">Posts: +{fromPosts.toLocaleString()}</span>
-              <span className="flex-1 bg-brand-50 text-brand-700 rounded-lg px-3 py-2 text-center">Snaps: +{fromSnaps.toLocaleString()}</span>
-            </div>
-          </div>
-        );
-      })()}
-      {!isOrg && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg text-xs">
-          Personal accounts cannot redeem earnings. Please go to <strong>Edit Profile → Switch Mode</strong> to upgrade to a Professional account.
+      {(!isOrg || !plusActive) && <div className="rounded-lg border border-brand-100 bg-brand-50 p-3 text-xs text-brand-800">{!isOrg ? "You can manage earnings here. Withdrawals are for Organisation accounts." : "Your balance and rewards are visible. An active Textmob Plus membership is required before withdrawal."}</div>}
+      <div className="inline-flex gap-1 rounded-lg bg-gray-100 p-1">
+        {[["overview","Overview"],["posts","Post performance"],["history","Payout history"]].map(item => <button key={item[0]} onClick={() => setView(item[0])} className={cn("h-8 rounded-md px-3 text-xs font-semibold",view===item[0]?"bg-white text-brand-700 shadow-sm":"text-gray-500")}>{item[1]}</button>)}
+      </div>
+      {view === "overview" && <div className="space-y-3">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-lg border border-gray-100 bg-white px-1 py-3"><p className="text-lg font-black text-gray-900">{likes.toLocaleString()}</p><p className="text-[10px] text-gray-500">Total likes</p></div>
+          <div className="rounded-lg border border-gray-100 bg-white px-1 py-3"><p className="text-lg font-black text-gray-900">{milestones.toLocaleString()}</p><p className="text-[10px] text-gray-500">Milestones</p></div>
+          <div className="rounded-lg border border-gray-100 bg-white px-1 py-3"><p className="text-lg font-black text-brand-700">{balance.toLocaleString()}</p><p className="text-[10px] text-gray-500">Mobcoins available</p></div>
         </div>
-      )}
-
-      <Accordion title="How earnings work" icon={K.Coin} description="Milestone rewards, explained" isOrg={isOrg}>
-        <div className="space-y-3 pt-3">
-          {[
-            { t: '10 likes = 5 Mobcoins', b: 'Every time any of your posts or snaps hits 10, 20, 30… likes, you automatically earn 5 Mobcoins.' },
-            { t: 'Reach 2,000 coins', b: 'You need at least 2,000 coins before you can request a payout.' },
-            { t: 'Professional advantage', b: 'Professional accounts get early access to ad revenue sharing.' }
-          ].map(i => (
-            <div key={i.t} className="flex gap-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{i.t}</p>
-                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{i.b}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Accordion>
-
-      <Accordion title="Payout history" icon={K.Link} description="Your previous withdrawals" isOrg={isOrg}>
-        {loading ? <SkeletonRow /> : payouts.length === 0 ? (
-          <div className="py-8 text-center text-xs text-gray-400">No payouts yet</div>
-        ) : (
-          <div className="space-y-2 pt-3">
-            {payouts.map(p => (
-              <div key={p.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{p.type === 'CASH' ? 'Bank transfer' : 'Airtime'}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{new Date(p.created_at).toLocaleString()}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900">₦{Number(p.naira_value).toLocaleString()}</p>
-                  <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full", p.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>{p.status}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Accordion>
-
-      <BottomSheet open={showRedeem} onClose={() => setShowRedeem(false)} title="Request payout" wide>
-        <div className="p-5 space-y-4 pb-10">
-          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
-            <button onClick={() => setRedeemType('CASH')} className={cn("flex-1 h-10 rounded-lg text-sm font-medium transition-all", redeemType === 'CASH' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}>Bank transfer</button>
-            <button onClick={() => setRedeemType('AIRTIME')} className={cn("flex-1 h-10 rounded-lg text-sm font-medium transition-all", redeemType === 'AIRTIME' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}>Airtime</button>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Amount (coins)</label>
-            <input type="number" value={redeemAmount} onChange={e => setRedeemAmount(e.target.value)} placeholder="Minimum 2000" className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 focus:bg-white transition-all" />
-            {redeemAmount && <p className="text-xs text-emerald-600 mt-1.5">= ₦{Number(redeemAmount * 0.1).toLocaleString()}</p>}
-          </div>
-          {redeemType === 'CASH' ? (
-            <div className="space-y-3">
-              <input type="text" placeholder="Bank name" value={details.bank} onChange={e => setDetails({ ...details, bank: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all" />
-              <input type="text" placeholder="Account number" value={details.account_no} onChange={e => setDetails({ ...details, account_no: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all" />
-              <input type="text" placeholder="Account name" value={details.name} onChange={e => setDetails({ ...details, name: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all" />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <select value={details.network} onChange={e => setDetails({ ...details, network: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all">
-                <option>MTN</option><option>Airtel</option><option>Glo</option><option>9Mobile</option>
-              </select>
-              <input type="tel" placeholder="Phone number" value={details.phone} onChange={e => setDetails({ ...details, phone: e.target.value })} className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium outline-none focus:bg-white transition-all" />
-            </div>
-          )}
-          <StatusMsg msg={status} />
-          <button onClick={handleRedeem} disabled={submitting || !redeemAmount} className="w-full h-12 bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all disabled:opacity-40">
-            {submitting ? 'Sending...' : 'Submit request'}
-          </button>
+        <div className="grid grid-cols-2 gap-2 text-xs font-semibold"><div className="rounded-lg bg-brand-50 px-3 py-2 text-brand-700">Post like milestones: {postMilestones.toLocaleString()}</div><div className="rounded-lg bg-brand-50 px-3 py-2 text-brand-700">Snap like milestones: {snapMilestones.toLocaleString()}</div></div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3"><p className="text-xs font-bold text-gray-900">How Mobcoin rewards work</p><p className="mt-1 text-xs leading-relaxed text-gray-600">Each new five-like milestone on a post or snap earns 100 Mobcoins. Progress is tracked separately for every post and snap.</p></div>
+      </div>}
+      {view === "posts" && <div className="rounded-lg border border-gray-200 bg-white p-3">
+        <p className="mb-2 text-xs font-bold text-gray-900">Post performance</p>
+        {mine.length === 0 ? <p className="py-5 text-center text-xs text-gray-400">Your post performance will appear here.</p> : mine.slice(0,20).map(post => { const count=post.likes && post.likes.length || 0; const progress=count%5; return <div key={post.id} className="flex items-center gap-3 border-t border-gray-100 py-2"><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-gray-800">{String(post.text || "Media post").replace(/<[^>]*>/g,"").slice(0,70)}</p><p className="text-[10px] text-gray-500">{count} likes · {progress}/5 toward next 100 Mobcoins</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-brand-600" style={{width:(progress*20)+"%"}} /></div></div><span className="text-xs font-bold text-brand-700">{Math.floor(count/5)} milestones</span></div>; })}
+      </div>}
+      {view === "history" && <div className="rounded-lg border border-gray-200 bg-white p-3">
+        <p className="mb-2 text-xs font-bold text-gray-900">Payout history</p>
+        {loading ? <SkeletonRow /> : payouts.length === 0 ? <p className="py-5 text-center text-xs text-gray-400">No withdrawals yet.</p> : payouts.map(payout => <div key={payout.id} className="flex items-center justify-between border-t border-gray-100 py-2"><div><p className="text-xs font-medium text-gray-800">{payout.type === "CASH" ? "Bank transfer" : "Airtime"}</p><p className="text-[10px] text-gray-400">{new Date(payout.created_at).toLocaleDateString()}</p></div><div className="text-right"><p className="text-xs font-semibold text-gray-900">₦{Number(payout.naira_value).toLocaleString()}</p><span className="text-[10px] text-gray-500">{payout.status}</span></div></div>)}
+      </div>}
+      <BottomSheet open={showRedeem} onClose={() => setShowRedeem(false)} title="Manage withdrawal" wide>
+        <div className="space-y-3 p-4 pb-8">
+          <div className="flex gap-1 rounded-lg bg-gray-100 p-1"><button onClick={() => setRedeemType("CASH")} className={cn("h-8 flex-1 rounded-md text-xs font-semibold",redeemType==="CASH"?"bg-white text-brand-700 shadow-sm":"text-gray-500")}>Bank transfer</button><button onClick={() => setRedeemType("AIRTIME")} className={cn("h-8 flex-1 rounded-md text-xs font-semibold",redeemType==="AIRTIME"?"bg-white text-brand-700 shadow-sm":"text-gray-500")}>Airtime</button></div>
+          <label className="block text-xs font-semibold text-gray-600">Amount in Mobcoins<input type="number" min="2000" value={redeemAmount} onChange={event=>setRedeemAmount(event.target.value)} placeholder="Minimum 2,000" className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm outline-none focus:border-brand-400"/></label>
+          <p className="text-xs text-gray-500">Estimated payout: ₦{(Number(redeemAmount || 0) * 0.1).toLocaleString()}</p>
+          {redeemType === "CASH" ? <div className="space-y-2"><input value={details.bank} onChange={event=>setDetails(Object.assign({},details,{bank:event.target.value}))} placeholder="Bank name" className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs"/><input value={details.account_no} onChange={event=>setDetails(Object.assign({},details,{account_no:event.target.value}))} placeholder="Account number" className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs"/><input value={details.name} onChange={event=>setDetails(Object.assign({},details,{name:event.target.value}))} placeholder="Account name" className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs"/></div> : <div className="space-y-2"><select value={details.network} onChange={event=>setDetails(Object.assign({},details,{network:event.target.value}))} className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs"><option>MTN</option><option>Airtel</option><option>Glo</option><option>9Mobile</option></select><input value={details.phone} onChange={event=>setDetails(Object.assign({},details,{phone:event.target.value}))} placeholder="Phone number" className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs"/></div>}
+          <StatusMsg msg={status}/>
+          <button onClick={handleRedeem} disabled={submitting || !redeemAmount} className="h-10 w-full rounded-lg bg-brand-600 text-xs font-bold text-white disabled:opacity-40">{submitting ? "Submitting…" : "Submit withdrawal request"}</button>
         </div>
       </BottomSheet>
     </div>
@@ -855,11 +702,29 @@ function MonetizationTab({ username, stats, posts = [], isOrg, accent, verified,
 
 // ─── 3. Composer ─────────────────────────────────────────────────────────────
 function ComposerTab({ username, setTab, isOrg, accent, isPlus }) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <MakePostContent username={username} isPlus={isPlus} onToggle={() => { }} />
-    </div>
-  );
+  return <div className="rounded-lg border border-gray-200 bg-white p-3"><MakePostContent username={username} isPlus={isPlus} onPlusClick={() => setTab("verification")} onToggle={() => { }} /></div>;
+}
+
+function CreateWorkspaceTab({ username, posts, setPosts, setTab, isOrg, isPlus, initialTab }) {
+  const [active, setActive] = useState(initialTab === "snaps" ? "snaps" : "post");
+  const [plusActive, setPlusActive] = useState(false);
+  useEffect(() => {
+    let current = true;
+    async function checkMembership() {
+      try {
+        const response = await apiFetch("/api/textmob-plus/status?username=" + encodeURIComponent(username));
+        const data = response.ok ? await response.json() : null;
+        if (current) setPlusActive(!!(isOrg && data && String(data.profile_type || "").toLowerCase() === "organisation" && (data.plus || data.verified)));
+      } catch (error) { if (current) setPlusActive(false); }
+    }
+    if (username) checkMembership(); else setPlusActive(false);
+    return () => { current = false; };
+  }, [username, isOrg]);
+  return <div className="space-y-3">
+    <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-gray-900">Create</h2><p className="text-xs text-gray-500">Write a post or manage your Snaps.</p></div>{plusActive && <span className="rounded-full border border-brand-100 bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700">PLUS TOOLS</span>}</div>
+    <div className="inline-flex gap-1 rounded-lg bg-gray-100 p-1"><button onClick={() => setActive("post")} className={cn("h-8 rounded-md px-4 text-xs font-semibold",active==="post"?"bg-white text-brand-700 shadow-sm":"text-gray-500")}>Write post</button><button onClick={() => setActive("snaps")} className={cn("h-8 rounded-md px-4 text-xs font-semibold",active==="snaps"?"bg-white text-brand-700 shadow-sm":"text-gray-500")}>Snap Studio</button></div>
+    {active === "post" ? <ComposerTab username={username} setTab={setTab} isOrg={isOrg} isPlus={plusActive}/> : <SnapsTab posts={posts} setPosts={setPosts} username={username} setTab={setTab} isOrg={isOrg} accent="bg-brand-600" accentText="text-brand-600"/>}
+  </div>;
 }
 
 // ─── 4. Edit Profile ─────────────────────────────────────────────────────────
@@ -1016,7 +881,7 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
       setProfile(prev => ({ ...prev, profile_type: updatedType }));
 
       // 4. Show the clean display text to the user
-      const uiDisplayText = updatedType === 'Organisation' ? 'Professional' : 'Personal';
+      const uiDisplayText = updatedType === 'Organisation' ? 'Organisation' : 'Personal';
       setStatusMsg({ text: `Switched to ${uiDisplayText}!`, ok: true });
 
     } catch (err) {
@@ -1094,9 +959,9 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-sm font-medium text-gray-900">Account type</p>
-            {isOrg && <span className="text-[9px] font-bold text-white bg-brand-600 rounded px-1 py-px">PRO</span>}
+            {isOrg && <span className="text-[9px] font-bold text-white bg-brand-600 rounded px-1 py-px">ORG</span>}
           </div>
-          <p className="text-xs text-gray-400">{isOrg ? 'Professional account' : 'Personal account'}</p>
+          <p className="text-xs text-gray-400">{isOrg ? 'Organisation account' : 'Personal account'}</p>
         </div>
         <button onClick={() => setModeModalOpen(true)} className="h-9 px-4 rounded-lg bg-gray-100 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors">Switch</button>
       </div>
@@ -1199,20 +1064,20 @@ function EditProfileTab({ profile, setProfile, username, isOrg, accent, accentTe
             </div>
             {isOrg && <button onClick={() => handleModeSwitch('Individual')} disabled={modeSaving} className="w-full mt-3 h-9 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 disabled:opacity-50 bg-white hover:bg-gray-50 transition-all">{modeSaving ? 'Switching...' : 'Switch to Personal'}</button>}
           </div>
-          {/* Professional */}
-          <div className={cn('border-2 rounded-lg p-4 transition-all', isOrg ? 'bg-brand-50 border-brand-200' : 'bg-white border-gray-200')}>
+          {/* Organisation */}
+          <div className={cn('border-2 rounded-lg p-4 transition-all', isOrg ? 'bg-brand-50 border-brand-100' : 'bg-white border-gray-200')}>
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center text-brand-600 flex-shrink-0">{K.Bolt}</div>
               <div className="flex-1">
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <p className="text-sm font-semibold text-gray-900">Professional</p>
-                  <span className="text-[9px] font-bold text-white bg-brand-600 rounded px-1 py-px">PRO</span>
+                  <p className="text-sm font-semibold text-gray-900">Organisation</p>
+                  <span className="text-[9px] font-bold text-white bg-brand-600 rounded px-1 py-px">ORG</span>
                 </div>
-                <p className="text-xs text-gray-500">Unlocks earnings, detailed analytics, and a Pro badge.</p>
+                <p className="text-xs text-gray-500">Unlocks earnings, detailed analytics and creator tools.</p>
               </div>
               {isOrg && <span className="text-brand-600 flex-shrink-0">{K.Check}</span>}
             </div>
-            {!isOrg && <button onClick={() => { setMigrationModalOpen(true); }} disabled={modeSaving} className="w-full mt-3 h-9 rounded-lg bg-brand-600 text-white text-xs font-medium disabled:opacity-50 transition-all">Switch to Professional</button>}
+            {!isOrg && <button onClick={() => { setMigrationModalOpen(true); }} disabled={modeSaving} className="w-full mt-3 h-9 rounded-lg bg-brand-600 text-white text-xs font-medium disabled:opacity-50 transition-all">Switch to Organisation</button>}
           </div>
 
           {/* Migration Confirmation Modal */}
@@ -1252,8 +1117,8 @@ function PostsTab({ posts, setPosts, username, setTab }) {
   // Mirror the feed: hidden/moderated posts never surface in the manager either.
   const visible = posts.filter(p => p.type !== 'snap' && p.disabled_for_now !== true && p.disabled !== true);
   const likeCount = p => p.likes?.length || 0;
-  const earnedOf = p => Math.floor(likeCount(p) / 10) * 5;
-  const progressOf = p => likeCount(p) % 10;
+  const earnedOf = p => Math.floor(likeCount(p) / 5) * 100;
+  const progressOf = p => likeCount(p) % 5;
   const filtered = visible
     .filter(p => {
       if (!query.trim()) return true;
@@ -1278,10 +1143,10 @@ function PostsTab({ posts, setPosts, username, setTab }) {
       const res = await apiFetch('/edit-post', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId: editingPost.id, content: editText }),
+        body: JSON.stringify({ postId: editingPost.id, username: username, content: editText, content_format: editingPost.content_format === "legacy" ? "legacy" : "markdown" }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed'); }
-      setPosts(prev => prev.map(p => p.id === editingPost.id ? { ...p, text: editText } : p));
+      setPosts(prev => prev.map(p => p.id === editingPost.id ? { ...p, text: editText, content_format: editingPost.content_format === "legacy" ? "legacy" : "markdown" } : p));
       setEditingPost(null);
     } catch (err) { alert(err.message); }
     finally { setSaving(false); }
@@ -1343,9 +1208,9 @@ function PostsTab({ posts, setPosts, username, setTab }) {
       </div>
 
       {/* Milestone explainer */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">{K.Coin}</div>
-        <p className="text-xs text-emerald-800 leading-relaxed"><strong>Every 10 likes = 5 Mobcoins.</strong> Keep pushing your posts to the next milestone.</p>
+      <div className="bg-brand-50 border border-brand-100 rounded-lg px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center flex-shrink-0">{K.Coin}</div>
+        <p className="text-xs text-brand-800 leading-relaxed"><strong>Every 5 likes = 100 Mobcoins.</strong> Each post earns at every five-like milestone.</p>
       </div>
 
       {/* Toolbar: search + sort + view toggle */}
@@ -1418,19 +1283,19 @@ function PostsTab({ posts, setPosts, username, setTab }) {
           {/* Milestone progress */}
           {(() => {
             const likes = post.likes?.length || 0;
-            const earned = Math.floor(likes / 10) * 5;
-            const into = likes % 10;
-            const away = into === 0 && likes > 0 ? 0 : 10 - into;
+            const earned = Math.floor(likes / 5) * 100;
+            const into = likes % 5;
+            const away = into === 0 && likes > 0 ? 0 : 5 - into;
             return (
               <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-gray-700">
-                    {away === 0 ? `🎉 Milestone hit: +5 coins paid` : `${away} like${away !== 1 ? 's' : ''} to +5 coins`}
+                    {away === 0 ? `🎉 Milestone hit: +100 Mobcoins earned` : `${away} like${away !== 1 ? 's' : ''} to +100 Mobcoins`}
                   </span>
-                  <span className="font-bold text-emerald-600">{earned > 0 ? `+${earned} earned` : `${into}/10`}</span>
+                  <span className="font-bold text-brand-700">{earned > 0 ? `+${earned} earned` : `${into}/5`}</span>
                 </div>
                 <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(into / 10) * 100}%` }} />
+                  <div className="h-full bg-brand-600 rounded-full transition-all" style={{ width: `${(into / 5) * 100}%` }} />
                 </div>
               </div>
             );
@@ -1515,7 +1380,7 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
   const visible = posts.filter(p => p.type === 'snap' && p.disabled_for_now !== true && p.disabled !== true);
   const likeCount = s => s.likes?.length || 0;
   const viewCount = s => (Array.isArray(s.views) ? s.views.length : 0);
-  const earnedOf = s => Math.floor(likeCount(s) / 10) * 5;
+  const earnedOf = s => Math.floor(likeCount(s) / 5) * 100;
   const snaps = [...visible].sort((a, b) => {
     if (sort === 'liked') return likeCount(b) - likeCount(a);
     if (sort === 'viewed') return viewCount(b) - viewCount(a);
@@ -1541,9 +1406,9 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
       </div>
 
       {/* Milestone explainer */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">{K.Coin}</div>
-        <p className="text-xs text-emerald-800 leading-relaxed"><strong>Every 10 likes = 5 Mobcoins</strong>. Snaps earn exactly like posts.</p>
+      <div className="bg-brand-50 border border-brand-100 rounded-lg px-4 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-lg bg-brand-100 text-brand-600 flex items-center justify-center flex-shrink-0">{K.Coin}</div>
+        <p className="text-xs text-brand-800 leading-relaxed"><strong>Every 5 likes = 100 Mobcoins</strong>. Each snap earns at every five-like milestone.</p>
       </div>
 
       {snaps.length > 0 && (
@@ -1567,8 +1432,8 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
             const likes = likeCount(snap);
             const views = viewCount(snap);
             const earned = earnedOf(snap);
-            const into = likes % 10;
-            const away = into === 0 && likes > 0 ? 0 : 10 - into;
+            const into = likes % 5;
+            const away = into === 0 && likes > 0 ? 0 : 5 - into;
             const comments = snap.comments?.length || 0;
             return (
               <div key={snap.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -1587,15 +1452,15 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
                       <span className="flex items-center gap-1"><span className="text-red-500">{K.Heart}</span>{likes}</span>
                       <span className="flex items-center gap-1"><span className="text-brand-500">{K.Chat}</span>{comments}</span>
                       <span className="flex items-center gap-1 text-gray-500">👁 {views.toLocaleString()}</span>
-                      {earned > 0 && <span className="text-emerald-600 font-bold">+{earned} 🪙</span>}
+                      {earned > 0 && <span className="text-brand-700 font-bold">+{earned} 🪙</span>}
                     </div>
                     <div>
                       <div className="flex items-center justify-between text-[10px] mb-1">
-                        <span className="font-semibold text-gray-500">{away === 0 ? '🎉 Milestone hit!' : `${away} to +5`}</span>
-                        <span className="font-bold text-emerald-600">{into}/10</span>
+                        <span className="font-semibold text-gray-500">{away === 0 ? '🎉 Milestone hit!' : `${away} to +100 Mobcoins`}</span>
+                        <span className="font-bold text-brand-700">{into}/5</span>
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(into / 10) * 100}%` }} />
+                        <div className="h-full bg-brand-600 rounded-full transition-all" style={{ width: `${(into / 5) * 100}%` }} />
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -1637,7 +1502,7 @@ function SnapsTab({ posts, setPosts, username, setTab, isOrg, accent, accentText
                 { label: 'Likes', value: (preview.likes?.length || 0).toLocaleString() },
                 { label: 'Comments', value: (preview.comments?.length || 0).toLocaleString() },
                 { label: 'Views', value: (Array.isArray(preview.views) ? preview.views.length : 0).toLocaleString() },
-                { label: 'Earned', value: `+${Math.floor((preview.likes?.length || 0) / 10) * 5}` },
+                { label: 'Earned', value: `+${Math.floor((preview.likes?.length || 0) / 5) * 100}` },
               ].map(s => (
                 <div key={s.label} className="bg-gray-50 border border-gray-100 rounded-lg py-2">
                   <p className="text-sm font-bold text-gray-900">{s.value}</p>
@@ -1735,7 +1600,7 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
       [chartRef1, chartRef2, chartRef3, chartRef4, chartRef5, chartRef6].forEach(destroyChart);
 
       const gridColor = '#f3f4f6';
-      const blue = '#4555F2', purple = '#8B5CF6', green = '#10B981', orange = '#F59E0B', red = '#EF4444';
+      const blue = '#4555F2', blueDark = '#3545D6', blueMid = '#7180F4', blueLight = '#AEB8FC', bluePale = '#D9DEFF';
       const baseOpts = {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
@@ -1761,7 +1626,7 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
       if (chartRef1.current) {
         chartRef1.current._chartInst = new ChartClass(chartRef1.current, {
           type: 'bar',
-          data: { labels: ['Likes', 'Comments', 'Poll Votes'], datasets: [{ data: [likesCount, commentsCount, votesCount], backgroundColor: [red, blue, orange], borderRadius: 6, borderSkipped: false }] },
+          data: { labels: ['Likes', 'Comments', 'Poll Votes'], datasets: [{ data: [likesCount, commentsCount, votesCount], backgroundColor: [blueDark, blue, blueLight], borderRadius: 6, borderSkipped: false }] },
           options: { ...baseOpts, scales: makeScaleOpts([likesCount, commentsCount, votesCount]) },
         });
       }
@@ -1769,28 +1634,28 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
         const cur = Math.min(avgInteractions, 5);
         chartRef2.current._chartInst = new ChartClass(chartRef2.current, {
           type: 'doughnut',
-          data: { labels: [`Your avg (${avgInteractions})`, 'Target (5)'], datasets: [{ data: [cur, Math.max(0, 5 - cur)], backgroundColor: [purple, '#e5e7eb'], borderWidth: 0, cutout: '78%' }] },
+          data: { labels: [`Your avg (${avgInteractions})`, 'Target (5)'], datasets: [{ data: [cur, Math.max(0, 5 - cur)], backgroundColor: [blue, '#e5e7eb'], borderWidth: 0, cutout: '78%' }] },
           options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'bottom', labels: { color: '#6b7280', font: { size: 11 }, padding: 12, boxWidth: 10 } } } },
         });
       }
       if (chartRef6.current && totalUniqueLikers > 0) {
         chartRef6.current._chartInst = new ChartClass(chartRef6.current, {
           type: 'doughnut',
-          data: { labels: [`Followers (${followerUniqueLikers})`, `Others (${nonFollowerUniqueLikers})`], datasets: [{ data: [followerUniqueLikers, nonFollowerUniqueLikers], backgroundColor: [blue, green], borderWidth: 0, cutout: '72%' }] },
+          data: { labels: [`Followers (${followerUniqueLikers})`, `Others (${nonFollowerUniqueLikers})`], datasets: [{ data: [followerUniqueLikers, nonFollowerUniqueLikers], backgroundColor: [blue, blueLight], borderWidth: 0, cutout: '72%' }] },
           options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'bottom', labels: { color: '#6b7280', font: { size: 11 }, padding: 12, boxWidth: 10 } } } },
         });
       }
       if (chartRef3.current && sortedMonths.length) {
         chartRef3.current._chartInst = new ChartClass(chartRef3.current, {
           type: 'line',
-          data: { labels: monthLabels, datasets: [{ label: 'Posts', data: postsTrend, borderColor: blue, backgroundColor: 'rgba(59,130,246,.05)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 }, { label: 'Likes', data: likesTrend, borderColor: red, backgroundColor: 'rgba(239,68,68,.05)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 }] },
+          data: { labels: monthLabels, datasets: [{ label: 'Posts', data: postsTrend, borderColor: blue, backgroundColor: 'rgba(59,130,246,.05)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 }, { label: 'Likes', data: likesTrend, borderColor: blueMid, backgroundColor: 'rgba(69,85,242,.06)', borderWidth: 2, tension: 0.4, fill: true, pointRadius: 3 }] },
           options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'top', labels: { color: '#6b7280', font: { size: 11 }, padding: 12, boxWidth: 10 } } }, scales: makeScaleOpts([...postsTrend, ...likesTrend]) },
         });
       }
       if (chartRef4.current && sortedMonths.length) {
         chartRef4.current._chartInst = new ChartClass(chartRef4.current, {
           type: 'bar',
-          data: { labels: monthLabels, datasets: [{ label: 'Posts', data: postsTrend, backgroundColor: blue, borderRadius: 4, borderSkipped: false }, { label: 'Comments', data: commentsTrend, backgroundColor: green, borderRadius: 4, borderSkipped: false }] },
+          data: { labels: monthLabels, datasets: [{ label: 'Posts', data: postsTrend, backgroundColor: blue, borderRadius: 4, borderSkipped: false }, { label: 'Comments', data: commentsTrend, backgroundColor: blueLight, borderRadius: 4, borderSkipped: false }] },
           options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'top', labels: { color: '#6b7280', font: { size: 11 }, padding: 12, boxWidth: 10 } } }, scales: makeScaleOpts([...postsTrend, ...commentsTrend]) },
         });
       }
@@ -1798,7 +1663,7 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
         const labels = Object.keys(contentMix);
         chartRef5.current._chartInst = new ChartClass(chartRef5.current, {
           type: 'doughnut',
-          data: { labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)), datasets: [{ data: labels.map(l => contentMix[l]), backgroundColor: [blue, green, orange, purple, red].slice(0, labels.length), borderWidth: 0, cutout: '70%' }] },
+          data: { labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)), datasets: [{ data: labels.map(l => contentMix[l]), backgroundColor: [blueDark, blue, blueMid, blueLight, bluePale].slice(0, labels.length), borderWidth: 0, cutout: '70%' }] },
           options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: true, position: 'bottom', labels: { color: '#6b7280', font: { size: 11 }, padding: 10, boxWidth: 10 } } } },
         });
       }
@@ -1827,8 +1692,8 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
     return (
       <div className="flex flex-col items-center py-16 gap-3 text-center px-6">
         <div className="w-12 h-12 rounded-lg bg-brand-50 flex items-center justify-center text-brand-500">{K.Chart}</div>
-        <p className="text-sm font-semibold text-gray-900">Analytics is for Professional accounts</p>
-        <p className="text-xs text-gray-400 max-w-xs leading-relaxed">Switch to a Professional account in Profile settings to unlock detailed analytics and charts.</p>
+        <p className="text-sm font-semibold text-gray-900">Analytics is for Organisation accounts</p>
+        <p className="text-xs text-gray-400 max-w-xs leading-relaxed">Switch to an Organisation account in Profile settings to unlock detailed analytics and charts.</p>
       </div>
     );
   }
@@ -1846,7 +1711,7 @@ function AnalyticsTab({ posts, stats, profile, isOrg, accentText }) {
           <div className="relative w-full" style={{ height: 250 }}><canvas ref={chartRef1} /></div>
           <div className="grid grid-cols-2 gap-2">
             <div className="p-3 rounded-lg bg-brand-50 text-center"><p className="text-lg font-bold text-brand-700">{likesCount}</p><p className="text-[10px] text-brand-400">Likes</p></div>
-            <div className="p-3 rounded-lg bg-emerald-50 text-center"><p className="text-lg font-bold text-emerald-700">{commentsCount}</p><p className="text-[10px] text-emerald-400">Comments</p></div>
+            <div className="p-3 rounded-lg bg-brand-50 text-center"><p className="text-lg font-bold text-brand-800">{commentsCount}</p><p className="text-[10px] text-brand-500">Comments</p></div>
           </div>
         </div>
       </Accordion>
@@ -1928,17 +1793,17 @@ function GrowTab({ stats, profile, username, isOrg, setTab, accent }) {
           <button
             key={m.label}
             onClick={() => m.done && m.tab ? setTab(m.tab) : null}
-            className={cn("w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all text-left", m.done ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-200 opacity-60")}
+            className={cn("w-full flex items-center justify-between p-4 rounded-lg border-2 transition-all text-left", m.done ? "bg-brand-50 border-brand-100" : "bg-white border-gray-200 opacity-60")}
           >
             <div className="flex items-center gap-3">
-              <div className={cn("w-11 h-11 rounded-lg flex items-center justify-center", m.done ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-300")}>{m.icon}</div>
+              <div className={cn("w-11 h-11 rounded-lg flex items-center justify-center", m.done ? "bg-brand-100 text-brand-600" : "bg-gray-100 text-gray-300")}>{m.icon}</div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">{m.label}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{m.desc}</p>
               </div>
             </div>
             {m.done && (
-              <svg viewBox="0 0 24 24" className="w-6 h-6 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+              <svg viewBox="0 0 24 24" className="w-6 h-6 text-brand-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
             )}
           </button>
         ))}
