@@ -29,6 +29,8 @@ The implementation was pushed directly to main, following the project instructio
 | 854b58794a25c7c7704fb57aad3abeb936a2c757 | Removed Individual/Organisation pills from post cards and returned post cards to the canonical blue-tick status. |
 | 33a3039c16dbedb3f14229fb110dd4527d749021 | Applied the canonical verified status to Snap surfaces and removed the ORG pill from Snap cards. |
 | 9c10ca0dc49bf6d9102df035ab7ccd12fb9fb63e | Normalized users.verified values in the shared profile cache. |
+| 28f842eb71d5ad720ce542d999c713ccd151d973 | Kept the combined Create workspace and restored WhatsApp-based Textmob Plus payment and manual activation. |
+| 1e7363f8b41cd423e615080dc908f7d0d95102b6 | Added the provider-neutral Textmob Plus membership-status endpoint. |
 
 Commit links:
 - https://github.com/ISMO123-CMYK/Textmob-web-app/commit/2b2efb46997e2bbbb7589c46c01a2cc0e623548b
@@ -44,12 +46,12 @@ The product-facing plan is called **Textmob Plus**, not a generic verification s
 Implemented rules:
 - Price: **₦1,000 for one month**.
 - Only Organisation accounts can join.
-- The checkout endpoint rejects Individual accounts.
+- Only Organisation accounts can request Textmob Plus activation through WhatsApp.
 - An account is treated as an active Plus member only when it has the verified flag and an accepted verification request whose verified-until date is still in the future.
 - An account with an expired membership must not receive active Plus-only features.
 - The server has an hourly cleanup worker that marks expired accepted verification requests as EXPIRED and clears the user's verified flag.
 - The admin verification approval flow sets a one-month verification period.
-- The checkout uses the existing DevPay integration and the Textmob Plus checkout configuration.
+- Payment is initiated through the existing WhatsApp support numbers and confirmed manually by the Textmob team. No DevPay checkout is used by the Accounts Center Plus flow.
 
 Plus features reflected in the UI and server:
 - Verified badge on the account and its content.
@@ -57,7 +59,7 @@ Plus features reflected in the UI and server:
 - AI-assisted post writing.
 - A modest feed-discovery multiplier of 1.12 for active Plus authors. This is a ranking weight, not a guaranteed reach promise.
 
-The Plus checkout is implemented at /api/devpay/checkout. Membership status is read through /api/devpay/verification-status. The AI writing endpoint is /api/plus/ai-post.
+The Accounts Center opens WhatsApp for new Plus activations and renewals. Membership status is read through /api/textmob-plus/status. The AI writing endpoint is /api/plus/ai-post.
 
 ## 3. Markdown-first post composer
 
@@ -243,7 +245,7 @@ This means the account-deletion action is no longer available through that Accou
 
 | File | Responsibility |
 | --- | --- |
-| server.js | Plus checkout and membership checks, expiry cleanup, MobUI validation, AI writing endpoint, poll endpoints, hashtag extraction, content-format handling, post reward ledger and withdrawal gates. |
+| server.js | Plus membership-status checks and expiry cleanup, MobUI validation, AI writing endpoint, poll endpoints, hashtag extraction, content-format handling, post reward ledger and withdrawal gates. |
 | client/src/pages/AccountsCenter.jsx | Plus membership screen, organisation gating, Create subtabs, earnings balance and milestone dashboard, withdrawal UI, logout-only danger area. |
 | client/src/pages/posts/MakePostContent.jsx | Markdown-first composer, basic/Plus formatting controls, MobUI and AI writer entry points, media drag-and-drop. |
 | client/src/components/ui/MobUIBuilder.jsx | MobUI component selection, field editor, source mode and live preview. |
